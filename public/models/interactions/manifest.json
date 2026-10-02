@@ -1,0 +1,32 @@
+{
+  "swing": {
+    "duration": 9,
+    "frames": 271,
+    "source": "art/interactions/swing.blend"
+  },
+  "bench": {
+    "duration": 8,
+    "frames": 241,
+    "source": "art/interactions/bench.blend"
+  },
+  "pet": {
+    "duration": 6,
+    "frames": 181,
+    "source": "art/interactions/pet.blend"
+  },
+  "arcade": {
+    "duration": 4.2,
+    "frames": 127,
+    "source": "art/interactions/arcade.blend"
+  },
+  "bell": {
+    "duration": 3.2,
+    "frames": 97,
+    "source": "art/interactions/bell.blend"
+  },
+  "dragon": {
+    "duration": 8.5,
+    "frames": 256,
+    "source": "art/interactions/dragon.blend"
+  }
+}

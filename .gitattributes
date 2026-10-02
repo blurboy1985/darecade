@@ -1,0 +1,8 @@
+* text=auto
+*.glb binary
+*.bin binary
+*.blend binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.woff2 binary

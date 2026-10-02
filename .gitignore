@@ -1,0 +1,29 @@
+node_modules/
+dist/
+.browser/
+*.log
+data/
+
+.env
+.env.*
+!.env.example
+
+# Local credentials, databases, hosting state and editor caches.
+.dev.vars*
+.wrangler/
+.sites-runtime/
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+*.pem
+*.key
+__pycache__/
+.DS_Store
+
+# Downloaded asset kit and automatic Blender backups. The exact source
+# files used by the character builder are explicitly tracked below this rule.
+art/characters/source/
+art/characters/base-characters.zip
+art/characters/source-import.blend
+*.blend[0-9]*

@@ -1,0 +1,243 @@
+import { HopRun, StarFlight } from "../src/action-games.ts";
+export const RULES_VERSION = 1;
+export const TICK_RATE = 60;
+export type Input = [number, number, number, number, number, number];
+export type Event = [number, ...Input];
+export type Replay = { version: number; ticks: number; events: Event[] };
+export class Simulation {
+  ticks = 0;
+  elapsed = 0;
+  score = 0;
+  ended = false;
+  step = 0;
+  axis = 0;
+  snake = [
+    { x: 7, y: 10 },
+    { x: 6, y: 10 },
+    { x: 5, y: 10 },
+  ];
+  direction = { x: 1, y: 0 };
+  next = { x: 1, y: 0 };
+  food = { x: 12, y: 10 };
+  seed = 314159;
+  paddle = 220;
+  ball = { x: 220, y: 395, vx: 125, vy: -230 };
+  lives = 3;
+  bricks: { x: number; y: number; alive: boolean; color: string }[] = [];
+
+  action: HopRun | StarFlight | null;
+  id: string;
+  constructor(id: string, seed = 314159) {
+    this.id = id;
+    this.seed = seed >>> 0;
+    this.action =
+      id === "hop" ? new HopRun() : id === "swarm" ? new StarFlight() : null;
+    if (this.action instanceof StarFlight) this.action.seed = this.seed;
+    if (this.action instanceof HopRun) this.action.count = this.seed % 3;
+    this.ball.vx = 110 + (this.seed % 41);
+    for (let row = 0; row < 5; row++)
+      for (let col = 0; col < 8; col++)
+        this.bricks.push({
+          x: 22 + col * 50,
+          y: 48 + row * 25,
+          alive: true,
+          color: ["#b9e976", "#a9d8b3", "#8dcbd2", "#aca0e7", "#efad96"][row],
+        });
+  }
+  advance(input: Input) {
+    if (this.ended) return;
+    const [dx, dy, turn, jump, px, py] = input;
+    this.axis = this.id === "brick" && px >= 0 ? 0 : dx;
+    if (turn >= 0) {
+      const n = [
+        { x: 0, y: -1 },
+        { x: 1, y: 0 },
+        { x: 0, y: 1 },
+        { x: -1, y: 0 },
+      ][turn];
+      if (n.x !== -this.direction.x || n.y !== -this.direction.y) this.next = n;
+    }
+    if (this.action instanceof HopRun && jump) this.action.jump();
+    // Pointer movement has the same maximum speed as keyboard movement.
+    if (this.id === "brick" && px >= 0)
+      this.paddle += Math.max(-6.5, Math.min(6.5, px - this.paddle));
+    let ax = dx,
+      ay = dy;
+    if (this.action instanceof StarFlight && px >= 0) {
+      ax = Math.max(-1, Math.min(1, (px - this.action.x) / 4.1667));
+      ay = Math.max(-1, Math.min(1, (py - this.action.y) / 4.1667));
+    }
+    const length = Math.max(1, Math.hypot(ax, ay));
+    this.ticks++;
+    this.elapsed = this.ticks / TICK_RATE;
+    if (this.id === "noodle") {
+      this.step += 1 / TICK_RATE;
+      if (this.step >= Math.max(0.095, 0.17 - this.score * 0.00015)) {
+        this.step = 0;
+        this.tickSnake();
+      }
+    } else
+      for (let i = 0; i < 4 && !this.ended; i++) {
+        if (this.action instanceof StarFlight)
+          this.action.tick(1 / 240, ax / length, ay / length);
+        else if (this.action) this.action.tick(1 / 240);
+        else this.tickBrick(1 / 240);
+        if (this.action) {
+          this.score = this.action.score;
+          if (this.action.ended) this.ended = true;
+        }
+      }
+    if (this.ticks >= 3600) this.ended = true;
+  }
+  end() {
+    this.ended = true;
+  }
+  random() {
+    this.seed = (this.seed * 1664525 + 1013904223) >>> 0;
+    return this.seed / 4294967296;
+  }
+  tickSnake() {
+    this.direction = this.next;
+    const h = {
+      x: this.snake[0].x + this.direction.x,
+      y: this.snake[0].y + this.direction.y,
+    };
+    const eat = h.x === this.food.x && h.y === this.food.y;
+    if (
+      h.x < 0 ||
+      h.x >= 20 ||
+      h.y < 0 ||
+      h.y >= 20 ||
+      this.snake
+        .slice(0, eat ? undefined : -1)
+        .some((p) => p.x === h.x && p.y === h.y)
+    ) {
+      this.end();
+      return;
+    }
+    this.snake.unshift(h);
+    if (eat) {
+      this.score += 20;
+
+      if (this.snake.length === 400) {
+        this.end();
+        return;
+      }
+      do {
+        this.food = {
+          x: Math.floor(this.random() * 20),
+          y: Math.floor(this.random() * 20),
+        };
+      } while (
+        this.snake.some((p) => p.x === this.food.x && p.y === this.food.y)
+      );
+    } else this.snake.pop();
+  }
+  tickBrick(dt: number) {
+    if (this.ended) return;
+    const axis = this.axis;
+    this.paddle = Math.max(46, Math.min(394, this.paddle + axis * 390 * dt));
+    const b = this.ball;
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+    if (b.x < 10) {
+      b.x = 10;
+      b.vx = Math.abs(b.vx);
+    }
+    if (b.x > 430) {
+      b.x = 430;
+      b.vx = -Math.abs(b.vx);
+    }
+    if (b.y < 10) {
+      b.y = 10;
+      b.vy = Math.abs(b.vy);
+    }
+    if (
+      b.y > 403 &&
+      b.y < 420 &&
+      Math.abs(b.x - this.paddle) < 49 &&
+      b.vy > 0
+    ) {
+      const fraction = (b.x - this.paddle) / 48;
+      b.vx = fraction * 245;
+      b.vy = -Math.sqrt(290 * 290 - b.vx * b.vx);
+      b.y = 403;
+    }
+    for (const r of this.bricks)
+      if (
+        r.alive &&
+        b.x > r.x - 7 &&
+        b.x < r.x + 51 &&
+        b.y > r.y - 7 &&
+        b.y < r.y + 25
+      ) {
+        r.alive = false;
+        b.vy = -b.vy;
+        this.score += 15;
+
+        if (this.bricks.every((r) => !r.alive)) {
+          this.score += 100;
+          this.end();
+        }
+        break;
+      }
+    if (b.y > 450) {
+      this.lives--;
+
+      if (!this.lives) {
+        this.end();
+        return;
+      }
+      b.x = this.paddle;
+      b.y = 390;
+      b.vx = 125;
+      b.vy = -230;
+    }
+  }
+}
+export function replayRun(game: string, seed: number, replay: Replay) {
+  if (
+    !replay ||
+    replay.version !== RULES_VERSION ||
+    !Number.isInteger(replay.ticks) ||
+    replay.ticks < 1 ||
+    replay.ticks > 3600 ||
+    !Array.isArray(replay.events) ||
+    replay.events.length > 3600
+  )
+    throw Error("Invalid replay.");
+  let previous = -1;
+  for (const e of replay.events) {
+    if (
+      !Array.isArray(e) ||
+      e.length !== 7 ||
+      !e.every(Number.isInteger) ||
+      e[0] <= previous ||
+      e[0] < 0 ||
+      e[0] >= replay.ticks ||
+      Math.abs(e[1]) > 1 ||
+      Math.abs(e[2]) > 1 ||
+      e[3] < -1 ||
+      e[3] > 3 ||
+      e[4] < 0 ||
+      e[4] > 1 ||
+      e[5] < -1 ||
+      e[5] > 440 ||
+      e[6] < -1 ||
+      e[6] > 440
+    )
+      throw Error("Invalid replay inputs.");
+    previous = e[0];
+  }
+  const sim = new Simulation(game, seed);
+  let input: Input = [0, 0, -1, 0, -1, -1],
+    cursor = 0;
+  for (let tick = 0; tick < replay.ticks; tick++) {
+    if (sim.ended) throw Error("Replay continues after game over.");
+    if (replay.events[cursor]?.[0] === tick)
+      input = replay.events[cursor++].slice(1) as Input;
+    sim.advance(input);
+  }
+  if (!sim.ended) throw Error("Finish the round before submitting.");
+  return { score: sim.score, ticks: sim.ticks };
+}

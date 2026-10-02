@@ -1,0 +1,90 @@
+.account-dialog {
+  border: 0;
+  border-radius: 24px;
+  padding: 36px;
+  width: min(590px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  color: #243648;
+  background: #faf8ef;
+  box-sizing: border-box;
+  box-shadow: 0 16px 70px #17263840;
+}
+.account-dialog::backdrop {
+  background: #17263877;
+  backdrop-filter: blur(8px);
+}
+.account-dialog h2 {
+  font-size: 32px;
+  line-height: 1.15;
+  margin: 12px 0 20px;
+}
+.account-dialog p {
+  font-size: 15px;
+  line-height: 1.6;
+}
+.account-dialog label {
+  display: block;
+  font-size: 14px;
+  margin: 16px 0;
+}
+.account-dialog input:not([type="checkbox"]),
+.account-dialog select {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px;
+  border: 1px solid #b9c2a8;
+  border-radius: 10px;
+  margin-top: 8px;
+  background: #fff;
+  color: #243648;
+  font: inherit;
+  box-sizing: border-box;
+}
+.account-dialog .primary,
+.account-dialog .secondary {
+  min-height: 48px;
+  margin-top: 10px;
+  white-space: normal;
+}
+.age-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.account-dialog .consent-choice {
+  display: flex;
+  align-items: start;
+  gap: 12px;
+  line-height: 1.5;
+}
+.consent-choice input {
+  min-width: 22px;
+  height: 22px;
+  accent-color: #48623a;
+}
+.account-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.account-dialog [role="status"] {
+  color: #7e3e36;
+}
+.account-dialog .close-button {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+}
+@media (max-width: 480px) {
+  .account-dialog {
+    padding: 28px 22px;
+  }
+  .account-dialog h2 {
+    font-size: 28px;
+  }
+  .account-actions {
+    grid-template-columns: 1fr;
+  }
+}
