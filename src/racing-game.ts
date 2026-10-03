@@ -14,10 +14,15 @@ import {
 } from "../shared/racing";
 import { loadCharacter, type Look } from "./character";
 import type { Sfx } from "./audio";
+import type { FxEvent } from "./arcade-fx";
 import type { RaceView } from "./race-view";
 import "./racing.css";
 
 export class RacingGame {
+  onFx: ((event: FxEvent, amount: number) => void) | null = null;
+  onTime: ((secondsLeft: number) => void) | null = null;
+  onPause: ((paused: boolean) => void) | null = null;
+  private lastPop = 0;
   private readonly sim: Simulation;
   private view: RaceView | null = null;
   private readonly events: Replay["events"] = [];
@@ -74,7 +79,8 @@ export class RacingGame {
       <div class="race-head"><span>PALM BAY <b>02 LAPS</b></span><span>${targetLabel} <b>${raceTime(this.targetTicks)}</b></span></div>
       <div class="race-screen">
         <div class="race-view"></div>
-        <div class="race-hud"><span>TIME <b id="race-time">0:00.00</b></span><span>LAP <b id="race-lap">1 / 2</b></span></div>
+        <div class="race-hud"><span class="stat-pill score-pill"><small>TIME</small><b id="run-score">0:00.00</b></span><span id="run-state">LAP <b id="race-lap">1 / 2</b></span><span class="stat-pill time-pill"><small>LEFT</small><b id="run-time">120</b></span></div>
+        <div class="game-pops" aria-hidden="true"></div>
         <canvas class="race-map" width="180" height="130" aria-label="Circuit map. Your kart is coral and the pace ghost is gold."></canvas>
         <div class="race-speed"><b id="race-speed">0</b><span>KM/H</span></div>
         <div class="race-notice" role="status" aria-live="polite">Loading your driver…</div>
@@ -88,7 +94,7 @@ export class RacingGame {
     this.cover = container.querySelector(".race-cover")!;
     this.map = container.querySelector(".race-map")!;
     this.stats = container.querySelector(".coast-game")!;
-    this.timer = container.querySelector("#race-time")!;
+    this.timer = container.querySelector("#run-score")!;
     this.lap = container.querySelector("#race-lap")!;
     this.speed = container.querySelector("#race-speed")!;
     this.notice = container.querySelector(".race-notice")!;
@@ -230,6 +236,8 @@ export class RacingGame {
       : "Pause";
     this.notice.textContent = this.paused ? "Paused · tap Resume" : "";
     this.stats.dataset.paused = String(this.paused);
+    this.container.classList.toggle("is-paused", this.paused);
+    this.onPause?.(this.paused);
   }
   private controls(): Input {
     const touch = new Set(this.pointers.values());
@@ -266,6 +274,15 @@ export class RacingGame {
         this.status = "racing";
         this.sound("start");
         this.notice.textContent = "GO!";
+        this.onFx?.("start", 0);
+        this.host.insertAdjacentHTML(
+          "afterend",
+          '<div class="go-splash" aria-hidden="true">GO!</div>',
+        );
+        setTimeout(
+          () => this.container.querySelector(".go-splash")?.remove(),
+          1100,
+        );
       }
     } else if (!this.paused && this.status === "racing") {
       this.accumulator += dt;
@@ -281,10 +298,7 @@ export class RacingGame {
           laps: race.lapTicks.length,
         };
         this.sim.advance(input);
-        // Audio observes the completed tick and never changes the simulation.
-        if (race.boosts > before.boosts) this.sound("powerup");
-        if (race.bumps > before.bumps) this.sound("hurt");
-        if (race.lapTicks.length > before.laps) this.sound("pass");
+        this.cue(before, now);
         this.accumulator -= 1 / 60;
       }
       if (this.sim.ended) {
@@ -317,6 +331,13 @@ export class RacingGame {
     this.stats.dataset.offset = race.offset.toFixed(2);
     this.stats.dataset.ticks = String(race.ticks);
     this.timer.textContent = raceTime(race.ticks);
+    const left = Math.max(0, Math.ceil((RACE_TICKS - race.ticks) / 60));
+    const time = this.container.querySelector("#run-time")!;
+    if (time.textContent !== String(left)) {
+      time.textContent = String(left);
+      time.parentElement!.classList.toggle("hurry", left <= 10);
+      this.onTime?.(left);
+    }
     this.lap.textContent = `${race.lap} / 2`;
     this.speed.textContent = String(Math.round(race.speed * 3.6));
     this.meter.value = race.charge;
@@ -329,6 +350,37 @@ export class RacingGame {
     this.view?.draw(race, now / 1000, input[0], this.status === "ready", dt);
     this.drawMap();
   };
+  /** Sound and visual events only observe completed simulation ticks. */
+  private cue(
+    before: { boosts: number; bumps: number; laps: number },
+    now: number,
+  ) {
+    const race = this.sim.race!;
+    if (race.boosts > before.boosts) {
+      this.sound("powerup");
+      this.onFx?.("power", 0);
+    }
+    if (race.bumps > before.bumps) {
+      this.sound("hurt");
+      this.onFx?.("hurt", 0);
+    }
+    if (race.lapTicks.length > before.laps) {
+      this.sound("pass");
+      this.popScore(now);
+      if (race.score > 0) this.onFx?.("big", race.score);
+    }
+  }
+  private popScore(now: number) {
+    if (now - this.lastPop < 400) return;
+    this.lastPop = now;
+    this.onFx?.("score", 1);
+    const pop = document.createElement("span");
+    pop.className = "pop big";
+    pop.textContent = "LAP COMPLETE!";
+    pop.style.left = "50%";
+    this.container.querySelector(".game-pops")!.append(pop);
+    setTimeout(() => pop.remove(), 900);
+  }
   private drawMap() {
     const ctx = this.map.getContext("2d")!;
     const race = this.sim.race!;

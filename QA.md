@@ -1,5 +1,14 @@
 # Darecade verification — 3 October 2026
 
+## Arcade UI refresh merge, 3 October 2026
+
+- Merged `claude/arcade-ui-refresh` over Coast Rush. Only `src/main.ts` conflicted: retained the shorter copy and effects lifecycle alongside the five-game catalogue, race construction, time formatting, race results and 15-point daily maximum. The shared simulation, race physics, character model and server scoring were unchanged.
+- Added an explicit Coast Rush backdrop palette, matching CSS theme and cosmetic start/score/lap/boost/bump/time/pause hooks. Racing still ranks completed two-lap times, with no points for visual effects. The theme is imported after the racing styles.
+- 56 automated tests, TypeScript/Vite production build and both Cloudflare integration tests passed. Vite still reports the existing large-main-bundle warning.
+- Played all five games in isolated local Chromium against the local server: Noodle Run 20, Brick Bash 465, Hop Hop 40, Star Swarm 320, Coast Rush 0:43.85. Every result was server-verified. Checked the backdrop, GO splash, changing score/time pills, score pops, pause/resume, large result cards and Brick Bash's final-ten-second warning.
+- At 390×844, game screens and results had no horizontal overflow. Mid-round closing removed the backdrop for all five games; the same close checks also passed at 320×740. Added responsive sizing for the longer Coast Rush result time.
+- Settings → Reduce motion removed the decorative WebGL backdrop and hid animated pops in all five games while gameplay continued. No application console errors were observed. These are browser viewport checks, not new physical-iPhone testing.
+
 ## Coast Rush, 3 October 2026
 
 See [Coast Rush](COAST-RUSH.md) for controls, competition rules and the reference/source distinction.
