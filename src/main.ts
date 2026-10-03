@@ -69,7 +69,7 @@ let wardrobeTab = "style";
 let boardTab = "week";
 let boardGame: GameId = "noodle";
 let disposeCelebration: (() => void) | null = null;
-let disposePreview: (() => void) | null = null;
+let characterPreview: ReturnType<typeof createCharacterPreview> | null = null;
 let shared: SharedState | null = null;
 let profileReady = false;
 window.addEventListener("session-expired", () => {
@@ -291,11 +291,13 @@ function abandonRound() {
   if (activeRun) void api("abandon", { id: activeRun.id }).catch(() => {});
   activeRun = null;
 }
-function openShell(kicker: string) {
+function openShell(kicker: string, keepPreview = false) {
   disposeCelebration?.();
   disposeCelebration = null;
-  disposePreview?.();
-  disposePreview = null;
+  if (!keepPreview) {
+    characterPreview?.dispose();
+    characterPreview = null;
+  }
   abandonRound();
   socialPanel = "";
   world?.cancelInteraction();
@@ -316,8 +318,8 @@ function openShell(kicker: string) {
 function close() {
   disposeCelebration?.();
   disposeCelebration = null;
-  disposePreview?.();
-  disposePreview = null;
+  characterPreview?.dispose();
+  characterPreview = null;
   abandonRound();
   socialPanel = "";
   game?.dispose();
@@ -397,6 +399,7 @@ function open(id: string) {
         : id === "wardrobe"
           ? "A LITTLE SELF-EXPRESSION"
           : "YOUR NEIGHBOURHOOD",
+    id === "wardrobe" && !is2d,
   );
   if (id === "phone-menu") {
     body.innerHTML = `<h2>Your neighbourhood.</h2><p class="lead">Everything else, when you need it.</p><div class="phone-menu-grid">${[
@@ -450,12 +453,13 @@ function open(id: string) {
     const preview = body.querySelector<HTMLElement>(".character-preview")!;
     if (!is2d) {
       try {
-        disposePreview = createCharacterPreview(preview, save);
+        if (characterPreview) characterPreview.mount(preview, save);
+        else characterPreview = createCharacterPreview(preview, save);
       } catch {
         preview.textContent = "Your look will appear in the neighbourhood.";
       }
     } else
-      preview.innerHTML = `<span class="look-2d" style="background:${outfits[save.outfit]}">${icon("shirt")}</span><p>3D preview is available in 3D mode.</p>`;
+      preview.innerHTML = `<span class="look-2d" style="background:${outfits[save.outfit]}">${icon("shirt")}</span><p>You can still change your look here.</p>${actionButton("2d", "Return to 3D", "secondary")}`;
     body.querySelector<HTMLFormElement>("#nickname-form")!.onsubmit = async (
       e,
     ) => {
@@ -968,9 +972,11 @@ document.addEventListener("click", (e) => {
       if (is2d) {
         save.twoD = false;
         persist();
-        location.reload();
+        void profileQueue.then(() => location.reload());
         return;
       }
+      save.twoD = true;
+      persist();
       enable2D();
       close();
       return;
@@ -1226,10 +1232,13 @@ window.addEventListener("pageshow", (e) => {
 });
 function enable2D() {
   is2d = true;
-  save.twoD = true;
-  persist();
-  world?.dispose();
+  // A lost graphics context is temporary, not a saved request for 2D mode.
+  characterPreview?.dispose();
+  characterPreview = null;
+  const previousWorld = world;
   world = null;
+  previousWorld?.dispose();
+  if (modal.open) close();
   document.body.classList.add("mode-2d");
   const el = document.querySelector<HTMLDivElement>("#fallback")!;
   el.hidden = false;

@@ -84,6 +84,12 @@ const headwear = ["Mage_Hat", "Knight_Helmet", "Barbarian_Hat"];
 // first swatch is skin in all four; the first two swatches of the second row
 // carry each outfit's main colour (tunic, robe, plume/cape, hood, wizard hat).
 const tintCache = new Map<string, T.Texture>();
+function releaseTint(texture: T.Texture | null) {
+  if (!texture?.userData.tintKey) return;
+  if (--texture.userData.users > 0) return;
+  tintCache.delete(texture.userData.tintKey);
+  texture.dispose();
+}
 function tintedTexture(src: T.Texture, skin: string, outfit: string) {
   const key = `${src.uuid}|${skin}|${outfit}`;
   const hit = tintCache.get(key);
@@ -94,12 +100,14 @@ function tintedTexture(src: T.Texture, skin: string, outfit: string) {
   };
   if (typeof document === "undefined" || !img?.width) return src;
   const canvas = document.createElement("canvas");
-  canvas.width = img.width;
-  canvas.height = img.height;
+  // These are gradient swatches, not detailed artwork. A compact atlas avoids
+  // allocating a full-resolution image for every neighbour and colour choice.
+  canvas.width = Math.min(256, img.width);
+  canvas.height = Math.min(256, img.height);
   const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
-  ctx.drawImage(img, 0, 0);
-  const cw = img.width / 8,
-    ch = img.height / 4;
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  const cw = canvas.width / 8,
+    ch = canvas.height / 4;
   const paint = (col: number, row: number, hex: string, shade = 1) => {
     const target = new T.Color(hex).convertLinearToSRGB();
     const want = [target.r, target.g, target.b].map((v) => v * 255 * shade);
@@ -127,6 +135,8 @@ function tintedTexture(src: T.Texture, skin: string, outfit: string) {
   tex.minFilter = src.minFilter;
   tex.wrapS = src.wrapS;
   tex.wrapT = src.wrapT;
+  tex.userData.tintKey = key;
+  tex.userData.users = 0;
   tintCache.set(key, tex);
   return tex;
 }
@@ -196,6 +206,10 @@ export function createAvatar(
       if (!m) {
         m = original.clone();
         m.userData.source = original.map;
+        m.addEventListener("dispose", () => {
+          releaseTint(m!.map);
+          m!.map = null;
+        });
         materials.set(original.name, m);
       }
       o.material = m;
@@ -261,8 +275,13 @@ export function applyLook(
   a.look = { clothing: 0, hair: 0, pet: 0, accessory: 0, ...look };
   for (const m of a.materials.values())
     if (m.userData.source) {
-      m.map = tintedTexture(m.userData.source, skin, color);
-      m.needsUpdate = true;
+      const next = tintedTexture(m.userData.source, skin, color);
+      if (m.map !== next) {
+        if (next.userData.tintKey) next.userData.users++;
+        releaseTint(m.map);
+        m.map = next;
+        m.needsUpdate = true;
+      }
     }
   const [outfit, cape] = bodySets[a.look.clothing! % clothingNames.length];
   const head = headSets[a.look.hair! % headSets.length];
@@ -931,14 +950,29 @@ export function createCharacterPreview(
       start = e.clientX;
     }
   };
-  return () => {
-    cancelAnimationFrame(frame);
-    observer.disconnect();
-    a.materials.forEach((m) => m.dispose());
-    renderer.dispose();
-    // Each wardrobe change replaces this preview. Release its WebGL context so
-    // repeated choices cannot evict the main world's context on mobile Safari.
-    renderer.forceContextLoss();
-    renderer.domElement.remove();
+  return {
+    mount(nextHost: HTMLElement, nextLook: Look & { reduced?: boolean }) {
+      observer.unobserve(host);
+      host = nextHost;
+      look = nextLook;
+      host.append(renderer.domElement);
+      applyLook(a, look);
+      camera.position.x = look.pet ? 0.3 : 0;
+      observer.observe(host);
+    },
+    dispose() {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      a.materials.forEach((m) => m.dispose());
+      const skeletons = new Set<T.Skeleton>();
+      a.model.traverse((o) => {
+        if (o instanceof T.SkinnedMesh) skeletons.add(o.skeleton);
+      });
+      skeletons.forEach((s) => s.dispose());
+      renderer.dispose();
+      // Release only when leaving the wardrobe, not on every choice.
+      renderer.forceContextLoss();
+      renderer.domElement.remove();
+    },
   };
 }
