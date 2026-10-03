@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "darecade",
+  "account_id": "2b1f3493e8bbdea98825e1c13bf04a66",
   "main": "cloudflare/worker.mjs",
   "compatibility_date": "2026-10-03",
   "compatibility_flags": ["nodejs_compat"],
@@ -19,7 +20,7 @@
   "observability": { "enabled": false },
   "vars": {
     "LAUNCH_READY": "false",
-    "PUBLIC_ORIGIN": "",
+    "PUBLIC_ORIGIN": "https://darecade.daniel-tianwen.workers.dev",
     "MAIL_FROM": "",
     "PRIVACY_CONTACT": "",
     "STORAGE_NOTICE": "Darecade stores your account and game data with Cloudflare. Southeast Asia placement is requested, but storage is not guaranteed to remain in Singapore. Sign-in email is delivered through Resend. Deleted data may remain in Cloudflare recovery history for up to 30 days.",

@@ -1,6 +1,6 @@
 # Cloudflare hosting
 
-Prepared 3 October 2026. **Not deployed yet.** Cloudflare authorization expired; the final address, sending identity, privacy contact and budget have not been supplied.
+Prepared 3 October 2026. **Not deployed yet.** The signed-in Cloudflare dashboard confirms the account uses Workers Free and has the `daniel-tianwen.workers.dev` subdomain. Configuration now targets `https://darecade.daniel-tianwen.workers.dev`. Deployment-tool authorization, the verified sending identity and the monitored privacy contact remain pending. No paid upgrade has been made.
 
 ## What runs where
 
