@@ -202,15 +202,19 @@ test("forged, premature and wrong-owner results never award XP; retries are idem
     s.tick(61000);
     const result = s.community.finish(a.me.id, data);
     assert.equal(result.verified, true);
-    assert.equal(result.ranked, false);
+    assert.equal(result.ranked, true, "new accounts are ranked without a wait");
     assert.equal(result.profile.progress.xp, 55);
     const retry = s.community.finish(a.me.id, data);
     assert.equal(retry.profile.progress.xp, 55);
+    assert.equal(retry.ranked, true);
     assert.throws(
       () => s.community.finish(a.me.id, { ...data, score: 0 }),
       /different result/,
     );
-    assert.equal(s.community.state(a.me.id).boards.noodle.length, 0);
+    const board = s.community.state(a.me.id).boards.noodle;
+    assert.equal(board.length, 1, "the finished round saves to the rankings");
+    assert.equal(board[0].id, a.me.id);
+    assert.equal(board[0].score, game.score);
     const publicState = s.community.state(b.me.id);
     assert.ok(!JSON.stringify(publicState.players).includes("@"));
     assert.ok(!JSON.stringify(publicState.players).includes("ageBand"));

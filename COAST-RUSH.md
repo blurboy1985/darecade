@@ -22,7 +22,7 @@ Any completed game round, including a zero-score finish, still unlocks the lilac
 
 ## Competition and preservation
 
-Verified players compete by fastest completed three-lap time. Street-ladder place and shells never add medal points. Account verification and the existing 24-hour ranked eligibility wait remain. Gold/silver/bronze award 3/2/1 at midnight Singapore time, ties share ranks, and five cabinets allow up to 15 points per day. Missing a day never subtracts points. The existing shared-dare rules remain unchanged.
+Verified players compete by fastest completed three-lap time. Street-ladder place and shells never add medal points. Account verification remains; every verified round is ranked immediately, with no practice mode or waiting period. Gold/silver/bronze award 3/2/1 at midnight Singapore time, ties share ranks, and five cabinets allow up to 15 points per day. Missing a day never subtracts points. The existing shared-dare rules remain unchanged.
 
 Coast Rush now uses replay rules version 2. The other four games stay on version 1 with unchanged simulation behaviour. Completed race scores remain the exact integer `7201 - finishTicks`; zero is DNF. The server replays inputs to derive time, place, lap and pickup results. It stores personal bests and the run's result transactionally so retries neither duplicate rewards nor lose the original New best flag. Graphics and sound only observe simulation state.
 

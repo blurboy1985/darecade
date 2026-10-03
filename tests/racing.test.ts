@@ -401,6 +401,7 @@ test("new bests and race records come from replay, retry safely, and never put r
       return result;
     };
     const first = submit("clean");
+    assert.equal(first.ranked, false);
     assert.equal(first.race.newBest, true);
     assert.equal(first.welcome, true);
     const same = submit("clean");
