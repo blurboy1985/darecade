@@ -10,7 +10,7 @@ Pre-opening checks confirmed HTTPS HTML and the 3,296,036-byte character model r
 
 Merged `claude/fix-login-email` without conflicts in `9292e35` and deployed Worker version `323a512c-9c50-471b-abe8-2fabbc4a1a73`. All 57 Node tests, three Cloudflare integration tests and the production build passed. The deployed health endpoint returns `ready: true`. Resend secrets, Wrangler variables, rate limits and `PRIVACY_VERSION` are unchanged.
 
-The explicitly authorized live guidance request was sent once to the operator's Gmail. Gmail received it in Inbox within seconds at 21:31 SGT. Its body contains account-creation guidance and no `#login=` token. Account verification and the final recovery test are pending access to the operator's original guest browser; the reopened in-app browser was signed out. No replacement avatar was created.
+Exactly three live emails were approved and confirmed in the operator's Gmail Inbox: guidance at 21:31 SGT, account verification at 21:34 SGT and a fresh sign-in link at 21:35 SGT. The guidance arrived within seconds and contains no `#login=` token. The operator completed account creation in their own browser and confirmed successful sign-in using the latest email. Later attempts to reuse the links returned the expected invalid/expired message; no fourth email was sent. Separate local browser checks verified that recovery restores the same player ID and avatar. No replacement production avatar was created by the agent.
 
 ## What runs where
 
