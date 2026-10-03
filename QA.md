@@ -7,6 +7,7 @@
 - **74/74 Node tests and 6/6 Cloudflare tests passed**, including the build and deployment dry-run. Cloudflare coverage now opens a world socket, verifies an email, rejects the old session and reconnects with the new session. Shared simulation, racing physics and rules versions are unchanged.
 - Combined Node benchmark, 1,000 players / 20,000 runs: cached p95 **0.79 ms**, maximum **1.00 ms**; full rebuilds **33.46–40.57 ms**. The five-minute, 150-player PR C load measurements remain in HOSTING.md; that load was not run against production.
 - Local Chromium at 390×844 with the actual bundled Worker/World classes and an intercepted email provider: age/consent → Play now → Coast Rush → time-limit finish sequence → server-accepted result → name and outfit → code. The unsaved nickname survived an outfit change; a wrong code showed its error, the correct code saved the character and opened a replacement world WebSocket. No email left the fixture and no browser page errors occurred.
+- At 320px the Worlds pill inherited the mobile top bar's `pointer-events: none`; explicitly restored pointer events on the button so a tap opens the picker instead of reaching the scene.
 - Remaining checks: physical iPhone rendering/touch/haptics, human listening to the new audio, and real inbox delivery of the new code format.
 
 ## First-race character setup and email codes, 4 October 2026
