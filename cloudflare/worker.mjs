@@ -117,8 +117,8 @@ export class Neighbourhood extends DurableObject {
     const client = createHash("sha256")
       .update(this.salt + ip)
       .digest("hex");
-    const rate = (scope, max, windowMs) => {
-      const key = client + ":" + scope,
+    const rate = (scope, max, windowMs, player) => {
+      const key = (player ? "player:" + player : "ip:" + client) + ":" + scope,
         now = Date.now();
       const count = this.db.transaction(() => {
         this.db

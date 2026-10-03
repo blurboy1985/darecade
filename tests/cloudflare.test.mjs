@@ -227,6 +227,20 @@ test(
       assert.equal(state.data.boards.coast.length, 1);
       assert.equal(state.data.boards.coast[0].id, id);
       assert.equal(state.data.players[0].name, "Cloud Mochi");
+      const presence = await api(
+        "presence",
+        {
+          connection: "cloud-test",
+          x: 3,
+          z: 4,
+          look: { hat: 3 },
+        },
+        cookie,
+      );
+      assert.equal(presence.status, 200);
+      assert.deepEqual(Object.keys(presence.data), ["players"]);
+      assert.equal(presence.data.players[0].x, 3);
+      assert.equal(presence.data.players[0].look.hat, 0);
       const publicPlayers = JSON.stringify(state.data.players);
       assert.ok(!publicPlayers.includes("example.test"));
       const feedback = await api(
@@ -266,6 +280,59 @@ test(
         0,
       );
       assert.equal((await sql.exec("SELECT count(*) n FROM profiles"))[0].n, 0);
+    } finally {
+      await mf.dispose();
+    }
+  },
+);
+
+test(
+  "shared Wi-Fi uses player budgets, a coarse IP cap, and persistent limits",
+  { timeout: 60000 },
+  async () => {
+    const { mf, api } = runtime();
+    try {
+      const cookies = [];
+      for (let i = 0; i < 11; i++) {
+        const joined = await api("auth/join", {
+          month: 1,
+          year: 2000,
+          consent: true,
+          privacyVersion: PRIVACY_VERSION,
+        });
+        assert.equal(joined.status, 200);
+        cookies.push(joined.cookie);
+      }
+      // 440 authenticated calls from one IP exceed the old shared 360/min cap.
+      for (let n = 0; n < 40; n++)
+        for (const cookie of cookies)
+          assert.equal(
+            (await api("presence", { connection: "wifi" }, cookie)).status,
+            200,
+          );
+      for (let n = 40; n < 360; n++)
+        assert.equal((await api("auth/me", undefined, cookies[0])).status, 200);
+      assert.equal((await api("auth/me", undefined, cookies[0])).status, 429);
+      assert.equal((await api("auth/me", undefined, cookies[1])).status, 200);
+      await mf.unsafeEvictDurableObject("darecade-test", "Neighbourhood", {
+        name: "darecade-main-v1",
+      });
+      assert.equal((await api("auth/me", undefined, cookies[0])).status, 429);
+      // All preceding requests count against the IP backstop, including 429s.
+      let requests = 11 + 440 + 320 + 1 + 1 + 1;
+      while (requests < 3000) {
+        const cookie = cookies[1 + (requests % 10)];
+        assert.equal((await api("auth/me", undefined, cookie)).status, 200);
+        requests++;
+      }
+      assert.equal(
+        (
+          await api("auth/me", undefined, cookies[2], {
+            "x-darecade-client-ip": "spoofed-ip",
+          })
+        ).status,
+        429,
+      );
     } finally {
       await mf.dispose();
     }
