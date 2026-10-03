@@ -1,5 +1,12 @@
 # Darecade verification — 3 October 2026
 
+## Coast Rush steering and wheel fix, 3 October 2026
+
+- Corrected keyboard and on-screen left/right input to match the chase camera. The simulation and replay rules are unchanged; only input mapping and the incorrect track-coordinate comment changed.
+- Tyres now roll around a separate axle pivot. Only the front wheels steer; the rear pair remain aligned. Rolling follows distance, so it stops with the kart. Rivals use the same wheel setup, and drift body yaw follows the steering direction.
+- **65/65 Node tests passed**, including camera-projection checks around the full track and wheel-axis checks across roll phases, steering angles and stationary frames. TypeScript/Vite build passed with the existing bundle-size warning.
+- In an isolated local browser, checked A/D and held pointer left/right buttons at 390px, pause and the rendered wheel alignment. No horizontal overflow. Finished a three-lap race in **59.67s, 2nd/8, 17 shells**, including the manual steering checks; the server accepted the replay. Browser automation needed reconnection during the race; the game completed successfully. This was a desktop browser test, not a physical phone test.
+
 ## Coast Rush street race branch, 3 October 2026
 
 - Work is isolated on `codex/coast-rush-grand-prix`. Production has not been deployed from this branch. Player data, the KayKit model, appearance indices, privacy version and mail configuration are unchanged.

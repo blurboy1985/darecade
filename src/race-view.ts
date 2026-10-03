@@ -1,4 +1,5 @@
 import * as T from "three";
+import { KartWheel, KART_WHEEL_RADIUS } from "./kart-motion";
 import {
   animateDetails,
   createAvatar,
@@ -29,10 +30,13 @@ export class RaceView {
   private readonly geometries = new Set<T.BufferGeometry>();
   private readonly materials = new Map<string, T.MeshStandardMaterial>();
   private readonly textures: T.Texture[] = [];
-  private readonly wheels: T.Group[] = [];
-  private readonly frontWheels: T.Group[] = [];
+  private readonly wheels: KartWheel[];
   private readonly wheel = new T.Group();
-  private readonly rivals: { kart: T.Group; avatar: Avatar }[] = [];
+  private readonly rivals: {
+    kart: T.Group;
+    avatar: Avatar;
+    wheels: KartWheel[];
+  }[] = [];
   private readonly trackItems: {
     group: T.Group;
     kind: string;
@@ -100,7 +104,7 @@ export class RaceView {
       },
     );
     this.scene.add(this.kart);
-    this.buildKart(this.kart, outfits[look.outfit], false);
+    this.wheels = this.buildKart(this.kart, outfits[look.outfit]);
     this.avatar = createAvatar(
       this.kart,
       0,
@@ -192,7 +196,7 @@ export class RaceView {
     RIVALS.forEach((r, i) => {
       const kart = new T.Group();
       this.scene.add(kart);
-      this.buildKart(kart, r.color, true);
+      const wheels = this.buildKart(kart, r.color);
       const look = {
         ...this.look,
         outfit: i % 6,
@@ -243,7 +247,7 @@ export class RaceView {
         "#163c4c",
         Math.PI,
       );
-      this.rivals.push({ kart, avatar });
+      this.rivals.push({ kart, avatar, wheels });
     });
     this.observer = new ResizeObserver(() => {
       const width = host.clientWidth,
@@ -673,7 +677,8 @@ export class RaceView {
       },
     );
   }
-  private buildKart(parent: T.Group, color: string, rival: boolean) {
+  private buildKart(parent: T.Group, color: string): KartWheel[] {
+    const wheels: KartWheel[] = [];
     this.box(parent, 0, 0.38, 0.05, 1.3, 0.38, 1.85, color);
     this.box(parent, 0, 0.42, 0.88, 1.5, 0.24, 0.45, color);
     this.box(parent, 0, 0.32, 1.2, 1.75, 0.15, 0.16, "#273c4a");
@@ -681,22 +686,28 @@ export class RaceView {
     this.box(parent, 0, 0.64, -0.6, 0.8, 0.73, 0.18, "#29424c");
     this.box(parent, 0, 0.49, -0.25, 0.8, 0.12, 0.67, "#29424c");
     this.box(parent, 0, 0.69, 0.93, 0.38, 0.07, 0.65, "#fff7d8");
-    const tireGeo = this.geo(new T.CylinderGeometry(0.31, 0.31, 0.28, 14));
+    const tireGeo = this.geo(
+      new T.CylinderGeometry(KART_WHEEL_RADIUS, KART_WHEEL_RADIUS, 0.28, 14),
+    );
     const rimGeo = this.geo(new T.CylinderGeometry(0.17, 0.17, 0.29, 8));
     for (const x of [-0.79, 0.79])
       for (const z of [-0.64, 0.73]) {
-        const w = new T.Group();
-        w.position.set(x, 0.29, z);
-        parent.add(w);
-        const tire = this.mesh(w, tireGeo, this.mat("#1d303c"), 0, 0, 0);
+        const w = new KartWheel(x, z);
+        parent.add(w.steering);
+        const tire = this.mesh(
+          w.rolling,
+          tireGeo,
+          this.mat("#1d303c"),
+          0,
+          0,
+          0,
+        );
         tire.rotation.z = Math.PI / 2;
-        const rim = this.mesh(w, rimGeo, this.mat("#dbe4da"), 0, 0, 0);
+        const rim = this.mesh(w.rolling, rimGeo, this.mat("#dbe4da"), 0, 0, 0);
         rim.rotation.z = Math.PI / 2;
-        if (!rival) {
-          this.wheels.push(w);
-          if (z > 0) this.frontWheels.push(w);
-        }
+        wheels.push(w);
       }
+    return wheels;
   }
 
   draw(
@@ -711,14 +722,11 @@ export class RaceView {
     this.kart.position.set(p.x, 0.15, p.z);
     this.kart.rotation.set(
       0,
-      p.yaw + (race.drifting ? steer * -0.22 : race.lateralSpeed * 0.018),
+      p.yaw + (race.drifting ? steer * 0.22 : race.lateralSpeed * 0.018),
       this.reduced ? 0 : -steer * 0.035,
     );
     this.wheel.rotation.z = -steer * 0.4;
-    this.frontWheels.forEach((w) => (w.rotation.y = steer * 0.24));
-    this.wheels.forEach((w) =>
-      w.children.forEach((c) => (c.rotation.y = race.distance * 3)),
-    );
+    this.wheels.forEach((w) => w.pose(race.distance, steer));
     animateDetails(this.avatar, time, "drive", this.reduced);
     if (this.avatar.pet) {
       this.avatar.pet.root.position.set(1.12, 0.5, -0.18);
@@ -729,10 +737,11 @@ export class RaceView {
     this.flame.scale.y = this.reduced ? 1 : 0.9 + Math.sin(time * 32) * 0.18;
     this.shield.visible = race.shield > 0;
     race.rivals.forEach((r, i) => {
-      const { kart, avatar } = this.rivals[i];
+      const { kart, avatar, wheels } = this.rivals[i];
       const at = trackPoint(r.distance, r.offset);
       kart.position.set(at.x, 0.15, at.z);
       kart.rotation.y = at.yaw;
+      wheels.forEach((w) => w.pose(r.distance, 0));
       animateDetails(avatar, this.reduced ? 0 : time, "drive", this.reduced);
     });
     this.trackItems.forEach(({ group, kind, index }) => {

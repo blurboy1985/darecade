@@ -22,7 +22,7 @@ for (let i = 1; i < nodes.length; i++)
 export const TRACK_LENGTH = nodes[SAMPLES].distance;
 export const RACE_DISTANCE = TRACK_LENGTH * RACE_LAPS;
 
-/** Arc-length lookup is shared by physics, map and scenery. Positive offset is right. */
+/** Arc-length lookup is shared by physics, map and scenery. Positive offset is driver-left. */
 export function trackPoint(distance: number, offset = 0) {
   const d = ((distance % TRACK_LENGTH) + TRACK_LENGTH) % TRACK_LENGTH;
   let low = 0,

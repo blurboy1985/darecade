@@ -18,6 +18,7 @@ import { loadCharacter, type Look } from "./character";
 import type { Sfx } from "./audio";
 import type { FxEvent } from "./arcade-fx";
 import type { RaceView } from "./race-view";
+import { kartSteeringInput } from "./kart-motion";
 import "./racing.css";
 
 export class RacingGame {
@@ -247,12 +248,10 @@ export class RacingGame {
   private controls(): Input {
     const touch = new Set(this.pointers.values());
     return [
-      Number(
+      kartSteeringInput(
+        touch.has("left") || this.keys.has("arrowleft") || this.keys.has("a"),
         touch.has("right") || this.keys.has("arrowright") || this.keys.has("d"),
-      ) -
-        Number(
-          touch.has("left") || this.keys.has("arrowleft") || this.keys.has("a"),
-        ),
+      ),
       touch.has("brake") || this.keys.has("arrowdown") || this.keys.has("s")
         ? -1
         : Number(
