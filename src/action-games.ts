@@ -107,10 +107,6 @@ export class HopRun {
     const swing = this.height ? 0 : Math.sin(this.elapsed * 18) * 5;
     c.fillRect(77 + swing, y - 9, 8, 9);
     c.fillRect(90 - swing, y - 9, 8, 9);
-    c.fillStyle = "#dde6ce";
-    c.font = "11px monospace";
-    c.textAlign = "left";
-    c.fillText("HOP THE GAPS. FIND YOUR FLOW.", 22, 26);
   }
 }
 
@@ -319,13 +315,15 @@ export class StarFlight {
       c.arc(this.x, this.y, 26, 0, Math.PI * 2);
       c.stroke();
     }
-    c.fillStyle = "#dde6ce";
-    c.font = "11px monospace";
-    c.textAlign = "left";
-    c.fillText(
-      `${"♥ ".repeat(Math.max(0, this.lives))}   ${this.shield > 0 ? "SHIELD + TRIPLE SHOT" : this.bossSpawned ? "BOSS WAVE" : "AUTO-FIRE ONLINE"}`,
-      16,
-      24,
-    );
+    const tag = this.shield > 0 ? "SHIELD!" : this.bossSpawned ? "BOSS!" : "";
+    if (tag) {
+      c.font = "700 20px Fredoka, sans-serif";
+      c.textAlign = "left";
+      c.lineWidth = 4;
+      c.strokeStyle = "#0b1430";
+      c.strokeText(tag, 16, 428);
+      c.fillStyle = this.shield > 0 ? "#a9db6e" : "#ff9baf";
+      c.fillText(tag, 16, 428);
+    }
   }
 }

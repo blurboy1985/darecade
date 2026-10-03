@@ -1,5 +1,6 @@
 import { audio, petSound, type Sfx } from "./audio";
 import { celebrate } from "./celebration";
+import { createArcadeFx, type ArcadeFx } from "./arcade-fx";
 import {
   loadCharacter,
   createCharacterPreview,
@@ -11,6 +12,7 @@ import {
 import { playtestEnabled, playtestEvent, playtestSummary } from "./playtest";
 import "./style.css";
 import "./neighbourhood.css";
+import "./arcade-theme.css";
 import { api, type SharedState, type SharedPlayer, type Run } from "./social";
 import {
   ensureAccount,
@@ -70,6 +72,13 @@ let wardrobeTab = "style";
 let boardTab = "week";
 let boardGame: GameId = "noodle";
 let disposeCelebration: (() => void) | null = null;
+let arcadeFx: ArcadeFx | null = null;
+function disposeArcadeFx() {
+  arcadeFx?.dispose();
+  arcadeFx = null;
+  modal.querySelector(".arcade-fx")?.remove();
+  delete modal.dataset.game;
+}
 let characterPreview: ReturnType<typeof createCharacterPreview> | null = null;
 let shared: SharedState | null = null;
 let profileReady = false;
@@ -145,20 +154,20 @@ const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
   <div id="world"></div><div class="vignette" aria-hidden="true"></div>
   <header class="topbar"><a class="brand" href="#" aria-label="Darecade home"><span class="brand-mark">d<span>★</span></span><span>DARECADE<span class="brand-caption">MEET YOU DOWNSTAIRS.</span></span></a><div class="location-pill"><span class="status-dot"></span>THE NEIGHBOURHOOD<span class="divider"></span><span id="sgt-clock">SGT</span></div><div class="top-actions"><span class="demo-tag">LOCAL PREVIEW</span><button class="coin-pill" data-open="quests" aria-label="View pixel coin hunt"><span class="pixel-coin">✦</span><b id="coin-count">0 / 5</b></button><button class="icon-button" id="sound-toggle" aria-label="Turn sound on">${icon("mute")}</button><button class="icon-button" data-open="settings" aria-label="Settings">${icon("settings")}</button></div></header>
-  <main class="hud"><section class="welcome-panel"><div class="eyebrow"><span class="tiny-spark">✦</span> YOUR LITTLE CORNER OF THE INTERNET</div><h1>Good times.<br>Great company.</h1><p>No tickets needed.<br>Just bring your game face.</p><button class="primary" data-open="arcade">Let’s play ${icon("arrow")}</button><div class="world-caption"><span class="status-dot"></span> A whole neighbourhood to explore</div></section>
-  <button class="quest-card" data-open="quests" aria-label="Open pixel coin hunt"><span class="quest-icon">${icon("compass")}</span><span class="quest-copy"><span class="eyebrow">A LITTLE SIDE QUEST</span><strong>The great pixel hunt</strong><span>5 hidden coins. One fresh look.</span><span class="quest-progress" id="coin-dots">○ ○ ○ ○ ○</span></span><span class="card-arrow">↗</span></button>
-  <div class="right-rail"><button class="gift-teaser" data-open="shop" aria-label="Choose your daily gift at the Mama Shop"><span class="gift-illustration">${icon("gift")}<i>✦</i></span><span class="eyebrow" id="gift-eyebrow">A LITTLE SOMETHING FOR YOU</span><strong id="gift-title">Your daily goodie</strong><span id="gift-caption">Pick a free gift at the Mama Shop</span><span class="gift-link">Take a look ${icon("arrow")}</span></button><button class="map-card" data-open="map" aria-label="Open neighbourhood map"><div class="mini-map" aria-hidden="true"><i class="map-building m1"></i><i class="map-building m2"></i><i class="map-building m3"></i><i class="map-tree t1"></i><i class="map-tree t2"></i><i class="map-you"></i><span>N ↑</span></div><span>${icon("pin")} The neighbourhood <b>↗</b></span></button></div>
+  <main class="hud"><section class="welcome-panel"><div class="eyebrow"><span class="tiny-spark">✦</span> MEET YOU DOWNSTAIRS</div><h1>Good times.<br>Great company.</h1><button class="primary" data-open="arcade">Play ${icon("arrow")}</button></section>
+  <button class="quest-card" data-open="quests" aria-label="Open pixel coin hunt"><span class="quest-icon">${icon("compass")}</span><span class="quest-copy"><span class="eyebrow">SIDE QUEST</span><strong>Pixel hunt</strong><span>Find 5 coins</span><span class="quest-progress" id="coin-dots">○ ○ ○ ○ ○</span></span><span class="card-arrow">↗</span></button>
+  <div class="right-rail"><button class="gift-teaser" data-open="shop" aria-label="Choose your daily gift at the Mama Shop"><span class="gift-illustration">${icon("gift")}<i>✦</i></span><span class="eyebrow" id="gift-eyebrow">DAILY GIFT</span><strong id="gift-title">Free gift</strong><span id="gift-caption">At the Mama Shop</span><span class="gift-link">Open ${icon("arrow")}</span></button><button class="map-card" data-open="map" aria-label="Open neighbourhood map"><div class="mini-map" aria-hidden="true"><i class="map-building m1"></i><i class="map-building m2"></i><i class="map-building m3"></i><i class="map-tree t1"></i><i class="map-tree t2"></i><i class="map-you"></i><span>N ↑</span></div><span>${icon("pin")} The neighbourhood <b>↗</b></span></button></div>
   <div class="scene-label label-arcade"><button data-walk="arcade">${icon("game")} Arcade Row <span>4 games</span></button></div>
   <div class="world-controls"><button id="rotate-left" aria-label="Rotate view left">↶</button><button id="reset-view" aria-label="Reset view">${icon("compass")}</button><button id="rotate-right" aria-label="Rotate view right">↷</button><span></span><button id="zoom-out" aria-label="Zoom out">−</button><button id="zoom-in" aria-label="Zoom in">+</button></div>
   <button id="interaction" class="interaction" hidden><kbd>E</kbd><span></span>${icon("arrow")}</button>
-  <div class="move-hint"><kbd>W</kbd><span><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><p>to wander <i>·</i> click anywhere to walk</p></div>
+  <div class="move-hint"><kbd>W</kbd><span><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><p>walk <i>·</i> click to move</p></div>
   <div id="joystick" class="joystick" role="group" aria-label="Drag to walk"><span></span></div>
   <div id="fallback" class="fallback" hidden></div>
   </main>
-  <footer class="bottom-bar"><button class="profile" data-open="wardrobe"><span class="avatar-icon" id="avatar-icon"><i></i></span><span><strong id="player-name">New neighbour</strong><small id="medal-points">0 MEDAL POINTS</small><span id="level-label">LEVEL 1 · NEW KID ON THE BLOCK</span><span class="xp-track"><i id="xp-fill"></i></span></span><span class="profile-edit">✎</span></button><nav class="dock" aria-label="Lobby activities"><button class="selected" data-open="map">${icon("compass")}<span>Explore</span></button><button data-open="arcade">${icon("game")}<span>Arcade</span></button><button data-open="dares">${icon("trophy")}<span>Dares</span></button><span class="dock-divider"></span><button data-open="wardrobe">${icon("shirt")}<span>My look</span></button><button data-open="emotes">${icon("smile")}<span>Emotes</span></button><button data-open="album">${icon("book")}<span>My album</span></button></nav><div class="footer-note"><span>Small world. Big possibilities.</span><span>MADE FOR PLAY <i>✦</i> <span id="quality-note">3D LOBBY</span></span></div></footer>
+  <footer class="bottom-bar"><button class="profile" data-open="wardrobe"><span class="avatar-icon" id="avatar-icon"><i></i></span><span><strong id="player-name">New neighbour</strong><small id="medal-points">0 MEDAL POINTS</small><span id="level-label">LEVEL 1 · NEW KID ON THE BLOCK</span><span class="xp-track"><i id="xp-fill"></i></span></span><span class="profile-edit">✎</span></button><nav class="dock" aria-label="Lobby activities"><button class="selected" data-open="map">${icon("compass")}<span>Explore</span></button><button data-open="arcade">${icon("game")}<span>Arcade</span></button><button data-open="dares">${icon("trophy")}<span>Dares</span></button><span class="dock-divider"></span><button data-open="wardrobe">${icon("shirt")}<span>My look</span></button><button data-open="emotes">${icon("smile")}<span>Emotes</span></button><button data-open="album">${icon("book")}<span>My album</span></button></nav><div class="footer-note"><span><span id="quality-note">3D LOBBY</span></span></div></footer>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <dialog id="modal"><div class="modal-top"><span class="eyebrow" id="modal-kicker">THE NEIGHBOURHOOD</span><button id="close-modal" class="close-button" aria-label="Close panel">×</button></div><div id="modal-body"></div></dialog>
-  <div id="loading"><span class="brand-mark">d<span>★</span></span><h2>See you downstairs.</h2><p>Putting the finishing touches on your neighbourhood…</p><span class="loading-line"></span></div>
+  <div id="loading"><span class="brand-mark">d<span>★</span></span><h2>See you downstairs.</h2><p>Loading…</p><span class="loading-line"></span></div>
 `;
 document
   .querySelector(".hud")!
@@ -245,14 +254,14 @@ function renderStats() {
   );
   const claimed = save.giftDay === singaporeDay();
   document.querySelector("#gift-title")!.textContent = claimed
-    ? "Looking good, neighbour."
-    : "Your daily goodie";
+    ? "Collected!"
+    : "Free gift";
   document.querySelector("#gift-caption")!.textContent = claimed
-    ? "Your gift is waiting in your wardrobe"
-    : "Pick a free gift at the Mama Shop";
+    ? "In your wardrobe"
+    : "At the Mama Shop";
   document.querySelector("#gift-eyebrow")!.textContent = claimed
-    ? "TODAY’S GIFT · COLLECTED"
-    : "A LITTLE SOMETHING FOR YOU";
+    ? "DAILY GIFT ✓"
+    : "DAILY GIFT";
   const sound = document.querySelector("#sound-toggle")!;
   sound.innerHTML = icon(save.sound ? "sound" : "mute");
   sound.setAttribute(
@@ -294,6 +303,7 @@ function abandonRound() {
 function openShell(kicker: string, keepPreview = false) {
   disposeCelebration?.();
   disposeCelebration = null;
+  disposeArcadeFx();
   if (!keepPreview) {
     characterPreview?.dispose();
     characterPreview = null;
@@ -320,6 +330,7 @@ function openShell(kicker: string, keepPreview = false) {
 function close() {
   disposeCelebration?.();
   disposeCelebration = null;
+  disposeArcadeFx();
   characterPreview?.dispose();
   characterPreview = null;
   abandonRound();
@@ -346,7 +357,7 @@ function cards() {
     swarm:
       '<span class="star-ship">▲</span><span class="star-enemy">▼</span><i>✦ · ✧ · ✦</i>',
   };
-  return `<div class="game-grid four-games">${gameIds.map((id) => `<button class="game-card ${id}" data-game="${id}"><div class="game-art ${id}-art">${art[id]}</div><span class="eyebrow">${games[id].genre}</span><h3>${games[id].name}</h3><p>${games[id].description}</p><div><span>60 sec · BEST ${shared?.players.find((p) => p.id === shared!.me)?.best[id] ?? 0}</span>${icon("arrow")}</div></button>`).join("")}</div>`;
+  return `<div class="game-grid four-games">${gameIds.map((id) => `<button class="game-card ${id}" data-game="${id}"><div class="game-art ${id}-art">${art[id]}</div><span class="eyebrow">${games[id].genre}</span><h3>${games[id].name}</h3><p>${games[id].description}</p><div><span>60s · BEST ${shared?.players.find((p) => p.id === shared!.me)?.best[id] ?? 0}</span>${icon("arrow")}</div></button>`).join("")}</div>`;
 }
 function open(id: string) {
   if (id.startsWith("player:")) {
@@ -396,16 +407,16 @@ function open(id: string) {
   }
   openShell(
     id === "arcade"
-      ? "ARCADE ROW · ALWAYS FREE"
+      ? "ARCADE ROW"
       : id === "shop"
-        ? "MAMA SHOP · A GIFT, JUST BECAUSE"
+        ? "MAMA SHOP"
         : id === "wardrobe"
-          ? "A LITTLE SELF-EXPRESSION"
-          : "YOUR NEIGHBOURHOOD",
+          ? "MY LOOK"
+          : "DARECADE",
     id === "wardrobe" && !is2d,
   );
   if (id === "phone-menu") {
-    body.innerHTML = `<h2>Your neighbourhood.</h2><p class="lead">Everything else, when you need it.</p><div class="phone-menu-grid">${[
+    body.innerHTML = `<h2>More</h2><div class="phone-menu-grid">${[
       ["board", "Rankings & medals"],
       ["dares", "Challenge a neighbour"],
       ["neighbours", "Meet the neighbours"],
@@ -420,16 +431,16 @@ function open(id: string) {
     ]
       .map(
         ([key, label]) =>
-          `<button class="secondary" data-open="${key}">${label} →</button>`,
+          `<button class="secondary" data-open="${key}">${label}</button>`,
       )
       .join(
         "",
-      )}<button class="secondary" data-account>Account & privacy →</button><button class="secondary" data-action="phone-camera">Switch camera view ↻</button><button class="secondary" data-action="phone-reset">Reset camera ↺</button>${playtestEnabled ? '<button class="primary" data-action="phone-test">Phone test · feedback</button>' : ""}</div><p class="fine-print">Drag the world to look around. Pinch with two fingers to zoom.</p>`;
+      )}<button class="secondary" data-account>Account & privacy</button><button class="secondary" data-action="phone-camera">Camera view ↻</button><button class="secondary" data-action="phone-reset">Reset camera ↺</button>${playtestEnabled ? '<button class="primary" data-action="phone-test">Phone test · feedback</button>' : ""}</div><p class="fine-print">Drag to look · pinch to zoom</p>`;
   } else if (id === "arcade") {
-    body.innerHTML = `<h2>Find your next<br>“one more go”.</h2><p class="lead">Original little games. A whole lot of play.</p>${cards()}<p class="fine-print">Start at zero. Set today’s best score to qualify for daily medals. Guest progress saves on this neighbourhood server.</p>`;
+    body.innerHTML = `<h2>Pick a game!</h2>${cards()}<p class="fine-print">Top 3 daily scores win medals at midnight.</p>`;
   } else if (id === "shop") {
     const taken = save.giftDay === singaporeDay();
-    body.innerHTML = `<h2>${taken ? "Good choice, neighbour." : "Something for your noggin."}</h2><p class="lead">${taken ? "Your free gift is in your wardrobe. Come back any day." : "Pick one. It’s yours to keep. No catch, no lucky dip."}</p><div class="gift-grid">${["The Kopitiam Bucket", "Lilac Daydream", "Just a Little Sprout"].map((n, i) => `<button class="gift-option ${taken && save.gift === i ? "chosen" : ""}" data-gift="${i}" ${taken ? "disabled" : ""}><span class="hat-art hat-${i}">${["▰", "◒", "♧"][i]}</span><strong>${n}</strong><span>${taken ? (save.gift === i ? "YOURS TO KEEP" : "ANOTHER DAY") : "FREE · CHOOSE ME"}</span></button>`).join("")}</div><div class="note">${icon("leaf")} A new choice each day, Singapore time. Miss a day? You won’t lose a thing.</div>${taken ? actionButton("wardrobe", "Wear it your way →") : ""}`;
+    body.innerHTML = `<h2>${taken ? "Good choice!" : "Pick a free hat"}</h2><p class="lead">${taken ? "It’s in your wardrobe." : "Yours to keep."}</p><div class="gift-grid">${["The Kopitiam Bucket", "Lilac Daydream", "Just a Little Sprout"].map((n, i) => `<button class="gift-option ${taken && save.gift === i ? "chosen" : ""}" data-gift="${i}" ${taken ? "disabled" : ""}><span class="hat-art hat-${i}">${["▰", "◒", "♧"][i]}</span><strong>${n}</strong><span>${taken ? (save.gift === i ? "YOURS TO KEEP" : "ANOTHER DAY") : "FREE · CHOOSE ME"}</span></button>`).join("")}</div><div class="note">${icon("leaf")} New pick daily (SGT). No streak to lose.</div>${taken ? actionButton("wardrobe", "Wear it →") : ""}`;
   } else if (id === "wardrobe") {
     const choices = (
       key: "clothing" | "hair" | "pet" | "accessory",
@@ -440,7 +451,7 @@ function open(id: string) {
       currentProfile?.name ||
       shared?.players.find((p) => p.id === shared?.me)?.name ||
       "New neighbour";
-    body.innerHTML = `<div class="wardrobe-layout"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${escapeText(nickname)}</strong><small>DRAG TO TURN · SAVES AS YOU GO</small><span class="look-caption">${clothingNames[save.clothing]} · ${hairNames[save.hair]}</span></div><div class="wardrobe-controls"><span class="eyebrow">YOUR NEIGHBOURHOOD SELF</span><h2>Make it you.</h2><details class="look-identity" ${innerWidth > 600 ? "open" : ""}><summary>Your nickname</summary><form id="nickname-form"><label class="field-label" for="nickname">YOUR NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" value="${escapeText(nickname)}" minlength="2" maxlength="20" autocomplete="off" required><button class="secondary" type="submit">Save name</button></div><p class="fine-print">Visible to everyone. Use a nickname, not your real name or contact details.</p><p id="nickname-status" role="status"></p></form></details><div class="look-tabs" aria-label="Wardrobe sections">${[
+    body.innerHTML = `<div class="wardrobe-layout"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${escapeText(nickname)}</strong><small>DRAG TO TURN</small><span class="look-caption">${clothingNames[save.clothing]} · ${hairNames[save.hair]}</span></div><div class="wardrobe-controls"><h2>Make it you.</h2><details class="look-identity" ${innerWidth > 600 ? "open" : ""}><summary>Your nickname</summary><form id="nickname-form"><label class="field-label" for="nickname">YOUR NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" value="${escapeText(nickname)}" minlength="2" maxlength="20" autocomplete="off" required><button class="secondary" type="submit">Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form></details><div class="look-tabs" aria-label="Wardrobe sections">${[
       ["style", "Outfits"],
       ["hair", "Head"],
       ["pets", "Pets"],
@@ -452,7 +463,7 @@ function open(id: string) {
       )
       .join(
         "",
-      )}</div><section class="character-options">${wardrobeTab === "style" ? `<h3>Find your favourite fit.</h3><p class="fine-print">${clothingNames.length} adventurer outfits to mix. Outfit colour tints the tunic, robe, cape or hood.</p>${choices("clothing", clothingNames)}<label class="field-label">OUTFIT COLOUR</label><div class="swatches">${outfits.map((c, i) => `<button data-outfit="${i}" style="--swatch:${c}" class="${save.outfit === i ? "active" : ""}" aria-label="${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][i]} outfit" aria-pressed="${save.outfit === i}"></button>`).join("")}</div><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">TOP IT OFF</label><div class="hat-options">${["No hat", "Bucket", "Cap", "Sprout"].map((n, i) => `<button data-hat="${i}" ${save.unlockedHats.includes(i) ? "" : "disabled"} class="${save.hat === i ? "active" : ""}" aria-pressed="${save.hat === i}">${n}${save.unlockedHats.includes(i) ? "" : " · locked"}</button>`).join("")}</div>` : wardrobeTab === "hair" ? `<h3>Heads, hoods and hats.</h3><p class="fine-print">${hairNames.length} looks, from ears and crowns to helmets. An earned hat replaces any headgear.</p>${choices("hair", hairNames)}` : wardrobeTab === "pets" ? `<h3>A little friend, always.</h3><p class="fine-print">${petNames.length - 1} companions follow you around the neighbourhood, from otters to a merlion cub.</p>${choices("pet", petNames)}` : `<h3>A little everyday magic.</h3><p class="fine-print">${accessoryNames.length - 1} sparkling spells: stardust, wings, auroras and rune circles.</p>${choices("accessory", accessoryNames)}`}</section><p class="fine-print">All looks are free and cosmetic. They never change your score.</p>${actionButton("done-look", "Love it. Let’s play →")}</div></div>`;
+      )}</div><section class="character-options">${wardrobeTab === "style" ? `<h3>Outfits</h3>${choices("clothing", clothingNames)}<label class="field-label">OUTFIT COLOUR</label><div class="swatches">${outfits.map((c, i) => `<button data-outfit="${i}" style="--swatch:${c}" class="${save.outfit === i ? "active" : ""}" aria-label="${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][i]} outfit" aria-pressed="${save.outfit === i}"></button>`).join("")}</div><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">TOP IT OFF</label><div class="hat-options">${["No hat", "Bucket", "Cap", "Sprout"].map((n, i) => `<button data-hat="${i}" ${save.unlockedHats.includes(i) ? "" : "disabled"} class="${save.hat === i ? "active" : ""}" aria-pressed="${save.hat === i}">${n}${save.unlockedHats.includes(i) ? "" : " · locked"}</button>`).join("")}</div>` : wardrobeTab === "hair" ? `<h3>Heads & hats</h3>${choices("hair", hairNames)}` : wardrobeTab === "pets" ? `<h3>Pets</h3>${choices("pet", petNames)}` : `<h3>Magic</h3>${choices("accessory", accessoryNames)}`}</section><p class="fine-print">All looks are free and cosmetic.</p>${actionButton("done-look", "Done →")}</div></div>`;
     const preview = body.querySelector<HTMLElement>(".character-preview")!;
     if (!is2d) {
       try {
@@ -488,16 +499,14 @@ function open(id: string) {
       }
     };
   } else if (id === "map") {
-    body.innerHTML = `<h2>A small world.<br>A lot to get lost in.</h2><p class="lead">Pick a spot and we’ll take a little walk.</p><div class="zone-grid">${spots.map((s, i) => `<button data-walk="${s.id}"><span class="zone-number">0${i + 1}</span>${icon(["game", "trophy", "gift", "shirt", "trophy", "leaf", "cat", "star"][i])}<strong>${s.name}</strong><span>${save.visited.includes(s.id) ? "✓ DISCOVERED" : "LET’S EXPLORE →"}</span></button>`).join("")}</div><div class="note">${is2d ? "You’re in the lightweight 2D lobby. All games and rewards are available." : "WASD or arrows to walk · click the ground to choose a route · E to interact · space to jump"}</div>`;
+    body.innerHTML = `<h2>Explore</h2><div class="zone-grid">${spots.map((s, i) => `<button data-walk="${s.id}"><span class="zone-number">0${i + 1}</span>${icon(["game", "trophy", "gift", "shirt", "trophy", "leaf", "cat", "star"][i])}<strong>${s.name}</strong><span>${save.visited.includes(s.id) ? "✓ FOUND" : "GO →"}</span></button>`).join("")}</div><div class="note">${is2d ? "2D lobby · all games and rewards work." : "WASD · click to walk · E interact · Space jump"}</div>`;
   } else if (id === "quests") {
-    body.innerHTML = `<h2>Take the scenic route.</h2><p class="lead">There’s more downstairs than a high score.</p><div class="hunt-panel"><span class="big-coin">✦</span><div><h3>The great pixel hunt</h3><p>Find 5 golden coins tucked around the world.<br>Unlock the Sprout hat + 50 XP.</p><strong>${save.coins.length} / 5 discovered</strong></div></div>${is2d ? '<p class="fine-print">The treasure hunt needs 3D. You can also choose a free Sprout hat from the Mama Shop.</p>' : ""}<div class="mission-list">${missions
+    body.innerHTML = `<h2>Quests</h2><div class="hunt-panel"><span class="big-coin">✦</span><div><h3>Pixel hunt</h3><p>Find 5 coins → Sprout hat + 50 XP</p><strong>${save.coins.length} / 5</strong></div></div>${is2d ? '<p class="fine-print">Needs 3D. Or grab a free Sprout hat at the Mama Shop.</p>' : ""}<div class="mission-list">${missions
       .map((m) => {
         const progress = missionProgress(save, m.id);
         return `<div><span class="mission-check ${progress >= m.total ? "complete" : ""}">${progress >= m.total ? "✓" : icon("star")}</span><span><strong>${m.name}</strong><small>${m.detail} · ${progress}/${m.total}</small></span><button data-claim="${m.id}" ${progress < m.total || save.claims.includes(m.id) ? "disabled" : ""}>${save.claims.includes(m.id) ? "CLAIMED" : `+${m.xp} XP`}</button></div>`;
       })
-      .join(
-        "",
-      )}</div><p class="fine-print">Weekly coin locations refresh on Monday, Singapore time. Play at your own pace.</p>`;
+      .join("")}</div><p class="fine-print">Coins move every Monday (SGT).</p>`;
   } else if (id === "album") {
     const stickers = [
       [
@@ -512,12 +521,12 @@ function open(id: string) {
       ["Golden hour", save.coins.length === 5, "Find 5 pixel coins", "star"],
       ["Goodie two shoes", !!save.giftDay, "Choose a daily gift", "gift"],
     ];
-    body.innerHTML = `<h2>Little moments.<br>Worth keeping.</h2><p class="lead">Your neighbourhood sticker album · Page 01</p><div class="sticker-grid">${stickers.map(([n, unlocked, task, ic]) => `<div class="sticker ${unlocked ? "unlocked" : ""}"><span>${icon(String(ic))}</span><strong>${n}</strong><small>${unlocked ? "STUCK WITH LOVE" : task}</small></div>`).join("")}</div><p class="fine-print">${stickers.filter((s) => s[1]).length}/6 memories collected. No deadlines. Just good times.</p>`;
+    body.innerHTML = `<h2>Sticker album</h2><div class="sticker-grid">${stickers.map(([n, unlocked, task, ic]) => `<div class="sticker ${unlocked ? "unlocked" : ""}"><span>${icon(String(ic))}</span><strong>${n}</strong><small>${unlocked ? "✓ GOT IT" : task}</small></div>`).join("")}</div><p class="fine-print">${stickers.filter((s) => s[1]).length} / 6 collected</p>`;
   } else if (id === "board") {
     socialPanel = "board";
     renderSharedBoard();
   } else if (id === "emotes") {
-    body.innerHTML = `<h2>Say it your way.</h2><p class="lead">A little personality. No words needed.</p><div class="emote-grid">${[
+    body.innerHTML = `<h2>Emotes</h2><div class="emote-grid">${[
       ["wave", "👋", "Hello, neighbour"],
       ["cheer", "🙌", "Big cheer"],
       ["dance", "🪩", "Tiny dance party"],
@@ -534,7 +543,7 @@ function open(id: string) {
     socialPanel = "neighbours";
     renderSharedNeighbours();
   } else if (id === "away") {
-    body.innerHTML = `<h2>Life goes on downstairs.</h2><p class="lead">Choose what your avatar does when you step away, close the page, or lose your connection.</p><div class="activity-list" role="group" aria-label="Away activity">${Object.entries(
+    body.innerHTML = `<h2>Step away</h2><p class="lead">What should your avatar do while you’re gone?</p><div class="activity-list" role="group" aria-label="Away activity">${Object.entries(
       activities,
     )
       .map(
@@ -543,9 +552,9 @@ function open(id: string) {
       )
       .join(
         "",
-      )}</div><div class="button-row">${actionButton("start-away", "Save & step away →")}${actionButton("save-away", "Save preference", "secondary")}</div><p class="fine-print">Your saved avatar stays in this neighbourhood while you’re away. Each player can send three challenges a day to different neighbours. Your saved score can receive unlimited challenges without losing points. Away activities don’t earn XP or game scores; daily ranking medals still apply. Keep this server running so other visitors can see you.</p>`;
+      )}</div><div class="button-row">${actionButton("start-away", "Save & step away →")}${actionButton("save-away", "Save preference", "secondary")}</div><p class="fine-print">Away time earns no XP. Others can dare your best score; you never lose points.</p>`;
   } else if (id === "settings") {
-    body.innerHTML = `<button class="secondary" data-account>Account & privacy →</button><h2>Your kind of comfortable.</h2><p class="lead">Make the neighbourhood feel right.</p><label class="settings-row"><span><strong>Sound effects</strong><small>Footsteps, pets, arcade blips and sparkles</small></span><input id="setting-sound" type="checkbox" ${save.sound ? "checked" : ""}></label><label class="settings-row"><span><strong>Background music</strong><small>Original lo-fi by day, dreamy pads at night, chiptune in the arcade</small></span><input id="setting-music" type="checkbox" ${save.music ? "checked" : ""} ${save.sound ? "" : "disabled"}></label><label class="settings-row"><span><strong>Reduce motion</strong><small>Less decorative movement and a quieter interface</small></span><input id="setting-reduced" type="checkbox" ${save.reduced ? "checked" : ""}></label><label class="settings-row"><span><strong>Time of day</strong><small>Singapore time, or your favourite atmosphere</small></span><select id="setting-light">${[
+    body.innerHTML = `<button class="secondary" data-account>Account & privacy →</button><h2>Settings</h2><label class="settings-row"><span><strong>Sound effects</strong><small>Blips and sparkles</small></span><input id="setting-sound" type="checkbox" ${save.sound ? "checked" : ""}></label><label class="settings-row"><span><strong>Background music</strong><small>Lo-fi, pads and chiptune</small></span><input id="setting-music" type="checkbox" ${save.music ? "checked" : ""} ${save.sound ? "" : "disabled"}></label><label class="settings-row"><span><strong>Reduce motion</strong><small>Calmer effects</small></span><input id="setting-reduced" type="checkbox" ${save.reduced ? "checked" : ""}></label><label class="settings-row"><span><strong>Time of day</strong><small>SGT or pick a mood</small></span><select id="setting-light">${[
       ["auto", "Follow SGT"],
       ["day", "Daylight"],
       ["dusk", "Golden hour"],
@@ -557,9 +566,9 @@ function open(id: string) {
       )
       .join(
         "",
-      )}</select></label><div class="settings-row"><span><strong>Lightweight lobby</strong><small>Games and rewards without the 3D world</small></span>${actionButton("2d", is2d ? "Return to 3D" : "Use 2D", "secondary")}</div><div class="note">Your guest identity, rankings, medals and away avatar are saved on the neighbourhood server. Cosmetics and XP are saved by the server; this browser keeps a display cache. Keep your browser cookies to keep your guest identity. Use Account & privacy to sign in, download your data or delete your profile. There is no chat or purchasing. A gentle break reminder appears after 30 active minutes.</div>`;
+      )}</select></label><div class="settings-row"><span><strong>Lightweight lobby</strong><small>No 3D world</small></span>${actionButton("2d", is2d ? "Return to 3D" : "Use 2D", "secondary")}</div><div class="note">Progress saves to the server. Keep cookies to keep your guest profile. Data, sign-in and deletion live in Account & privacy. No chat, no purchases.</div>`;
   } else if (id === "surroundings") {
-    body.innerHTML = `<h2>A little more<br>hands-on.</h2><p class="lead">Pick something to do. Walk over and watch your character bring the neighbourhood to life.</p><div class="outdoor-grid">${[
+    body.innerHTML = `<h2>Play outside</h2><div class="outdoor-grid">${[
       "dragon",
       "swing",
       "bench3",
@@ -569,23 +578,23 @@ function open(id: string) {
     ]
       .map((key, i) => {
         const s = interactionSpecs.find((s) => s.id === key)!;
-        return `<button data-environment="${key}"><span>${["🐉", "✦", "📖", "🐈", "🔔", "🕹"][i]}</span><strong>${s.title}</strong><small>${["Climb the stairs, then slide down", "Hop on and swing through the air", "Open a book and turn the pages", "Kopi leans in and swishes his tail", "A little ding, a little neighbourhood joy", "Work the controls, then play a round"][i]}</small><b>LET’S GO →</b></button>`;
+        return `<button data-environment="${key}"><span>${["🐉", "✦", "📖", "🐈", "🔔", "🕹"][i]}</span><strong>${s.title}</strong><small>${["Climb & slide", "Swing high", "Read a book", "Pet Kopi", "Ring ding!", "Play a round"][i]}</small><b>GO →</b></button>`;
       })
       .join(
         "",
-      )}</div><div class="note">${is2d ? "These animated scenes need the 3D lobby. Switch back in Settings to join in." : "Tap a prop in the world, or walk nearby and press E. Stop at any time with Escape, movement keys, or the on-screen Stop button."}</div>`;
+      )}</div><div class="note">${is2d ? "Needs the 3D lobby (Settings)." : "Tap a prop or press E nearby · Esc to stop"}</div>`;
   } else if (id === "garden") {
-    body.innerHTML = `<div class="garden-portrait">${icon("leaf")}</div><h2>Nothing to chase here.</h2><p class="lead">A patch of green. A familiar bench.<br>A moment that’s all yours.</p><button class="primary" data-environment="bench0">Sit down & open a book →</button>`;
+    body.innerHTML = `<div class="garden-portrait">${icon("leaf")}</div><h2>Pocket Garden</h2><p class="lead">Nothing to chase. Just breathe.</p><button class="primary" data-environment="bench0">Sit & read →</button>`;
   } else if (id === "playground") {
-    body.innerHTML = `<div class="dragon-portrait">✦</div><h2>Old-school playground.<br>New little adventures.</h2><p class="lead">Climb the steps, take a seat, and slide down our terracotta dragon.</p><button class="primary" data-environment="dragon">Let’s ride the dragon →</button><button class="secondary" data-environment="swing">Try the neighbourhood swing</button>`;
+    body.innerHTML = `<div class="dragon-portrait">✦</div><h2>Dragon playground</h2><button class="primary" data-environment="dragon">Ride the dragon →</button><button class="secondary" data-environment="swing">Swing</button>`;
   } else if (id === "soon") {
-    body.innerHTML = `<h2>All four cabinets are open.</h2>${cards()}`;
+    body.innerHTML = `<h2>Pick a game!</h2>${cards()}`;
   } else {
-    body.innerHTML = `<h2>Take a breather.</h2><p class="lead">You’ve been exploring for 30 minutes.<br>Stretch, grab some water, look out of a window.</p><div class="note">Everything you’ve earned will be here when you get back.</div>${actionButton("close", "Back when I’m ready")}`;
+    body.innerHTML = `<h2>Take a breather.</h2><p class="lead">30 minutes in. Stretch, sip some water.</p><div class="note">Your progress is saved.</div>${actionButton("close", "Back when I’m ready")}`;
   }
 }
 function openDares() {
-  openShell("DARE PLAZA · NEIGHBOUR CHALLENGES");
+  openShell("DARE PLAZA");
   socialPanel = "dares";
   renderSharedDares();
 }
@@ -599,7 +608,7 @@ async function startGame(id: GameId, defender = "", dare = "") {
   }
   openShell(defender || dare ? "FRIENDLY DARE" : "ARCADE ROW");
   const generation = gameGeneration;
-  body.innerHTML = "<h2>Getting your cabinet ready…</h2>";
+  body.innerHTML = "<h2>Loading…</h2>";
   let run: Run | null = null;
   try {
     run = await api<Run>("run", {
@@ -616,7 +625,7 @@ async function startGame(id: GameId, defender = "", dare = "") {
         '</p><button class="primary" data-open="dares">Back to dares</button>';
       return;
     }
-    toast("Server unavailable. This is practice only, with no saved rewards.");
+    toast("Offline · practice only, nothing saved.");
   }
   if (generation !== gameGeneration) {
     if (run) void api("abandon", { id: run.id });
@@ -625,15 +634,25 @@ async function startGame(id: GameId, defender = "", dare = "") {
   activeRun = run;
   playtestEvent("cabinet-ready");
   modal.classList.add("game-modal");
+  modal.dataset.game = id;
+  modal.insertAdjacentHTML(
+    "afterbegin",
+    '<div class="arcade-fx" aria-hidden="true"></div>',
+  );
+  if (!is2d && !save.reduced)
+    arcadeFx = createArcadeFx(modal.querySelector(".arcade-fx")!, id);
   const target = run?.targetScore || 0;
   document.querySelector("#modal-kicker")!.textContent = target
-    ? "DARE · SAME LEVEL · ONE ATTEMPT"
+    ? `DARE · BEAT ${target}`
     : run?.ranked
-      ? "VERIFIED ROUND · DAILY BOARD"
+      ? "RANKED ROUND"
       : run
-        ? "VERIFIED PRACTICE · EARN COSMETIC XP"
-        : "OFFLINE PRACTICE";
-  body.innerHTML = "<h2>" + games[id].name + '</h2><div id="game-mount"></div>';
+        ? "PRACTICE · +XP"
+        : "OFFLINE";
+  body.innerHTML =
+    '<h2 class="game-title">' +
+    games[id].name +
+    '</h2><div id="game-mount"></div>';
   game = new ArcadeGame(
     id,
     body.querySelector("#game-mount")!,
@@ -642,8 +661,7 @@ async function startGame(id: GameId, defender = "", dare = "") {
       game = null;
       activeRun = null;
       playtestEvent("round-finished");
-      body.innerHTML =
-        "<h2>Checking your round…</h2><p>The server replays your inputs before saving rewards.</p>";
+      body.innerHTML = "<h2>Checking score…</h2>";
       const render = async () => {
         try {
           let result: {
@@ -669,11 +687,9 @@ async function startGame(id: GameId, defender = "", dare = "") {
               ? score > target
                 ? "Dare beaten!"
                 : score === target
-                  ? "A draw. Both scores stand."
-                  : "Your target was " +
-                    target +
-                    ". Try another neighbour next time."
-              : "A little better with every round.") +
+                  ? "Draw!"
+                  : "Target " + target + ". So close!"
+              : "") +
             "</p>" +
             (reward
               ? '<div class="welcome-reward"><span class="cap-badge">✦</span><span><strong>First round complete!</strong><span>Lilac cap unlocked · +35 bonus XP</span></span></div>'
@@ -684,28 +700,29 @@ async function startGame(id: GameId, defender = "", dare = "") {
               : '<button class="primary" data-replay="' +
                 id +
                 '">Another round →</button>') +
-            '<button class="secondary" data-open="board">See the weekly board</button></div>' +
+            '<button class="secondary" data-open="board">Rankings</button></div>' +
             '<div class="note">' +
             (result
-              ? "Replay verified · +20 cosmetic XP. " +
+              ? "✓ Verified · " +
                 (result.ranked
-                  ? "Today’s score is saved for midnight medals."
-                  : "This round is saved as practice. Ranked play opens after account verification and the 24-hour waiting period; daily medals require today’s level.")
-              : "Offline practice: no progress or leaderboard score was saved.") +
+                  ? "in the running for tonight’s medals."
+                  : "practice round. Ranked play opens 24h after you verify an account.")
+              : "Offline · nothing saved.") +
             "</div>" +
             (run && score > 0 && shared?.competitionReady
               ? '<button class="secondary" data-post-dare="' +
                 run.id +
-                '">Post this score as a 24-hour dare →</button>'
+                '">Post as 24h dare →</button>'
               : "") +
             (!currentProfile?.account
-              ? '<button class="secondary" data-account>Create an account to keep my progress →</button>'
+              ? '<button class="secondary" data-account>Save my progress →</button>'
               : "");
           body.insertAdjacentHTML(
             "afterbegin",
             '<div class="finish-effects" aria-hidden="true"></div>',
           );
-          if (!is2d && !save.reduced) {
+          if (arcadeFx) arcadeFx.fire("end");
+          else if (!is2d && !save.reduced) {
             try {
               disposeCelebration = celebrate(
                 body.querySelector(".finish-effects")!,
@@ -719,7 +736,7 @@ async function startGame(id: GameId, defender = "", dare = "") {
             .querySelector(".result-score")!
             .insertAdjacentHTML(
               "afterend",
-              `<div class="round-breakdown"><span>Cosmetic XP<strong>${result ? "+20" : "0"}</strong><small>For your avatar level</small></span><span>Today’s rank<strong>${result?.ranked && standing ? "#" + standing.rank : "Practice"}</strong><small>${result?.ranked && standing && standing.rank <= 3 ? `+${4 - standing.rank} medals if held at midnight` : "Medals are separate from game scores"}</small></span></div>`,
+              `<div class="round-breakdown"><span>XP<strong>${result ? "+20" : "0"}</strong></span><span>Rank<strong>${result?.ranked && standing ? "#" + standing.rank : "Practice"}</strong>${result?.ranked && standing && standing.rank <= 3 ? `<small>+${4 - standing.rank} medals at midnight</small>` : ""}</span></div>`,
             );
           beep(score > target ? "win" : "finish");
         } catch (error) {
@@ -738,6 +755,17 @@ async function startGame(id: GameId, defender = "", dare = "") {
     (name) => beep(name),
     run?.seed,
   );
+  game.onFx = (event, amount) => {
+    arcadeFx?.fire(event, amount);
+    if (event === "hurt" && !save.reduced) {
+      modal.classList.remove("fx-hurt");
+      void modal.offsetWidth;
+      modal.classList.add("fx-hurt");
+    }
+  };
+  game.onTime = (left) =>
+    arcadeFx?.setUrgency(left <= 10 ? (10 - left) / 10 : 0);
+  game.onPause = (paused) => arcadeFx?.setPaused(paused);
 }
 
 document.addEventListener("click", (e) => {
@@ -1133,7 +1161,7 @@ window.addEventListener("world-interaction", (event) => {
   banner.querySelector("strong")!.textContent = d.title || "";
   banner.querySelector(".action-status")!.textContent =
     d.phase === "playing"
-      ? "A LITTLE MAIN-CHARACTER MOMENT"
+      ? "PLAYING"
       : d.phase === "loading"
         ? "GETTING READY"
         : "WALKING OVER";
@@ -1506,7 +1534,7 @@ async function syncSocial() {
 function serverNote() {
   return connected
     ? ""
-    : '<div class="note">The neighbourhood server is unavailable. Rankings below may be out of date. Challenges need a connection.</div>';
+    : '<div class="note">Offline · rankings may be stale, dares need a connection.</div>';
 }
 function playerRows() {
   return (
@@ -1514,14 +1542,13 @@ function playerRows() {
       .filter((p) => p.id !== shared!.me)
       .map(
         (p) =>
-          `<button data-player="${p.id}"><span class="resident-swatch" style="background:${outfits[p.look.outfit]}">${activities[p.activity].icon}</span><span><strong>${escapeText(p.name)}</strong><small>${p.status.toUpperCase()} · ${p.points} medal points · ${p.incoming} challenges received today</small></span><b>VISIT ↗</b></button>`,
+          `<button data-player="${p.id}"><span class="resident-swatch" style="background:${outfits[p.look.outfit]}">${activities[p.activity].icon}</span><span><strong>${escapeText(p.name)}</strong><small>${p.status.toUpperCase()} · ${p.points} medals</small></span><b>VISIT ↗</b></button>`,
       )
-      .join("") ||
-    '<div class="note">You’re the first neighbour here. Another browser profile can join this server to play alongside you.</div>'
+      .join("") || '<div class="note">You’re the first one here!</div>'
   );
 }
 function renderSharedNeighbours() {
-  body.innerHTML = `<h2>Your neighbours.<br>Still downstairs.</h2><p class="lead">Visit a saved avatar, inspect their outfit, or challenge their best while they’re resting.</p>${serverNote()}<div class="resident-list">${playerRows()}</div><h3>Around the block</h3><p class="fine-print">Community characters bring the park to life. They don’t compete for medals.</p><div class="resident-list">${residents.map((r) => `<button data-resident="${r.id}"><span class="resident-swatch" style="background:${outfits[r.outfit]}">${activities[r.activity].icon}</span><span><strong>${r.name}</strong><small>COMMUNITY CHARACTER · ${activities[r.activity].name}</small></span><b>VISIT ↗</b></button>`).join("")}</div>`;
+  body.innerHTML = `<h2>Neighbours</h2>${serverNote()}<div class="resident-list">${playerRows()}</div><h3>Around the block</h3><div class="resident-list">${residents.map((r) => `<button data-resident="${r.id}"><span class="resident-swatch" style="background:${outfits[r.outfit]}">${activities[r.activity].icon}</span><span><strong>${r.name}</strong><small>${activities[r.activity].name}</small></span><b>VISIT ↗</b></button>`).join("")}</div>`;
 }
 function renderSharedBoard() {
   const me = shared?.players.find((p) => p.id === shared?.me);
@@ -1540,7 +1567,7 @@ function renderSharedBoard() {
   const unit = boardTab === "week" ? "MEDAL PTS" : "GAME SCORE";
   const rank = boardTab === "week" ? ownWeek?.rank : ownDay?.rank;
   const podium = list.filter((p) => p.rank <= 3);
-  body.innerHTML = `<span class="eyebrow">YOUR NEIGHBOURHOOD LEAGUE</span><h2>Small wins.<br>Something to show for them.</h2>${serverNote()}<section class="your-standing"><div><span>YOUR ${boardTab === "week" ? "WEEKLY" : "DAILY"} RANK</span><strong>${rank ? "#" + rank : "—"}</strong><small>${rank ? "Keep playing at your own pace" : shared?.competitionReady ? "Set a score to join the board" : "Practice now · ranked play unlocks after verification + 24h"}</small></div><div class="standing-stats"><span><b>${ownWeek?.points || 0}</b>This week</span><span><b>${pending ? "+" + pending : "0"}</b>Pending tonight</span><span><b>${me?.points || 0}</b>Lifetime</span></div></section><div class="look-tabs board-tabs"><button data-board-tab="week" class="${boardTab === "week" ? "active" : ""}" aria-pressed="${boardTab === "week"}">Weekly medals</button><button data-board-tab="daily" class="${boardTab === "daily" ? "active" : ""}" aria-pressed="${boardTab === "daily"}">Today’s game scores</button></div>${boardTab === "daily" ? `<div class="game-filters">${gameIds.map((g) => `<button class="secondary ${g === boardGame ? "chosen" : ""}" data-board-game="${g}" aria-pressed="${g === boardGame}">${games[g].name}</button>`).join("")}</div><p class="fine-print">${games[boardGame].name} · Your best today: <b>${ownDay?.score || 0}</b> · Medals are pending until 00:00 SGT.</p>` : `<p class="fine-print">Week of ${shared?.week || "Monday"} · Awarded daily medals only. A fresh board every Monday, 00:00 SGT.</p>`}<div class="podium-cards">${podium.length ? podium.map((p) => `<article class="podium-card medal-${p.rank} ${p.id === shared?.me ? "is-you" : ""}"><span class="podium-medal">${["🥇", "🥈", "🥉"][p.rank - 1]}</span><small>RANK ${p.rank}${p.id === shared?.me ? " · YOU" : ""}</small><h3>${escapeText(p.name)}</h3><strong>${p.value}</strong><small>${unit}${boardTab === "daily" ? ` · +${4 - p.rank} PENDING` : ""}</small></article>`).join("") : `<div class="board-empty"><span>✦</span><h3>${boardTab === "week" ? "Your next chapter starts at zero." : "The first spot is open."}</h3><p>${boardTab === "week" ? "Finish today’s games. Top-three scores earn medals at midnight." : "Finish a ranked round to set today’s first score."}</p><button class="primary" data-game="${boardGame}">Play ${games[boardGame].name} →</button></div>`}</div>${list.length ? `<div class="leaderboard">${list.map((p) => `<div class="${p.id === shared?.me ? "you-row" : ""}"><b>#${p.rank}</b><span>${escapeText(p.name)}${p.id === shared?.me ? " · You" : ""}</span><strong>${p.value}<small>${unit}</small></strong></div>`).join("")}</div>` : ""}${boardTab === "daily" && ownDay && board[0] ? `<div class="score-target"><label>Your score compared with today’s leader <b>${ownDay.score} / ${board[0].score}</b></label><progress value="${ownDay.score}" max="${Math.max(1, board[0].score)}"></progress></div>` : ""}${boardTab === "daily" ? `<button class="primary" data-game="${boardGame}">Play ${games[boardGame].name} →</button>` : ""}<details class="scoring-guide"><summary>How scores become medals</summary><div class="medal-rule"><span>🥇<b>+3</b>Gold</span><span>🥈<b>+2</b>Silver</span><span>🥉<b>+1</b>Bronze</span></div><p>1. Play any of the four daily games. Your best positive score counts.</p><p>2. At midnight Singapore time, each game awards its top three ranks. Up to 12 medal points a day.</p><p>3. Daily medals build your weekly total. The weekly board resets Monday; lifetime medals stay.</p><p class="fine-print">Ties share a rank (1, 1, 3). Pending medals can change before midnight. Cosmetic XP levels up your avatar and never affects ranks. Dares record wins separately.</p></details><details class="scoring-guide"><summary>Last week’s champions</summary><div class="leaderboard">${(shared?.lastWeek || []).map((p) => `<div><b>#${p.rank}</b><span>${escapeText(p.name)}</span><strong>${p.points}<small>MEDAL PTS</small></strong></div>`).join("") || "<p>No completed week yet.</p>"}</div></details>${!shared?.competitionReady ? '<button class="secondary" data-account>Account & ranked play →</button>' : ""}`;
+  body.innerHTML = `<span class="eyebrow">LEAGUE</span><h2>Rankings</h2>${serverNote()}<section class="your-standing"><div><span>YOUR ${boardTab === "week" ? "WEEKLY" : "DAILY"} RANK</span><strong>${rank ? "#" + rank : "—"}</strong><small>${rank ? "Nice!" : shared?.competitionReady ? "Set a score to join the board" : "Practice now · ranked play unlocks after verification + 24h"}</small></div><div class="standing-stats"><span><b>${ownWeek?.points || 0}</b>This week</span><span><b>${pending ? "+" + pending : "0"}</b>Pending tonight</span><span><b>${me?.points || 0}</b>Lifetime</span></div></section><div class="look-tabs board-tabs"><button data-board-tab="week" class="${boardTab === "week" ? "active" : ""}" aria-pressed="${boardTab === "week"}">Weekly medals</button><button data-board-tab="daily" class="${boardTab === "daily" ? "active" : ""}" aria-pressed="${boardTab === "daily"}">Today’s game scores</button></div>${boardTab === "daily" ? `<div class="game-filters">${gameIds.map((g) => `<button class="secondary ${g === boardGame ? "chosen" : ""}" data-board-game="${g}" aria-pressed="${g === boardGame}">${games[g].name}</button>`).join("")}</div><p class="fine-print">${games[boardGame].name} · Your best today: <b>${ownDay?.score || 0}</b> · Medals are pending until 00:00 SGT.</p>` : `<p class="fine-print">Week of ${shared?.week || "Monday"} · resets Monday 00:00 SGT</p>`}<div class="podium-cards">${podium.length ? podium.map((p) => `<article class="podium-card medal-${p.rank} ${p.id === shared?.me ? "is-you" : ""}"><span class="podium-medal">${["🥇", "🥈", "🥉"][p.rank - 1]}</span><small>RANK ${p.rank}${p.id === shared?.me ? " · YOU" : ""}</small><h3>${escapeText(p.name)}</h3><strong>${p.value}</strong><small>${unit}${boardTab === "daily" ? ` · +${4 - p.rank} PENDING` : ""}</small></article>`).join("") : `<div class="board-empty"><span>✦</span><h3>${boardTab === "week" ? "Nothing yet!" : "Be the first!"}</h3><p>${boardTab === "week" ? "Top 3 daily scores win medals at midnight." : "Finish a ranked round to claim #1."}</p><button class="primary" data-game="${boardGame}">Play ${games[boardGame].name} →</button></div>`}</div>${list.length ? `<div class="leaderboard">${list.map((p) => `<div class="${p.id === shared?.me ? "you-row" : ""}"><b>#${p.rank}</b><span>${escapeText(p.name)}${p.id === shared?.me ? " · You" : ""}</span><strong>${p.value}<small>${unit}</small></strong></div>`).join("")}</div>` : ""}${boardTab === "daily" && ownDay && board[0] ? `<div class="score-target"><label>Your score compared with today’s leader <b>${ownDay.score} / ${board[0].score}</b></label><progress value="${ownDay.score}" max="${Math.max(1, board[0].score)}"></progress></div>` : ""}${boardTab === "daily" ? `<button class="primary" data-game="${boardGame}">Play ${games[boardGame].name} →</button>` : ""}<details class="scoring-guide"><summary>How scores become medals</summary><div class="medal-rule"><span>🥇<b>+3</b>Gold</span><span>🥈<b>+2</b>Silver</span><span>🥉<b>+1</b>Bronze</span></div><p>1. Play any of the four daily games. Your best positive score counts.</p><p>2. At midnight Singapore time, each game awards its top three ranks. Up to 12 medal points a day.</p><p>3. Daily medals build your weekly total. The weekly board resets Monday; lifetime medals stay.</p><p class="fine-print">Ties share a rank (1, 1, 3). Pending medals can change before midnight. Cosmetic XP levels up your avatar and never affects ranks. Dares record wins separately.</p></details><details class="scoring-guide"><summary>Last week’s champions</summary><div class="leaderboard">${(shared?.lastWeek || []).map((p) => `<div><b>#${p.rank}</b><span>${escapeText(p.name)}</span><strong>${p.points}<small>MEDAL PTS</small></strong></div>`).join("") || "<p>No completed week yet.</p>"}</div></details>${!shared?.competitionReady ? '<button class="secondary" data-account>Account & ranked play →</button>' : ""}`;
 }
 function challengeButtons(p: SharedPlayer) {
   const eligible =
@@ -1567,7 +1594,7 @@ function renderSharedDares() {
     shared?.players.filter(
       (p) => p.id !== shared!.me && p.status !== "online",
     ) || [];
-  body.innerHTML = `<span class="eyebrow">THREE DARES TO SEND · THREE DIFFERENT NEIGHBOURS</span><h2>A friendly dare.<br>Even while they’re away.</h2><p class="lead">Beat a resting neighbour’s saved best. Their score is locked in when you start.</p>${serverNote()}<div class="note">You have ${Math.max(0, 3 - (shared?.players.find((p) => p.id === shared?.me)?.outgoing || 0))}/3 dares left today. Starting uses your attempt, even if you quit. Choose a different neighbour each time, across all four games. Resets at midnight SGT. Receiving a dare never uses your attempts or removes points. Ties are draws. Wins are recorded separately from medals; regular rounds stay unlimited.</div><div class="offline-dares">${candidates.map((p) => `<section class="ranking-card"><button class="neighbour-heading" data-player="${p.id}">${activities[p.activity].icon} ${escapeText(p.name)} ↗</button><p>${p.status.toUpperCase()} · ${activities[p.activity].name}<br><b>${shared?.challenged.includes(p.id) ? "Already challenged today" : "Ready for a friendly dare"}</b></p>${challengeButtons(p)}</section>`).join("") || '<div class="note">No resting opponents yet. Set a score, then choose “Step away” so a neighbour can challenge you.</div>'}</div><h3>Your recent challenges</h3><div class="challenge-history">${shared?.history.map((r) => `<div><strong>${escapeText(r.challenger)} → ${escapeText(r.defender)}</strong><span>${games[r.game].name} · ${r.status === "finished" ? `${r.score} vs ${r.targetScore} · ${r.score! > r.targetScore ? "CHALLENGER WON" : r.score === r.targetScore ? "TIED" : "DEFENDER HELD"}` : r.status === "started" ? "IN PROGRESS" : "ATTEMPT ENDED"}</span></div>`).join("") || "<p>No challenges yet. There’s no rush.</p>"}</div><button class="secondary" data-open="board">See the daily rankings →</button>`;
+  body.innerHTML = `<span class="eyebrow">DARE PLAZA</span><h2>Dares</h2><p class="lead">Beat a resting neighbour’s best.</p>${serverNote()}<div class="note">You have ${Math.max(0, 3 - (shared?.players.find((p) => p.id === shared?.me)?.outgoing || 0))}/3 dares left today · one per neighbour · starting uses it · resets midnight SGT</div><div class="offline-dares">${candidates.map((p) => `<section class="ranking-card"><button class="neighbour-heading" data-player="${p.id}">${activities[p.activity].icon} ${escapeText(p.name)} ↗</button><p>${p.status.toUpperCase()} · ${activities[p.activity].name}<br><b>${shared?.challenged.includes(p.id) ? "Already challenged today" : "Ready for a friendly dare"}</b></p>${challengeButtons(p)}</section>`).join("") || '<div class="note">No resting opponents yet. Set a score, then choose “Step away” so a neighbour can challenge you.</div>'}</div><h3>Your recent challenges</h3><div class="challenge-history">${shared?.history.map((r) => `<div><strong>${escapeText(r.challenger)} → ${escapeText(r.defender)}</strong><span>${games[r.game].name} · ${r.status === "finished" ? `${r.score} vs ${r.targetScore} · ${r.score! > r.targetScore ? "CHALLENGER WON" : r.score === r.targetScore ? "TIED" : "DEFENDER HELD"}` : r.status === "started" ? "IN PROGRESS" : "ATTEMPT ENDED"}</span></div>`).join("") || "<p>No challenges yet. There’s no rush.</p>"}</div><button class="secondary" data-open="board">See the daily rankings →</button>`;
   const published = (shared?.dares || [])
     .map(
       (d) =>
@@ -1595,14 +1622,13 @@ function renderSharedDares() {
         shared?.challenged.includes(d.host)
           ? "disabled"
           : "") +
-        ">Play this same-level dare →</button></section>",
+        ">Play dare →</button></section>",
     )
     .join("");
   body.insertAdjacentHTML(
     "afterbegin",
-    '<h2>Dares on the plaza.</h2><p>Post up to three verified scores a day. Each dare lasts 24 hours. Every challenger plays the same seeded level. You can send three attempts a day to different neighbours; failed attempts cost no medal points.</p><div class="ranking-grid">' +
-      (published ||
-        "<p>No open dares yet. Finish a verified round, then post your score.</p>") +
+    '<h2>Open dares</h2><p>Same level for everyone · 24h · losing costs nothing.</p><div class="ranking-grid">' +
+      (published || "<p>No open dares yet.</p>") +
       '</div><details><summary>Post one of my saved rounds</summary><div class="account-actions">' +
       (shared?.recentRuns || [])
         .filter((r) => r.score > 0)
@@ -1621,8 +1647,8 @@ function renderSharedDares() {
         .join("") +
       '</div></details><p class="fine-print">' +
       (!shared?.competitionReady
-        ? "Shared dares open 24 hours after email verification. You can play regular rounds now."
-        : "Repeated attempts against the same neighbour do not consume another slot because they are blocked before starting.") +
+        ? "Dares open 24h after you verify an email. Regular rounds work now."
+        : "One dare per neighbour per day.") +
       "</p>",
   );
 }
@@ -1660,7 +1686,7 @@ function renderWelcome() {
       save.welcome === "played"
         ? '<span>YOUR CAP IS READY</span><button data-action="welcome-wear">Wear it & meet Kopi →</button>'
         : !save.cat
-          ? '<span>NEXT LITTLE ADVENTURE</span><button data-walk="cat">Say hello to Kopi →</button>'
+          ? '<span>NEXT UP</span><button data-walk="cat">Say hello to Kopi →</button>'
           : '<span>TRY SOMETHING NEW</span><button data-game="hop">Play Hop Hop →</button>';
   }
 
@@ -1669,17 +1695,17 @@ function renderWelcome() {
     fallback.innerHTML =
       save.welcome === "complete"
         ? ""
-        : `<div class="note"><strong>Your first little victory.</strong><p>Finish one short round at any score. Unlock a lilac cap and +35 bonus XP.</p><button class="primary" data-action="${save.welcome === "played" ? "welcome-wear" : "welcome-resume"}">${save.welcome === "played" ? "Wear my cap & meet Kopi" : "Play my first round"} →</button></div>`;
+        : `<div class="note"><strong>First win</strong><p>Play 1 round → lilac cap + 35 XP.</p><button class="primary" data-action="${save.welcome === "played" ? "welcome-wear" : "welcome-resume"}">${save.welcome === "played" ? "Wear my cap & meet Kopi" : "Play my first round"} →</button></div>`;
   const el = document.querySelector<HTMLElement>(".welcome-panel");
   if (!el) return;
   const active = save.welcome !== "complete" && !save.welcomeDismissed;
   document.body.classList.toggle("welcome-active", active);
   const stage = save.welcome;
   if (!active) {
-    el.innerHTML = `<div class="eyebrow">MEET YOU DOWNSTAIRS</div><h1>Good times.<br>Great company.</h1><button class="primary" data-open="arcade">Choose a game →</button>${stage !== "complete" ? `<button class="welcome-later" data-action="${stage === "played" ? "welcome-wear" : "welcome-resume"}">${stage === "played" ? "Wear my unlocked cap" : "Resume welcome quest"}</button>` : ""}`;
+    el.innerHTML = `<div class="eyebrow">MEET YOU DOWNSTAIRS</div><h1>Good times.<br>Great company.</h1><button class="primary" data-open="arcade">Play →</button>${stage !== "complete" ? `<button class="welcome-later" data-action="${stage === "played" ? "welcome-wear" : "welcome-resume"}">${stage === "played" ? "Wear my cap" : "Resume quest"}</button>` : ""}`;
     return;
   }
-  el.innerHTML = `<div class="eyebrow">WELCOME QUEST · ${stage === "new" ? "1" : stage === "cabinet" ? "2" : "3"} OF 3</div><h1>${stage === "played" ? "That’s your<br>first little win." : stage === "cabinet" ? "Your cabinet<br>is this way." : "Your first<br>little victory."}</h1><p>${stage === "played" ? "Your lilac cap is unlocked. Wear it, then say hello to Kopi the cat." : stage === "cabinet" ? "Follow the path to Noodle Run. Finish a round at any score to unlock your cap." : "Play one short round. Unlock a lilac cap. Make yourself at home."}</p><ol class="welcome-steps" aria-label="Welcome quest progress"><li class="${stage !== "new" ? "done" : ""}">Find a cabinet</li><li class="${stage === "played" ? "done" : ""}">Finish a round</li><li class="${stage === "played" ? "done" : ""}">Unlock your cap</li></ol><button class="primary" data-action="${stage === "played" ? "welcome-wear" : "welcome-start"}">${stage === "played" ? "Wear it & meet Kopi →" : stage === "cabinet" ? "Take me to my cabinet →" : "Show me the arcade →"}</button><button class="welcome-later" data-action="welcome-skip">I’ll explore on my own</button>`;
+  el.innerHTML = `<div class="eyebrow">WELCOME QUEST · ${stage === "new" ? "1" : stage === "cabinet" ? "2" : "3"} OF 3</div><h1>${stage === "played" ? "You did it!" : stage === "cabinet" ? "This way!" : "First win"}</h1><p>${stage === "played" ? "Lilac cap unlocked." : stage === "cabinet" ? "Finish any round of Noodle Run." : "Play 1 round. Win a lilac cap."}</p><ol class="welcome-steps" aria-label="Welcome quest progress"><li class="${stage !== "new" ? "done" : ""}">Find a cabinet</li><li class="${stage === "played" ? "done" : ""}">Finish a round</li><li class="${stage === "played" ? "done" : ""}">Unlock your cap</li></ol><button class="primary" data-action="${stage === "played" ? "welcome-wear" : "welcome-start"}">${stage === "played" ? "Wear it & meet Kopi →" : stage === "cabinet" ? "Take me there →" : "Play now →"}</button><button class="welcome-later" data-action="welcome-skip">Skip</button>`;
 }
 renderWelcome();
 

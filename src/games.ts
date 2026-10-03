@@ -1,6 +1,7 @@
 import type { GameId } from "./state";
 import { games } from "./catalog";
 import type { Sfx } from "./audio";
+import type { FxEvent } from "./arcade-fx";
 import { HopRun, StarFlight } from "./action-games";
 import {
   Simulation,
@@ -21,6 +22,12 @@ export class ArcadeGame extends Simulation {
   input: Input = [0, 0, -1, 0, -1, -1];
   events: Replay["events"] = [];
   previous = "";
+  shownScore = 0;
+  lastPop = 0;
+  /** Optional cosmetic hook for visual effects; never affects the simulation. */
+  onFx: ((event: FxEvent, amount: number) => void) | null = null;
+  onTime: ((secondsLeft: number) => void) | null = null;
+  onPause: ((paused: boolean) => void) | null = null;
   constructor(
     id: GameId,
     public container: HTMLElement,
@@ -30,7 +37,7 @@ export class ArcadeGame extends Simulation {
   ) {
     super(id, seed);
     const info = games[id];
-    container.innerHTML = `<div class="game-stats"><span>SCORE <b id="run-score">0</b></span><span id="run-state">60 SECOND ROUND</span><span>TIME <b id="run-time">60</b></span></div><div class="game-screen"><canvas width="440" height="440" aria-label="${id === "noodle" ? "Noodle Run: use arrow keys or swipe to eat dumplings" : "Brick Bash: drag or use left and right arrows to move the paddle"}" tabindex="0"></canvas><div class="game-cover" id="game-cover"><span class="eyebrow">READY, PLAYER?</span><h3>${id === "noodle" ? "Follow your appetite." : "Make a little noise."}</h3><p>${id === "noodle" ? "Eat dumplings. Grow your noodle.<br>Watch the walls and your own tail." : "Bounce the ball. Break every brick.<br>You have three chances."}</p><button class="primary" id="start-game">Let’s play <span>→</span></button></div></div><div class="game-controls"><span>${id === "noodle" ? "Arrow keys / WASD · swipe to turn" : "← → / A D · drag to move"}</span><button class="text-button" id="pause-game" disabled>Pause</button></div><div class="dpad" aria-label="Game direction controls"><button data-dir="up" aria-label="Up">↑</button><button data-dir="left" aria-label="Left">←</button><button data-dir="down" aria-label="Down">↓</button><button data-dir="right" aria-label="Right">→</button></div>`;
+    container.innerHTML = `<div class="game-stats"><span class="stat-pill score-pill"><small>SCORE</small><b id="run-score">0</b></span><span id="run-state">READY</span><span class="stat-pill time-pill"><small>TIME</small><b id="run-time">60</b></span></div><div class="game-screen"><div class="game-pops" aria-hidden="true"></div><canvas width="440" height="440" aria-label="${id === "noodle" ? "Noodle Run: use arrow keys or swipe to eat dumplings" : "Brick Bash: drag or use left and right arrows to move the paddle"}" tabindex="0"></canvas><div class="game-cover" id="game-cover"><span class="eyebrow">READY?</span><h3>${id === "noodle" ? "Follow your appetite." : "Make a little noise."}</h3><p>${id === "noodle" ? "Eat dumplings. Grow your noodle.<br>Watch the walls and your own tail." : "Bounce the ball. Break every brick.<br>You have three chances."}</p><button class="primary" id="start-game">PLAY <span>▶</span></button></div></div><div class="game-controls"><span>${id === "noodle" ? "Arrow keys / WASD · swipe to turn" : "← → / A D · drag to move"}</span><button class="text-button" id="pause-game" disabled>Pause</button></div><div class="dpad" aria-label="Game direction controls"><button data-dir="up" aria-label="Up">↑</button><button data-dir="left" aria-label="Left">←</button><button data-dir="down" aria-label="Down">↓</button><button data-dir="right" aria-label="Right">→</button></div>`;
     this.canvas = container.querySelector("canvas")!;
     this.ctx = this.canvas.getContext("2d")!;
     this.canvas.setAttribute("aria-label", `${info.name}: ${info.controls}`);
@@ -39,10 +46,10 @@ export class ArcadeGame extends Simulation {
     container.querySelector(".game-controls>span")!.textContent = info.controls;
     if (matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0)
       container.querySelector(".game-controls>span")!.textContent = {
-        noodle: "Swipe to turn · or use the arrows",
-        brick: "Drag the paddle · or use the arrows",
-        hop: "Tap the game or JUMP to hop",
-        swarm: "Drag your ship · firing is automatic",
+        noodle: "Swipe to turn",
+        brick: "Drag to move",
+        hop: "Tap to jump",
+        swarm: "Drag to fly",
       }[id];
     if (id === "hop")
       container.querySelector(".dpad")!.innerHTML =
@@ -54,6 +61,15 @@ export class ArcadeGame extends Simulation {
     container.querySelector("#start-game")!.addEventListener("click", () => {
       this.started = true;
       container.querySelector("#game-cover")!.remove();
+      container
+        .querySelector(".game-screen")!
+        .insertAdjacentHTML(
+          "beforeend",
+          '<div class="go-splash" aria-hidden="true">GO!</div>',
+        );
+      setTimeout(() => container.querySelector(".go-splash")?.remove(), 1100);
+      container.querySelector("#run-state")!.textContent = this.status();
+      this.onFx?.("start", 0);
       (container.querySelector("#pause-game") as HTMLButtonElement).disabled =
         false;
       this.canvas.focus();
@@ -178,9 +194,14 @@ export class ArcadeGame extends Simulation {
       : "Pause";
     this.container.querySelector("#run-state")!.textContent = this.paused
       ? "PAUSED"
-      : this.id === "brick"
-        ? `${this.lives} LIVES`
-        : "60 SECOND ROUND";
+      : this.status();
+    this.container.classList.toggle("is-paused", this.paused);
+    this.onPause?.(this.paused);
+  }
+  /** Hearts for games with lives, otherwise a simple GO! tag. */
+  private status() {
+    if (this.id !== "brick" && this.id !== "swarm") return "GO!";
+    return "♥".repeat(Math.max(0, this.snapshot().lives));
   }
   /** Read-only view of the simulation, used to pick sound effects. */
   private snapshot() {
@@ -200,6 +221,14 @@ export class ArcadeGame extends Simulation {
   private cue(b: ReturnType<ArcadeGame["snapshot"]>) {
     const n = this.snapshot();
     const gained = n.score - b.score;
+    if (this.onFx) {
+      if (gained >= 200) this.onFx("big", gained);
+      if (n.lives < b.lives || (n.ended && !b.ended)) this.onFx("hurt", 0);
+      if (n.boss && !b.boss) this.onFx("boss", 0);
+      if (n.shield > b.shield + 1) this.onFx("power", 0);
+      if (n.lives !== b.lives)
+        this.container.querySelector("#run-state")!.textContent = this.status();
+    }
     if (n.ended && !b.ended && this.id !== "hop")
       this.sound(this.id === "swarm" ? "bigboom" : "hurt");
     else if (n.ended && !b.ended) this.sound("hurt");
@@ -247,12 +276,14 @@ export class ArcadeGame extends Simulation {
         this.input[3] = 0;
         this.accumulator -= 1 / 60;
       }
-      this.container.querySelector("#run-score")!.textContent = String(
-        this.score,
-      );
-      this.container.querySelector("#run-time")!.textContent = String(
-        Math.max(0, Math.ceil(60 - this.elapsed)),
-      );
+      if (this.score !== this.shownScore) this.popScore(now);
+      const left = Math.max(0, Math.ceil(60 - this.elapsed));
+      const time = this.container.querySelector("#run-time")!;
+      if (time.textContent !== String(left)) {
+        time.textContent = String(left);
+        time.parentElement!.classList.toggle("hurry", left <= 10);
+        this.onTime?.(left);
+      }
       if (this.ended) {
         this.finish(this.score, {
           version: RULES_VERSION,
@@ -264,6 +295,32 @@ export class ArcadeGame extends Simulation {
     }
     this.draw();
   };
+  /**
+   * Updates the score and, at most every 400 ms, bumps the pill, floats a
+   * "+N" label and fires a burst, so steady scoring (Hop Hop) stays calm.
+   */
+  private popScore(now: number) {
+    const el = this.container.querySelector<HTMLElement>("#run-score")!;
+    el.textContent = String(this.score);
+    if (now - this.lastPop < 400) return;
+    const gained = this.score - this.shownScore;
+    this.shownScore = this.score;
+    this.lastPop = now;
+    if (gained > 0 && gained < 200) this.onFx?.("score", gained);
+    const pill = el.parentElement!;
+    pill.classList.remove("bump");
+    void pill.offsetWidth;
+    pill.classList.add("bump");
+    if (gained <= 0) return;
+    const pops = this.container.querySelector(".game-pops");
+    if (!pops || pops.childElementCount > 6) return;
+    const pop = document.createElement("span");
+    pop.className = gained >= 100 ? "pop big" : "pop";
+    pop.textContent = `+${gained}`;
+    pop.style.left = `${30 + Math.random() * 40}%`;
+    pops.append(pop);
+    setTimeout(() => pop.remove(), 900);
+  }
   private draw() {
     const c = this.ctx;
     c.fillStyle = "#172e38";
@@ -322,11 +379,11 @@ export class ArcadeGame extends Simulation {
       c.fillStyle = "#172e38bb";
       c.fillRect(0, 0, 440, 440);
       c.fillStyle = "#e5f1c7";
-      c.font = "bold 24px monospace";
+      c.font = "700 40px Fredoka, sans-serif";
       c.textAlign = "center";
-      c.fillText("TAKE YOUR TIME.", 220, 220);
-      c.font = "14px monospace";
-      c.fillText("Press P or Resume when ready", 220, 250);
+      c.fillText("PAUSED", 220, 220);
+      c.font = "600 18px Fredoka, sans-serif";
+      c.fillText("P to resume", 220, 250);
     }
   }
   dispose() {
