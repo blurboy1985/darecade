@@ -1,5 +1,18 @@
 # Darecade verification — 3 October 2026
 
+## East Side district and activities, 4 October 2026
+
+See [EAST-SIDE.md](EAST-SIDE.md) for the rules.
+
+- **80/80 Node tests and 5/5 Cloudflare integration tests passed**; TypeScript, the Vite build and the Cloudflare dry-run passed. Eight new tests cover the fish, hoops and crop rules, tampered and pre-existing saves, the mission, server-side rewards on the server clock, the wider walkable bounds and the new away poses.
+- Tested in an isolated local Chromium against `.browser/east-qa-data` on port 4199 with a synthetic guest who had finished a first race. Explore listed eleven places. Walking to Hoops Court, Fishing Jetty (onto the jetty itself) and Community Plots each opened the right panel on arrival, and the desktop camera followed east.
+- **Hoops:** a scripted ten-shot round scored 7; the panel showed New best · +35 XP and the server profile held `hoopsBest` 7.
+- **Fishing:** five casts gave two new species (+10 XP each) and two repeats; reeling early showed the too-soon message. The server profile held both species.
+- **Plots:** planting chilli showed Ready in 1h 0m; watering changed it to 45 min and disabled the button. With the QA database backdated by two hours, the reloaded panel offered the harvest; the server gave +10 XP, counted one harvest and freed the plot.
+- The three new stickers showed as earned (6 / 9 collected), and the East Side mission showed 2/2. Fish off the jetty and Shoot some hoops appeared as away activities; stepping away placed the avatar on the jetty.
+- At 390×844 the fishing panel had no horizontal overflow and a 240×55 action button. No page errors throughout.
+- **Not verified:** whether the activities are fun to a person; frame rate of the larger scene on a physical phone; the 2D lobby panels (they use the same code path as other places but were not opened in this run); hoops and fishing by real touch.
+
 ## Coast Rush steering and wheel fix, 3 October 2026
 
 - Corrected keyboard and on-screen left/right input to match the chase camera. The simulation and replay rules are unchanged; only input mapping and the incorrect track-coordinate comment changed.

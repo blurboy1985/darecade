@@ -126,6 +126,28 @@ export function activityPose(id: ActivityId, seconds: number): ActivityPose {
       gait: Math.sin(t * 5) * 0.3,
       arms: 1.2 + Math.sin(t * 4) * 0.65,
     };
+  } else if (id === "fish") {
+    // At the end of the jetty, facing the pond, with a slow patient sway.
+    pose = {
+      ...pose,
+      x: 27.4,
+      z: 11,
+      y: 0.42,
+      yaw: Math.PI / 2 + Math.sin(t * 0.5) * 0.12,
+      arms: 0.85 + Math.sin(t * 0.8) * 0.08,
+    };
+  } else if (id === "hoops") {
+    // Drifting along the free-throw line, hopping into each shot.
+    const hop = Math.max(0, Math.sin(t * 2.6));
+    pose = {
+      ...pose,
+      x: 27 + Math.sin(t * 0.7) * 1.4,
+      z: -9.2,
+      y: 0.17 + hop * 0.32,
+      yaw: Math.PI,
+      gait: Math.sin(t * 5) * 0.25,
+      arms: 0.5 + hop * 1.3,
+    };
   } else if (id === "rest") {
     pose = { ...pose, x: -13, z: 6, y: 0.25, sit: true, arms: 0.15 };
   } else {

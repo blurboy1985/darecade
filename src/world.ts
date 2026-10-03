@@ -42,6 +42,10 @@ export const spots: Spot[] = [
     z: 10,
     approach: [6, 10],
   },
+  // East Side: activities that are not arcade cabinets.
+  { id: "hoops", name: "Hoops Court", x: 27, z: -11, approach: [27, -8] },
+  { id: "plots", name: "Community Plots", x: 28, z: 3, approach: [24, 3] },
+  { id: "fishing", name: "Fishing Jetty", x: 27, z: 11, approach: [27, 11] },
 ];
 const matCache = new Map<string, T.MeshStandardMaterial>();
 function material(color: string, emissive = false) {
@@ -336,7 +340,7 @@ export class LobbyWorld {
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
     this.sun.shadow.camera.left = -32;
-    this.sun.shadow.camera.right = 32;
+    this.sun.shadow.camera.right = 44;
     this.sun.shadow.camera.top = 26;
     this.sun.shadow.camera.bottom = -26;
     this.sun.shadow.normalBias = 0.06;
@@ -351,6 +355,7 @@ export class LobbyWorld {
     this.buildGarden();
     this.buildSurroundings();
     this.buildPlayground();
+    this.buildEastSide();
     this.buildNeighbours();
     this.buildLiveliness();
     this.cat = this.buildCat();
@@ -989,6 +994,169 @@ export class LobbyWorld {
     box(this.root, -17.4, 1.24, -7, 0.08, 0.7, 0.08, "#61a0a0");
     box(this.root, -17.4, 1.61, -7, 0.44, 0.08, 0.2, "#51605b");
     // The bell is loaded with its synchronized Blender animation.
+  }
+  /** A second district east of the original island: court, plots and pond. */
+  private buildEastSide() {
+    const r = this.root;
+    // Ground, matching the original island's layers and paving.
+    box(r, 27.5, -0.75, 0, 14, 1.5, 31, "#9299a2");
+    box(r, 27.2, -0.18, 0, 14, 0.55, 30.4, "#ded1be");
+    box(r, 26.75, 0.04, 0, 14, 0.13, 29.5, "#d5caba");
+    for (let x = 21; x < 34; x += 2)
+      for (let z = -14; z < 15; z += 2)
+        box(
+          r,
+          x,
+          0.112,
+          z,
+          1.97,
+          0.025,
+          1.97,
+          (Math.abs(x) + Math.abs(z)) % 6 === 0 ? "#dcd3c5" : "#d0c7bb",
+        );
+    box(r, 24.5, 0.13, -3, 18, 0.025, 3.4, "#edddc4");
+    box(r, 23.6, 0.13, 3.6, 2.6, 0.025, 9.8, "#edddc4");
+    for (let i = 11; i < 15; i++)
+      box(
+        r,
+        -19 + i * 3.7,
+        -0.15,
+        15.1,
+        0.5,
+        0.5,
+        0.25,
+        i % 2 ? "#f0e3c7" : "#83928b",
+      );
+    const arch = sign(r, "EAST SIDE", 20.6, 3.35, -3, 3.4, 0.7, "#2f5560");
+    arch.rotation.y = -Math.PI / 2;
+    for (const z of [-4.9, -1.1]) {
+      box(r, 20.6, 1.85, z, 0.22, 3.7, 0.22, "#586c66");
+      this.obstacle(20.6, z, 0.3, 0.3);
+    }
+    box(r, 20.6, 3.8, -3, 0.26, 0.2, 4.2, "#586c66");
+    for (const [x, z] of [
+      [33, -5],
+      [22, 7],
+    ]) {
+      cylinder(r, x, 1.8, z, 0.07, 3.6, "#526761");
+      box(r, x, 3.65, z, 0.55, 0.7, 0.55, "#55675f");
+      this.lamps.push(box(r, x, 3.65, z, 0.39, 0.49, 0.59, "#ffe4a1", true));
+      box(r, x, 4.04, z, 0.75, 0.13, 0.75, "#586c66");
+    }
+    this.tree(32.4, -0.4, 0.8);
+    this.tree(21.4, 13, 0.7);
+
+    // Hoops Court: a half court with one hoop at the north end.
+    box(r, 27, 0.135, -9.5, 10, 0.03, 8, "#d98f6a");
+    const line = "#fbf3e2";
+    for (const [x, z, w, d] of [
+      [27, -5.55, 10, 0.1],
+      [27, -13.45, 10, 0.1],
+      [22.05, -9.5, 0.1, 8],
+      [31.95, -9.5, 0.1, 8],
+      [27, -9.2, 3.6, 0.1],
+      [25.2, -11.3, 0.1, 4.3],
+      [28.8, -11.3, 0.1, 4.3],
+    ])
+      box(r, x, 0.155, z, w, 0.012, d, line);
+    box(r, 27, 0.15, -11.3, 3.5, 0.012, 4.2, "#c97b5c");
+    const arc = new T.Mesh(
+      new T.TorusGeometry(1.8, 0.05, 4, 20, Math.PI),
+      material(line),
+    );
+    arc.rotation.x = Math.PI / 2;
+    arc.position.set(27, 0.16, -9.2);
+    r.add(arc);
+    cylinder(r, 27, 1.75, -13.6, 0.11, 3.5, "#566363");
+    box(r, 27, 3.3, -13.25, 0.12, 0.12, 0.8, "#566363");
+    box(r, 27, 3.25, -12.85, 1.9, 1.2, 0.09, "#f4efe2");
+    box(r, 27, 3.1, -12.79, 0.62, 0.46, 0.03, "#e8785e");
+    const rim = new T.Mesh(
+      new T.TorusGeometry(0.28, 0.035, 6, 16),
+      material("#ee7b4f"),
+    );
+    rim.rotation.x = Math.PI / 2;
+    rim.position.set(27, 2.86, -12.5);
+    r.add(rim);
+    cylinder(r, 27, 2.66, -12.5, 0.17, 0.4, "#fdf8ec", 8, 0.27);
+    this.obstacle(27, -13.4, 0.9, 0.9);
+    box(r, 31.3, 0.42, -12.6, 1.5, 0.12, 0.6, "#566363");
+    for (const x of [30.7, 31.9])
+      box(r, x, 0.24, -12.6, 0.1, 0.3, 0.5, "#566363");
+    for (const x of [30.85, 31.3, 31.75])
+      sphere(r, x, 0.66, -12.6, 0.19, "#e88a4a", 1);
+    this.obstacle(31.3, -12.6, 1.5, 0.6);
+
+    // Community Plots: six raised beds and a tool shed.
+    const greens = ["#7da891", "#8eb49a", "#a0bd94"];
+    [26.2, 29.2].forEach((x, column) =>
+      [0.4, 3, 5.6].forEach((z, row) => {
+        box(r, x, 0.32, z, 2.3, 0.42, 1.7, "#a9825c");
+        box(r, x, 0.55, z, 2, 0.06, 1.4, "#5b4636");
+        const mine = column === 0 && row === 1;
+        for (let i = 0; i < (mine ? 3 : 5); i++) {
+          const px = x - 0.75 + ((i * 0.37 + row * 0.2) % 1.5),
+            pz = z - 0.45 + ((i * 0.53 + column * 0.3) % 0.9);
+          if ((i + row + column) % 3 === 0) {
+            cylinder(r, px, 0.85, pz, 0.03, 0.6, "#7a9a68", 5);
+            sphere(r, px, 1.2, pz, 0.14, ["#f2c14e", "#e8785e"][i % 2], 0);
+          } else sphere(r, px, 0.72, pz, 0.2, greens[(i + row) % 3], 0);
+        }
+        if (mine) {
+          cylinder(r, x + 0.8, 0.95, z + 0.55, 0.035, 0.8, "#937967", 5);
+          sign(r, "YOUR PLOT", x + 0.8, 1.45, z + 0.56, 1.3, 0.34, "#3f6b5a");
+        }
+        this.obstacle(x, z, 2.3, 1.7);
+      }),
+    );
+    box(r, 32, 1.05, 3, 1.7, 2.1, 2.4, "#7fa39a");
+    box(r, 32, 2.2, 3, 2.1, 0.2, 2.8, "#55675f");
+    box(r, 31.13, 0.95, 3, 0.06, 1.7, 0.9, "#566f6a");
+    this.obstacle(32, 3, 1.7, 2.4);
+    cylinder(r, 30.9, 0.36, 1.4, 0.2, 0.42, "#6aa7b0", 10);
+    box(r, 31.15, 0.46, 1.4, 0.34, 0.05, 0.05, "#6aa7b0");
+
+    // Fishing Jetty: a sunken pond with a short jetty from its west bank.
+    box(r, 28.5, 0.15, 11, 9, 0.05, 5.5, "#5fb4c4");
+    for (const [x, z, w, d] of [
+      [28.5, 8.1, 9.5, 0.4],
+      [28.5, 13.9, 9.5, 0.4],
+      [33.15, 11, 0.4, 5.5],
+      [23.85, 8.95, 0.4, 1.9],
+      [23.85, 13.05, 0.4, 1.9],
+    ])
+      box(r, x, 0.25, z, w, 0.28, d, "#b9b3a4");
+    box(r, 26, 0.36, 11, 4.3, 0.12, 1.6, "#b88761");
+    for (let i = 0; i < 8; i++)
+      box(r, 24.1 + i * 0.54, 0.425, 11, 0.04, 0.012, 1.6, "#9a7252");
+    for (const x of [24.6, 27.9])
+      for (const z of [10.3, 11.7])
+        cylinder(r, x, 0.35, z, 0.09, 0.6, "#8a6a52", 6);
+    for (const [x, z, s] of [
+      [30.6, 9.4, 0.5],
+      [31.7, 12.6, 0.4],
+      [25.4, 12.9, 0.36],
+      [29.6, 12.9, 0.3],
+    ])
+      cylinder(r, x, 0.19, z, s, 0.03, "#7da891", 9);
+    sphere(r, 31.75, 0.3, 12.55, 0.13, "#f3b3c6", 0);
+    for (const [x, z] of [
+      [32.6, 9],
+      [32.4, 9.5],
+      [32.7, 9.9],
+      [24.6, 13.4],
+    ])
+      cylinder(r, x, 0.65, z, 0.035, 1, "#7a9a68", 5);
+    const rod = cylinder(r, 28.35, 1.05, 11.45, 0.025, 2, "#6d5a4c", 5);
+    rod.rotation.z = -0.95;
+    sphere(r, 29.5, 0.24, 11.45, 0.1, "#e8785e", 1);
+    cylinder(r, 27.6, 0.57, 10.5, 0.17, 0.3, "#6aa7b0", 10, 0.21);
+    cylinder(r, 23.2, 0.9, 9.3, 0.04, 1.6, "#937967", 5);
+    sign(r, "FISHING JETTY", 23.2, 1.75, 9.31, 2.1, 0.4, "#2f5560");
+    // Water is closed to walking except along the jetty.
+    this.obstacle(28.5, 9.1, 9, 1.7);
+    this.obstacle(28.5, 12.9, 9, 1.7);
+    this.obstacle(30.75, 11, 4.5, 2.2);
   }
   private buildPlayground() {
     box(this.root, 11, 0.18, 10, 11, 0.18, 7, "#b7b9a0");
@@ -2020,6 +2188,17 @@ export class LobbyWorld {
         0.025,
       );
       this.updateCamera();
+    } else if (this.cameraMode === "isometric") {
+      // The desktop overview slides east with the player so East Side stays in frame.
+      const x = T.MathUtils.clamp(this.player.root.position.x - 8, 0, 14);
+      // The pond sits at the south edge, so lean south when the player is by it.
+      const p = this.player.root.position;
+      const z = p.x > 20 ? T.MathUtils.clamp(p.z - 5, -1, 5) : -1;
+      if (Math.abs(x - this.home.x) + Math.abs(z - this.home.z) > 0.02) {
+        this.home.x = T.MathUtils.lerp(this.home.x, x, 0.06);
+        this.home.z = T.MathUtils.lerp(this.home.z, z, 0.06);
+        this.updateCamera();
+      }
     }
     if (this.cameraMode === "third") this.updateCamera();
     for (const object of this.root.children) {
