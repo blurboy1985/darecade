@@ -3,6 +3,8 @@
 //
 // Music has three moods that cross-fade: "day" (mellow lo-fi city-pop),
 // "night" (soft pads and celesta) and "game" (bright chiptune for the arcade).
+// Coast Rush adds a fourth, "race": a driving surf tune that speeds up on the
+// final lap, plus a continuous engine, tyre and wind loop.
 
 export type Sfx =
   | "click"
@@ -41,8 +43,24 @@ export type Sfx =
   | "powerup"
   | "win"
   | "finish"
-  | "error";
-export type Theme = "day" | "night" | "game";
+  | "error"
+  | "count"
+  | "go"
+  | "shell"
+  | "crate"
+  | "shield"
+  | "shieldoff"
+  | "turbo"
+  | "crash"
+  | "lap"
+  | "finallap"
+  | "overtake"
+  | "overtaken"
+  | "tier"
+  | "tick"
+  | "checkered"
+  | "timeup";
+export type Theme = "day" | "night" | "game" | "race";
 
 let ctx: BaseAudioContext | null = null;
 let master: GainNode,
@@ -185,7 +203,10 @@ const throttle: Partial<Record<Sfx, number>> = {
   brick: 0.04,
   click: 0.05,
   sparkle: 0.25,
+  overtake: 0.5,
+  overtaken: 0.5,
 };
+let shellStreak = 0;
 const penta = [72, 74, 76, 79, 81, 84, 86, 88, 91];
 
 export function play(name: Sfx) {
@@ -517,6 +538,165 @@ export function play(name: Sfx) {
       tone({ type: "triangle", f: 330, at: t, dur: 0.12, vol: 0.08 });
       tone({ type: "triangle", f: 247, at: t + 0.13, dur: 0.18, vol: 0.08 });
       break;
+    case "count":
+      tone({ type: "square", f: 440, at: t, dur: 0.2, vol: 0.07, send: 0.2 });
+      break;
+    case "go":
+      tone({ type: "square", f: 880, at: t, dur: 0.55, vol: 0.07, send: 0.3 });
+      tone({ type: "triangle", f: 1320, at: t, dur: 0.55, vol: 0.05 });
+      break;
+    case "shell": {
+      // Shells collected in quick succession climb the scale.
+      shellStreak =
+        t - (last.get("shell-run") ?? -9) < 2.5
+          ? Math.min(penta.length - 1, shellStreak + 1)
+          : 0;
+      last.set("shell-run", t);
+      const n = penta[shellStreak] + 12;
+      tone({ type: "triangle", f: midi(n), at: t, dur: 0.07, vol: 0.08 });
+      tone({
+        type: "triangle",
+        f: midi(n + 7),
+        at: t + 0.06,
+        dur: 0.22,
+        vol: 0.07,
+        send: 0.35,
+      });
+      break;
+    }
+    case "crate":
+      hiss(t, 0.08, 0.09, "bandpass", 1400, 500, undefined, 2);
+      [72, 79, 84].forEach((n, i) =>
+        tone({
+          type: "triangle",
+          f: midi(n),
+          at: t + 0.04 + i * 0.06,
+          dur: 0.2,
+          vol: 0.09,
+          send: 0.3,
+        }),
+      );
+      break;
+    case "shield":
+      tone({ f: 300, to: 900, at: t, dur: 0.4, vol: 0.09, send: 0.5 });
+      tone({ f: 1200, to: 1800, at: t + 0.1, dur: 0.5, vol: 0.04, send: 0.7 });
+      hiss(t, 0.4, 0.03, "bandpass", 1500, 5000, undefined, 2);
+      break;
+    case "shieldoff":
+      tone({ f: 900, to: 300, at: t, dur: 0.28, vol: 0.06, send: 0.3 });
+      break;
+    case "turbo":
+      hiss(t, 0.55, 0.1, "bandpass", 400, 3200, undefined, 1.2);
+      tone({
+        type: "sawtooth",
+        f: 180,
+        to: 560,
+        at: t,
+        dur: 0.45,
+        vol: 0.05,
+        filter: 1800,
+      });
+      break;
+    case "crash":
+      hiss(t, 0.38, 0.14, "lowpass", 1700, 180);
+      tone({ f: 140, to: 40, at: t, dur: 0.32, vol: 0.14 });
+      tone({ type: "square", f: 320, to: 90, at: t, dur: 0.13, vol: 0.05 });
+      break;
+    case "lap":
+      [79, 84, 88].forEach((n, i) =>
+        tone({
+          type: "triangle",
+          f: midi(n),
+          at: t + i * 0.08,
+          dur: 0.22,
+          vol: 0.09,
+          send: 0.3,
+        }),
+      );
+      break;
+    case "finallap":
+      [84, 84, 84, 91].forEach((n, i) =>
+        tone({
+          type: "square",
+          f: midi(n),
+          at: t + i * 0.11,
+          dur: i === 3 ? 0.5 : 0.09,
+          vol: 0.06,
+          send: 0.3,
+        }),
+      );
+      break;
+    case "overtake":
+      tone({ type: "triangle", f: midi(76), at: t, dur: 0.07, vol: 0.07 });
+      tone({
+        type: "triangle",
+        f: midi(83),
+        at: t + 0.07,
+        dur: 0.16,
+        vol: 0.07,
+        send: 0.2,
+      });
+      break;
+    case "overtaken":
+      tone({ type: "triangle", f: midi(71), at: t, dur: 0.07, vol: 0.05 });
+      tone({
+        type: "triangle",
+        f: midi(64),
+        at: t + 0.07,
+        dur: 0.16,
+        vol: 0.05,
+      });
+      break;
+    case "tier":
+      tone({ type: "square", f: midi(86), at: t, dur: 0.06, vol: 0.045 });
+      tone({
+        type: "square",
+        f: midi(93),
+        at: t + 0.05,
+        dur: 0.09,
+        vol: 0.045,
+      });
+      break;
+    case "tick":
+      tone({ type: "triangle", f: 1000, at: t, dur: 0.05, vol: 0.06 });
+      break;
+    case "checkered": {
+      const fanfare = [72, 76, 79, 84, 79, 84, 88];
+      fanfare.forEach((n, i) =>
+        tone({
+          type: "square",
+          f: midi(n),
+          at: t + i * 0.12,
+          dur: i === fanfare.length - 1 ? 0.5 : 0.11,
+          vol: 0.055,
+          send: 0.3,
+        }),
+      );
+      [60, 72, 76, 79, 84, 88].forEach((n) =>
+        tone({
+          type: "triangle",
+          f: midi(n),
+          at: t + fanfare.length * 0.12,
+          dur: 1.8,
+          vol: 0.05,
+          send: 0.5,
+        }),
+      );
+      hiss(t + fanfare.length * 0.12, 1.2, 0.03, "highpass", 6000);
+      break;
+    }
+    case "timeup":
+      [67, 63, 60, 55].forEach((n, i) =>
+        tone({
+          type: "triangle",
+          f: midi(n),
+          at: t + i * 0.2,
+          dur: i === 3 ? 0.8 : 0.24,
+          vol: 0.08,
+          send: 0.35,
+        }),
+      );
+      break;
   }
 }
 
@@ -561,8 +741,8 @@ type Song = {
   swing: number;
   chords: number[][];
   scale: number[];
-  lead: "epiano" | "celesta" | "chip";
-  drums: "lofi" | "soft" | "chip";
+  lead: "epiano" | "celesta" | "chip" | "surf";
+  drums: "lofi" | "soft" | "chip" | "race";
   density: number;
 };
 const songs: Record<Theme, Song> = {
@@ -612,7 +792,26 @@ const songs: Record<Theme, Song> = {
     drums: "chip",
     density: 0.62,
   },
+  race: {
+    bpm: 148,
+    swing: 0,
+    chords: [
+      [48, 52, 55],
+      [53, 57, 60],
+      [55, 59, 62],
+      [53, 57, 60],
+      [45, 48, 52],
+      [53, 57, 60],
+      [55, 59, 62],
+      [55, 59, 62],
+    ],
+    scale: [72, 74, 76, 79, 81, 84, 86],
+    lead: "surf",
+    drums: "race",
+    density: 0.68,
+  },
 };
+let tempo = 1;
 let timer = 0,
   step = 0,
   nextAt = 0,
@@ -633,6 +832,19 @@ function scheduleStep(s: Song, i: number, at: number, spb: number) {
   if (pos === 0) {
     if (s.lead === "chip") {
       // fast arpeggio handled per 16th below
+    } else if (s.lead === "surf") {
+      chord.forEach((n) =>
+        tone({
+          type: "sawtooth",
+          f: midi(n),
+          at,
+          dur: spb * 15,
+          vol: 0.008,
+          attack: 0.03,
+          filter: 1200,
+          out,
+        }),
+      );
     } else if (s.lead === "celesta") {
       chord.forEach((n) => {
         tone({
@@ -695,26 +907,46 @@ function scheduleStep(s: Song, i: number, at: number, spb: number) {
       vol: 0.012,
       out,
     });
+  // Off-beat chord stabs give the race tune its bounce.
+  if (s.lead === "surf" && pos % 4 === 2)
+    chord.forEach((n) =>
+      tone({
+        type: "triangle",
+        f: midi(n + 12),
+        at,
+        dur: spb * 1.2,
+        vol: 0.016,
+        out,
+        send: 0.1,
+      }),
+    );
   // Bass
   const bassHits =
-    s.drums === "chip"
+    s.drums === "chip" || s.drums === "race"
       ? [0, 2, 4, 6, 8, 10, 12, 14]
       : s.drums === "lofi"
         ? [0, 7, 10]
         : [0];
   if (bassHits.includes(pos)) {
     const note =
-      s.drums === "chip" && pos % 4 === 2
-        ? root + 12
-        : pos === 10
-          ? root + 7
-          : root;
+      s.drums === "race"
+        ? root + [0, 0, 12, 0, 7, 0, 12, 7][pos / 2]
+        : s.drums === "chip" && pos % 4 === 2
+          ? root + 12
+          : pos === 10
+            ? root + 7
+            : root;
     tone({
-      type: s.drums === "chip" ? "triangle" : "sine",
+      type:
+        s.drums === "race"
+          ? "sawtooth"
+          : s.drums === "chip"
+            ? "triangle"
+            : "sine",
       f: midi(note),
       at,
       dur: spb * (s.drums === "soft" ? 14 : 1.8),
-      vol: s.drums === "chip" ? 0.06 : 0.09,
+      vol: s.drums === "race" ? 0.05 : s.drums === "chip" ? 0.06 : 0.09,
       attack: 0.01,
       out,
       filter: 700,
@@ -739,6 +971,29 @@ function scheduleStep(s: Song, i: number, at: number, spb: number) {
       );
   } else if (s.drums === "soft") {
     if (pos % 4 === 2) hiss(at, 0.06, 0.008, "highpass", 6000, undefined, out);
+  } else if (s.drums === "race") {
+    if (pos % 4 === 0) tone({ f: 150, to: 45, at, dur: 0.13, vol: 0.11, out });
+    if (pos === 4 || pos === 12) {
+      hiss(at, 0.11, 0.05, "bandpass", 1900, undefined, out, 1.1);
+      tone({
+        type: "triangle",
+        f: 220,
+        to: 160,
+        at,
+        dur: 0.07,
+        vol: 0.03,
+        out,
+      });
+    }
+    hiss(
+      at,
+      pos % 4 === 2 ? 0.07 : 0.025,
+      pos % 2 ? 0.01 : 0.018,
+      "highpass",
+      8000,
+      undefined,
+      out,
+    );
   } else {
     if (pos === 0 || pos === 8 || pos === 10)
       tone({ type: "square", f: 140, to: 50, at, dur: 0.08, vol: 0.05, out });
@@ -782,6 +1037,25 @@ function scheduleStep(s: Song, i: number, at: number, spb: number) {
     } else if (s.lead === "celesta") {
       tone({ f: midi(n), at, dur: 1.2, vol: 0.04, out, send: 0.6 });
       tone({ f: midi(n + 19), at, dur: 0.5, vol: 0.01, out, send: 0.6 });
+    } else if (s.lead === "surf") {
+      tone({
+        type: "sawtooth",
+        f: midi(n),
+        at,
+        dur: len * 0.85,
+        vol: 0.02,
+        out,
+        filter: 2600,
+        send: 0.2,
+      });
+      tone({
+        type: "triangle",
+        f: midi(n + 12),
+        at,
+        dur: len * 0.4,
+        vol: 0.008,
+        out,
+      });
     } else
       tone({
         type: "square",
@@ -797,7 +1071,7 @@ function scheduleStep(s: Song, i: number, at: number, spb: number) {
 function scheduler() {
   if (!ctx) return;
   const s = songs[theme];
-  const spb = 60 / s.bpm / 4;
+  const spb = 60 / (s.bpm * tempo) / 4;
   while (nextAt < ctx.currentTime + 0.15) {
     const swing = step % 2 ? s.swing * spb : 0;
     scheduleStep(s, step, nextAt + swing, spb);
@@ -828,8 +1102,80 @@ function stopMusic() {
   musicBus.gain.setTargetAtTime(0, ctx.currentTime, 0.15);
 }
 
+// ---------------------------------------------------------------- kart loop
+let kart: {
+  low: OscillatorNode;
+  high: OscillatorNode;
+  filter: BiquadFilterNode;
+  gain: GainNode;
+  skid: GainNode;
+  wind: GainNode;
+  sources: AudioScheduledSourceNode[];
+} | null = null;
+function stopEngine() {
+  const k = kart;
+  kart = null;
+  if (!k || !ctx) return;
+  const t = ctx.currentTime;
+  for (const g of [k.gain, k.skid, k.wind]) {
+    g.gain.cancelScheduledValues(t);
+    g.gain.setTargetAtTime(0, t, 0.05);
+  }
+  k.sources.forEach((s) => s.stop(t + 0.4));
+}
+/** speed is 0 at rest and 1 at cruising pace; the loop is created on demand. */
+function engine(speed: number, drifting: boolean, boosting: boolean) {
+  if (!soundOn || !ctx || ctx.state !== "running") return stopEngine();
+  const c = ctx;
+  if (!kart) {
+    const gain = c.createGain();
+    gain.gain.value = 0;
+    const filter = c.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.Q.value = 2;
+    const low = c.createOscillator();
+    low.type = "sawtooth";
+    const high = c.createOscillator();
+    high.type = "square";
+    const highLevel = c.createGain();
+    highLevel.gain.value = 0.35;
+    low.connect(filter);
+    high.connect(highLevel).connect(filter);
+    filter.connect(gain).connect(sfxBus);
+    const air = c.createBufferSource();
+    air.buffer = noise;
+    air.loop = true;
+    const skid = c.createGain();
+    skid.gain.value = 0;
+    const squeal = c.createBiquadFilter();
+    squeal.type = "bandpass";
+    squeal.frequency.value = 2700;
+    squeal.Q.value = 7;
+    air.connect(squeal).connect(skid).connect(sfxBus);
+    const wind = c.createGain();
+    wind.gain.value = 0;
+    const rush = c.createBiquadFilter();
+    rush.type = "bandpass";
+    rush.frequency.value = 900;
+    rush.Q.value = 0.6;
+    air.connect(rush).connect(wind).connect(sfxBus);
+    const sources = [low, high, air];
+    sources.forEach((s) => s.start());
+    kart = { low, high, filter, gain, skid, wind, sources };
+  }
+  const t = c.currentTime;
+  const pitch = 52 + speed * 88;
+  kart.low.frequency.setTargetAtTime(pitch, t, 0.06);
+  kart.high.frequency.setTargetAtTime(pitch * 2.01, t, 0.06);
+  kart.filter.frequency.setTargetAtTime(320 + speed * 1100, t, 0.08);
+  kart.gain.gain.setTargetAtTime(0.02 + Math.min(1, speed) * 0.028, t, 0.08);
+  kart.skid.gain.setTargetAtTime(drifting ? 0.03 : 0, t, 0.05);
+  kart.wind.gain.setTargetAtTime(boosting ? 0.05 : speed * 0.012, t, 0.1);
+}
+
 function apply() {
   if (!ctx) return;
+  if (!soundOn) stopEngine();
   master.gain.setTargetAtTime(soundOn ? 0.9 : 0, ctx.currentTime, 0.02);
   if (soundOn && musicOn && !document.hidden && ctx.state === "running")
     startMusic();
@@ -859,6 +1205,12 @@ export const audio = {
   get theme() {
     return nextTheme;
   },
+  /** 1 is the written tempo. Coast Rush raises it for the final lap. */
+  setTempo(scale: number) {
+    tempo = scale;
+  },
+  engine,
+  engineOff: stopEngine,
 };
 
 if (typeof document !== "undefined")
