@@ -4,6 +4,9 @@ import { StoreCore } from "../server/store-core.mjs";
 import { CommunityCore } from "../server/community-core.mjs";
 import { DurableSqlite, privateStorage } from "./sqlite.mjs";
 import { handleApi, json } from "./api.mjs";
+import { sessionKey, sessionToken } from "./world-auth.mjs";
+import { PRIVACY_VERSION } from "../server/community-core.mjs";
+export { World } from "./world.mjs";
 
 function ready(env) {
   try {
@@ -51,6 +54,48 @@ export default {
         "x-darecade-client-ip",
         request.headers.get("CF-Connecting-IP") || "unknown",
       );
+      headers.delete("x-darecade-world-player");
+      if (url.pathname.startsWith("/api/world/")) {
+        if (
+          (request.headers.get("origin") &&
+            request.headers.get("origin") !== env.PUBLIC_ORIGIN) ||
+          request.headers.get("sec-fetch-site") === "cross-site"
+        )
+          return json({ error: "This request came from another site." }, 403);
+        if (
+          ![
+            "/api/world/connect",
+            "/api/world/poll",
+            "/api/world/leave",
+          ].includes(url.pathname)
+        )
+          return json({ error: "Not found." }, 404);
+        if (
+          request.method !== (url.pathname.endsWith("connect") ? "GET" : "POST")
+        )
+          return json({ error: "Method not allowed." }, 405);
+        let world = url.searchParams.get("world");
+        if (world && !/^world-[1-9][0-9]{0,5}$/.test(world))
+          return json({ error: "Invalid world." }, 400);
+        if (!world || url.pathname.endsWith("connect")) {
+          try {
+            const identity = await neighbourhood.worldAuthorize(
+              headers.get("cookie") || "",
+              headers.get("x-darecade-client-ip"),
+            );
+            if (!identity) return json({ error: "Sign in to join." }, 401);
+            world = await neighbourhood.worldChoose(identity.id, world);
+            if (!world) return json({ error: "World unavailable." }, 404);
+            headers.set("x-darecade-world-player", JSON.stringify(identity));
+          } catch {
+            return json({ error: "Please wait before joining again." }, 429);
+          }
+        }
+        url.searchParams.set("world", world);
+        return env.WORLD.get(env.WORLD.idFromName(world), {
+          locationHint: "apac-se",
+        }).fetch(new Request(url, new Request(request, { headers })));
+      }
       return neighbourhood.fetch(new Request(request, { headers }));
     }
     if (!["GET", "HEAD"].includes(request.method))
@@ -84,7 +129,19 @@ export class Neighbourhood extends DurableObject {
     });
     this.db
       .exec(`CREATE TABLE IF NOT EXISTS request_limits(key TEXT PRIMARY KEY,n INTEGER NOT NULL,expires INTEGER NOT NULL);
-      CREATE TABLE IF NOT EXISTS private_settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);`);
+      CREATE TABLE IF NOT EXISTS private_settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS worlds(name TEXT PRIMARY KEY,occupancy INTEGER NOT NULL DEFAULT 0,seen INTEGER NOT NULL DEFAULT 0);
+      CREATE TABLE IF NOT EXISTS world_members(player TEXT PRIMARY KEY,world TEXT NOT NULL,away INTEGER NOT NULL DEFAULT 0);
+      CREATE INDEX IF NOT EXISTS world_members_world ON world_members(world);`);
+    this.store.liveStatus = (id) => {
+      const member = this.db
+        .prepare(
+          "SELECT m.away FROM world_members m JOIN worlds w ON w.name=m.world WHERE m.player=? AND w.seen>?",
+        )
+        .get(id, Date.now() - 30000);
+      return member ? (member.away ? "resting" : "online") : null;
+    };
+    this.store.livePlayerList = (id) => this.worldPlayers(id);
     this.db
       .prepare("INSERT OR IGNORE INTO private_settings VALUES('rate-salt',?)")
       .run(randomBytes(32).toString("hex"));
@@ -141,6 +198,165 @@ export class Neighbourhood extends DurableObject {
       store: this.store,
       files: this.files,
       rate,
+      worlds: {
+        disconnect: async (id) => {
+          const row = this.db
+            .prepare("SELECT world FROM world_members WHERE player=?")
+            .get(id);
+          if (row)
+            await this.env.WORLD.get(
+              this.env.WORLD.idFromName(row.world),
+            ).disconnect(id);
+          this.db.prepare("DELETE FROM world_members WHERE player=?").run(id);
+        },
+        refresh: async (...ids) => {
+          const names = new Set(
+            ids
+              .map(
+                (id) =>
+                  this.db
+                    .prepare("SELECT world FROM world_members WHERE player=?")
+                    .get(id)?.world,
+              )
+              .filter(Boolean),
+          );
+          await Promise.all(
+            [...names].map((name) =>
+              this.env.WORLD.get(this.env.WORLD.idFromName(name)).refresh(),
+            ),
+          );
+        },
+      },
     });
+  }
+  worldIdentity(id, session) {
+    const p = this.db
+      .prepare(
+        `SELECT p.id,p.name,p.look,p.x,p.z,p.yaw,p.activity FROM players p
+      JOIN profiles f ON f.player=p.id JOIN sessions s ON s.player=p.id
+      WHERE p.id=? AND s.token=? AND s.expires>? AND f.consent=? AND NOT EXISTS(SELECT 1 FROM suspensions WHERE player=p.id)`,
+      )
+      .get(id, session, Date.now(), PRIVACY_VERSION);
+    if (!p) return null;
+    const blockedIds = this.db
+      .prepare(
+        "SELECT target id FROM blocks WHERE player=? UNION SELECT player id FROM blocks WHERE target=?",
+      )
+      .all(id, id)
+      .map((row) => row.id);
+    return {
+      ...p,
+      look: JSON.parse(p.look),
+      blockedIds,
+      suspended: false,
+      session,
+    };
+  }
+  worldAuthorize(cookie, ip) {
+    const id = this.community.lookup(sessionToken(cookie));
+    for (const [scope, identity, max] of [
+      ["world", id || ip || "unknown", 360],
+      ["world-ip", ip || "unknown", 3000],
+    ]) {
+      const key =
+        scope +
+        ":" +
+        createHash("sha256")
+          .update(this.salt + identity)
+          .digest("hex");
+      this.db
+        .prepare(
+          "INSERT INTO request_limits VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET n=CASE WHEN expires<=? THEN 1 ELSE n+1 END,expires=CASE WHEN expires<=? THEN excluded.expires ELSE expires END",
+        )
+        .run(key, Date.now() + 60000, Date.now(), Date.now());
+      if (
+        this.db.prepare("SELECT n FROM request_limits WHERE key=?").get(key).n >
+        max
+      )
+        throw Error("Too many joins");
+    }
+    return id ? this.worldIdentity(id, sessionKey(cookie)) : null;
+  }
+  async worldChoose(id, requested) {
+    if (requested)
+      return (
+        this.db.prepare("SELECT name FROM worlds WHERE name=?").get(requested)
+          ?.name || null
+      );
+    const existing = this.db
+      .prepare("SELECT world FROM world_members WHERE player=?")
+      .get(id);
+    if (existing) return existing.world;
+    const available = this.db
+      .prepare(
+        "SELECT name FROM worlds WHERE occupancy<25 AND (seen>? OR occupancy=0) ORDER BY occupancy DESC,name LIMIT 1",
+      )
+      .get(Date.now() - 30000);
+    if (available) return available.name;
+    const name =
+      "world-" + (this.db.prepare("SELECT COUNT(*) n FROM worlds").get().n + 1);
+    this.db.prepare("INSERT INTO worlds(name) VALUES(?)").run(name);
+    return name;
+  }
+  worldRefresh(players) {
+    return players
+      .map((p) => this.worldIdentity(p.id, p.session))
+      .filter(Boolean);
+  }
+  async worldArrive(name, id) {
+    const old = this.db
+      .prepare("SELECT world FROM world_members WHERE player=?")
+      .get(id)?.world;
+    if (old && old !== name)
+      await this.env.WORLD.get(this.env.WORLD.idFromName(old)).disconnect(id);
+    this.db
+      .prepare("INSERT OR REPLACE INTO world_members(player,world) VALUES(?,?)")
+      .run(id, name);
+  }
+  worldOccupancy(name, players) {
+    this.db
+      .prepare(
+        "INSERT INTO worlds VALUES(?,?,?) ON CONFLICT(name) DO UPDATE SET occupancy=excluded.occupancy,seen=excluded.seen",
+      )
+      .run(name, players.length, Date.now());
+    for (const { id, away } of players)
+      this.db
+        .prepare("UPDATE world_members SET away=? WHERE player=? AND world=?")
+        .run(Number(away), id, name);
+  }
+  worldDepart(name, id) {
+    this.db
+      .prepare("DELETE FROM world_members WHERE player=? AND world=?")
+      .run(id, name);
+  }
+  worldPlayers(id) {
+    const name = this.db
+      .prepare("SELECT world FROM world_members WHERE player=?")
+      .get(id)?.world;
+    if (!name) return null;
+    const allowed = `NOT EXISTS(SELECT 1 FROM suspensions WHERE player=p.id)
+      AND EXISTS(SELECT 1 FROM profiles WHERE player=p.id AND consent=?)
+      AND p.id NOT IN (SELECT target FROM blocks WHERE player=? UNION SELECT player FROM blocks WHERE target=?)`;
+    const live = this.db
+      .prepare(
+        `SELECT p.id,p.name,p.look,p.activity,p.since,p.x,p.z,p.yaw,p.seen,
+      CASE WHEN m.away=1 THEN 'resting' ELSE 'online' END status FROM world_members m
+      JOIN players p ON p.id=m.player JOIN worlds w ON w.name=m.world
+      WHERE m.world=? AND w.seen>? AND ${allowed} ORDER BY p.seen DESC LIMIT 30`,
+      )
+      .all(name, Date.now() - 30000, PRIVACY_VERSION, id, id);
+    const away = this.db
+      .prepare(
+        `SELECT p.id,p.name,p.look,p.activity,p.since,p.x,p.z,p.yaw,p.seen,'offline' status
+      FROM players p WHERE ${allowed} AND NOT EXISTS(SELECT 1 FROM world_members m JOIN worlds w ON w.name=m.world
+      WHERE m.player=p.id AND w.seen>? AND (m.world=? OR m.away=0)) ORDER BY p.seen DESC LIMIT 8`,
+      )
+      .all(PRIVACY_VERSION, id, id, Date.now() - 30000, name);
+    return [...live, ...away].map((p) => this.store.publicPlayer(p, true));
+  }
+  worldSave(name, players, leaving) {
+    for (const p of players)
+      if (this.db.prepare("SELECT 1 FROM players WHERE id=?").get(p.id))
+        this.store.heartbeat(p.id, { ...p, connection: name }, leaving);
   }
 }

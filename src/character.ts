@@ -386,6 +386,21 @@ export function applyLook(
         .add(new T.Vector3(0.85, 0, 0.7));
   }
 }
+// Release per-avatar resources; the model geometry and procedural shapes are shared.
+export function disposeAvatar(a: Avatar) {
+  a.root.removeFromParent();
+  a.pet?.root.removeFromParent();
+  disposeMagic(a.magic);
+  for (const material of a.materials.values()) {
+    releaseTint(material.map);
+    material.dispose();
+  }
+  const skeletons = new Set<T.Skeleton>();
+  a.model.traverse((object) => {
+    if (object instanceof T.SkinnedMesh) skeletons.add(object.skeleton);
+  });
+  for (const skeleton of skeletons) skeleton.dispose();
+}
 export function animateDetails(
   a: Avatar,
   time: number,
