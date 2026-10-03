@@ -153,6 +153,7 @@ const connection = Array.from(crypto.getRandomValues(new Uint8Array(16)), (n) =>
   n.toString(16).padStart(2, "0"),
 ).join("");
 let syncing = false;
+let syncRequested = false;
 let sharedSignature = "";
 let is2d = false;
 let nearId = "";
@@ -311,6 +312,7 @@ function abandonRound() {
   activeRun = null;
 }
 function openShell(kicker: string, keepPreview = false) {
+  void syncSocial();
   disposeCelebration?.();
   disposeCelebration = null;
   disposeArcadeFx();
@@ -368,7 +370,7 @@ function cards() {
       '<span class="star-ship">▲</span><span class="star-enemy">▼</span><i>✦ · ✧ · ✦</i>',
     coast: "<span>🏎</span><b>PALM BAY</b><i>05</i>",
   };
-  return `<div class="game-grid four-games">${gameIds.map((id) => `<button class="game-card ${id}" data-game="${id}"><div class="game-art ${id}-art">${art[id]}</div><span class="eyebrow">${games[id].genre}</span><h3>${games[id].name}</h3><p>${games[id].description}</p><div><span>${id === "coast" ? "3 laps" : "60s"} · BEST ${formatScore(id, shared?.players.find((p) => p.id === shared!.me)?.best[id] ?? 0)}</span>${icon("arrow")}</div></button>`).join("")}</div>`;
+  return `<div class="game-grid four-games">${gameIds.map((id) => `<button class="game-card ${id}" data-game="${id}"><div class="game-art ${id}-art">${art[id]}</div><span class="eyebrow">${games[id].genre}</span><h3>${games[id].name}</h3><p>${games[id].description}</p><div><span>${id === "coast" ? "3 laps" : "60s"} · BEST ${formatScore(id, shared?.self.best[id] ?? 0)}</span>${icon("arrow")}</div></button>`).join("")}</div>`;
 }
 function open(id: string) {
   if (firstRacePending() && id !== "settings") {
@@ -467,9 +469,7 @@ function open(id: string) {
     ) =>
       `<div class="look-options">${names.map((name, i) => `<button class="secondary ${save[key] === i ? "chosen" : ""}" data-${key}="${i}" aria-pressed="${save[key] === i}">${name}</button>`).join("")}</div>`;
     const nickname =
-      currentProfile?.name ||
-      shared?.players.find((p) => p.id === shared?.me)?.name ||
-      "New neighbour";
+      currentProfile?.name || shared?.self?.name || "New neighbour";
     body.innerHTML = `<div class="wardrobe-layout"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${escapeText(nickname)}</strong><small>DRAG TO TURN</small><span class="look-caption">${clothingNames[save.clothing]} · ${hairNames[save.hair]}</span></div><div class="wardrobe-controls"><h2>Make it you.</h2><details class="look-identity" ${innerWidth > 600 ? "open" : ""}><summary>Your nickname</summary><form id="nickname-form"><label class="field-label" for="nickname">YOUR NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" value="${escapeText(nickname)}" minlength="2" maxlength="20" autocomplete="off" required><button class="secondary" type="submit">Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form></details><div class="look-tabs" aria-label="Wardrobe sections">${[
       ["style", "Outfits"],
       ["hair", "Head"],
@@ -818,9 +818,7 @@ async function startGame(id: GameId, defender = "", dare = "") {
             reduced: save.reduced,
             simple: save.twoD,
             target,
-            best:
-              shared?.players.find((p) => p.id === shared?.me)?.best.coast ??
-              save.best.coast,
+            best: shared?.self?.best.coast ?? save.best.coast,
           },
         )
       : new ArcadeGame(id, mount, onFinish, (name) => beep(name), run?.seed);
@@ -1564,12 +1562,17 @@ function presenceData() {
   };
 }
 async function syncSocial() {
-  if (!profileReady || syncing) return;
+  if (!profileReady) return;
+  if (syncing) {
+    syncRequested = true;
+    return;
+  }
   syncing = true;
   try {
-    shared = await api<SharedState>("presence", presenceData());
+    shared = await api<SharedState>("state");
     const signature = JSON.stringify([
       shared.day,
+      shared.self,
       shared.players.map((p) => [
         p.id,
         p.name,
@@ -1585,11 +1588,13 @@ async function syncSocial() {
       shared.boards,
       shared.weekly,
       shared.history,
+      shared.dares,
+      shared.recentRuns,
     ]);
     const changed = signature !== sharedSignature || !connected;
     sharedSignature = signature;
     connected = true;
-    const me = shared.players.find((p) => p.id === shared!.me)!;
+    const me = shared.self;
     document.querySelector("#player-name")!.textContent = me.name;
     document.querySelector("#medal-points")!.textContent =
       `${me.points} MEDAL POINTS`;
@@ -1609,6 +1614,10 @@ async function syncSocial() {
     if (modal.open && socialPanel === "dares") renderSharedDares();
   } finally {
     syncing = false;
+    if (syncRequested) {
+      syncRequested = false;
+      void syncSocial();
+    }
   }
 }
 function serverNote() {
@@ -1635,7 +1644,7 @@ function renderSharedBoard() {
     "race-board",
     boardTab === "daily" && boardGame === "coast",
   );
-  const me = shared?.players.find((p) => p.id === shared?.me);
+  const me = shared?.self;
   const week = shared?.weekly || [];
   const ownWeek = week.find((p) => p.id === shared?.me);
   const board = shared?.boards[boardGame] || [];
@@ -1663,10 +1672,10 @@ function challengeButtons(p: SharedPlayer) {
     connected &&
     !!shared?.competitionReady &&
     p.status !== "online" &&
-    (shared?.players.find((me) => me.id === shared?.me)?.outgoing || 0) < 3 &&
+    (shared?.self?.outgoing || 0) < 3 &&
     !shared?.challenged.includes(p.id) &&
     p.id !== shared?.me;
-  const own = shared?.players.find((me) => me.id === shared?.me);
+  const own = shared?.self;
   const match = (g: GameId) =>
     !own?.best[g]
       ? "Set your first best"
@@ -1683,7 +1692,7 @@ function renderSharedDares() {
     shared?.players.filter(
       (p) => p.id !== shared!.me && p.status !== "online",
     ) || [];
-  body.innerHTML = `<span class="eyebrow">DARE PLAZA</span><h2>Dares</h2><p class="lead">Beat a resting neighbour’s best.</p>${serverNote()}<div class="note">You have ${Math.max(0, 3 - (shared?.players.find((p) => p.id === shared?.me)?.outgoing || 0))}/3 dares left today · one per neighbour · starting uses it · resets midnight SGT</div><div class="offline-dares">${candidates.map((p) => `<section class="ranking-card"><button class="neighbour-heading" data-player="${p.id}">${activities[p.activity].icon} ${escapeText(p.name)} ↗</button><p>${p.status.toUpperCase()} · ${activities[p.activity].name}<br><b>${shared?.challenged.includes(p.id) ? "Already challenged today" : "Ready for a friendly dare"}</b></p>${challengeButtons(p)}</section>`).join("") || '<div class="note">No resting opponents yet. Set a score, then choose “Step away” so a neighbour can challenge you.</div>'}</div><h3>Your recent challenges</h3><div class="challenge-history">${shared?.history.map((r) => `<div><strong>${escapeText(r.challenger)} → ${escapeText(r.defender)}</strong><span>${games[r.game].name} · ${r.status === "finished" ? `${formatScore(r.game, r.score || 0)} vs ${formatScore(r.game, r.targetScore)} · ${r.score! > r.targetScore ? "CHALLENGER WON" : r.score === r.targetScore ? "TIED" : "DEFENDER HELD"}` : r.status === "started" ? "IN PROGRESS" : "ATTEMPT ENDED"}</span></div>`).join("") || "<p>No challenges yet. There’s no rush.</p>"}</div><button class="secondary" data-open="board">See the daily rankings →</button>`;
+  body.innerHTML = `<span class="eyebrow">DARE PLAZA</span><h2>Dares</h2><p class="lead">Beat a resting neighbour’s best.</p>${serverNote()}<div class="note">You have ${Math.max(0, 3 - (shared?.self?.outgoing || 0))}/3 dares left today · one per neighbour · starting uses it · resets midnight SGT</div><div class="offline-dares">${candidates.map((p) => `<section class="ranking-card"><button class="neighbour-heading" data-player="${p.id}">${activities[p.activity].icon} ${escapeText(p.name)} ↗</button><p>${p.status.toUpperCase()} · ${activities[p.activity].name}<br><b>${shared?.challenged.includes(p.id) ? "Already challenged today" : "Ready for a friendly dare"}</b></p>${challengeButtons(p)}</section>`).join("") || '<div class="note">No resting opponents yet. Set a score, then choose “Step away” so a neighbour can challenge you.</div>'}</div><h3>Your recent challenges</h3><div class="challenge-history">${shared?.history.map((r) => `<div><strong>${escapeText(r.challenger)} → ${escapeText(r.defender)}</strong><span>${games[r.game].name} · ${r.status === "finished" ? `${formatScore(r.game, r.score || 0)} vs ${formatScore(r.game, r.targetScore)} · ${r.score! > r.targetScore ? "CHALLENGER WON" : r.score === r.targetScore ? "TIED" : "DEFENDER HELD"}` : r.status === "started" ? "IN PROGRESS" : "ATTEMPT ENDED"}</span></div>`).join("") || "<p>No challenges yet. There’s no rush.</p>"}</div><button class="secondary" data-open="board">See the daily rankings →</button>`;
   const published = (shared?.dares || [])
     .map(
       (d) =>
@@ -1764,7 +1773,28 @@ function showPlayer(id: string) {
   document.body.classList.add("inspecting");
 }
 void syncSocial();
-window.setInterval(() => void syncSocial(), 2000);
+window.setInterval(() => void syncSocial(), 30000);
+let presenceSyncing = false;
+async function syncPresence() {
+  if (!profileReady || presenceSyncing) return;
+  presenceSyncing = true;
+  try {
+    const { players } = await api<{ players: SharedPlayer[] }>(
+      "presence",
+      presenceData(),
+    );
+    if (!shared) return;
+    shared.players = players;
+    world?.syncPlayers(players, shared.me);
+    if (modal.open && socialPanel === "neighbours") renderSharedNeighbours();
+  } catch {
+    // The state refresh handles the connection notice and session expiry.
+  } finally {
+    presenceSyncing = false;
+  }
+}
+void syncPresence();
+window.setInterval(() => void syncPresence(), 2000);
 
 function firstRacePending() {
   return save.rounds === 0;

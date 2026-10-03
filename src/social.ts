@@ -40,6 +40,7 @@ export type SharedState = {
   }[];
   recentRuns: { id: string; game: GameId; score: number; finished: number }[];
   me: string;
+  self: SharedPlayer;
   day: string;
   nextReset: number;
   players: SharedPlayer[];

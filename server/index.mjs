@@ -28,8 +28,8 @@ const origins = new Set([
   ...(!production ? ["http://localhost:5173", "http://127.0.0.1:5173"] : []),
 ]);
 const limits = new Map();
-function rate(req, key, max, windowMs) {
-  const bucket = `${req.socket.remoteAddress}:${key}`,
+function rate(req, key, max, windowMs, player) {
+  const bucket = `${player ? "player:" + player : "ip:" + req.socket.remoteAddress}:${key}`,
     now = Date.now();
   let r = limits.get(bucket);
   if (!r || r.until <= now) {
@@ -76,7 +76,7 @@ const handler = async (req, res) => {
         return;
       }
       let data = {};
-      rate(req, "api", 360, 60000);
+      rate(req, "api-ip", 3000, 60000);
       if (req.method === "POST") {
         if (!req.headers["content-type"]?.startsWith("application/json"))
           throw Error("Send JSON data.");
@@ -93,6 +93,8 @@ const handler = async (req, res) => {
         .map((s) => s.trim())
         .find((s) => s.startsWith("darecade_session="))
         ?.slice(17);
+      const player = community.lookup(token);
+      rate(req, "api", 360, 60000, player);
       const respond = (result) => {
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify(result));
@@ -126,7 +128,6 @@ const handler = async (req, res) => {
         respond(signed.me);
         return;
       }
-      const player = community.lookup(token);
       if (!player) {
         res.writeHead(401, { "Content-Type": "application/json" });
         res.end(
@@ -219,7 +220,7 @@ const handler = async (req, res) => {
               .look,
           ),
         });
-        result = community.state(session.id);
+        result = community.presence(session.id);
       } else if (req.method === "POST" && url.pathname === "/api/leave") {
         store.heartbeat(
           session.id,

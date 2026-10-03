@@ -104,6 +104,15 @@ export class CommunityCore {
     this.verifiedFrom = this.db
       .prepare("SELECT value FROM rules WHERE key='verified_rules_from'")
       .get().value;
+    for (const table of ["profiles", "accounts", "dares"])
+      this.store.watchSnapshot(
+        table,
+        table === "profiles" ? "consent" : undefined,
+      );
+    this.db.exec(
+      "CREATE INDEX IF NOT EXISTS blocks_target ON blocks(target,player)",
+    );
+    this.store.onSnapshot = () => this.snapshot();
   }
   config() {
     return {
@@ -564,7 +573,7 @@ export class CommunityCore {
       throw Error(
         "This replay was submitted faster than the round could be played.",
       );
-    return this.store.transaction(() => {
+    const saved = this.store.transaction(() => {
       const ranked = this.rankedAccount(id);
       this.db
         .prepare(
@@ -618,11 +627,13 @@ export class CommunityCore {
         profile: this.privateProfile(id),
       };
     });
+    this.store.refreshSnapshot();
+    return saved;
   }
   postDare(id, runId) {
     if (!this.eligibleAccount(id))
       throw Error("Posting dares opens 24 hours after account verification.");
-    return this.store.transaction(() => {
+    const saved = this.store.transaction(() => {
       const r = this.db
         .prepare(
           "SELECT * FROM runs WHERE id=? AND player=? AND verified=1 AND status='finished' AND score>0 AND version=CASE WHEN game='coast' THEN 2 ELSE 1 END",
@@ -652,78 +663,115 @@ export class CommunityCore {
         .run(d.id, id, runId, r.game, r.seed, r.score, d.created, d.expires);
       return d;
     });
+    this.store.refreshSnapshot();
+    return saved;
   }
-  state(id) {
-    const state = this.store.state(id),
-      week = singaporeWeek(new Date(this.now())),
+  snapshot() {
+    const base = this.store.snapshot();
+    if (this.cachedSnapshot?.base === base) return this.cachedSnapshot;
+    const week = singaporeWeek(new Date(this.now())),
       last = singaporeWeek(new Date(this.now() - 7 * DAY));
     const allowed = new Set(
       this.db
         .prepare(
-          "SELECT p.player FROM profiles p WHERE p.player NOT IN (SELECT player FROM suspensions) AND p.player NOT IN (SELECT target FROM blocks WHERE player=?)",
+          "SELECT player FROM profiles WHERE player NOT IN (SELECT player FROM suspensions)",
         )
-        .all(id)
+        .all()
         .map((p) => p.player),
     );
-    state.players = state.players.filter((p) => allowed.has(p.id)).slice(0, 30);
-    if (!state.players.some((p) => p.id === id)) {
-      const own = this.store.state(id).players.find((p) => p.id === id);
-      if (own) state.players = [own, ...state.players.slice(0, 29)];
-    }
-    // Personal bests and friendly targets include verified guest rounds.
-    // Daily medal boards separately require an email account.
-    const bests = this.db
-      .prepare(
-        "SELECT player,game,MAX(score) score FROM runs WHERE verified=1 AND status='finished' AND version=CASE WHEN game='coast' THEN 2 ELSE 1 END GROUP BY player,game",
-      )
-      .all();
-    for (const player of state.players) {
-      player.best = Object.fromEntries(gameIds.map((game) => [game, 0]));
-      for (const r of bests)
-        if (r.player === player.id) player.best[r.game] = r.score;
-    }
-    state.history = state.history.filter(
-      (r) => allowed.has(r.player) && allowed.has(r.target),
-    );
-    for (const game of gameIds)
-      state.boards[game] = state.boards[game]
-        .filter((p) => allowed.has(p.id))
-        .slice(0, 50);
-    const weekly = (start, end) =>
-      this.db
+    const weekly = (start, end) => {
+      let rank = 0;
+      return this.db
         .prepare(
-          `SELECT p.id,p.name,p.look,SUM(m.points) points FROM medals m JOIN players p ON p.id=m.player JOIN accounts a ON a.player=p.id WHERE m.day>=? AND m.day<? AND p.id NOT IN (SELECT player FROM suspensions) GROUP BY p.id ORDER BY points DESC,p.id ASC`,
+          `SELECT p.id,p.name,p.look,SUM(m.points) points FROM medals m
+        JOIN players p ON p.id=m.player JOIN accounts a ON a.player=p.id
+        WHERE m.day>=? AND m.day<? AND p.id NOT IN (SELECT player FROM suspensions)
+        GROUP BY p.id ORDER BY points DESC,p.id ASC`,
         )
         .all(start > this.verifiedFrom ? start : this.verifiedFrom, end)
-        .map((p, i, rows) => ({
-          ...p,
-          look: JSON.parse(p.look),
-          rank: rows.findIndex((r) => r.points === p.points) + 1,
-        }))
-        .filter((p) => allowed.has(p.id))
-        .slice(0, 50);
-    state.week = week;
-    state.weekly = weekly(week, day(this.now() + DAY));
-    state.lastWeek = weekly(last, week);
-    state.dares = this.db
-      .prepare(
-        "SELECT d.*,p.name FROM dares d JOIN players p ON p.id=d.host JOIN runs r ON r.id=d.run WHERE r.version=CASE WHEN d.game='coast' THEN 2 ELSE 1 END AND d.expires>? ORDER BY d.created DESC LIMIT 100",
-      )
-      .all(this.now())
-      .filter((d) => allowed.has(d.host));
-    state.profile = this.privateProfile(id);
-    state.competitionReady = this.eligibleAccount(id);
-    state.recentRuns = this.db
-      .prepare(
-        "SELECT id,game,score,finished FROM runs WHERE player=? AND verified=1 AND status='finished' AND version=CASE WHEN game='coast' THEN 2 ELSE 1 END ORDER BY finished DESC LIMIT 12",
-      )
-      .all(id);
-    if (!state.profile.account) {
-      state.boards = Object.fromEntries(gameIds.map((game) => [game, []]));
-      state.weekly = [];
-      state.lastWeek = [];
-    }
-    return state;
+        .map((p, i, rows) => {
+          if (!i || p.points !== rows[i - 1].points) rank = i + 1;
+          return { ...p, look: JSON.parse(p.look), rank };
+        });
+    };
+    return (this.cachedSnapshot = {
+      base,
+      allowed,
+      week,
+      weekly: weekly(week, day(this.now() + DAY)),
+      lastWeek: weekly(last, week),
+      dares: this.db
+        .prepare(
+          `SELECT d.*,p.name FROM dares d JOIN players p ON p.id=d.host
+        JOIN runs r ON r.id=d.run WHERE r.version=CASE WHEN d.game='coast' THEN 2 ELSE 1 END
+        AND d.expires>? ORDER BY d.created DESC LIMIT 100`,
+        )
+        .all(this.now()),
+    });
+  }
+  presence(id) {
+    return { players: this.store.playerList(id, true) };
+  }
+  state(id) {
+    const snapshot = this.snapshot(),
+      { base } = snapshot;
+    const blocked = new Set(
+      this.db
+        .prepare(
+          "SELECT target id FROM blocks WHERE player=? UNION SELECT player id FROM blocks WHERE target=?",
+        )
+        .all(id, id)
+        .map((p) => p.id),
+    );
+    const allowed = (player) =>
+      snapshot.allowed.has(player) && !blocked.has(player);
+    const personal = this.store.personalState(id);
+    personal.self.best = {
+      ...(base.cards.get(id)?.guestBest || personal.self.best),
+    };
+    const profile = this.privateProfile(id);
+    return {
+      ...personal,
+      day: base.day,
+      nextReset: base.nextReset,
+      players: this.store.playerList(id, true),
+      history: personal.history.filter(
+        (r) => allowed(r.player) && allowed(r.target),
+      ),
+      boards: Object.fromEntries(
+        gameIds.map((game) => [
+          game,
+          profile.account
+            ? base.boards[game]
+                .filter((p) => allowed(p.id))
+                .slice(0, 50)
+                .map((p) => ({ ...p }))
+            : [],
+        ]),
+      ),
+      week: snapshot.week,
+      weekly: profile.account
+        ? structuredClone(
+            snapshot.weekly.filter((p) => allowed(p.id)).slice(0, 50),
+          )
+        : [],
+      lastWeek: profile.account
+        ? structuredClone(
+            snapshot.lastWeek.filter((p) => allowed(p.id)).slice(0, 50),
+          )
+        : [],
+      dares: snapshot.dares
+        .filter((d) => d.expires > this.now() && allowed(d.host))
+        .map((d) => ({ ...d })),
+      profile,
+      competitionReady: this.eligibleAccount(id),
+      recentRuns: this.db
+        .prepare(
+          `SELECT id,game,score,finished FROM runs WHERE player=? AND verified=1
+        AND status='finished' AND version=CASE WHEN game='coast' THEN 2 ELSE 1 END ORDER BY finished DESC LIMIT 12`,
+        )
+        .all(id),
+    };
   }
   report(id, target, reason) {
     if (
@@ -794,7 +842,7 @@ export class CommunityCore {
     };
   }
   delete(id) {
-    return this.store.transaction(() => {
+    const saved = this.store.transaction(() => {
       this.db
         .prepare("DELETE FROM blocks WHERE player=? OR target=?")
         .run(id, id);
@@ -834,6 +882,8 @@ export class CommunityCore {
       this.db.prepare("DELETE FROM players WHERE id=?").run(id);
       return { ok: true };
     });
+    this.store.refreshSnapshot();
+    return saved;
   }
   cleanup() {
     this.db.prepare("DELETE FROM sessions WHERE expires<=?").run(this.now());

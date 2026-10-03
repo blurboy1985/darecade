@@ -64,7 +64,7 @@ export async function handleApi(request, { community: c, store, files, rate }) {
       return json({ error: "This request came from another site." }, 403);
     if (request.headers.get("sec-fetch-site") === "cross-site")
       return json({ error: "This request came from another site." }, 403);
-    rate("api", 360, 60000);
+    rate("api-ip", 3000, 60000);
     const data =
       method === "POST"
         ? await readBody(request, path === "/api/finish" ? 262144 : 8192)
@@ -75,6 +75,8 @@ export async function handleApi(request, { community: c, store, files, rate }) {
       .map((x) => x.trim())
       .find((x) => x.startsWith("darecade_session="))
       ?.slice(17);
+    const id = c.lookup(token);
+    rate("api", 360, 60000, id);
     const withCookie = (value, token) =>
       json(value, 200, {
         "Set-Cookie": `darecade_session=${token || ""}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${token ? 2592000 : 0}`,
@@ -100,7 +102,6 @@ export async function handleApi(request, { community: c, store, files, rate }) {
       rate("email", 6, 900000);
       return json(await c.requestExistingLink(data.email));
     }
-    const id = c.lookup(token);
     if (!id)
       return json(
         { error: "Please complete the welcome check or sign in." },
@@ -151,7 +152,7 @@ export async function handleApi(request, { community: c, store, files, rate }) {
         store.db.prepare("SELECT look FROM players WHERE id=?").get(id).look,
       );
       store.heartbeat(id, { ...data, look }, path === "/api/leave");
-      return json(path === "/api/leave" ? { ok: true } : c.state(id));
+      return json(path === "/api/leave" ? { ok: true } : c.presence(id));
     }
     if (method === "POST" && path === "/api/run")
       return json(c.begin(id, data.game, data.target, data.dare));

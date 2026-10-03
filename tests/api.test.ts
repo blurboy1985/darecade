@@ -116,6 +116,21 @@ test(
       assert.equal(state.profile.progress.xp, 0);
       assert.equal(state.boards.noodle.length, 0);
       assert.equal(state.weekly.length, 0);
+      const presence = await (
+        await post(
+          "presence",
+          {
+            connection: "node-test",
+            x: 3,
+            z: 4,
+            look: { hat: 3 },
+          },
+          cookie,
+        )
+      ).json();
+      assert.deepEqual(Object.keys(presence), ["players"]);
+      assert.equal(presence.players[0].x, 3);
+      assert.equal(presence.players[0].look.hat, 0);
       assert.equal(
         (await fetch(origin + "/data/neighbourhood.sqlite")).status,
         404,
