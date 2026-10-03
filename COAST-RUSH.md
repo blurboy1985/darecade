@@ -18,7 +18,7 @@ Coast Rush is Darecade's original three-lap race around Palm Bay. Eight karts sh
 
 Age and privacy consent still come first. Play now opens Coast Rush directly. Before the first completed round, the neighbourhood's shop, hunt, camera tools and extra menus are hidden and walking is paused. Sound, accessibility settings and account/privacy controls remain accessible. Closing an unfinished race returns to Play now.
 
-Any completed game round, including a zero-score finish, still unlocks the lilac cap and its one-time welcome XP. The first race result reveals the neighbourhood and the other four cabinets. A guest's new-best result offers Save your avatar and this score, opening the existing email form. Creating an account is optional; guest progress remains saved on the current session. No email is sent without submitting that form.
+Any completed game round, including a zero-score finish, still unlocks the lilac cap and its one-time welcome XP. The first race result reveals the neighbourhood and the other four cabinets. Its main button is Name & customise your character: the wardrobe opens with the lilac cap on and the nickname field ready, then Next: save my character asks for an email and a six-digit code typed into the same window. Maybe later skips either step. On later races a guest's new-best result offers Save your avatar and this score, opening the same email form. Creating an account is optional; guest progress remains saved on the current session. No email is sent without submitting that form.
 
 ## Competition and preservation
 

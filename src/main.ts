@@ -78,6 +78,9 @@ const save = readSave();
 let world: LobbyWorld | null = null;
 let game: ArcadeGame | RacingGame | null = null;
 let wardrobeTab = "style";
+// True while a new player is led from their first result through naming and
+// dressing their character, on the way to saving it.
+let setupGuide = false;
 let boardTab = "week";
 let boardGame: GameId = "noodle";
 let disposeCelebration: (() => void) | null = null;
@@ -340,6 +343,7 @@ function openShell(kicker: string, keepPreview = false) {
   }
 }
 function close() {
+  setupGuide = false;
   disposeCelebration?.();
   disposeCelebration = null;
   disposeArcadeFx();
@@ -373,6 +377,7 @@ function cards() {
   return `<div class="game-grid four-games">${gameIds.map((id) => `<button class="game-card ${id}" data-game="${id}"><div class="game-art ${id}-art">${art[id]}</div><span class="eyebrow">${games[id].genre}</span><h3>${games[id].name}</h3><p>${games[id].description}</p><div><span>${id === "coast" ? "3 laps" : "60s"} · BEST ${formatScore(id, shared?.self.best[id] ?? 0)}</span>${icon("arrow")}</div></button>`).join("")}</div>`;
 }
 function open(id: string) {
+  if (id !== "wardrobe") setupGuide = false;
   if (firstRacePending() && id !== "settings") {
     void startGame("coast");
     return;
@@ -470,7 +475,10 @@ function open(id: string) {
       `<div class="look-options">${names.map((name, i) => `<button class="secondary ${save[key] === i ? "chosen" : ""}" data-${key}="${i}" aria-pressed="${save[key] === i}">${name}</button>`).join("")}</div>`;
     const nickname =
       currentProfile?.name || shared?.self?.name || "New neighbour";
-    body.innerHTML = `<div class="wardrobe-layout"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${escapeText(nickname)}</strong><small>DRAG TO TURN</small><span class="look-caption">${clothingNames[save.clothing]} · ${hairNames[save.hair]}</span></div><div class="wardrobe-controls"><h2>Make it you.</h2><details class="look-identity" ${innerWidth > 600 ? "open" : ""}><summary>Your nickname</summary><form id="nickname-form"><label class="field-label" for="nickname">YOUR NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" value="${escapeText(nickname)}" minlength="2" maxlength="20" autocomplete="off" required><button class="secondary" type="submit">Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form></details><div class="look-tabs" aria-label="Wardrobe sections">${[
+    // Choosing a look redraws this panel; keep a name that is still being typed.
+    const typed =
+      body.querySelector<HTMLInputElement>("#nickname")?.value ?? nickname;
+    body.innerHTML = `<div class="wardrobe-layout"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${escapeText(nickname)}</strong><small>DRAG TO TURN</small><span class="look-caption">${clothingNames[save.clothing]} · ${hairNames[save.hair]}</span></div><div class="wardrobe-controls">${setupGuide ? '<span class="eyebrow setup-step">STEP 1 OF 2 · NAME & LOOK</span>' : ""}<h2>Make it you.</h2><details class="look-identity" ${innerWidth > 600 || setupGuide ? "open" : ""}><summary>Your nickname</summary><form id="nickname-form"><label class="field-label" for="nickname">YOUR NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" value="${escapeText(typed)}" minlength="2" maxlength="20" autocomplete="off" required><button class="secondary" type="submit">Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form></details><div class="look-tabs" aria-label="Wardrobe sections">${[
       ["style", "Outfits"],
       ["hair", "Head"],
       ["pets", "Pets"],
@@ -482,7 +490,7 @@ function open(id: string) {
       )
       .join(
         "",
-      )}</div><section class="character-options">${wardrobeTab === "style" ? `<h3>Outfits</h3>${choices("clothing", clothingNames)}<label class="field-label">OUTFIT COLOUR</label><div class="swatches">${outfits.map((c, i) => `<button data-outfit="${i}" style="--swatch:${c}" class="${save.outfit === i ? "active" : ""}" aria-label="${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][i]} outfit" aria-pressed="${save.outfit === i}"></button>`).join("")}</div><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">TOP IT OFF</label><div class="hat-options">${["No hat", "Bucket", "Cap", "Sprout"].map((n, i) => `<button data-hat="${i}" ${save.unlockedHats.includes(i) ? "" : "disabled"} class="${save.hat === i ? "active" : ""}" aria-pressed="${save.hat === i}">${n}${save.unlockedHats.includes(i) ? "" : " · locked"}</button>`).join("")}</div>` : wardrobeTab === "hair" ? `<h3>Heads & hats</h3>${choices("hair", hairNames)}` : wardrobeTab === "pets" ? `<h3>Pets</h3>${choices("pet", petNames)}` : `<h3>Magic</h3>${choices("accessory", accessoryNames)}`}</section><p class="fine-print">All looks are free and cosmetic.</p>${actionButton("done-look", "Done →")}</div></div>`;
+      )}</div><section class="character-options">${wardrobeTab === "style" ? `<h3>Outfits</h3>${choices("clothing", clothingNames)}<label class="field-label">OUTFIT COLOUR</label><div class="swatches">${outfits.map((c, i) => `<button data-outfit="${i}" style="--swatch:${c}" class="${save.outfit === i ? "active" : ""}" aria-label="${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][i]} outfit" aria-pressed="${save.outfit === i}"></button>`).join("")}</div><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">TOP IT OFF</label><div class="hat-options">${["No hat", "Bucket", "Cap", "Sprout"].map((n, i) => `<button data-hat="${i}" ${save.unlockedHats.includes(i) ? "" : "disabled"} class="${save.hat === i ? "active" : ""}" aria-pressed="${save.hat === i}">${n}${save.unlockedHats.includes(i) ? "" : " · locked"}</button>`).join("")}</div>` : wardrobeTab === "hair" ? `<h3>Heads & hats</h3>${choices("hair", hairNames)}` : wardrobeTab === "pets" ? `<h3>Pets</h3>${choices("pet", petNames)}` : `<h3>Magic</h3>${choices("accessory", accessoryNames)}`}</section><p class="fine-print">All looks are free and cosmetic.</p>${setupGuide ? actionButton("setup-save", "Next: save my character →") + actionButton("setup-skip", "Maybe later", "text-button") : actionButton("done-look", "Done →")}</div></div>`;
     const preview = body.querySelector<HTMLElement>(".character-preview")!;
     if (!is2d) {
       try {
@@ -704,6 +712,8 @@ async function startGame(id: GameId, defender = "", dare = "") {
         }
         if (generation !== gameGeneration) return;
         const reward = !!result?.welcome;
+        // A new guest's first result leads into making and saving a character.
+        const setup = reward && !currentProfile?.account;
         body.innerHTML =
           '<div class="result-star">' +
           icon(target ? "trophy" : "game") +
@@ -729,12 +739,16 @@ async function startGame(id: GameId, defender = "", dare = "") {
             ? '<div class="welcome-reward"><span class="cap-badge">✦</span><span><strong>First round complete!</strong><span>Lilac cap unlocked · +35 bonus XP</span></span></div>'
             : "") +
           '<div class="button-row">' +
-          (id !== "coast" && reward
-            ? '<button class="primary" data-action="welcome-wear">Wear my cap & meet Kopi →</button>'
-            : '<button class="primary" data-replay="' +
+          (setup
+            ? '<button class="primary" data-action="setup-look">Name & customise your character →</button><button class="secondary" data-replay="' +
               id +
-              '">Another round</button>') +
-          (id === "coast" && reward
+              '">Another round</button>'
+            : id !== "coast" && reward
+              ? '<button class="primary" data-action="welcome-wear">Wear my cap & meet Kopi →</button>'
+              : '<button class="primary" data-replay="' +
+                id +
+                '">Another round</button>') +
+          (id === "coast" && reward && !setup
             ? '<button class="secondary" data-action="welcome-wear">Wear my lilac cap</button>'
             : "") +
           (currentProfile?.account
@@ -756,7 +770,7 @@ async function startGame(id: GameId, defender = "", dare = "") {
               run.id +
               '">Post as 24h dare →</button>'
             : "") +
-          (!currentProfile?.account
+          (!currentProfile?.account && !setup
             ? result?.race?.newBest
               ? '<button class="secondary" id="save-race-best">Save your avatar and this score</button>'
               : '<button class="secondary" data-account>Save my progress →</button>'
@@ -767,7 +781,7 @@ async function startGame(id: GameId, defender = "", dare = "") {
         }
         body
           .querySelector("#save-race-best")
-          ?.addEventListener("click", () => void openAccount(true));
+          ?.addEventListener("click", () => void openAccount({ create: true }));
         body.insertAdjacentHTML(
           "afterbegin",
           '<div class="finish-effects" aria-hidden="true"></div>',
@@ -1005,6 +1019,56 @@ document.addEventListener("click", (e) => {
     if (a === "welcome-skip") {
       save.welcomeDismissed = true;
       persist();
+      return;
+    }
+    if (a === "setup-look") {
+      progress("welcome-wear");
+      if (save.unlockedHats.includes(2)) save.hat = 2;
+      save.welcome = "complete";
+      persist();
+      world?.updateAvatar();
+      playtestEvent("cosmetic-worn");
+      wardrobeTab = "style";
+      setupGuide = true;
+      open("wardrobe");
+      return;
+    }
+    if (a === "setup-skip") {
+      close();
+      return;
+    }
+    if (a === "setup-save") {
+      void (async () => {
+        const input = body.querySelector<HTMLInputElement>("#nickname");
+        const name = input?.value.trim();
+        // Save a name that was typed but not yet submitted.
+        if (name && name !== (currentProfile?.name || shared?.self?.name)) {
+          b.disabled = true;
+          try {
+            await profileQueue;
+            acceptProfile(await api<Profile>("profile", { name }));
+            void syncSocial();
+          } catch (error) {
+            body.querySelector("#nickname-status")!.textContent = (
+              error as Error
+            ).message;
+            input!.focus();
+            return;
+          } finally {
+            b.disabled = false;
+          }
+        }
+        void openAccount({
+          create: true,
+          guided: true,
+          onSaved: () => {
+            close();
+            toast(
+              "Character saved to your email. Welcome to the neighbourhood!",
+            );
+          },
+        });
+      })();
       return;
     }
     if (a === "welcome-wear") {

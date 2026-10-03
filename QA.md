@@ -1,5 +1,14 @@
 # Darecade verification — 3 October 2026
 
+## First-race character setup and email codes, 4 October 2026
+
+See [ACCOUNTS.md](ACCOUNTS.md) for the rules. Sign-in links are replaced by typed codes.
+
+- **70/70 Node tests and 4/4 Cloudflare integration tests passed**; TypeScript, the Vite build and the Cloudflare dry-run passed. New coverage: six-digit single-use codes, hashed storage, no link in the email, one-minute resend throttle, expiry, five wrong tries per code, the fifteen-per-day address limit and its reset, and identical replies for unknown addresses.
+- Tested in an isolated local Chromium at 390×844 against `.browser/otp-qa-data` on port 4198 with a synthetic guest and `mango@example.test`, mail in outbox mode. A new player finished the first race; the result offered Name & customise your character and Another round. The wardrobe opened as step 1 of 2 wearing the lilac cap; a typed nickname survived choosing an outfit and was saved by Next. Step 2 took the email and showed the code field in the same dialog. A wrong code showed the error and cleared the field; the right code closed the dialog, showed the saved toast and left the account signed in with the name, outfit, cap and race best. The browser had one tab throughout. The outbox message contained a code and no link, and was removed once used.
+- Signed out, then signed back in from the welcome screen with a fresh code (email typed in different case): the same character returned. No page errors.
+- **Not verified:** real delivery through Resend, including how the code email looks in an inbox and whether phones offer the code from the keyboard; a physical phone.
+
 ## Coast Rush steering and wheel fix, 3 October 2026
 
 - Corrected keyboard and on-screen left/right input to match the chase camera. The simulation and replay rules are unchanged; only input mapping and the incorrect track-coordinate comment changed.

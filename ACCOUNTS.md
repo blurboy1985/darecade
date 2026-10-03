@@ -20,10 +20,13 @@ For phone testing, set `LAN_HOST` to the computer's current Wi-Fi IPv4 address a
 
 1. A new player enters birth month/year, then reads the privacy notice. Nothing is written to the database before eligibility and explicit consent. Only the age band and consent version/time are retained.
 2. A consenting guest can play and earn saved cosmetic progress. **More → Account & privacy** offers email account creation.
-3. A random, single-use email link verifies ownership and connects the existing guest avatar to the account. Links expire after 15 minutes. The database stores token hashes; sessions use HttpOnly, SameSite cookies. Production cookies require HTTPS.
-4. **I already have an account** sends a new link to recover the same avatar on another browser/device. There is no password to forget. The email form returns a generic response, including for unknown accounts. Addresses with no account receive a guidance email (no sign-in link, at most hourly, only a hash of the address is kept for one hour).
+3. A random, single-use, six-digit email code verifies ownership and connects the existing guest avatar to the account. The player types it into the window they already have open; emails contain no link and nothing opens a second window. Codes expire after 15 minutes. The database stores only a hash of the code; sessions use HttpOnly, SameSite cookies. Production cookies require HTTPS.
+4. **I already have an account** emails a new code to recover the same avatar on another browser/device. There is no password to forget. The email form returns a generic response, including for unknown accounts. Addresses with no account receive a guidance email (no sign-in code, at most hourly, only a hash of the address is kept for one hour).
+5. A new guest's first result leads with **Name & customise your character**: step 1 is the wardrobe with the nickname field open, step 2 is the email and code. Either step can be skipped; an account stays optional.
 
-Local default: `MAIL_MODE=outbox`. No external email is sent. The message is stored under `data/mail-outbox/` and is never served by HTTP. The operator can open the most recent test message locally and use its URL; treat it as a private password. Consumed messages are removed. Use synthetic addresses for testing.
+Code guessing is limited three ways. Five wrong tries retire a code. Fifteen wrong tries for one address within a day stop that address's codes from being sent or accepted until the day has passed; only a hash of the address is kept with the count. The existing per-client limits (6 email requests and 12 code checks per 15 minutes) still apply. A wrong code gets the same reply whether or not the address has an account. The daily limit means someone who knows a player's email could keep them from signing in for a day by guessing; it cannot give them the account.
+
+Local default: `MAIL_MODE=outbox`. No external email is sent. The message is stored under `data/mail-outbox/` and is never served by HTTP. The operator can open the most recent test message locally and read its code; treat it as a private password. Consumed messages are removed. Use synthetic addresses for testing.
 
 Configured delivery: `MAIL_MODE=resend`, `RESEND_API_KEY`, a verified `MAIL_FROM`, and `PUBLIC_ORIGIN` enable the [Resend send-email API](https://resend.com/docs/api-reference/emails/send-email). External delivery has **not** been tested in this environment. No Supabase service, domain or billable provider was created. Adding Supabase instead would be a separate account/data migration.
 
@@ -61,14 +64,14 @@ node scripts/community-admin.mjs restore PLAYER_ID
 node scripts/community-admin.mjs delete-player PLAYER_ID --confirm-delete
 ```
 
-Suspending revokes access and removes the player from visible/ranked competition. Confirmed under-age accounts can be erased by the operator. Historical awarded medals are not automatically redistributed; resolve confirmed cheating with an explicit, reviewed correction rather than silently rewriting past results. Restored email accounts can request a new link.
+Suspending revokes access and removes the player from visible/ranked competition. Confirmed under-age accounts can be erased by the operator. Historical awarded medals are not automatically redistributed; resolve confirmed cheating with an explicit, reviewed correction rather than silently rewriting past results. Restored email accounts can request a new code.
 
 ## Migration and verification
 
 Existing eligible guests can retain their preset nickname and saved look through the old cookie. Their prior browser save is archived once as `darecade-preview-backup` on that device. Old browser-only XP/bests are not trusted inputs to the new server progression or competitive board; new verified progression starts fresh. Historical lifetime medals stay in the database. Weekly results begin at the verified-rules cutover. Signing out/deleting clears the local profile cache and archive.
 
-`tests/community.test.ts` covers age/consent, links, persistence, spoofed results, duplicate awards, warmup, same-level dares, attempt limits, weekly rollover, reports, erasure and retention. All browser test accounts and time adjustments use isolated `.browser/account-data`, never the real neighbourhood database. See `QA.md` for observed browser results and remaining physical-device/production checks.
+`tests/community.test.ts` covers age/consent, email codes and their guess limits, persistence, spoofed results, duplicate awards, warmup, same-level dares, attempt limits, weekly rollover, reports, erasure and retention. All browser test accounts and time adjustments use isolated `.browser/account-data`, never the real neighbourhood database. See `QA.md` for observed browser results and remaining physical-device/production checks.
 
 Source: `server/community.mjs` (accounts/progression/dares/privacy), `server/store.mjs` (SQLite/presence/medals), `shared/simulation.ts` (verified game rules), `src/account.ts` (welcome/privacy/account screens), `src/games.ts` (fixed-step input recording), `src/main.ts` (lobby integration).
 
-Coast Rush version 2 records personal best time and place from server replay. Old two-lap runs and earned medals are retained; old race targets are excluded from the new format. See [COAST-RUSH.md](COAST-RUSH.md) for cutover behaviour. A new-best result can open the existing optional email account form to keep the same avatar and score.
+Coast Rush version 2 records personal best time and place from server replay. Old two-lap runs and earned medals are retained; old race targets are excluded from the new format. See [COAST-RUSH.md](COAST-RUSH.md) for cutover behaviour. A new guest's first result leads into naming, dressing and saving the character; later new-best results can open the same optional email form.
