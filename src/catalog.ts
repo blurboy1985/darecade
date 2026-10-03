@@ -1,3 +1,4 @@
+import { raceScoreTime } from "../shared/racing.ts";
 export const games = {
   noodle: {
     name: "Noodle Run",
@@ -31,6 +32,14 @@ export const games = {
     genre: "YOUR OWN POCKET GALAXY",
     description: "Dodge the swarm. Take on the boss.",
   },
+  coast: {
+    name: "Coast Rush",
+    tagline: "Your look. Your kart. Your fastest lap.",
+    rule: "Race two laps of Palm Bay. Steer into corners, hold Drift to charge, then release for a boost. Finish within two minutes. Fastest time wins.",
+    controls: "← → / A D steer · S / ↓ brake · Space drift · auto-accelerate",
+    genre: "PALM BAY TIME TRIAL",
+    description: "Your avatar at the wheel. Chase a faster finish.",
+  },
 } as const;
 export type GameId = keyof typeof games;
 export const gameIds = Object.keys(games) as GameId[];
@@ -62,3 +71,7 @@ export const activities = {
   },
 } as const;
 export type ActivityId = keyof typeof activities;
+
+export function formatScore(game: GameId, score: number) {
+  return game === "coast" ? raceScoreTime(score) : String(score);
+}

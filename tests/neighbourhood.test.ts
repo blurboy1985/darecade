@@ -15,7 +15,13 @@ test("old two-game saves migrate without losing personal bests or mutating defau
     },
     fallback,
   );
-  assert.deepEqual(s.best, { noodle: 120, brick: 200, hop: 0, swarm: 0 });
+  assert.deepEqual(s.best, {
+    noodle: 120,
+    brick: 200,
+    hop: 0,
+    swarm: 0,
+    coast: 0,
+  });
   assert.equal(fallback.best.noodle, 0);
   assert.equal(s.awayActivity, "jog");
   assert.equal(s.cameraMode, "isometric");

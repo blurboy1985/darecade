@@ -73,8 +73,8 @@ async function register(s: ReturnType<typeof setup>, email: string) {
   const raw = new URL(messages.find((m) => m.to === email).url).hash.slice(7);
   return { ...s.community.consume(raw), raw };
 }
-test("all four games replay exactly from bounded tick inputs and seeded rules", () => {
-  for (const game of ["noodle", "brick", "hop", "swarm"])
+test("all five games replay exactly from bounded tick inputs and seeded rules", () => {
+  for (const game of ["noodle", "brick", "hop", "swarm", "coast"])
     for (const seed of [1, 987654321]) {
       const run = play(game, seed);
       assert.deepEqual(replayRun(game, seed, run.replay), {

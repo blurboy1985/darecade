@@ -1,5 +1,19 @@
 # Darecade verification — 3 October 2026
 
+## Coast Rush, 3 October 2026
+
+See [Coast Rush](COAST-RUSH.md) for controls, competition rules and the reference/source distinction.
+
+- 56 automated tests passed, including new race replay, timing, DNF, drift/collision, daily/weekly medals and dare-limit checks. Cloudflare's two integration tests now validate all five games.
+- Isolated local Chromium race completed in 42.78 seconds, with 22.28/20.50-second lap splits, three turbos and two bumps. The server replay accepted the finish and saved the personal best. Production player data was not used.
+- Saved Royal ranger clothing, lilac colours, bunny ears, a dragon companion in its sidecar and firefly magic were visible in the kart. Both wrist targets align with the steering wheel at neutral and full steering; the seat aligns with the hip joints. The KayKit model file is unchanged.
+- Controls remain visible at 320×568, 390×844 and 844×390 without horizontal overflow or hidden pause controls. Steering release clears its held state; pause freezes ticks. Forced race-context loss paused cleanly, resumed in simple view and returned to an intact 3D lobby. Browser sizes do not establish physical-phone performance.
+- A populated Coast Rush board displays 0:37.97, 0:41.00 and 0:42.78 in the correct order with +3/+2/+1 pending medals. Compact time cards and rows fit at 320 px. A browser dare opened with the correct 0:37.97 target. These fixtures exist only in the isolated QA database.
+- The fifth physical cabinet plays its Blender control interaction and opens Coast Rush. Visible cabinet taps now take priority over the broad invisible Arcade Row hit area; direct pointer interaction was verified. The new cabinet is also available under Play outside.
+- All four existing simulations retain their 60-second rules. Prior scores, avatars, consent and account rules remain intact. Five cabinets now offer at most 15 medal points per player per day.
+
+The sections below retain earlier QA observations; this section supersedes their four-game counts and daily maximum.
+
 ## Cloudflare hosting — deployed with accounts closed
 
 - Production client build and Wrangler deployment dry run pass; the Worker bundle is approximately 72 KiB before gzip, separate from the static models/client assets.

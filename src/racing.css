@@ -1,0 +1,544 @@
+.game-card.coast {
+  background: #dbebe3;
+}
+.game-card.coast .coast-art {
+  background: linear-gradient(
+    155deg,
+    #bce8e3 35%,
+    #eecc92 36%,
+    #e9ce98 42%,
+    #3e606b 43%,
+    #42606a 65%,
+    #eed4a0 66%,
+    #9ab880 71%
+  );
+  position: relative;
+}
+.coast-art span {
+  position: absolute;
+  left: 44%;
+  top: 28%;
+  font-size: 50px;
+  transform: rotate(-24deg);
+  filter: drop-shadow(3px 5px 0 #203e4855);
+}
+.coast-art b {
+  position: absolute;
+  left: 15px;
+  bottom: 12px;
+  font:
+    700 13px "Space Grotesk",
+    sans-serif;
+  letter-spacing: 2px;
+  color: #214750;
+}
+.coast-art i {
+  position: absolute;
+  right: 17px;
+  top: 15px;
+  color: #315e60;
+  font-size: 28px;
+}
+dialog.game-modal.racing-modal {
+  width: min(1000px, calc(100vw - 16px));
+  max-width: 1000px;
+  max-height: calc(100dvh - 16px);
+  padding: 14px 20px;
+}
+.racing-modal .modal-top {
+  margin-bottom: 3px;
+}
+.racing-modal .modal-top .eyebrow {
+  font-size: 7px;
+}
+.racing-modal #modal-body > h2 {
+  display: none;
+}
+.racing-modal #modal-body {
+  padding-top: 0;
+}
+.racing-modal h2 {
+  margin-bottom: 10px;
+}
+.coast-game {
+  color: #28464c;
+  font-variant-numeric: tabular-nums;
+}
+.race-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  margin: 0 0 10px;
+}
+.race-head b {
+  margin-left: 8px;
+  font-size: 13px;
+}
+.race-screen {
+  height: clamp(300px, calc(100dvh - 247px), 620px);
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #245362;
+  isolation: isolate;
+}
+.coast-game[data-status="ready"] .race-hud,
+.coast-game[data-status="ready"] .race-speed {
+  visibility: hidden;
+}
+.race-view {
+  position: absolute;
+  inset: 0;
+}
+.race-view canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+.race-hud {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  display: flex;
+  gap: 20px;
+  padding: 10px 15px;
+  background: #163c4cdf;
+  color: #eaf8e8;
+  border: 1px solid #ffffff33;
+  border-radius: 10px;
+  pointer-events: none;
+}
+.race-hud span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+.race-hud b {
+  font:
+    700 24px "Space Grotesk",
+    sans-serif;
+  letter-spacing: 0;
+}
+.race-map {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 130px;
+  height: 94px;
+  background: #163c4cbf;
+  border-radius: 12px;
+  pointer-events: none;
+}
+.race-speed {
+  position: absolute;
+  bottom: 16px;
+  left: 17px;
+  color: #fff7d8;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  text-shadow: 0 2px 5px #203d4c;
+}
+.race-speed b {
+  font:
+    700 39px "Space Grotesk",
+    sans-serif;
+}
+.race-speed span {
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+.race-notice {
+  position: absolute;
+  bottom: 21px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 65%;
+  padding: 7px 12px;
+  border-radius: 20px;
+  text-align: center;
+  color: #183e47;
+  background: #e8f7b5;
+  font-size: 12px;
+  font-weight: 700;
+  pointer-events: none;
+}
+.race-notice:empty {
+  display: none;
+}
+.race-cover {
+  position: absolute;
+  inset: 0;
+  padding: clamp(16px, 3vw, 34px);
+  background: linear-gradient(90deg, #123e4dec, #123e4d87 45%, transparent 82%);
+  color: #fff3d2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+}
+.race-cover[hidden] {
+  display: none;
+}
+.race-cover .eyebrow {
+  font-size: 9px;
+  color: #8ce4d7;
+  letter-spacing: 2px;
+}
+.race-cover h3 {
+  font:
+    900 italic clamp(38px, 6.3vw, 76px) / 0.83 "Space Grotesk",
+    sans-serif;
+  letter-spacing: -3px;
+  margin: 17px 0 12px;
+}
+.race-cover h3 em {
+  color: #ffac88;
+}
+.race-cover p {
+  font-size: 12px;
+  margin: 6px 0;
+  max-width: 320px;
+  line-height: 1.55;
+}
+.race-instructions {
+  display: flex;
+  gap: 16px;
+  margin: 10px 0 2px;
+  font-size: 8px;
+  color: #bbe0d8;
+}
+.race-instructions b {
+  font-size: 10px;
+  line-height: 1.9;
+  color: #fff3d2;
+}
+.race-cover .race-tip {
+  font-size: 10px;
+  color: #e1ecd4;
+}
+.race-cover .primary {
+  background: #d8edaa;
+  color: #173e48;
+  margin: 13px 0 8px;
+  min-height: 43px;
+}
+.race-cover small {
+  font-size: 9px;
+  line-height: 1.6;
+  color: #c9dfd8;
+}
+.race-charge {
+  margin: 12px 0 9px;
+}
+.race-charge label {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+}
+.race-charge label span {
+  letter-spacing: 0;
+  font-weight: 400;
+}
+.race-charge meter {
+  display: block;
+  width: 100%;
+  height: 12px;
+  accent-color: #30a58d;
+}
+.race-touch {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.race-touch > div {
+  display: flex;
+  gap: 8px;
+}
+.race-touch button {
+  width: 64px;
+  height: 48px;
+  border: 1px solid #a5bdb1;
+  border-bottom-width: 3px;
+  background: #e0ebd8;
+  color: #254d4e;
+  border-radius: 11px;
+  font:
+    700 11px "DM Sans",
+    sans-serif;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.race-touch [data-race-control="left"],
+.race-touch [data-race-control="right"] {
+  font-size: 24px;
+}
+.race-touch [data-race-control="drift"] {
+  background: #c2e9b2;
+}
+.race-touch button.held {
+  background: #60b9a5;
+  transform: translateY(2px);
+  border-bottom-width: 1px;
+}
+.race-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 9px;
+  margin-top: 7px;
+}
+.race-footer button {
+  min-height: 36px;
+}
+.race-result-detail {
+  text-align: center;
+  padding: 12px;
+  margin: 12px 0 18px;
+  background: #e0eadb;
+  border-radius: 12px;
+}
+.race-result-detail p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.race-result-detail > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 24px;
+}
+.race-result-detail span {
+  font-size: 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.race-result-detail b {
+  font:
+    700 19px "Space Grotesk",
+    sans-serif;
+}
+.race-result-detail small {
+  font-size: 10px;
+}
+.race-board .leaderboard > div {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 14px 10px;
+}
+.race-board .leaderboard > div > span {
+  overflow-wrap: anywhere;
+}
+.race-board .leaderboard strong {
+  white-space: nowrap;
+  text-align: right;
+}
+.race-board .leaderboard small {
+  display: block;
+  margin: 3px 0 0;
+}
+.race-board .score-target label {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.simple-race .race-map {
+  width: 100%;
+  height: 100%;
+  inset: 0;
+  border-radius: 0;
+}
+.simple-race .race-hud,
+.simple-race .race-speed,
+.simple-race .race-notice {
+  z-index: 1;
+}
+.simple-race .race-cover {
+  z-index: 2;
+  background: #173d4ff2;
+}
+@media (max-width: 600px) {
+  .race-board .podium-cards {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .race-board .podium-card {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    gap: 2px 10px;
+    padding: 13px 10px;
+    text-align: left;
+  }
+  .race-board .podium-medal {
+    grid-column: 1;
+    grid-row: 1 / 4;
+    align-self: center;
+    margin: 0;
+    font-size: 30px;
+  }
+  .race-board .podium-card > small:first-of-type {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .race-board .podium-card h3 {
+    grid-column: 2;
+    grid-row: 2;
+    margin: 2px 0;
+    font-size: 13px;
+  }
+  .race-board .podium-card strong {
+    grid-column: 3;
+    grid-row: 1 / 3;
+    align-self: center;
+    font-size: 21px;
+    white-space: nowrap;
+  }
+  .race-board .podium-card > small:last-child {
+    grid-column: 2 / 4;
+    grid-row: 3;
+    font-size: 9px;
+  }
+  dialog.game-modal.racing-modal {
+    width: calc(100vw - 12px);
+    max-width: none;
+    padding: 10px;
+  }
+  .racing-modal h2 {
+    font-size: 22px !important;
+  }
+  .race-screen {
+    height: clamp(320px, calc(100dvh - 237px), 640px);
+  }
+  .race-head {
+    font-size: 8px;
+    gap: 4px;
+    letter-spacing: 0.7px;
+  }
+  .race-head b {
+    font-size: 11px;
+    margin-left: 4px;
+  }
+  .race-hud {
+    top: 9px;
+    left: 9px;
+    padding: 8px 10px;
+    gap: 14px;
+  }
+  .race-hud b {
+    font-size: 19px;
+  }
+  .race-map {
+    width: 90px;
+    height: 65px;
+    top: 9px;
+    right: 9px;
+  }
+  .race-cover {
+    background: linear-gradient(90deg, #123e4de8, #123e4d96 58%, #123e4d30);
+    padding: 16px;
+  }
+  .race-cover h3 {
+    font-size: 47px;
+    margin: 12px 0;
+  }
+  .race-cover p {
+    max-width: 230px;
+    font-size: 11px;
+  }
+  .race-cover .race-tip {
+    max-width: 245px;
+    font-size: 10px;
+  }
+  .race-cover .primary {
+    margin: 10px 0 5px;
+  }
+  .race-speed b {
+    font-size: 30px;
+  }
+  .race-notice {
+    font-size: 10px;
+    max-width: 60%;
+    left: 62%;
+  }
+  .race-touch button {
+    width: 54px;
+    height: 48px;
+  }
+  .race-touch > div {
+    gap: 6px;
+  }
+}
+@media (max-height: 550px) and (min-width: 600px) {
+  dialog.game-modal.racing-modal {
+    width: calc(100vw - 12px);
+    padding: 6px 12px;
+  }
+  .race-screen {
+    height: calc(100dvh - 158px);
+    min-height: 180px;
+  }
+  .race-head {
+    margin-bottom: 5px;
+  }
+  .race-charge {
+    margin: 4px 0;
+  }
+  .race-charge label {
+    font-size: 8px;
+  }
+  .race-touch {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 57px;
+    z-index: 3;
+    pointer-events: none;
+  }
+  .race-touch button {
+    pointer-events: auto;
+    background: #e0ebd8df;
+  }
+  .race-footer {
+    margin: 0;
+  }
+  .race-cover {
+    padding: 12px 24px;
+    justify-content: flex-start;
+  }
+  .race-cover h3 {
+    font-size: 40px;
+    margin: 8px 0;
+  }
+  .race-cover h3 br {
+    display: none;
+  }
+  .race-cover h3 em {
+    margin-left: 12px;
+  }
+  .race-cover .race-tip {
+    max-width: 400px;
+  }
+  .race-cover .race-instructions,
+  .race-cover small {
+    display: none;
+  }
+  .race-cover .primary {
+    margin-top: 8px;
+  }
+  .coast-game[data-status="ready"] .race-touch {
+    visibility: hidden;
+  }
+}

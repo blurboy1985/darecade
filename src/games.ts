@@ -22,7 +22,7 @@ export class ArcadeGame extends Simulation {
   events: Replay["events"] = [];
   previous = "";
   constructor(
-    id: GameId,
+    id: Exclude<GameId, "coast">,
     public container: HTMLElement,
     public finish: (score: number, replay: Replay) => void,
     public sound: (name: Sfx) => void,

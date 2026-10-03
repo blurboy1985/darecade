@@ -88,7 +88,7 @@ export function fresh(): Save {
     visited: [],
     cat: false,
     rounds: 0,
-    best: { noodle: 0, brick: 0, hop: 0, swarm: 0 },
+    best: { noodle: 0, brick: 0, hop: 0, swarm: 0, coast: 0 },
     cameraMode: "isometric",
     awayActivity: "jog",
     awaySince: 0,

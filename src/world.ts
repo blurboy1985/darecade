@@ -527,7 +527,7 @@ export class LobbyWorld {
     box(g, 0, 2.4, -2.4, 18, 4.5, 0.35, "#9dbbad");
     box(g, 0, 4.8, -1.8, 19.5, 0.65, 2.9, "#7f9990");
     box(g, 0, 5.18, -1.8, 19.8, 0.18, 2.9, "#c4ccac");
-    for (const x of [-8.8, -2.8, 3.4, 8.8]) {
+    for (const x of [-8.8, -1.8, 1.8, 8.8]) {
       box(g, x, 2.3, 0.9, 0.55, 4.4, 0.6, "#dce4c6");
       box(g, x, 0.55, 0.9, 0.7, 0.45, 0.73, "#e9e8cc");
     }
@@ -549,11 +549,17 @@ export class LobbyWorld {
       (bulb.material as T.MeshStandardMaterial) = material("#ffe7ad", true);
       this.lamps.push(bulb);
     }
-    const names = ["NOODLE RUN", "BRICK BASH", "HOP HOP", "STAR SWARM"],
-      cols = ["#b8da66", "#af9bee", "#f2ba6b", "#78c5d0"];
-    for (let i = 0; i < 4; i++) {
+    const names = [
+        "NOODLE RUN",
+        "BRICK BASH",
+        "HOP HOP",
+        "STAR SWARM",
+        "COAST RUSH",
+      ],
+      cols = ["#b8da66", "#af9bee", "#f2ba6b", "#78c5d0", "#f7a782"];
+    for (let i = 0; i < gameIds.length; i++) {
       const c = new T.Group();
-      c.position.set(-6.4 + i * 4.2, 0.48, 0.7);
+      c.position.set(-7.2 + i * 3.6, 0.48, 0.7);
       g.add(c);
       box(c, 0, 1.13, 0, 1.72, 2.25, 1.12, cols[i]);
       box(c, 0, 1.82, 0.62, 1.42, 1.15, 0.13, "#263747");
@@ -566,7 +572,7 @@ export class LobbyWorld {
       sign(c, names[i], 0, 2.51, 0.65, 1.69, 0.36, "#283548", cols[i], 34);
       const screen = sign(
         c,
-        ["● ━ ━ ●", "▰ ▰ ▰", "↑ HOP ↑", "✦ SWARM"][i],
+        ["● ━ ━ ●", "▰ ▰ ▰", "↑ HOP ↑", "✦ SWARM", "COAST GP"][i],
         0,
         1.8,
         0.73,
@@ -1640,7 +1646,7 @@ export class LobbyWorld {
       this.targets.map((t) => t.mesh),
       true,
     );
-    const hit = intersections.find((h) => {
+    const visibleHits = intersections.filter((h) => {
       let p: T.Object3D | null = h.object;
       while (p) {
         if (!p.visible) return false;
@@ -1648,6 +1654,16 @@ export class LobbyWorld {
       }
       return true;
     });
+    // Broad invisible location boxes are fallbacks. A visible cabinet or prop
+    // under the same pointer should get the interaction, even behind that box.
+    const hit =
+      visibleHits.find(({ object }) => {
+        if (!(object instanceof T.Mesh)) return true;
+        const materials = Array.isArray(object.material)
+          ? object.material
+          : [object.material];
+        return materials.some((material) => material.visible);
+      }) ?? visibleHits[0];
     if (hit) {
       let obj: T.Object3D | null = hit.object;
       while (obj && !obj.userData.id) obj = obj.parent;

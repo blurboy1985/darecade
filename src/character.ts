@@ -403,8 +403,9 @@ export function animateDetails(
   a.last.copy(a.root.position);
   const t = reduced ? 0 : time;
   const gait = Math.sin(t * 10);
-  const seated = ["rest", "bench", "swing"].includes(mode);
+  const seated = ["rest", "bench", "swing", "drive"].includes(mode);
   const performing = [
+    "drive",
     "dragon",
     "pet",
     "bell",
@@ -463,6 +464,14 @@ export function animateDetails(
   }
   a.magic?.tick(t, a.moving);
   animateHeadgear(a.hat, t);
+  if (mode === "drive") {
+    a.legs.forEach((l) => l.rotation.set(-1.25, 0, 0));
+    a.knees.forEach((k) => k.rotation.set(1.35, 0, 0));
+    a.left.rotation.set(-0.9, 0, -0.08);
+    a.right.rotation.set(-0.9, 0, 0.08);
+    a.elbows.forEach((e) => e.rotation.set(-0.35, 0, 0));
+    a.spine.rotation.set(0.05, 0, 0);
+  }
   poseSkin(a, mode);
   if (a.pet) {
     const target = new T.Vector3(0.8, 0.02, 0.9)
@@ -484,7 +493,7 @@ const rootQ = new T.Quaternion(),
   targetQ = new T.Quaternion();
 function poseSkin(a: Avatar, mode: string) {
   const pitch = -(a.legs[0].rotation.x + a.legs[1].rotation.x) / 2;
-  const seated = ["rest", "bench", "swing", "dragon"].includes(mode)
+  const seated = ["rest", "bench", "swing", "dragon", "drive"].includes(mode)
     ? T.MathUtils.clamp(pitch / 1.35, 0, 1)
     : 0;
   const reach = T.MathUtils.clamp(
@@ -557,7 +566,7 @@ function poseSkin(a: Avatar, mode: string) {
     set(bone("foot"), leg);
   }
 
-  fitHands(a, mode, reach);
+  fitHands(a, mode, mode === "drive" ? 1 : reach);
   const pivot = new T.Vector3(0, 1.241 * KAYKIT_SCALE, 0);
   a.hat.quaternion.copy(head);
   a.hat.position.copy(pivot).sub(pivot.clone().applyQuaternion(head));
@@ -571,7 +580,11 @@ function poseSkin(a: Avatar, mode: string) {
 
 /** Match the existing animated props without stretching or rebuilding the skin. */
 function fitHands(a: Avatar, mode: string, weight: number) {
-  if (!["swing", "pet", "bell", "arcade"].includes(mode) || weight <= 0) return;
+  if (
+    !["swing", "pet", "bell", "arcade", "drive"].includes(mode) ||
+    weight <= 0
+  )
+    return;
   const prop = (name: string) => {
     const cache = a.root.userData.contactProps as Map<string, T.Object3D>;
     let nearest = cache?.get(name),
@@ -639,7 +652,16 @@ function fitHands(a: Avatar, mode: string, weight: number) {
     turn(upper, lower, bend);
     turn(lower, wrist, start.clone().addScaledVector(direction, distance));
   };
-  if (mode === "swing") {
+  if (mode === "drive") {
+    // Wheel grips follow steering and share the kart parent with the driver.
+    for (const [side, name] of [
+      ["r", "Kart_grip_r"],
+      ["l", "Kart_grip_l"],
+    ] as const) {
+      const target = prop(name);
+      if (target) solve(side, target);
+    }
+  } else if (mode === "swing") {
     for (const [side, name] of [
       ["r", "Swing_chain"],
       ["l", "Swing_chain001"],

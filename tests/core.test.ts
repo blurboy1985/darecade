@@ -61,7 +61,13 @@ test("malformed saves recover without invalid avatar parts or duplicate collecti
   assert.equal(s.rounds, 0);
   assert.deepEqual(s.coins, ["coin0"]);
   assert.deepEqual(s.visited, ["shop"]);
-  assert.deepEqual(s.best, { noodle: 0, brick: 75, hop: 0, swarm: 0 });
+  assert.deepEqual(s.best, {
+    noodle: 0,
+    brick: 75,
+    hop: 0,
+    swarm: 0,
+    coast: 0,
+  });
   assert.equal(s.sound, false);
   assert.deepEqual(normalise(null, f), f);
 });

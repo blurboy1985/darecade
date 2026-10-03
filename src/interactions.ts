@@ -1,3 +1,4 @@
+import { gameIds, games } from "./catalog.ts";
 import * as T from "three";
 import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
 
@@ -91,15 +92,15 @@ export const interactionSpecs: InteractionSpec[] = [
   bench(1, -13, 10, Math.PI),
   bench(2, 8, -1, 0.1),
   bench(3, -6, 9, -0.6),
-  ...["noodle", "brick", "hop", "swarm"].map(
+  ...gameIds.map(
     (game, index): InteractionSpec => ({
       id: `cabinet-${game}`,
       kind: "arcade",
-      title: `Try ${["Noodle Run", "Brick Bash", "Hop Hop", "Star Swarm"][index]}`,
-      anchor: [-11.4 + index * 4.2, 0, -8.8],
+      title: `Try ${games[game].name}`,
+      anchor: [-12.2 + index * 3.6, 0, -8.8],
       yaw: 0,
-      approach: [-11.4 + index * 4.2, -6.3],
-      exit: [-11.4 + index * 4.2, -6.3],
+      approach: [-12.2 + index * 3.6, -6.3],
+      exit: [-12.2 + index * 3.6, -6.3],
       view: 1.1,
       distance: 5.5,
       game,

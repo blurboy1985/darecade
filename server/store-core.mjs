@@ -1,7 +1,8 @@
 import { appearanceLimits } from "../src/appearance.ts";
 import { randomUUID, randomBytes, createHash } from "node:crypto";
 
-export const gameIds = ["noodle", "brick", "hop", "swarm"];
+import { gameIds } from "../src/catalog.ts";
+export { gameIds };
 const DAY = 86400000;
 export const day = (time) =>
   new Date(time + 8 * 3600000).toISOString().slice(0, 10);
@@ -205,8 +206,7 @@ export class StoreCore {
   }
   begin(id, game, target = null, options = {}) {
     this.settle();
-    if (!gameIds.includes(game))
-      throw Error("Choose one of the four arcade games.");
+    if (!gameIds.includes(game)) throw Error("Choose an arcade game.");
     return this.transaction(() => {
       let targetScore = 0;
       if (target) {

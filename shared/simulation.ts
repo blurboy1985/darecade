@@ -1,3 +1,4 @@
+import { CoastRace, RACE_TICKS } from "./racing.ts";
 import { HopRun, StarFlight } from "../src/action-games.ts";
 export const RULES_VERSION = 1;
 export const TICK_RATE = 60;
@@ -25,10 +26,14 @@ export class Simulation {
   lives = 3;
   bricks: { x: number; y: number; alive: boolean; color: string }[] = [];
 
+  race: CoastRace | null;
   action: HopRun | StarFlight | null;
   id: string;
   constructor(id: string, seed = 314159) {
+    if (!["noodle", "brick", "hop", "swarm", "coast"].includes(id))
+      throw Error("Invalid game.");
     this.id = id;
+    this.race = id === "coast" ? new CoastRace() : null;
     this.seed = seed >>> 0;
     this.action =
       id === "hop" ? new HopRun() : id === "swarm" ? new StarFlight() : null;
@@ -47,6 +52,14 @@ export class Simulation {
   advance(input: Input) {
     if (this.ended) return;
     const [dx, dy, turn, jump, px, py] = input;
+    if (this.race) {
+      this.race.advance(dx, dy > 0, jump > 0);
+      this.ticks = this.race.ticks;
+      this.elapsed = this.ticks / TICK_RATE;
+      this.score = this.race.score;
+      this.ended = this.race.ended;
+      return;
+    }
     this.axis = this.id === "brick" && px >= 0 ? 0 : dx;
     if (turn >= 0) {
       const n = [
@@ -201,9 +214,9 @@ export function replayRun(game: string, seed: number, replay: Replay) {
     replay.version !== RULES_VERSION ||
     !Number.isInteger(replay.ticks) ||
     replay.ticks < 1 ||
-    replay.ticks > 3600 ||
+    replay.ticks > (game === "coast" ? RACE_TICKS : 3600) ||
     !Array.isArray(replay.events) ||
-    replay.events.length > 3600
+    replay.events.length > (game === "coast" ? RACE_TICKS : 3600)
   )
     throw Error("Invalid replay.");
   let previous = -1;

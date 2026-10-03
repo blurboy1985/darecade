@@ -22,7 +22,15 @@ import {
 } from "./account";
 import { LobbyWorld, spots } from "./world";
 import { ArcadeGame } from "./games";
-import { games, gameIds, activities, type ActivityId } from "./catalog";
+import { RacingGame } from "./racing-game";
+import type { Replay } from "../shared/simulation";
+import {
+  games,
+  gameIds,
+  formatScore,
+  activities,
+  type ActivityId,
+} from "./catalog";
 import { residents } from "./neighbourhood";
 import { interactionSpecs } from "./interactions";
 import {
@@ -65,7 +73,7 @@ function icon(name: string) {
 }
 const save = readSave();
 let world: LobbyWorld | null = null;
-let game: ArcadeGame | null = null;
+let game: ArcadeGame | RacingGame | null = null;
 let wardrobeTab = "style";
 let boardTab = "week";
 let boardGame: GameId = "noodle";
@@ -148,7 +156,7 @@ app.innerHTML = `
   <main class="hud"><section class="welcome-panel"><div class="eyebrow"><span class="tiny-spark">✦</span> YOUR LITTLE CORNER OF THE INTERNET</div><h1>Good times.<br>Great company.</h1><p>No tickets needed.<br>Just bring your game face.</p><button class="primary" data-open="arcade">Let’s play ${icon("arrow")}</button><div class="world-caption"><span class="status-dot"></span> A whole neighbourhood to explore</div></section>
   <button class="quest-card" data-open="quests" aria-label="Open pixel coin hunt"><span class="quest-icon">${icon("compass")}</span><span class="quest-copy"><span class="eyebrow">A LITTLE SIDE QUEST</span><strong>The great pixel hunt</strong><span>5 hidden coins. One fresh look.</span><span class="quest-progress" id="coin-dots">○ ○ ○ ○ ○</span></span><span class="card-arrow">↗</span></button>
   <div class="right-rail"><button class="gift-teaser" data-open="shop" aria-label="Choose your daily gift at the Mama Shop"><span class="gift-illustration">${icon("gift")}<i>✦</i></span><span class="eyebrow" id="gift-eyebrow">A LITTLE SOMETHING FOR YOU</span><strong id="gift-title">Your daily goodie</strong><span id="gift-caption">Pick a free gift at the Mama Shop</span><span class="gift-link">Take a look ${icon("arrow")}</span></button><button class="map-card" data-open="map" aria-label="Open neighbourhood map"><div class="mini-map" aria-hidden="true"><i class="map-building m1"></i><i class="map-building m2"></i><i class="map-building m3"></i><i class="map-tree t1"></i><i class="map-tree t2"></i><i class="map-you"></i><span>N ↑</span></div><span>${icon("pin")} The neighbourhood <b>↗</b></span></button></div>
-  <div class="scene-label label-arcade"><button data-walk="arcade">${icon("game")} Arcade Row <span>4 games</span></button></div>
+  <div class="scene-label label-arcade"><button data-walk="arcade">${icon("game")} Arcade Row <span>5 games</span></button></div>
   <div class="world-controls"><button id="rotate-left" aria-label="Rotate view left">↶</button><button id="reset-view" aria-label="Reset view">${icon("compass")}</button><button id="rotate-right" aria-label="Rotate view right">↷</button><span></span><button id="zoom-out" aria-label="Zoom out">−</button><button id="zoom-in" aria-label="Zoom in">+</button></div>
   <button id="interaction" class="interaction" hidden><kbd>E</kbd><span></span>${icon("arrow")}</button>
   <div class="move-hint"><kbd>W</kbd><span><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><p>to wander <i>·</i> click anywhere to walk</p></div>
@@ -345,8 +353,9 @@ function cards() {
     hop: '<span class="hop-roof r1"></span><span class="hop-roof r2"></span><span class="hop-character">↑</span><i>03</i>',
     swarm:
       '<span class="star-ship">▲</span><span class="star-enemy">▼</span><i>✦ · ✧ · ✦</i>',
+    coast: "<span>🏎</span><b>PALM BAY</b><i>05</i>",
   };
-  return `<div class="game-grid four-games">${gameIds.map((id) => `<button class="game-card ${id}" data-game="${id}"><div class="game-art ${id}-art">${art[id]}</div><span class="eyebrow">${games[id].genre}</span><h3>${games[id].name}</h3><p>${games[id].description}</p><div><span>60 sec · BEST ${shared?.players.find((p) => p.id === shared!.me)?.best[id] ?? 0}</span>${icon("arrow")}</div></button>`).join("")}</div>`;
+  return `<div class="game-grid four-games">${gameIds.map((id) => `<button class="game-card ${id}" data-game="${id}"><div class="game-art ${id}-art">${art[id]}</div><span class="eyebrow">${games[id].genre}</span><h3>${games[id].name}</h3><p>${games[id].description}</p><div><span>${id === "coast" ? "2 laps" : "60 sec"} · BEST ${formatScore(id, shared?.players.find((p) => p.id === shared!.me)?.best[id] ?? 0)}</span>${icon("arrow")}</div></button>`).join("")}</div>`;
 }
 function open(id: string) {
   if (id.startsWith("player:")) {
@@ -566,10 +575,11 @@ function open(id: string) {
       "pet",
       "bell",
       "cabinet-noodle",
+      "cabinet-coast",
     ]
       .map((key, i) => {
         const s = interactionSpecs.find((s) => s.id === key)!;
-        return `<button data-environment="${key}"><span>${["🐉", "✦", "📖", "🐈", "🔔", "🕹"][i]}</span><strong>${s.title}</strong><small>${["Climb the stairs, then slide down", "Hop on and swing through the air", "Open a book and turn the pages", "Kopi leans in and swishes his tail", "A little ding, a little neighbourhood joy", "Work the controls, then play a round"][i]}</small><b>LET’S GO →</b></button>`;
+        return `<button data-environment="${key}"><span>${["🐉", "✦", "📖", "🐈", "🔔", "🕹", "🏎"][i]}</span><strong>${s.title}</strong><small>${["Climb the stairs, then slide down", "Hop on and swing through the air", "Open a book and turn the pages", "Kopi leans in and swishes his tail", "A little ding, a little neighbourhood joy", "Work the controls, then play a round", "Start a race with your saved avatar"][i]}</small><b>LET’S GO →</b></button>`;
       })
       .join(
         "",
@@ -579,7 +589,7 @@ function open(id: string) {
   } else if (id === "playground") {
     body.innerHTML = `<div class="dragon-portrait">✦</div><h2>Old-school playground.<br>New little adventures.</h2><p class="lead">Climb the steps, take a seat, and slide down our terracotta dragon.</p><button class="primary" data-environment="dragon">Let’s ride the dragon →</button><button class="secondary" data-environment="swing">Try the neighbourhood swing</button>`;
   } else if (id === "soon") {
-    body.innerHTML = `<h2>All four cabinets are open.</h2>${cards()}`;
+    body.innerHTML = `<h2>All five cabinets are open.</h2>${cards()}`;
   } else {
     body.innerHTML = `<h2>Take a breather.</h2><p class="lead">You’ve been exploring for 30 minutes.<br>Stretch, grab some water, look out of a window.</p><div class="note">Everything you’ve earned will be here when you get back.</div>${actionButton("close", "Back when I’m ready")}`;
   }
@@ -634,110 +644,133 @@ async function startGame(id: GameId, defender = "", dare = "") {
         ? "VERIFIED PRACTICE · EARN COSMETIC XP"
         : "OFFLINE PRACTICE";
   body.innerHTML = "<h2>" + games[id].name + '</h2><div id="game-mount"></div>';
-  game = new ArcadeGame(
-    id,
-    body.querySelector("#game-mount")!,
-    async (score, replay) => {
-      game?.dispose();
-      game = null;
-      activeRun = null;
-      playtestEvent("round-finished");
-      body.innerHTML =
-        "<h2>Checking your round…</h2><p>The server replays your inputs before saving rewards.</p>";
-      const render = async () => {
-        try {
-          let result: {
-            welcome?: boolean;
-            ranked?: boolean;
-            profile: Profile;
-          } | null = null;
-          if (run) {
-            await profileQueue;
-            result = await api("finish", { id: run.id, score, replay });
-            acceptProfile(result!.profile);
-            await syncSocial();
-          }
-          if (generation !== gameGeneration) return;
-          const reward = !!result?.welcome;
-          body.innerHTML =
-            '<div class="result-star">' +
-            icon(target ? "trophy" : "game") +
-            '</div><h2 class="result-score">' +
-            score +
-            '<small>GAME SCORE</small></h2><p class="lead">' +
-            (target
-              ? score > target
-                ? "Dare beaten!"
-                : score === target
-                  ? "A draw. Both scores stand."
-                  : "Your target was " +
-                    target +
-                    ". Try another neighbour next time."
-              : "A little better with every round.") +
-            "</p>" +
-            (reward
-              ? '<div class="welcome-reward"><span class="cap-badge">✦</span><span><strong>First round complete!</strong><span>Lilac cap unlocked · +35 bonus XP</span></span></div>'
-              : "") +
-            '<div class="button-row">' +
-            (reward
-              ? '<button class="primary" data-action="welcome-wear">Wear my cap & meet Kopi →</button>'
-              : '<button class="primary" data-replay="' +
-                id +
-                '">Another round →</button>') +
-            '<button class="secondary" data-open="board">See the weekly board</button></div>' +
-            '<div class="note">' +
-            (result
-              ? "Replay verified · +20 cosmetic XP. " +
-                (result.ranked
-                  ? "Today’s score is saved for midnight medals."
-                  : "This round is saved as practice. Ranked play opens after account verification and the 24-hour waiting period; daily medals require today’s level.")
-              : "Offline practice: no progress or leaderboard score was saved.") +
-            "</div>" +
-            (run && score > 0 && shared?.competitionReady
-              ? '<button class="secondary" data-post-dare="' +
-                run.id +
-                '">Post this score as a 24-hour dare →</button>'
-              : "") +
-            (!currentProfile?.account
-              ? '<button class="secondary" data-account>Create an account to keep my progress →</button>'
-              : "");
-          body.insertAdjacentHTML(
-            "afterbegin",
-            '<div class="finish-effects" aria-hidden="true"></div>',
-          );
-          if (!is2d && !save.reduced) {
-            try {
-              disposeCelebration = celebrate(
-                body.querySelector(".finish-effects")!,
-              );
-            } catch {
-              /* Rewards remain readable without WebGL. */
-            }
-          }
-          const standing = shared?.boards[id]?.find((p) => p.id === shared?.me);
-          body
-            .querySelector(".result-score")!
-            .insertAdjacentHTML(
-              "afterend",
-              `<div class="round-breakdown"><span>Cosmetic XP<strong>${result ? "+20" : "0"}</strong><small>For your avatar level</small></span><span>Today’s rank<strong>${result?.ranked && standing ? "#" + standing.rank : "Practice"}</strong><small>${result?.ranked && standing && standing.rank <= 3 ? `+${4 - standing.rank} medals if held at midnight` : "Medals are separate from game scores"}</small></span></div>`,
-            );
-          beep(score > target ? "win" : "finish");
-        } catch (error) {
-          if (generation !== gameGeneration) return;
-          body.innerHTML =
-            "<h2>Round not saved yet</h2><p>" +
-            escapeText((error as Error).message) +
-            '</p><button class="primary" id="retry-result">Try saving again</button><button class="secondary" data-open="arcade">Back to arcade</button>';
-          body
-            .querySelector("#retry-result")!
-            .addEventListener("click", () => void render());
+  boardGame = id;
+  if (id === "coast") modal.classList.add("racing-modal");
+  const onFinish = async (score: number, replay: Replay) => {
+    const raceSummary = game instanceof RacingGame ? game.summary() : "";
+    modal.classList.remove("racing-modal");
+    game?.dispose();
+    game = null;
+    activeRun = null;
+    playtestEvent("round-finished");
+    body.innerHTML =
+      "<h2>Checking your round…</h2><p>The server replays your inputs before saving rewards.</p>";
+    const render = async () => {
+      try {
+        let result: {
+          welcome?: boolean;
+          ranked?: boolean;
+          profile: Profile;
+        } | null = null;
+        if (run) {
+          await profileQueue;
+          result = await api("finish", { id: run.id, score, replay });
+          acceptProfile(result!.profile);
+          await syncSocial();
         }
-      };
-      await render();
-    },
-    (name) => beep(name),
-    run?.seed,
-  );
+        if (generation !== gameGeneration) return;
+        const reward = !!result?.welcome;
+        body.innerHTML =
+          '<div class="result-star">' +
+          icon(target ? "trophy" : "game") +
+          '</div><h2 class="result-score">' +
+          formatScore(id, score) +
+          "<small>" +
+          (id === "coast" ? "TWO-LAP TIME" : "GAME SCORE") +
+          "</small></h2>" +
+          raceSummary +
+          '<p class="lead">' +
+          (target
+            ? score > target
+              ? "Dare beaten!"
+              : score === target
+                ? "A draw. Both scores stand."
+                : "Your target was " +
+                  formatScore(id, target) +
+                  ". Try another neighbour next time."
+            : "A little better with every round.") +
+          "</p>" +
+          (reward
+            ? '<div class="welcome-reward"><span class="cap-badge">✦</span><span><strong>First round complete!</strong><span>Lilac cap unlocked · +35 bonus XP</span></span></div>'
+            : "") +
+          '<div class="button-row">' +
+          (reward
+            ? '<button class="primary" data-action="welcome-wear">Wear my cap & meet Kopi →</button>'
+            : '<button class="primary" data-replay="' +
+              id +
+              '">Another round →</button>') +
+          '<button class="secondary" data-open="board">See the weekly board</button></div>' +
+          '<div class="note">' +
+          (result
+            ? "Replay verified · +20 cosmetic XP. " +
+              (result.ranked
+                ? id === "coast" && score === 0
+                  ? "No ranked time this round. Finish two laps to enter the board."
+                  : "Today’s best is saved for midnight medals."
+                : "This round is saved as practice. Ranked play opens after account verification and the 24-hour waiting period; daily medals require today’s level.")
+            : "Offline practice: no progress or leaderboard score was saved.") +
+          "</div>" +
+          (run && score > 0 && shared?.competitionReady
+            ? '<button class="secondary" data-post-dare="' +
+              run.id +
+              '">Post this score as a 24-hour dare →</button>'
+            : "") +
+          (!currentProfile?.account
+            ? '<button class="secondary" data-account>Create an account to keep my progress →</button>'
+            : "");
+        body.insertAdjacentHTML(
+          "afterbegin",
+          '<div class="finish-effects" aria-hidden="true"></div>',
+        );
+        if (!is2d && !save.reduced) {
+          try {
+            disposeCelebration = celebrate(
+              body.querySelector(".finish-effects")!,
+            );
+          } catch {
+            /* Rewards remain readable without WebGL. */
+          }
+        }
+        const standing = shared?.boards[id]?.find((p) => p.id === shared?.me);
+        body
+          .querySelector(".result-score")!
+          .insertAdjacentHTML(
+            "afterend",
+            `<div class="round-breakdown"><span>Cosmetic XP<strong>${result ? "+20" : "0"}</strong><small>For your avatar level</small></span><span>Today’s rank<strong>${result?.ranked && standing ? "#" + standing.rank : "Practice"}</strong><small>${result?.ranked && standing && standing.rank <= 3 ? `+${4 - standing.rank} medals if held at midnight` : "Medals are separate from game scores"}</small></span></div>`,
+          );
+        beep(score > target ? "win" : "finish");
+      } catch (error) {
+        if (generation !== gameGeneration) return;
+        body.innerHTML =
+          "<h2>Round not saved yet</h2><p>" +
+          escapeText((error as Error).message) +
+          '</p><button class="primary" id="retry-result">Try saving again</button><button class="secondary" data-open="arcade">Back to arcade</button>';
+        body
+          .querySelector("#retry-result")!
+          .addEventListener("click", () => void render());
+      }
+    };
+    await render();
+  };
+  const mount = body.querySelector<HTMLElement>("#game-mount")!;
+  game =
+    id === "coast"
+      ? new RacingGame(
+          mount,
+          onFinish,
+          (name) => beep(name),
+          run?.seed ?? 314159,
+          save,
+          {
+            reduced: save.reduced,
+            simple: save.twoD,
+            target,
+            best:
+              shared?.players.find((p) => p.id === shared?.me)?.best.coast ??
+              save.best.coast,
+          },
+        )
+      : new ArcadeGame(id, mount, onFinish, (name) => beep(name), run?.seed);
 }
 
 document.addEventListener("click", (e) => {
@@ -1524,6 +1557,10 @@ function renderSharedNeighbours() {
   body.innerHTML = `<h2>Your neighbours.<br>Still downstairs.</h2><p class="lead">Visit a saved avatar, inspect their outfit, or challenge their best while they’re resting.</p>${serverNote()}<div class="resident-list">${playerRows()}</div><h3>Around the block</h3><p class="fine-print">Community characters bring the park to life. They don’t compete for medals.</p><div class="resident-list">${residents.map((r) => `<button data-resident="${r.id}"><span class="resident-swatch" style="background:${outfits[r.outfit]}">${activities[r.activity].icon}</span><span><strong>${r.name}</strong><small>COMMUNITY CHARACTER · ${activities[r.activity].name}</small></span><b>VISIT ↗</b></button>`).join("")}</div>`;
 }
 function renderSharedBoard() {
+  modal.classList.toggle(
+    "race-board",
+    boardTab === "daily" && boardGame === "coast",
+  );
   const me = shared?.players.find((p) => p.id === shared?.me);
   const week = shared?.weekly || [];
   const ownWeek = week.find((p) => p.id === shared?.me);
@@ -1536,11 +1573,16 @@ function renderSharedBoard() {
   const list =
     boardTab === "week"
       ? week.map((p) => ({ ...p, value: p.points }))
-      : board.map((p) => ({ ...p, value: p.score }));
-  const unit = boardTab === "week" ? "MEDAL PTS" : "GAME SCORE";
+      : board.map((p) => ({ ...p, value: formatScore(boardGame, p.score) }));
+  const unit =
+    boardTab === "week"
+      ? "MEDAL PTS"
+      : boardGame === "coast"
+        ? "RACE TIME"
+        : "GAME SCORE";
   const rank = boardTab === "week" ? ownWeek?.rank : ownDay?.rank;
   const podium = list.filter((p) => p.rank <= 3);
-  body.innerHTML = `<span class="eyebrow">YOUR NEIGHBOURHOOD LEAGUE</span><h2>Small wins.<br>Something to show for them.</h2>${serverNote()}<section class="your-standing"><div><span>YOUR ${boardTab === "week" ? "WEEKLY" : "DAILY"} RANK</span><strong>${rank ? "#" + rank : "—"}</strong><small>${rank ? "Keep playing at your own pace" : shared?.competitionReady ? "Set a score to join the board" : "Practice now · ranked play unlocks after verification + 24h"}</small></div><div class="standing-stats"><span><b>${ownWeek?.points || 0}</b>This week</span><span><b>${pending ? "+" + pending : "0"}</b>Pending tonight</span><span><b>${me?.points || 0}</b>Lifetime</span></div></section><div class="look-tabs board-tabs"><button data-board-tab="week" class="${boardTab === "week" ? "active" : ""}" aria-pressed="${boardTab === "week"}">Weekly medals</button><button data-board-tab="daily" class="${boardTab === "daily" ? "active" : ""}" aria-pressed="${boardTab === "daily"}">Today’s game scores</button></div>${boardTab === "daily" ? `<div class="game-filters">${gameIds.map((g) => `<button class="secondary ${g === boardGame ? "chosen" : ""}" data-board-game="${g}" aria-pressed="${g === boardGame}">${games[g].name}</button>`).join("")}</div><p class="fine-print">${games[boardGame].name} · Your best today: <b>${ownDay?.score || 0}</b> · Medals are pending until 00:00 SGT.</p>` : `<p class="fine-print">Week of ${shared?.week || "Monday"} · Awarded daily medals only. A fresh board every Monday, 00:00 SGT.</p>`}<div class="podium-cards">${podium.length ? podium.map((p) => `<article class="podium-card medal-${p.rank} ${p.id === shared?.me ? "is-you" : ""}"><span class="podium-medal">${["🥇", "🥈", "🥉"][p.rank - 1]}</span><small>RANK ${p.rank}${p.id === shared?.me ? " · YOU" : ""}</small><h3>${escapeText(p.name)}</h3><strong>${p.value}</strong><small>${unit}${boardTab === "daily" ? ` · +${4 - p.rank} PENDING` : ""}</small></article>`).join("") : `<div class="board-empty"><span>✦</span><h3>${boardTab === "week" ? "Your next chapter starts at zero." : "The first spot is open."}</h3><p>${boardTab === "week" ? "Finish today’s games. Top-three scores earn medals at midnight." : "Finish a ranked round to set today’s first score."}</p><button class="primary" data-game="${boardGame}">Play ${games[boardGame].name} →</button></div>`}</div>${list.length ? `<div class="leaderboard">${list.map((p) => `<div class="${p.id === shared?.me ? "you-row" : ""}"><b>#${p.rank}</b><span>${escapeText(p.name)}${p.id === shared?.me ? " · You" : ""}</span><strong>${p.value}<small>${unit}</small></strong></div>`).join("")}</div>` : ""}${boardTab === "daily" && ownDay && board[0] ? `<div class="score-target"><label>Your score compared with today’s leader <b>${ownDay.score} / ${board[0].score}</b></label><progress value="${ownDay.score}" max="${Math.max(1, board[0].score)}"></progress></div>` : ""}${boardTab === "daily" ? `<button class="primary" data-game="${boardGame}">Play ${games[boardGame].name} →</button>` : ""}<details class="scoring-guide"><summary>How scores become medals</summary><div class="medal-rule"><span>🥇<b>+3</b>Gold</span><span>🥈<b>+2</b>Silver</span><span>🥉<b>+1</b>Bronze</span></div><p>1. Play any of the four daily games. Your best positive score counts.</p><p>2. At midnight Singapore time, each game awards its top three ranks. Up to 12 medal points a day.</p><p>3. Daily medals build your weekly total. The weekly board resets Monday; lifetime medals stay.</p><p class="fine-print">Ties share a rank (1, 1, 3). Pending medals can change before midnight. Cosmetic XP levels up your avatar and never affects ranks. Dares record wins separately.</p></details><details class="scoring-guide"><summary>Last week’s champions</summary><div class="leaderboard">${(shared?.lastWeek || []).map((p) => `<div><b>#${p.rank}</b><span>${escapeText(p.name)}</span><strong>${p.points}<small>MEDAL PTS</small></strong></div>`).join("") || "<p>No completed week yet.</p>"}</div></details>${!shared?.competitionReady ? '<button class="secondary" data-account>Account & ranked play →</button>' : ""}`;
+  body.innerHTML = `<span class="eyebrow">YOUR NEIGHBOURHOOD LEAGUE</span><h2>Small wins.<br>Something to show for them.</h2>${serverNote()}<section class="your-standing"><div><span>YOUR ${boardTab === "week" ? "WEEKLY" : "DAILY"} RANK</span><strong>${rank ? "#" + rank : "—"}</strong><small>${rank ? "Keep playing at your own pace" : shared?.competitionReady ? "Set a score to join the board" : "Practice now · ranked play unlocks after verification + 24h"}</small></div><div class="standing-stats"><span><b>${ownWeek?.points || 0}</b>This week</span><span><b>${pending ? "+" + pending : "0"}</b>Pending tonight</span><span><b>${me?.points || 0}</b>Lifetime</span></div></section><div class="look-tabs board-tabs"><button data-board-tab="week" class="${boardTab === "week" ? "active" : ""}" aria-pressed="${boardTab === "week"}">Weekly medals</button><button data-board-tab="daily" class="${boardTab === "daily" ? "active" : ""}" aria-pressed="${boardTab === "daily"}">Today’s game scores</button></div>${boardTab === "daily" ? `<div class="game-filters">${gameIds.map((g) => `<button class="secondary ${g === boardGame ? "chosen" : ""}" data-board-game="${g}" aria-pressed="${g === boardGame}">${games[g].name}</button>`).join("")}</div><p class="fine-print">${games[boardGame].name}${boardGame === "coast" ? " · Fastest completed two-lap time wins" : ""} · Your best today: <b>${formatScore(boardGame, ownDay?.score || 0)}</b> · Medals are pending until 00:00 SGT.</p>` : `<p class="fine-print">Week of ${shared?.week || "Monday"} · Awarded daily medals only. A fresh board every Monday, 00:00 SGT.</p>`}<div class="podium-cards">${podium.length ? podium.map((p) => `<article class="podium-card medal-${p.rank} ${p.id === shared?.me ? "is-you" : ""}"><span class="podium-medal">${["🥇", "🥈", "🥉"][p.rank - 1]}</span><small>RANK ${p.rank}${p.id === shared?.me ? " · YOU" : ""}</small><h3>${escapeText(p.name)}</h3><strong>${p.value}</strong><small>${unit}${boardTab === "daily" ? ` · +${4 - p.rank} PENDING` : ""}</small></article>`).join("") : `<div class="board-empty"><span>✦</span><h3>${boardTab === "week" ? "Your next chapter starts at zero." : "The first spot is open."}</h3><p>${boardTab === "week" ? "Finish today’s games. Top-three scores earn medals at midnight." : "Finish a ranked round to set today’s first score."}</p><button class="primary" data-game="${boardGame}">Play ${games[boardGame].name} →</button></div>`}</div>${list.length ? `<div class="leaderboard">${list.map((p) => `<div class="${p.id === shared?.me ? "you-row" : ""}"><b>#${p.rank}</b><span>${escapeText(p.name)}${p.id === shared?.me ? " · You" : ""}</span><strong>${p.value}<small>${unit}</small></strong></div>`).join("")}</div>` : ""}${boardTab === "daily" && ownDay && board[0] ? `<div class="score-target"><label>${boardGame === "coast" ? "Your time / today’s fastest" : "Your score compared with today’s leader"} <b>${formatScore(boardGame, ownDay.score)} / ${formatScore(boardGame, board[0].score)}</b></label><progress value="${ownDay.score}" max="${Math.max(1, board[0].score)}"></progress></div>` : ""}${boardTab === "daily" ? `<button class="primary" data-game="${boardGame}">Play ${games[boardGame].name} →</button>` : ""}<details class="scoring-guide"><summary>How scores become medals</summary><div class="medal-rule"><span>🥇<b>+3</b>Gold</span><span>🥈<b>+2</b>Silver</span><span>🥉<b>+1</b>Bronze</span></div><p>1. Play any of the five daily games. Your best score counts. Coast Rush ranks your fastest completed two-lap time.</p><p>2. At midnight Singapore time, each game awards its top three ranks. Up to 15 medal points a day.</p><p>3. Daily medals build your weekly total. The weekly board resets Monday; lifetime medals stay.</p><p class="fine-print">Ties share a rank (1, 1, 3). Pending medals can change before midnight. Cosmetic XP levels up your avatar and never affects ranks. Dares record wins separately.</p></details><details class="scoring-guide"><summary>Last week’s champions</summary><div class="leaderboard">${(shared?.lastWeek || []).map((p) => `<div><b>#${p.rank}</b><span>${escapeText(p.name)}</span><strong>${p.points}<small>MEDAL PTS</small></strong></div>`).join("") || "<p>No completed week yet.</p>"}</div></details>${!shared?.competitionReady ? '<button class="secondary" data-account>Account & ranked play →</button>' : ""}`;
 }
 function challengeButtons(p: SharedPlayer) {
   const eligible =
@@ -1560,14 +1602,14 @@ function challengeButtons(p: SharedPlayer) {
         : p.best[g] > own.best[g]
           ? "Stretch goal"
           : "Sharpen your score";
-  return `<div class="challenge-games">${gameIds.map((g) => `<button class="secondary" data-challenge="${g}" data-defender="${p.id}" ${!eligible || p.best[g] === 0 ? "disabled" : ""}><span>${games[g].name}<small>${match(g)}</small></span><b>${p.best[g] ? `Beat ${p.best[g]} →` : "No score yet"}</b></button>`).join("")}</div>`;
+  return `<div class="challenge-games">${gameIds.map((g) => `<button class="secondary" data-challenge="${g}" data-defender="${p.id}" ${!eligible || p.best[g] === 0 ? "disabled" : ""}><span>${games[g].name}<small>${match(g)}</small></span><b>${p.best[g] ? `Beat ${formatScore(g, p.best[g])} →` : "No score yet"}</b></button>`).join("")}</div>`;
 }
 function renderSharedDares() {
   const candidates =
     shared?.players.filter(
       (p) => p.id !== shared!.me && p.status !== "online",
     ) || [];
-  body.innerHTML = `<span class="eyebrow">THREE DARES TO SEND · THREE DIFFERENT NEIGHBOURS</span><h2>A friendly dare.<br>Even while they’re away.</h2><p class="lead">Beat a resting neighbour’s saved best. Their score is locked in when you start.</p>${serverNote()}<div class="note">You have ${Math.max(0, 3 - (shared?.players.find((p) => p.id === shared?.me)?.outgoing || 0))}/3 dares left today. Starting uses your attempt, even if you quit. Choose a different neighbour each time, across all four games. Resets at midnight SGT. Receiving a dare never uses your attempts or removes points. Ties are draws. Wins are recorded separately from medals; regular rounds stay unlimited.</div><div class="offline-dares">${candidates.map((p) => `<section class="ranking-card"><button class="neighbour-heading" data-player="${p.id}">${activities[p.activity].icon} ${escapeText(p.name)} ↗</button><p>${p.status.toUpperCase()} · ${activities[p.activity].name}<br><b>${shared?.challenged.includes(p.id) ? "Already challenged today" : "Ready for a friendly dare"}</b></p>${challengeButtons(p)}</section>`).join("") || '<div class="note">No resting opponents yet. Set a score, then choose “Step away” so a neighbour can challenge you.</div>'}</div><h3>Your recent challenges</h3><div class="challenge-history">${shared?.history.map((r) => `<div><strong>${escapeText(r.challenger)} → ${escapeText(r.defender)}</strong><span>${games[r.game].name} · ${r.status === "finished" ? `${r.score} vs ${r.targetScore} · ${r.score! > r.targetScore ? "CHALLENGER WON" : r.score === r.targetScore ? "TIED" : "DEFENDER HELD"}` : r.status === "started" ? "IN PROGRESS" : "ATTEMPT ENDED"}</span></div>`).join("") || "<p>No challenges yet. There’s no rush.</p>"}</div><button class="secondary" data-open="board">See the daily rankings →</button>`;
+  body.innerHTML = `<span class="eyebrow">THREE DARES TO SEND · THREE DIFFERENT NEIGHBOURS</span><h2>A friendly dare.<br>Even while they’re away.</h2><p class="lead">Beat a resting neighbour’s saved best. Their score is locked in when you start.</p>${serverNote()}<div class="note">You have ${Math.max(0, 3 - (shared?.players.find((p) => p.id === shared?.me)?.outgoing || 0))}/3 dares left today. Starting uses your attempt, even if you quit. Choose a different neighbour each time, across all five games. Resets at midnight SGT. Receiving a dare never uses your attempts or removes points. Ties are draws. Wins are recorded separately from medals; regular rounds stay unlimited.</div><div class="offline-dares">${candidates.map((p) => `<section class="ranking-card"><button class="neighbour-heading" data-player="${p.id}">${activities[p.activity].icon} ${escapeText(p.name)} ↗</button><p>${p.status.toUpperCase()} · ${activities[p.activity].name}<br><b>${shared?.challenged.includes(p.id) ? "Already challenged today" : "Ready for a friendly dare"}</b></p>${challengeButtons(p)}</section>`).join("") || '<div class="note">No resting opponents yet. Set a score, then choose “Step away” so a neighbour can challenge you.</div>'}</div><h3>Your recent challenges</h3><div class="challenge-history">${shared?.history.map((r) => `<div><strong>${escapeText(r.challenger)} → ${escapeText(r.defender)}</strong><span>${games[r.game].name} · ${r.status === "finished" ? `${formatScore(r.game, r.score || 0)} vs ${formatScore(r.game, r.targetScore)} · ${r.score! > r.targetScore ? "CHALLENGER WON" : r.score === r.targetScore ? "TIED" : "DEFENDER HELD"}` : r.status === "started" ? "IN PROGRESS" : "ATTEMPT ENDED"}</span></div>`).join("") || "<p>No challenges yet. There’s no rush.</p>"}</div><button class="secondary" data-open="board">See the daily rankings →</button>`;
   const published = (shared?.dares || [])
     .map(
       (d) =>
@@ -1576,7 +1618,7 @@ function renderSharedDares() {
         "</h3><p>" +
         games[d.game].name +
         " · beat <b>" +
-        d.score +
+        formatScore(d.game, d.score) +
         "</b></p><small>Closes " +
         new Date(d.expires).toLocaleString("en-SG", {
           timeZone: "Asia/Singapore",
@@ -1615,7 +1657,7 @@ function renderSharedDares() {
             ">" +
             games[r.game].name +
             " · " +
-            r.score +
+            formatScore(r.game, r.score) +
             " →</button>",
         )
         .join("") +

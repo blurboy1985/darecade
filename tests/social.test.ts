@@ -7,11 +7,11 @@ function setup() {
   const store = new Store(":memory:", () => time);
   return { store, tick: (ms) => (time += ms) };
 }
-test("new neighbours start at zero; midnight SGT settles four games exactly once", () => {
+test("new neighbours start at zero; midnight SGT settles five games exactly once", () => {
   const { store, tick } = setup();
   const people = Array.from({ length: 4 }, () => store.session().id);
   assert.equal(store.state(people[0]).players[0].points, 0);
-  for (const game of ["noodle", "brick", "hop", "swarm"])
+  for (const game of ["noodle", "brick", "hop", "swarm", "coast"])
     for (let i = 0; i < 4; i++) {
       const r = store.begin(people[i], game);
       store.finish(people[i], r.id, 100 - i * 20);
@@ -21,16 +21,16 @@ test("new neighbours start at zero; midnight SGT settles four games exactly once
   assert.equal(day(Date.parse("2026-10-02T16:00:00Z")), "2026-10-03");
   assert.deepEqual(
     store.state(people[0]).players.map((p) => p.points),
-    [12, 8, 4, 0],
+    [15, 10, 5, 0],
   );
   assert.deepEqual(
     store.state(people[0]).players.map((p) => p.points),
-    [12, 8, 4, 0],
+    [15, 10, 5, 0],
   );
   tick(86400000 * 2);
   assert.deepEqual(
     store.state(people[0]).players.map((p) => p.points),
-    [12, 8, 4, 0],
+    [15, 10, 5, 0],
   );
   store.close();
 });

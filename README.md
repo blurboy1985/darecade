@@ -50,11 +50,11 @@ The production site is emitted to `dist/`. `npm run preview` serves it at http:/
 
 - Original isometric neighbourhood: void-deck Arcade Row, Dare Plaza, Mama Shop, wardrobe booth, shared daily board, Pocket Garden, Kopi the cat, and dragon playground.
 - Click-to-walk routes around buildings, WASD/arrows, touch joystick, proximity interactions, orbit controls, zoom, and a clear player marker. Space jumps; E interacts with the nearby location. Explore provides accessible navigation to each destination.
-- Four games with rounds of up to 60 seconds, keyboard and touch controls, pause/resume, retries, saved personal bests, and shared score challenges: Noodle Run (snake), Brick Bash (brick breaker), Hop Hop (rooftop runner with crates and gaps), and Star Swarm (auto-fire shooter with shields, three lives and a boss).
+- Five games with keyboard and touch controls, pause/resume, saved bests and shared challenges. Noodle Run, Brick Bash, Hop Hop and Star Swarm have rounds up to 60 seconds. [Coast Rush](COAST-RUSH.md) is an original 3D kart time trial: two laps, a two-minute limit, your saved avatar driving, drift boosts, and fastest-time rankings.
 - A third-person perspective follows your avatar with camera-relative walking, drag-to-orbit, wheel/pinch zoom and building collision checks. Switch back to the original bird’s-eye view at any time. Inspect a resident to follow their action and examine their outfit.
 - Five animated example residents jog, climb and slide, dance, sit on a bench and play a cabinet. Accessories, garden paths, flowers, bunting and moving pigeons add neighbourhood activity. The Blender playground has a stair flight, handrails and a slide landing matched to the animation route.
 - Choose an away activity, save the preference or step away immediately. Closing the page and browser disconnect events save the selected activity and its start time; reopening reconstructs its current phase. No away XP, coins, visits or game scores are awarded.
-- Direct surroundings interactions: tap a prop, press E nearby, or use **Play outside**. Walk to the dragon and climb/slide, ride the new swing, sit and open a book on any of four benches, pet Kopi, ring the bicycle bell, or operate any of four arcade cabinets before its game opens. Six original Blender animation scenes synchronize the player's body and the props. Camera orbit/zoom remain available; Stop, Escape, movement keys, or opening another panel safely interrupt the action. The player's outfit stays intact.
+- Direct surroundings interactions: tap a prop, press E nearby, or use **Play outside**. Walk to the dragon and climb/slide, ride the new swing, sit and open a book on any of four benches, pet Kopi, ring the bicycle bell, or operate any of five arcade cabinets before its game opens. Six original Blender animation scenes synchronize the player's body and the props. Camera orbit/zoom remain available; Stop, Escape, movement keys, or opening another panel safely interrupt the action. The player's outfit stays intact.
 - Chibi characters from the CC0 KayKit Adventurers pack: eight outfits (ranger, wizard, knight and explorer, each with or without a cape), eight heads and hats, six outfit colours, eight skin tones, earnable hats, seven companion pets and seven animated accessory choices. Clothing and effects are cosmetic only. Six avatar actions, a kickable ball and a bicycle bell remain available.
 - Five reachable treasure coins, a free Sprout hat on completion, a named sticker album, three claimable exploration missions, XP and cosmetic level progression.
 - Pick one of three named daily gifts. Daily eligibility uses Singapore midnight; the weekly coin hunt resets on Monday, Singapore time. Earned items persist. No missed-day penalty.
@@ -79,6 +79,7 @@ The production site is emitted to `dist/`. `npm run preview` serves it at http:/
 | Brick Bash             | A/D, left/right, drag, or on-screen left/right buttons             |
 | Hop Hop                | Space, W, up arrow, tap the game or the JUMP button                |
 | Star Swarm             | WASD/arrows, drag the ship or on-screen directions; automatic fire |
+| Coast Rush             | A/D or left/right to steer; S/down to brake; hold Space to drift and release to boost; on-screen buttons |
 | Pause a game           | P or Pause; losing focus pauses automatically                      |
 
 ## Scope and remaining product work
@@ -98,6 +99,8 @@ The plan was used as design context. Its dates, legal statements, commercial ass
 - `src/main.ts`: accessible UI panels, server-connected progression, gift and game flows, controls and sound.
 - `src/games.ts` and `shared/simulation.ts`: fixed-step game input recording, deterministic rules and server replay.
 - `src/action-games.ts`: Hop Hop and Star Swarm simulation and Canvas rendering.
+- `shared/racing.ts`: deterministic Coast Rush physics and race-time encoding.
+- `src/racing-game.ts`, `src/race-view.ts`: racing controls/replays and the separately loaded Three.js track/driver view.
 - `src/catalog.ts`: four-game and away-activity definitions.
 - `src/neighbourhood.ts`: resident presets and timestamp-based activity routes and poses.
 - `src/interactions.ts`: prop locations, Blender clip loading, synchronized playback and animation retargeting to the player's current avatar.

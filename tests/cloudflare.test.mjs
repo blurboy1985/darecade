@@ -84,7 +84,7 @@ function play(game, seed) {
 }
 
 test(
-  "Cloudflare runtime persists accounts, validates four games, isolates private data and erases feedback",
+  "Cloudflare runtime persists accounts, validates five games, isolates private data and erases feedback",
   { timeout: 60000 },
   async () => {
     const { mf, api, messages } = runtime();
@@ -161,7 +161,7 @@ test(
         Date.now() - 172800000,
         id,
       );
-      for (const game of ["noodle", "brick", "hop", "swarm"]) {
+      for (const game of ["noodle", "brick", "hop", "swarm", "coast"]) {
         const run = await api("run", { game }, cookie);
         assert.equal(run.status, 200);
         const replay = play(game, run.data.seed);
@@ -177,7 +177,7 @@ test(
         );
         await sql.exec(
           "UPDATE runs SET started=? WHERE id=?",
-          Date.now() - 61000,
+          Date.now() - ((replay.replay.ticks / 60) * 1000 + 1000),
           run.data.id,
         );
         const result = await api(
@@ -195,8 +195,8 @@ test(
         );
       }
       const me = await api("auth/me", undefined, cookie);
-      assert.equal(me.data.progress.rounds, 4);
-      assert.equal(me.data.progress.xp, 115);
+      assert.equal(me.data.progress.rounds, 5);
+      assert.equal(me.data.progress.xp, 135);
       const state = await api("state", undefined, cookie);
       assert.equal(state.data.boards.hop[0].rank, 1);
       assert.equal(state.data.players[0].name, "Cloud Mochi");
@@ -218,7 +218,7 @@ test(
       const restored = await api("auth/me", undefined, cookie);
       assert.equal(restored.data.name, "Cloud Mochi");
       assert.equal(restored.data.progress.hair, 7);
-      assert.equal(restored.data.progress.rounds, 4);
+      assert.equal(restored.data.progress.rounds, 5);
       assert.equal(
         (await mf.dispatchFetch(origin + "/data/neighbourhood.sqlite")).status,
         404,
