@@ -7,7 +7,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
     "preview": "node server/index.mjs",
-    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "test": "node --experimental-strip-types --test --test-concurrency=1 tests/*.test.ts",
     "start": "node server/index.mjs",
     "cf:check": "npm run build && wrangler deploy --dry-run --outdir .browser/cloudflare-bundle",
     "cf:dev": "wrangler dev",

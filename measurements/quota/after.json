@@ -1,0 +1,1021 @@
+{
+  "date": "2026-10-03T23:12:05.004Z",
+  "runtime": "wrangler dev --local",
+  "mode": "mixed",
+  "registered": 1000,
+  "seededRuns": 20000,
+  "players": 150,
+  "durationSeconds": 300.011310166,
+  "worlds": {
+    "world-1": 25,
+    "world-2": 25,
+    "world-3": 25,
+    "world-4": 25,
+    "world-5": 25,
+    "world-6": 25
+  },
+  "connected": 150,
+  "sent": 224700,
+  "received": 219200,
+  "sentPerSecond": 748.9717633500907,
+  "snapshotsPerSecond": 730.6391211675117,
+  "errors": 0,
+  "errorDetails": [],
+  "p95SnapshotIntervalMs": 207.89784099999815,
+  "maxSnapshotGapMs": 517.2984860000006,
+  "p95SnapshotBytes": 641,
+  "stateCalls": 1501,
+  "directoryCalls": 0,
+  "pollCalls": 0,
+  "p95StateWallMs": 17.482967000018107,
+  "verifiedRounds": 3,
+  "records": {
+    "instanceId": "1fe17284-c648-43f9-b7b9-9af7c5141fdc",
+    "calls": {
+      "/api/state": 1501,
+      "/api/run": 3,
+      "/api/finish": 3,
+      "worldRefresh": 60,
+      "worldSave": 60,
+      "worldOccupancy": 180
+    },
+    "sqlCalls": 46982,
+    "rowsRead": 3116690,
+    "rowsWritten": 10891,
+    "statements": [
+      {
+        "sql": "INSERT INTO request_limits VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET n=CASE WHEN expires<=? THEN 1 ELSE n+1 END,expires=CASE WHEN expires<=? THEN excluded.expires ELSE expires END",
+        "calls": 3014,
+        "rowsRead": 2865,
+        "rowsWritten": 3163,
+        "operations": {
+          "/api/state": {
+            "calls": 3002,
+            "rowsRead": 2855,
+            "rowsWritten": 3149
+          },
+          "/api/run": {
+            "calls": 6,
+            "rowsRead": 4,
+            "rowsWritten": 8
+          },
+          "/api/finish": {
+            "calls": 6,
+            "rowsRead": 6,
+            "rowsWritten": 6
+          }
+        }
+      },
+      {
+        "sql": "INSERT INTO runs(id,player,game,started,target,targetScore,day,status) VALUES(?,?,?,?,?,?,?,?)",
+        "calls": 3,
+        "rowsRead": 3,
+        "rowsWritten": 21,
+        "operations": {
+          "/api/run": {
+            "calls": 3,
+            "rowsRead": 3,
+            "rowsWritten": 21
+          }
+        }
+      },
+      {
+        "sql": "INSERT INTO worlds VALUES(?,?,?) ON CONFLICT(name) DO UPDATE SET occupancy=excluded.occupancy,seen=excluded.seen",
+        "calls": 180,
+        "rowsRead": 180,
+        "rowsWritten": 180,
+        "operations": {
+          "worldOccupancy": {
+            "calls": 180,
+            "rowsRead": 180,
+            "rowsWritten": 180
+          }
+        }
+      },
+      {
+        "sql": "INSERT OR REPLACE INTO presence VALUES(?,?,?,?)",
+        "calls": 1500,
+        "rowsRead": 2700,
+        "rowsWritten": 4500,
+        "operations": {
+          "worldSave": {
+            "calls": 1500,
+            "rowsRead": 2700,
+            "rowsWritten": 4500
+          }
+        }
+      },
+      {
+        "sql": "SELECT * FROM players WHERE id=?",
+        "calls": 1500,
+        "rowsRead": 1500,
+        "rowsWritten": 0,
+        "operations": {
+          "worldSave": {
+            "calls": 1500,
+            "rowsRead": 1500,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT * FROM profiles WHERE player=?",
+        "calls": 1507,
+        "rowsRead": 1507,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/state": {
+            "calls": 1501,
+            "rowsRead": 1501,
+            "rowsWritten": 0
+          },
+          "/api/finish": {
+            "calls": 6,
+            "rowsRead": 6,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT * FROM runs WHERE id=? AND player=?",
+        "calls": 3,
+        "rowsRead": 3,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/finish": {
+            "calls": 3,
+            "rowsRead": 3,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT 1 FROM accounts WHERE player=?",
+        "calls": 6,
+        "rowsRead": 6,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/run": {
+            "calls": 3,
+            "rowsRead": 3,
+            "rowsWritten": 0
+          },
+          "/api/finish": {
+            "calls": 3,
+            "rowsRead": 3,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT 1 FROM players WHERE id=?",
+        "calls": 1500,
+        "rowsRead": 1500,
+        "rowsWritten": 0,
+        "operations": {
+          "worldSave": {
+            "calls": 1500,
+            "rowsRead": 1500,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT 1 FROM suspensions WHERE player=?",
+        "calls": 1507,
+        "rowsRead": 0,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/state": {
+            "calls": 1501,
+            "rowsRead": 0,
+            "rowsWritten": 0
+          },
+          "/api/run": {
+            "calls": 3,
+            "rowsRead": 0,
+            "rowsWritten": 0
+          },
+          "/api/finish": {
+            "calls": 3,
+            "rowsRead": 0,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT created FROM accounts WHERE player=?",
+        "calls": 1501,
+        "rowsRead": 1501,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/state": {
+            "calls": 1501,
+            "rowsRead": 1501,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT d.*,p.name FROM dares d JOIN players p ON p.id=d.host JOIN runs r ON r.id=d.run WHERE r.version=CASE WHEN d.game='coast' THEN 2 ELSE 1 END AND d.expires>? ORDER BY d.created DESC LIMIT 100",
+        "calls": 12,
+        "rowsRead": 24,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/state": {
+            "calls": 9,
+            "rowsRead": 18,
+            "rowsWritten": 0
+          },
+          "/api/finish": {
+            "calls": 3,
+            "rowsRead": 6,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT DISTINCT target FROM runs WHERE player=? AND target IS NOT NULL AND day=?",
+        "calls": 1501,
+        "rowsRead": 1501,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/state": {
+            "calls": 1501,
+            "rowsRead": 1501,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT email,created FROM accounts WHERE player=?",
+        "calls": 1507,
+        "rowsRead": 1507,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/state": {
+            "calls": 1501,
+            "rowsRead": 1501,
+            "rowsWritten": 0
+          },
+          "/api/finish": {
+            "calls": 6,
+            "rowsRead": 6,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT id FROM players WHERE id NOT IN (SELECT player FROM suspensions)",
+        "calls": 12,
+        "rowsRead": 12012,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/state": {
+            "calls": 9,
+            "rowsRead": 9009,
+            "rowsWritten": 0
+          },
+          "/api/finish": {
+            "calls": 3,
+            "rowsRead": 3003,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT id,game,score,finished FROM runs WHERE player=? AND verified=1 AND status='finished' AND version=CASE WHEN game='coast' THEN 2 ELSE 1 END ORDER BY finished DESC LIMIT 12",
+        "calls": 1501,
+        "rowsRead": 61599,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/state": {
+            "calls": 1501,
+            "rowsRead": 61599,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT id,name,look,activity,since,x,z,yaw,seen FROM players WHERE id=?",
+        "calls": 1501,
+        "rowsRead": 1501,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/state": {
+            "calls": 1501,
+            "rowsRead": 1501,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT m.away FROM world_members m JOIN worlds w ON w.name=m.world WHERE m.player=? AND w.seen>?",
+        "calls": 4501,
+        "rowsRead": 9002,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/state": {
+            "calls": 1501,
+            "rowsRead": 3002,
+            "rowsWritten": 0
+          },
+          "worldSave": {
+            "calls": 3000,
+            "rowsRead": 6000,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT n FROM request_limits WHERE key=?",
+        "calls": 3014,
+        "rowsRead": 3014,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/state": {
+            "calls": 3002,
+            "rowsRead": 3002,
+            "rowsWritten": 0
+          },
+          "/api/run": {
+            "calls": 6,
+            "rowsRead": 6,
+            "rowsWritten": 0
+          },
+          "/api/finish": {
+            "calls": 6,
+            "rowsRead": 6,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT name FROM players WHERE id=?",
+        "calls": 1507,
+        "rowsRead": 1507,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/state": {
+            "calls": 1501,
+            "rowsRead": 1501,
+            "rowsWritten": 0
+          },
+          "/api/finish": {
+            "calls": 6,
+            "rowsRead": 6,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT p.id,p.name,p.look,p.activity,p.since,p.x,p.z,p.yaw,p.seen, CASE WHEN m.away=1 THEN 'resting' ELSE 'online' END status FROM world_members m JOIN players p ON p.id=m.player JOIN worlds w ON w.name=m.world WHERE m.world=? AND w.seen>? AND NOT EXISTS(SELECT 1 FROM suspensions WHERE player=p.id) AND EXISTS(SELECT 1 FROM profiles WHERE player=p.id AND consent=?) AND p.id NOT IN (SELECT target FROM blocks WHERE player=? UNION SELECT player FROM blocks WHERE target=?) ORDER BY p.seen DESC LIMIT 30",
+        "calls": 1501,
+        "rowsRead": 190377,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/state": {
+            "calls": 1501,
+            "rowsRead": 190377,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT p.id,p.name,p.look,p.activity,p.since,p.x,p.z,p.yaw,p.seen,'offline' status FROM players p WHERE NOT EXISTS(SELECT 1 FROM suspensions WHERE player=p.id) AND EXISTS(SELECT 1 FROM profiles WHERE player=p.id AND consent=?) AND p.id NOT IN (SELECT target FROM blocks WHERE player=? UNION SELECT player FROM blocks WHERE target=?) AND NOT EXISTS(SELECT 1 FROM world_members m JOIN worlds w ON w.name=m.world WHERE m.player=p.id AND w.seen>? AND (m.world=? OR m.away=0)) ORDER BY p.seen DESC LIMIT 8",
+        "calls": 1501,
+        "rowsRead": 846624,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/state": {
+            "calls": 1501,
+            "rowsRead": 846624,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT p.id,p.name,p.look,p.x,p.z,p.yaw,p.activity FROM players p JOIN profiles f ON f.player=p.id JOIN sessions s ON s.player=p.id WHERE p.id=? AND s.token=? AND s.expires>? AND f.consent=? AND NOT EXISTS(SELECT 1 FROM suspensions WHERE player=p.id)",
+        "calls": 1500,
+        "rowsRead": 4500,
+        "rowsWritten": 0,
+        "operations": {
+          "worldRefresh": {
+            "calls": 1500,
+            "rowsRead": 4500,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT p.id,p.name,p.look,SUM(m.points) points FROM medals m JOIN players p ON p.id=m.player JOIN accounts a ON a.player=p.id WHERE m.day>=? AND m.day<? AND p.id NOT IN (SELECT player FROM suspensions) GROUP BY p.id ORDER BY points DESC,p.id ASC",
+        "calls": 24,
+        "rowsRead": 72,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/state": {
+            "calls": 18,
+            "rowsRead": 54,
+            "rowsWritten": 0
+          },
+          "/api/finish": {
+            "calls": 6,
+            "rowsRead": 18,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT player FROM profiles WHERE player NOT IN (SELECT player FROM suspensions)",
+        "calls": 12,
+        "rowsRead": 12012,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/state": {
+            "calls": 9,
+            "rowsRead": 9009,
+            "rowsWritten": 0
+          },
+          "/api/finish": {
+            "calls": 3,
+            "rowsRead": 3003,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT player,COUNT(*) n FROM runs WHERE target IS NOT NULL AND day=? GROUP BY player",
+        "calls": 12,
+        "rowsRead": 240036,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/state": {
+            "calls": 9,
+            "rowsRead": 180027,
+            "rowsWritten": 0
+          },
+          "/api/finish": {
+            "calls": 3,
+            "rowsRead": 60009,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT player,game, COUNT(CASE WHEN verified=1 THEN 1 END) verifiedRuns, MAX(CASE WHEN verified=1 THEN CASE WHEN eligible=1 AND (game!='coast' OR COALESCE(version,1)=2) THEN score ELSE 0 END END) best, MAX(CASE WHEN verified=1 THEN CASE WHEN version=CASE WHEN game='coast' THEN 2 ELSE 1 END THEN score ELSE 0 END END) guestBest, SUM(CASE WHEN target IS NOT NULL AND score>targetScore THEN 1 ELSE 0 END) wins FROM runs WHERE status='finished' GROUP BY player,game",
+        "calls": 12,
+        "rowsRead": 240036,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/state": {
+            "calls": 9,
+            "rowsRead": 180027,
+            "rowsWritten": 0
+          },
+          "/api/finish": {
+            "calls": 3,
+            "rowsRead": 60009,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT player,SUM(points) n FROM medals GROUP BY player",
+        "calls": 12,
+        "rowsRead": 12,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/state": {
+            "calls": 9,
+            "rowsRead": 9,
+            "rowsWritten": 0
+          },
+          "/api/finish": {
+            "calls": 3,
+            "rowsRead": 3,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT r.id,r.game,r.score,r.targetScore,r.status,r.player,r.target,p.name challenger,t.name defender FROM runs r JOIN players p ON p.id=r.player JOIN players t ON t.id=r.target WHERE r.player=? OR r.target=? ORDER BY r.started DESC,r.id ASC LIMIT 20",
+        "calls": 1501,
+        "rowsRead": 63102,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/state": {
+            "calls": 1501,
+            "rowsRead": 63102,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT revision FROM snapshot_revision WHERE id=1",
+        "calls": 1519,
+        "rowsRead": 1519,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/state": {
+            "calls": 1510,
+            "rowsRead": 1510,
+            "rowsWritten": 0
+          },
+          "/api/finish": {
+            "calls": 9,
+            "rowsRead": 9,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT s.player,p.last_active FROM sessions s JOIN profiles p ON p.player=s.player WHERE s.token=? AND s.expires>? AND p.consent=?",
+        "calls": 1507,
+        "rowsRead": 3014,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/state": {
+            "calls": 1501,
+            "rowsRead": 3002,
+            "rowsWritten": 0
+          },
+          "/api/run": {
+            "calls": 3,
+            "rowsRead": 6,
+            "rowsWritten": 0
+          },
+          "/api/finish": {
+            "calls": 3,
+            "rowsRead": 6,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT target id FROM blocks WHERE player=? UNION SELECT player id FROM blocks WHERE target=?",
+        "calls": 3001,
+        "rowsRead": 0,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/state": {
+            "calls": 1501,
+            "rowsRead": 0,
+            "rowsWritten": 0
+          },
+          "worldRefresh": {
+            "calls": 1500,
+            "rowsRead": 0,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT target player,COUNT(*) n FROM runs WHERE target IS NOT NULL AND day=? GROUP BY target",
+        "calls": 12,
+        "rowsRead": 12,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/state": {
+            "calls": 9,
+            "rowsRead": 9,
+            "rowsWritten": 0
+          },
+          "/api/finish": {
+            "calls": 3,
+            "rowsRead": 3,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "SELECT world FROM world_members WHERE player=?",
+        "calls": 1501,
+        "rowsRead": 1501,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/state": {
+            "calls": 1501,
+            "rowsRead": 1501,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "UPDATE players SET look=?,activity=?,since=?,x=?,z=?,yaw=?,seen=? WHERE id=?",
+        "calls": 1500,
+        "rowsRead": 1500,
+        "rowsWritten": 3000,
+        "operations": {
+          "worldSave": {
+            "calls": 1500,
+            "rowsRead": 1500,
+            "rowsWritten": 3000
+          }
+        }
+      },
+      {
+        "sql": "UPDATE profiles SET progress=?,last_active=? WHERE player=?",
+        "calls": 3,
+        "rowsRead": 3,
+        "rowsWritten": 3,
+        "operations": {
+          "/api/finish": {
+            "calls": 3,
+            "rowsRead": 3,
+            "rowsWritten": 3
+          }
+        }
+      },
+      {
+        "sql": "UPDATE runs SET score=?,finished=?,status='finished',verified=1,eligible=?,replay=?,digest=? WHERE id=?",
+        "calls": 3,
+        "rowsRead": 6,
+        "rowsWritten": 12,
+        "operations": {
+          "/api/finish": {
+            "calls": 3,
+            "rowsRead": 6,
+            "rowsWritten": 12
+          }
+        }
+      },
+      {
+        "sql": "UPDATE runs SET seed=?,version=?,targetScore=?,dare=? WHERE id=?",
+        "calls": 3,
+        "rowsRead": 6,
+        "rowsWritten": 6,
+        "operations": {
+          "/api/run": {
+            "calls": 3,
+            "rowsRead": 6,
+            "rowsWritten": 6
+          }
+        }
+      },
+      {
+        "sql": "UPDATE runs SET status='abandoned' WHERE player=? AND status='started'",
+        "calls": 3,
+        "rowsRead": 66,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/run": {
+            "calls": 3,
+            "rowsRead": 66,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "UPDATE runs SET status='abandoned' WHERE status='started' AND started<?",
+        "calls": 15,
+        "rowsRead": 300054,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/run": {
+            "calls": 3,
+            "rowsRead": 60006,
+            "rowsWritten": 0
+          },
+          "/api/state": {
+            "calls": 9,
+            "rowsRead": 180036,
+            "rowsWritten": 0
+          },
+          "/api/finish": {
+            "calls": 3,
+            "rowsRead": 60012,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "UPDATE runs SET version=? WHERE id=?",
+        "calls": 3,
+        "rowsRead": 6,
+        "rowsWritten": 6,
+        "operations": {
+          "/api/run": {
+            "calls": 3,
+            "rowsRead": 6,
+            "rowsWritten": 6
+          }
+        }
+      },
+      {
+        "sql": "UPDATE world_members SET away=? WHERE player=? AND world=? AND away!=?",
+        "calls": 4500,
+        "rowsRead": 4500,
+        "rowsWritten": 0,
+        "operations": {
+          "worldOccupancy": {
+            "calls": 4500,
+            "rowsRead": 4500,
+            "rowsWritten": 0
+          }
+        }
+      },
+      {
+        "sql": "WITH best AS ( SELECT player,score,finished achieved, ROW_NUMBER() OVER (PARTITION BY player ORDER BY score DESC,finished ASC) choice FROM runs WHERE game=? AND status='finished' AND verified=1 AND eligible=1 AND (game!='coast' OR COALESCE(version,1)=?) AND finished>=? AND finished<? AND score>0 AND player NOT IN (SELECT player FROM suspensions)) SELECT p.id,p.name,b.score,b.achieved FROM best b JOIN players p ON p.id=b.player WHERE b.choice=1 ORDER BY b.score DESC,b.achieved ASC,p.id ASC",
+        "calls": 60,
+        "rowsRead": 1104300,
+        "rowsWritten": 0,
+        "operations": {
+          "/api/state": {
+            "calls": 45,
+            "rowsRead": 828231,
+            "rowsWritten": 0
+          },
+          "/api/finish": {
+            "calls": 15,
+            "rowsRead": 276069,
+            "rowsWritten": 0
+          }
+        }
+      }
+    ],
+    "operations": {
+      "/api/state": {
+        "calls": 1501,
+        "sqlCalls": 30164,
+        "rowsRead": 2572009,
+        "rowsWritten": 3149,
+        "storageOperations": {}
+      },
+      "/api/run": {
+        "calls": 3,
+        "sqlCalls": 36,
+        "rowsRead": 60106,
+        "rowsWritten": 41,
+        "storageOperations": {}
+      },
+      "/api/finish": {
+        "calls": 3,
+        "sqlCalls": 102,
+        "rowsRead": 462195,
+        "rowsWritten": 21,
+        "storageOperations": {}
+      },
+      "worldRefresh": {
+        "calls": 60,
+        "sqlCalls": 3000,
+        "rowsRead": 4500,
+        "rowsWritten": 0,
+        "storageOperations": {}
+      },
+      "worldSave": {
+        "calls": 60,
+        "sqlCalls": 9000,
+        "rowsRead": 13200,
+        "rowsWritten": 7500,
+        "storageOperations": {}
+      },
+      "worldOccupancy": {
+        "calls": 180,
+        "sqlCalls": 4680,
+        "rowsRead": 4680,
+        "rowsWritten": 180,
+        "storageOperations": {}
+      }
+    },
+    "storageOperations": {}
+  },
+  "worldStorage": {
+    "world-1": {
+      "instanceId": "da015e56-e4ce-4035-834b-1b9bd4a4165f",
+      "calls": {
+        "webSocketMessage": 37450,
+        "alarm": 30,
+        "refresh": 10
+      },
+      "operations": {
+        "webSocketMessage": {
+          "calls": 37450,
+          "storageOperations": {}
+        },
+        "alarm": {
+          "calls": 30,
+          "storageOperations": {
+            "put": 10,
+            "getAlarm": 30,
+            "setAlarm": 30
+          }
+        },
+        "refresh": {
+          "calls": 10,
+          "storageOperations": {
+            "delete": 10
+          }
+        }
+      },
+      "storageOperations": {
+        "delete": 10,
+        "put": 10,
+        "getAlarm": 30,
+        "setAlarm": 30
+      },
+      "storageUnit": "API operation counts, not SQL rows or billed storage operations; in-memory fixture counters reset on object eviction"
+    },
+    "world-2": {
+      "instanceId": "b4be6f4b-6dd0-4833-b817-fc5ac35ed19e",
+      "calls": {
+        "webSocketMessage": 37450,
+        "alarm": 30,
+        "refresh": 10
+      },
+      "operations": {
+        "webSocketMessage": {
+          "calls": 37450,
+          "storageOperations": {}
+        },
+        "alarm": {
+          "calls": 30,
+          "storageOperations": {
+            "put": 10,
+            "getAlarm": 30,
+            "setAlarm": 30
+          }
+        },
+        "refresh": {
+          "calls": 10,
+          "storageOperations": {
+            "delete": 10
+          }
+        }
+      },
+      "storageOperations": {
+        "delete": 10,
+        "put": 10,
+        "getAlarm": 30,
+        "setAlarm": 30
+      },
+      "storageUnit": "API operation counts, not SQL rows or billed storage operations; in-memory fixture counters reset on object eviction"
+    },
+    "world-3": {
+      "instanceId": "8c6a868a-1ffd-431b-b372-2809f9026b52",
+      "calls": {
+        "webSocketMessage": 37450,
+        "alarm": 30,
+        "refresh": 10
+      },
+      "operations": {
+        "webSocketMessage": {
+          "calls": 37450,
+          "storageOperations": {}
+        },
+        "alarm": {
+          "calls": 30,
+          "storageOperations": {
+            "put": 10,
+            "getAlarm": 30,
+            "setAlarm": 30
+          }
+        },
+        "refresh": {
+          "calls": 10,
+          "storageOperations": {
+            "delete": 10
+          }
+        }
+      },
+      "storageOperations": {
+        "delete": 10,
+        "put": 10,
+        "getAlarm": 30,
+        "setAlarm": 30
+      },
+      "storageUnit": "API operation counts, not SQL rows or billed storage operations; in-memory fixture counters reset on object eviction"
+    },
+    "world-4": {
+      "instanceId": "a9a47548-1a98-4c42-a401-7c9ffb2e823f",
+      "calls": {
+        "webSocketMessage": 37450,
+        "alarm": 30,
+        "refresh": 10
+      },
+      "operations": {
+        "webSocketMessage": {
+          "calls": 37450,
+          "storageOperations": {}
+        },
+        "alarm": {
+          "calls": 30,
+          "storageOperations": {
+            "put": 10,
+            "getAlarm": 30,
+            "setAlarm": 30
+          }
+        },
+        "refresh": {
+          "calls": 10,
+          "storageOperations": {
+            "delete": 10
+          }
+        }
+      },
+      "storageOperations": {
+        "delete": 10,
+        "put": 10,
+        "getAlarm": 30,
+        "setAlarm": 30
+      },
+      "storageUnit": "API operation counts, not SQL rows or billed storage operations; in-memory fixture counters reset on object eviction"
+    },
+    "world-5": {
+      "instanceId": "bd31ded0-d4cf-4564-8f23-839fbb950710",
+      "calls": {
+        "webSocketMessage": 37450,
+        "alarm": 30,
+        "refresh": 10
+      },
+      "operations": {
+        "webSocketMessage": {
+          "calls": 37450,
+          "storageOperations": {}
+        },
+        "alarm": {
+          "calls": 30,
+          "storageOperations": {
+            "put": 10,
+            "getAlarm": 30,
+            "setAlarm": 30
+          }
+        },
+        "refresh": {
+          "calls": 10,
+          "storageOperations": {
+            "delete": 10
+          }
+        }
+      },
+      "storageOperations": {
+        "delete": 10,
+        "put": 10,
+        "getAlarm": 30,
+        "setAlarm": 30
+      },
+      "storageUnit": "API operation counts, not SQL rows or billed storage operations; in-memory fixture counters reset on object eviction"
+    },
+    "world-6": {
+      "instanceId": "1cf2acc8-7052-4299-9a8e-d045ed1e971b",
+      "calls": {
+        "webSocketMessage": 37450,
+        "alarm": 30,
+        "refresh": 10
+      },
+      "operations": {
+        "webSocketMessage": {
+          "calls": 37450,
+          "storageOperations": {}
+        },
+        "alarm": {
+          "calls": 30,
+          "storageOperations": {
+            "put": 10,
+            "getAlarm": 30,
+            "setAlarm": 30
+          }
+        },
+        "refresh": {
+          "calls": 10,
+          "storageOperations": {
+            "delete": 10
+          }
+        }
+      },
+      "storageOperations": {
+        "delete": 10,
+        "put": 10,
+        "getAlarm": 30,
+        "setAlarm": 30
+      },
+      "storageUnit": "API operation counts, not SQL rows or billed storage operations; in-memory fixture counters reset on object eviction"
+    }
+  },
+  "measurement": {
+    "countersStable": true,
+    "counterResets": [],
+    "sqlUnit": "workerd cursor rowsRead/rowsWritten after cursor consumption; local runtime counts, not hosted billing",
+    "statements": "normalized SQL text; calls counts SQL executions, operations attributes them to Records requests/RPCs",
+    "excluded": "seeding, connection setup, initial state warmup, metric readback, reset and teardown",
+    "worldStorageUnit": "KV and alarm API invocation counts, not SQL rows or billed storage operations",
+    "persistence": "fixture-only in-memory counters; object eviction resets counters"
+  },
+  "recordsCpu": {
+    "method": "disabled with --profile off"
+  },
+  "source": {
+    "baselineCommit": "646b81abaa6efb406f7e8280747dddd136cd5af8",
+    "changes": "after",
+    "node": "v24.19.0",
+    "wrangler": "4.147.0",
+    "fileSha256": {
+      "cloudflare/world.mjs": "8c26eb5bd672d0d9086c072b008a88d14b61192fb9d1d34e38b7f0be7e015a05",
+      "cloudflare/worker.mjs": "a541ba0e44c0d9f1cd27fae2c1c808e2dfb59d05682d6316b5032938704485e9",
+      "server/community-core.mjs": "58e9a7ef09214bbb4a3c8737e8f62dda7d691f9261c30ae5efe207a598ed6db1",
+      "server/store-core.mjs": "263096cb59eac4c30520ae7dfa5c7924c5bc389edc8dea0d89cad4176bd0ea79",
+      "scripts/load-test.mjs": "b5f3ad24800c12aa562fea8338722e8215fd95a2052704245606e2a12ca9f4fc",
+      "scripts/load-worker.mjs": "5b8c1de16456f974c620e1aca86816afefff10a14c0db4846eda7765717b4eea",
+      "scripts/load-metrics.mjs": "f4174ef2c48bd790acef616c52b7f96b8860d6862fc91230e6f67f856f05b197"
+    }
+  }
+}

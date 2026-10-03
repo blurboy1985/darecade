@@ -1,8 +1,11 @@
 // Only imported by wrangler.load.jsonc. Never import this fixture in the app.
-import app, { Neighbourhood as Records, World } from "../cloudflare/worker.mjs";
+import app, {
+  Neighbourhood as Records,
+  World as AppWorld,
+} from "../cloudflare/worker.mjs";
+import { LoadMetrics, measuredContext } from "./load-metrics.mjs";
 import { PRIVACY_VERSION } from "../server/community-core.mjs";
 import { day } from "../server/store-core.mjs";
-export { World };
 
 export default {
   async fetch(request, env, ctx) {
@@ -21,6 +24,25 @@ export default {
       return Response.json(await records.seed(await request.json()));
     if (url.pathname === "/__load/metrics")
       return Response.json(await records.metrics(request.method === "POST"));
+    if (url.pathname === "/__load/world-metrics" && request.method === "POST") {
+      const { worlds, reset = false } = await request.json();
+      if (
+        !Array.isArray(worlds) ||
+        worlds.length > 300 ||
+        worlds.some((name) => !/^world-[1-9][0-9]{0,5}$/.test(name))
+      )
+        return new Response("Invalid fixture worlds", { status: 400 });
+      return Response.json(
+        Object.fromEntries(
+          await Promise.all(
+            worlds.map(async (name) => [
+              name,
+              await env.WORLD.get(env.WORLD.idFromName(name)).metrics(reset),
+            ]),
+          ),
+        ),
+      );
+    }
     // All test requests still pass through the actual Worker and session validation.
     url.protocol = "https:";
     url.host = "load.darecade.invalid";
@@ -38,12 +60,11 @@ export default {
 export class Neighbourhood extends Records {
   constructor(ctx, env) {
     super(ctx, env);
-    this.counts = { calls: {}, rowsRead: 0, rowsWritten: 0 };
+    this.measurement = new LoadMetrics();
     const execute = (sql, args) => {
       const cursor = ctx.storage.sql.exec(sql, ...args);
       const rows = cursor.toArray();
-      this.counts.rowsRead += cursor.rowsRead;
-      this.counts.rowsWritten += cursor.rowsWritten;
+      this.measurement.sql(sql, cursor);
       return rows;
     };
     this.db.prepare = (sql) => ({
@@ -57,45 +78,49 @@ export class Neighbourhood extends Records {
       execute(sql, []);
     };
   }
-  count(name) {
-    this.counts.calls[name] = (this.counts.calls[name] || 0) + 1;
-  }
   fetch(request) {
-    this.count(new URL(request.url).pathname);
-    return super.fetch(request);
+    return this.measurement.invoke(new URL(request.url).pathname, () =>
+      super.fetch(request),
+    );
+  }
+  alarm() {
+    return this.measurement.invoke("alarm", () => super.alarm());
   }
   worldAuthorize(...args) {
-    this.count("worldAuthorize");
-    return super.worldAuthorize(...args);
+    return this.measurement.invoke("worldAuthorize", () =>
+      super.worldAuthorize(...args),
+    );
   }
   worldChoose(...args) {
-    this.count("worldChoose");
-    return super.worldChoose(...args);
+    return this.measurement.invoke("worldChoose", () =>
+      super.worldChoose(...args),
+    );
   }
   worldArrive(...args) {
-    this.count("worldArrive");
-    return super.worldArrive(...args);
+    return this.measurement.invoke("worldArrive", () =>
+      super.worldArrive(...args),
+    );
   }
   worldDepart(...args) {
-    this.count("worldDepart");
-    return super.worldDepart(...args);
+    return this.measurement.invoke("worldDepart", () =>
+      super.worldDepart(...args),
+    );
   }
   worldOccupancy(...args) {
-    this.count("worldOccupancy");
-    return super.worldOccupancy(...args);
+    return this.measurement.invoke("worldOccupancy", () =>
+      super.worldOccupancy(...args),
+    );
   }
   worldRefresh(...args) {
-    this.count("worldRefresh");
-    return super.worldRefresh(...args);
+    return this.measurement.invoke("worldRefresh", () =>
+      super.worldRefresh(...args),
+    );
   }
   worldSave(...args) {
-    this.count("worldSave");
-    return super.worldSave(...args);
+    return this.measurement.invoke("worldSave", () => super.worldSave(...args));
   }
   metrics(reset) {
-    const result = this.counts;
-    if (reset) this.counts = { calls: {}, rowsRead: 0, rowsWritten: 0 };
-    return result;
+    return this.measurement.snapshot(reset);
   }
   seed({ players = 150, registered = 1000, runs = 20000 }) {
     if (this.db.prepare("SELECT COUNT(*) n FROM players").get().n)
@@ -145,5 +170,67 @@ export class Neighbourhood extends Records {
         );
     });
     return users.slice(0, players);
+  }
+}
+
+// Only this fixture exports the measured World. Production imports AppWorld.
+export class World extends AppWorld {
+  constructor(ctx, env) {
+    const measurement = new LoadMetrics();
+    super(ctx, env);
+    // The native DurableObject constructor requires its original branded state.
+    // Only application accesses are wrapped; constructor setup is excluded.
+    Object.defineProperty(this, "ctx", {
+      value: measuredContext(ctx, measurement),
+    });
+    this.measurement = measurement;
+  }
+  fetch(request) {
+    return this.measurement.invoke(new URL(request.url).pathname, () =>
+      super.fetch(request),
+    );
+  }
+  webSocketMessage(...args) {
+    return this.measurement.invoke("webSocketMessage", () =>
+      super.webSocketMessage(...args),
+    );
+  }
+  webSocketClose(...args) {
+    return this.measurement.invoke("webSocketClose", () =>
+      super.webSocketClose(...args),
+    );
+  }
+  webSocketError(...args) {
+    return this.measurement.invoke("webSocketError", () =>
+      super.webSocketError(...args),
+    );
+  }
+  alarm() {
+    return this.measurement.invoke("alarm", () => super.alarm());
+  }
+  refresh(...args) {
+    return this.measurement.invoke("refresh", () => super.refresh(...args));
+  }
+  disconnect(...args) {
+    return this.measurement.invoke("disconnect", () =>
+      super.disconnect(...args),
+    );
+  }
+  metrics(reset) {
+    const { instanceId, calls, operations, storageOperations } =
+      this.measurement.snapshot(reset);
+    return {
+      instanceId,
+      calls,
+      operations: Object.fromEntries(
+        Object.entries(operations).map(([name, value]) => [
+          name,
+          { calls: value.calls, storageOperations: value.storageOperations },
+        ]),
+      ),
+      storageOperations,
+      storageUnit:
+        "API operation counts, not SQL rows or billed storage operations; in-memory fixture counters reset on object eviction",
+    };
   }
 }

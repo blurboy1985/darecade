@@ -16,6 +16,7 @@ import {
 } from "../shared/simulation.ts";
 export const PRIVACY_VERSION = "2026-10-03";
 const DAY = 86400000;
+const ACTIVE_TOUCH_INTERVAL = 5 * 60000;
 const CODE_MINUTES = 15;
 // A code dies after this many wrong guesses; an email address is refused for
 // the rest of a day after this many across all of its codes.
@@ -134,19 +135,23 @@ export class CommunityCore {
   }
   lookup(token) {
     if (typeof token !== "string") return null;
+    const now = this.now();
     const s = this.db
       .prepare(
-        "SELECT s.player FROM sessions s JOIN profiles p ON p.player=s.player WHERE s.token=? AND s.expires>? AND p.consent=?",
+        "SELECT s.player,p.last_active FROM sessions s JOIN profiles p ON p.player=s.player WHERE s.token=? AND s.expires>? AND p.consent=?",
       )
-      .get(hash(token), this.now(), PRIVACY_VERSION);
+      .get(hash(token), now, PRIVACY_VERSION);
     if (
       !s ||
       this.db.prepare("SELECT 1 FROM suspensions WHERE player=?").get(s.player)
     )
       return null;
-    this.db
-      .prepare("UPDATE profiles SET last_active=? WHERE player=?")
-      .run(this.now(), s.player);
+    // Activity retention needs a recent timestamp, not a write on every read.
+    // Session expiry, consent and suspension are still checked on every lookup.
+    if (now - s.last_active >= ACTIVE_TOUCH_INTERVAL)
+      this.db
+        .prepare("UPDATE profiles SET last_active=? WHERE player=?")
+        .run(now, s.player);
     return s.player;
   }
   issue(player) {
@@ -974,7 +979,9 @@ export class CommunityCore {
       .all(cutoff.getTime()))
       this.delete(p.player);
     this.db
-      .prepare("UPDATE runs SET replay=NULL WHERE finished<?")
+      .prepare(
+        "UPDATE runs SET replay=NULL WHERE finished<? AND replay IS NOT NULL",
+      )
       .run(this.now() - 30 * DAY);
     this.files.cleanup(this.now());
   }

@@ -8,31 +8,46 @@ import { once } from "node:events";
 import WebSocket from "ws";
 import { Simulation, rulesVersion } from "../shared/simulation.ts";
 import { startProfile } from "./load-profile.mjs";
+import { changedMetricInstances } from "./load-metrics.mjs";
 
 const args = process.argv.slice(2);
+const flags = [
+  "--players",
+  "--seconds",
+  "--port",
+  "--inspector-port",
+  "--mode",
+  "--registered",
+  "--runs",
+  "--iterations",
+  "--profile",
+];
 if (
-  args.some(
-    (arg, i) =>
-      i % 2 === 0 &&
-      !["--players", "--seconds", "--port", "--inspector-port"].includes(arg),
-  ) ||
-  args.length % 2
+  args.length % 2 ||
+  args.some((arg, i) => i % 2 === 0 && !flags.includes(arg))
 )
   throw Error(
-    "Only --players, --seconds, --port and --inspector-port are supported. Remote targets are forbidden.",
+    `Only ${flags.join(", ")} are supported. Remote targets are forbidden.`,
   );
 const options = Object.fromEntries(
   Array.from({ length: args.length / 2 }, (_, i) => [
     args[i * 2],
-    Number(args[i * 2 + 1]),
+    args[i * 2 + 1],
   ]),
 );
-const players = options["--players"] ?? 150,
-  seconds = options["--seconds"] ?? 300,
-  port = options["--port"] ?? 8799,
-  inspector = options["--inspector-port"] ?? 9249;
+const players = Number(options["--players"] ?? 150),
+  seconds = Number(options["--seconds"] ?? 300),
+  port = Number(options["--port"] ?? 8799),
+  inspector = Number(options["--inspector-port"] ?? 9249),
+  registered = Number(options["--registered"] ?? 1000),
+  runs = Number(options["--runs"] ?? 20000),
+  iterations = Number(options["--iterations"] ?? 5),
+  mode = options["--mode"] ?? "mixed",
+  profiling = options["--profile"] ?? "on";
 if (
-  ![players, seconds, port, inspector].every(Number.isInteger) ||
+  ![players, seconds, port, inspector, registered, runs, iterations].every(
+    Number.isInteger,
+  ) ||
   players < 1 ||
   players > 300 ||
   seconds < 5 ||
@@ -41,9 +56,20 @@ if (
   port > 65535 ||
   inspector < 1024 ||
   inspector > 65535 ||
-  port === inspector
+  port === inspector ||
+  registered < players ||
+  registered > 2000 ||
+  runs < 0 ||
+  runs > 40000 ||
+  iterations < 1 ||
+  iterations > 50 ||
+  !["mixed", "idle", "moving", "http", "probe"].includes(mode) ||
+  !["on", "off"].includes(profiling)
 )
   throw Error("Invalid local load parameters.");
+// mixed keeps the original load unchanged. The other modes isolate a path.
+// probe is a fixed request sequence, e.g. --mode probe --players 2 --registered 20 --runs 200.
+const usesSockets = ["mixed", "idle", "moving"].includes(mode);
 const origin = `http://127.0.0.1:${port}`;
 // Fail before spawning if another service owns the requested ports.
 const { createServer } = await import("node:net");
@@ -101,7 +127,9 @@ let started = 0,
   sent = 0,
   measuring = false,
   completed = 0,
-  stateCalls = 0;
+  stateCalls = 0,
+  directoryCalls = 0,
+  pollCalls = 0;
 const tasks = new Set();
 const recordError = (e) =>
   errors.push(e instanceof Error ? e.message : String(e));
@@ -143,14 +171,14 @@ try {
   if (!ready) throw Error(`Local fixture failed to start: ${log}`);
   const users = await request("/__load/seed", {
     players,
-    registered: 1000,
-    runs: 20000,
+    registered,
+    runs,
   });
   console.log(
-    `Seeded 1,000 synthetic accounts / 20,000 runs. Connecting ${players} players…`,
+    `Seeded ${registered} synthetic accounts / ${runs} runs. ${mode}: ${players} players…`,
   );
   const worlds = {};
-  for (const user of users) {
+  for (const user of usesSockets ? users : []) {
     const ws = new WebSocket(
       `${origin.replace("http:", "ws:")}/api/world/connect?connection=load-${user.id}`,
       {
@@ -198,31 +226,59 @@ try {
       });
     });
   }
+  if (mode === "http") {
+    for (const user of users) {
+      const packet = await request(
+        `/api/world/poll?connection=load-${user.id}`,
+        {
+          x: 0,
+          z: 0,
+          yaw: 0,
+          activity: "rest",
+          away: false,
+          emote: "",
+        },
+        user.cookie,
+      );
+      user.world = packet.world;
+      worlds[packet.world] = (worlds[packet.world] || 0) + 1;
+    }
+    // Avoid treating the first measured poll as a too-fast retry of the join.
+    await sleep(250);
+  }
+  const worldMetrics = (reset = false) =>
+    request("/__load/world-metrics", {
+      worlds: Object.keys(worlds),
+      reset,
+    });
   // Warm the shared snapshot, then exclude seeding and connection setup from metrics.
   await request("/api/state", undefined, users[0].cookie);
-  const stopProfile = await startProfile(inspector);
-  await request("/__load/metrics", {});
+  const stopProfile =
+    profiling === "on" ? await startProfile(inspector) : async () => null;
+  const recordsStart = await request("/__load/metrics", {});
+  const worldsStart = await worldMetrics(true);
   started = performance.now();
   measuring = true;
   let tick = 0;
-  sending = setInterval(() => {
-    tick++;
-    sockets.forEach((ws, n) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(
-          JSON.stringify({
-            x: Math.sin(tick / 20 + n) * 10,
-            z: Math.cos(tick / 20 + n) * 10,
-            yaw: (tick / 20 + n) % 6.28,
-            activity: "jog",
-            away: false,
-            emote: "",
-          }),
-        );
-        sent++;
-      }
-    });
-  }, 200);
+  if (mode === "mixed" || mode === "moving")
+    sending = setInterval(() => {
+      tick++;
+      sockets.forEach((ws, n) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(
+            JSON.stringify({
+              x: Math.sin(tick / 20 + n) * 10,
+              z: Math.cos(tick / 20 + n) * 10,
+              yaw: (tick / 20 + n) % 6.28,
+              activity: "jog",
+              away: false,
+              emote: "",
+            }),
+          );
+          sent++;
+        }
+      });
+    }, 200);
   const readStates = async () => {
     for (const user of users) {
       if (!measuring) break;
@@ -236,10 +292,60 @@ try {
       }
     }
   };
-  runTask(readStates());
-  stateTimer = setInterval(() => runTask(readStates()), 30000);
+  if (mode === "mixed") {
+    runTask(readStates());
+    stateTimer = setInterval(() => runTask(readStates()), 30000);
+  }
+  if (mode === "http") {
+    // One in-flight poll per player; never queue overlapping retries under load.
+    for (const [n, user] of users.entries())
+      runTask(
+        (async () => {
+          let tick = 0,
+            last = 0;
+          while (measuring && !interrupted.signal.aborted) {
+            const before = performance.now();
+            try {
+              const packet = await request(
+                `/api/world/poll?world=${user.world}&connection=load-${user.id}`,
+                {
+                  x: Math.sin(tick / 20 + n) * 10,
+                  z: Math.cos(tick / 20 + n) * 10,
+                  yaw: (tick / 20 + n) % 6.28,
+                  activity: "jog",
+                  away: false,
+                  emote: "",
+                },
+                user.cookie,
+              );
+              sent++;
+              pollCalls++;
+              received++;
+              sizes.push(Buffer.byteLength(JSON.stringify(packet)));
+              const now = performance.now();
+              if (last) intervals.push(now - last);
+              last = now;
+            } catch (e) {
+              recordError(e);
+            }
+            tick++;
+            // Match the browser fallback's two-second polling cadence.
+            await sleep(2000);
+          }
+        })(),
+      );
+  }
+  if (mode === "probe") {
+    for (let i = 0; i < iterations; i++) {
+      await readStates();
+      for (const user of users) {
+        await request("/api/worlds", undefined, user.cookie);
+        directoryCalls++;
+      }
+    }
+  }
   // Three real replay-validated rounds, honoring server elapsed-time validation.
-  for (const user of users.slice(0, 3))
+  for (const user of mode === "mixed" ? users.slice(0, 3) : [])
     runTask(
       (async () => {
         try {
@@ -283,7 +389,7 @@ try {
     );
   for (
     let elapsed = 0;
-    elapsed < seconds;
+    mode !== "probe" && elapsed < seconds;
     elapsed += Math.min(30, seconds - elapsed)
   ) {
     await sleep(Math.min(30, seconds - elapsed) * 1000, undefined, {
@@ -299,6 +405,15 @@ try {
   await Promise.allSettled([...tasks]);
   const duration = (performance.now() - started) / 1000;
   const metrics = await request("/__load/metrics");
+  const worldStorage = await worldMetrics();
+  const counterResets = changedMetricInstances(
+    { Records: recordsStart, ...worldsStart },
+    { Records: metrics, ...worldStorage },
+  );
+  for (const name of counterResets)
+    recordError(
+      `${name} was reconstructed during measurement; its in-memory counters are incomplete`,
+    );
   const cpu = await stopProfile();
   const calls = Object.values(metrics.calls).reduce((a, b) => a + b, 0);
   const p95 = (values) =>
@@ -308,12 +423,22 @@ try {
   const report = {
     date: new Date().toISOString(),
     runtime: "wrangler dev --local",
-    registered: 1000,
-    seededRuns: 20000,
+    mode,
+    registered,
+    seededRuns: runs,
+    ...(mode === "probe"
+      ? {
+          iterations,
+          workload:
+            "fixed state/directory request sequence; no transports, timers or rounds",
+        }
+      : {}),
     players,
     durationSeconds: duration,
     worlds,
-    connected: sockets.filter((s) => s.readyState === 1).length,
+    connected: usesSockets
+      ? sockets.filter((s) => s.readyState === 1).length
+      : null,
     sent,
     received,
     sentPerSecond: sent / duration,
@@ -324,21 +449,43 @@ try {
     maxSnapshotGapMs: intervals.reduce((max, value) => Math.max(max, value), 0),
     p95SnapshotBytes: p95(sizes),
     stateCalls,
+    directoryCalls,
+    pollCalls,
     p95StateWallMs: p95(stateMs),
     verifiedRounds: completed,
     records: metrics,
-    recordsCpu: {
-      method:
-        "Local DevTools 1ms sampling, Records stack attribution; estimate, not hosted/billed CPU",
-      samples: cpu.samples,
-      totalEstimatedMs: cpu.sampledMs,
-      meanEstimatedMsPerInvocation: cpu.samples ? cpu.sampledMs / calls : null,
+    worldStorage,
+    measurement: {
+      countersStable: counterResets.length === 0,
+      counterResets,
+      sqlUnit:
+        "workerd cursor rowsRead/rowsWritten after cursor consumption; local runtime counts, not hosted billing",
+      statements:
+        "normalized SQL text; calls counts SQL executions, operations attributes them to Records requests/RPCs",
+      excluded:
+        "seeding, connection setup, initial state warmup, metric readback, reset and teardown",
+      worldStorageUnit:
+        "KV and alarm API invocation counts, not SQL rows or billed storage operations",
+      persistence:
+        "fixture-only in-memory counters; object eviction resets counters",
     },
+    recordsCpu: cpu
+      ? {
+          method:
+            "Local DevTools 1ms sampling, Records stack attribution; estimate, not hosted/billed CPU",
+          samples: cpu.samples,
+          totalEstimatedMs: cpu.sampledMs,
+          meanEstimatedMsPerInvocation: cpu.samples
+            ? cpu.sampledMs / calls
+            : null,
+        }
+      : { method: "disabled with --profile off" },
   };
-  await writeFile(
-    resolve(directory, "records.cpuprofile"),
-    JSON.stringify(cpu.profile),
-  );
+  if (cpu)
+    await writeFile(
+      resolve(directory, "records.cpuprofile"),
+      JSON.stringify(cpu.profile),
+    );
   await writeFile(
     resolve(directory, "report.json"),
     JSON.stringify(report, null, 2),
@@ -347,8 +494,8 @@ try {
   console.log(`Evidence: ${directory}`);
   if (
     errors.length ||
-    report.connected !== players ||
-    (seconds >= 90 && completed !== Math.min(3, players))
+    (usesSockets && report.connected !== players) ||
+    (mode === "mixed" && seconds >= 90 && completed !== Math.min(3, players))
   )
     process.exitCode = 1;
 } finally {

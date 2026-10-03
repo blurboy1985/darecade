@@ -3,6 +3,17 @@ import { WorldState } from "../server/world-core.mjs";
 import { json, readBody } from "./api.mjs";
 import { sessionKey } from "./world-auth.mjs";
 
+// Live presence, appearance and emotes are refreshed separately from saved poses.
+function checkpointKey(player) {
+  return JSON.stringify([
+    player.x,
+    player.z,
+    player.yaw,
+    player.activity,
+    player.away,
+  ]);
+}
+
 export class World extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
@@ -10,6 +21,7 @@ export class World extends DurableObject {
     this.sockets = new Map();
     this.known = new Map();
     this.polls = new Map();
+    this.checkpoints = new Map();
     this.name = "";
     this.lastSaved = 0;
     this.lastBroadcast = 0;
@@ -23,6 +35,7 @@ export class World extends DurableObject {
       this.state.join(saved.player, saved.player);
       this.sockets.set(saved.player.id, ws);
       this.known.set(saved.player.id, new Map());
+      this.checkpoints.set(saved.player.id, saved.checkpoint);
     }
     ctx.blockConcurrencyWhile(async () => {
       this.name = (await ctx.storage.get("name")) || this.name;
@@ -33,6 +46,7 @@ export class World extends DurableObject {
           this.name = item.world;
           this.state.join(item.player, item.player);
           this.polls.set(item.player.id, item.player.seen);
+          this.checkpoints.set(item.player.id, item.checkpoint);
         }
     });
   }
@@ -158,6 +172,7 @@ export class World extends DurableObject {
     this.sockets.get(id)?.serializeAttachment({
       world: this.name,
       player: this.state.players.get(id),
+      checkpoint: this.checkpoints.get(id),
     });
   }
   webSocketMessage(ws, message) {
@@ -226,6 +241,7 @@ export class World extends DurableObject {
     this.sockets.delete(id);
     this.known.delete(id);
     this.polls.delete(id);
+    this.checkpoints.delete(id);
     this.state.players.delete(id);
     await this.records().worldDepart(this.name, id);
     if (player && !erase)
@@ -282,9 +298,38 @@ export class World extends DurableObject {
         [...this.polls.keys()].map((id) => ({
           world: this.name,
           player: this.state.players.get(id),
+          checkpoint: this.checkpoints.get(id),
         })),
       );
     else await this.ctx.storage.delete("polls");
+  }
+  async checkpoint() {
+    const pending = [...this.state.players.values()]
+      .map((player) => ({
+        player,
+        snapshot: { ...player },
+        key: checkpointKey(player),
+      }))
+      .filter(({ player, key }) => this.checkpoints.get(player.id) !== key);
+    if (!pending.length) return;
+    await this.records().worldSave(
+      this.name,
+      pending.map(({ snapshot }) => snapshot),
+      false,
+    );
+    let pollsChanged = false;
+    for (const { player, snapshot, key } of pending) {
+      if (
+        this.state.players.get(player.id) !== player ||
+        player.session !== snapshot.session
+      )
+        continue;
+      // A move during the RPC must remain dirty, including after hibernation.
+      this.checkpoints.set(player.id, key);
+      this.attach(player.id);
+      if (this.polls.has(player.id)) pollsChanged = true;
+    }
+    if (pollsChanged) await this.savePolls();
   }
   async report() {
     if (!this.name) return;
@@ -302,12 +347,9 @@ export class World extends DurableObject {
     for (const [id, seen] of this.polls)
       if (Date.now() - seen > 15000) await this.remove(id);
     if (Date.now() - this.lastSaved >= 30000) {
+      // Authorization refresh keeps its cadence even when nobody has moved.
       await this.refresh();
-      await this.records().worldSave(
-        this.name,
-        [...this.state.players.values()],
-        false,
-      );
+      await this.checkpoint();
       this.lastSaved = Date.now();
       await this.ctx.storage.put("lastSaved", this.lastSaved);
     }

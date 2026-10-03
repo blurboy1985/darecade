@@ -6,6 +6,105 @@ import { Simulation, rulesVersion } from "../shared/simulation.ts";
 import { PRIVACY_VERSION } from "../server/community-core.mjs";
 
 const origin = "https://darecade.test";
+
+test(
+  "occupancy reports only write changed away flags and keep room freshness",
+  { timeout: 30000 },
+  async () => {
+    const { mf, api } = runtime();
+    const sockets = [];
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const connect = async (cookie) => {
+      const response = await mf.dispatchFetch(
+        origin + "/api/world/connect?world=world-1",
+        {
+          headers: { Upgrade: "websocket", Cookie: cookie, Origin: origin },
+        },
+      );
+      assert.equal(response.status, 101);
+      const socket = response.webSocket;
+      socket.addEventListener("message", (event) => {
+        if (JSON.parse(event.data).t === "closed") socket.close();
+      });
+      socket.addEventListener("close", () => {
+        try {
+          socket.close();
+        } catch {}
+      });
+      socket.accept();
+      sockets.push(socket);
+      return socket;
+    };
+    try {
+      const users = [];
+      for (let n = 0; n < 4; n++) {
+        const user = await api(
+          "auth/join",
+          {
+            month: 1,
+            year: 2000,
+            consent: true,
+            privacyVersion: PRIVACY_VERSION,
+          },
+          "",
+          { "CF-Connecting-IP": `192.0.2.${n + 1}` },
+        );
+        assert.equal(user.status, 200);
+        users.push(user);
+      }
+      // Let the Worker allocate the first room before using the explicit room path.
+      await api("world/poll", { x: 0 }, users[0].cookie);
+      const first = await connect(users[0].cookie);
+      const sql = await mf.unsafeGetDurableObjectStorage(
+        "darecade-test",
+        "Neighbourhood",
+        { name: "darecade-main-v1" },
+      );
+      await sql.exec("CREATE TABLE away_writes(n INTEGER NOT NULL)");
+      await sql.exec("INSERT INTO away_writes VALUES(0)");
+      await sql.exec(
+        "CREATE TRIGGER count_away_writes AFTER UPDATE OF away ON world_members BEGIN UPDATE away_writes SET n=n+1; END",
+      );
+      await sql.exec("UPDATE worlds SET seen=0 WHERE name='world-1'");
+      await connect(users[1].cookie);
+      const writes = async () =>
+        (await sql.exec("SELECT n FROM away_writes"))[0].n;
+      assert.equal(await writes(), 0);
+      const fresh = (
+        await sql.exec("SELECT seen,occupancy FROM worlds WHERE name='world-1'")
+      )[0];
+      assert.equal(fresh.occupancy, 2);
+      assert.ok(fresh.seen > Date.now() - 5000);
+      first.send(JSON.stringify({ away: true }));
+      await sleep(250);
+      await connect(users[2].cookie);
+      assert.equal(await writes(), 1);
+      assert.equal(
+        (await api("state", undefined, users[0].cookie)).data.players.find(
+          (p) => p.id === users[0].data.id,
+        ).status,
+        "resting",
+      );
+      first.send(JSON.stringify({ away: false }));
+      await sleep(250);
+      await connect(users[3].cookie);
+      assert.equal(await writes(), 2);
+      assert.equal(
+        (await api("state", undefined, users[0].cookie)).data.players.find(
+          (p) => p.id === users[0].data.id,
+        ).status,
+        "online",
+      );
+    } finally {
+      for (const socket of sockets)
+        try {
+          socket.close();
+        } catch {}
+      await mf.dispose();
+    }
+  },
+);
+
 function runtime(ready = true) {
   const messages = [];
   const mf = new Miniflare(
