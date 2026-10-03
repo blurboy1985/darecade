@@ -1,6 +1,6 @@
 # Accounts, progression and shared dares
 
-Implemented 3 October 2026 on the existing Node/SQLite service. This is a persistent shared local service; the Cloudflare adapter is prepared (see HOSTING.md), but public hosting and live email have not been provisioned. The existing cute Blender characters, outfits and interactions remain in use.
+Implemented 3 October 2026 on the existing Node/SQLite service. The Cloudflare version is deployed at https://darecade.daniel-tianwen.workers.dev (see HOSTING.md), with accounts and gameplay closed pending live email and privacy-contact setup. The local service and its private data remain available. The existing cute Blender characters, outfits and interactions remain in use.
 
 ## Local run
 

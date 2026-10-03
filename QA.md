@@ -1,11 +1,11 @@
 # Darecade verification — 3 October 2026
 
-## Cloudflare hosting adapter — prepared, not deployed
+## Cloudflare hosting — deployed with accounts closed
 
 - Production client build and Wrangler deployment dry run pass; the Worker bundle is approximately 72 KiB before gzip, separate from the static models/client assets.
 - **45/45 existing Node tests** still pass after extracting shared account/store logic. The local SQLite/filesystem wrappers preserve existing behaviour and data paths.
 - **2/2 Cloudflare runtime integration tests** pass under the pinned Miniflare/workerd runtime. These execute the actual bundled Worker and SQLite Durable Object, with no external email delivery. Coverage includes under-age rejection, Secure cookies, concurrent single-use token consumption, saved looks/account recovery across object eviction, replay validation for all four games, idempotent finish rewards, feedback/export/delete, private-path and origin rejection, request size bounds, persistent IP-bucket limits and the closed launch switch.
-- Only synthetic runtime records were created. The Cloudflare account was not authorized; remote deployment, actual email delivery, domain routing, operational recovery and physical-phone checks remain unverified. No local profiles were uploaded.
+- Cloudflare authorization and deployment succeeded on the existing Workers Free plan at https://darecade.daniel-tianwen.workers.dev. Live HTML/model requests return 200 with security headers; health/config requests intentionally return 503 while launch is closed, and private database/server paths return 404. The browser shows the opening-soon screen. Only synthetic local runtime records were used; no live accounts were created and no local profiles were uploaded. Actual email delivery, live gameplay, custom-domain routing, operational recovery and physical-phone checks remain unverified.
 
 ## Current My Look and ranking refresh
 

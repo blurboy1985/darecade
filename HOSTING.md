@@ -1,6 +1,8 @@
 # Cloudflare hosting
 
-Prepared 3 October 2026. **Not deployed yet.** The signed-in Cloudflare dashboard confirms the account uses Workers Free and has the `daniel-tianwen.workers.dev` subdomain. Configuration now targets `https://darecade.daniel-tianwen.workers.dev`. Deployment-tool authorization, the verified sending identity and the monitored privacy contact remain pending. No paid upgrade has been made.
+Deployed 3 October 2026 to **https://darecade.daniel-tianwen.workers.dev** on the account's existing Workers Free plan. **The site is online with an opening-soon screen; gameplay and accounts remain closed** (`LAUNCH_READY=false`) until the verified sending identity, Resend secret and monitored privacy contact are configured. Wrangler authorization is verified with account/user read, Workers Scripts Write and background access only. No paid upgrade has been made.
+
+Live checks confirm HTTPS HTML and the 3,296,036-byte character model return 200, static security headers are present, account/config requests and health return the intended closed-launch 503 response, and private database/server paths return 404. No local profiles were uploaded and no live account or email was created during these checks. Full live account/gameplay and iPhone verification remains pending setup.
 
 ## What runs where
 

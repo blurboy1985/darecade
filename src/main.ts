@@ -1362,8 +1362,14 @@ requestAnimationFrame(async () => {
   } catch (error) {
     if (!profileReady) {
       const loading = document.querySelector("#loading")!;
-      loading.innerHTML =
-        '<h2>The neighbourhood is taking a moment.</h2><p>We need the server for your welcome and privacy check.</p><button class="primary" id="retry-welcome">Try again</button>';
+      const setupPending =
+        error instanceof Error &&
+        error.message.startsWith("Darecade is being set up.");
+      loading.innerHTML = setupPending
+        ? '<h2>Your neighbourhood is nearly ready.</h2><p>We’re finishing sign-in and privacy setup before opening the gates. Please come back soon.</p><button class="primary" id="retry-welcome">Check again</button>'
+        : '<h2>The neighbourhood is taking a moment.</h2><p>We need the server for your welcome and privacy check.</p><button class="primary" id="retry-welcome">Try again</button>';
+      if (setupPending)
+        document.querySelector(".demo-tag")!.textContent = "OPENING SOON";
       loading
         .querySelector("button")!
         .addEventListener("click", () => location.reload());
