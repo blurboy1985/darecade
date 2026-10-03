@@ -820,3 +820,10 @@ dialog.game-modal.racing-modal {
     min-height: 96px;
   }
 }
+
+/* Ready screen already hides the HUD. Hide the pedals, drift meter, and footer hint on every layout, not only short landscape. Race stays. */
+.coast-game[data-status="ready"] .race-touch,
+.coast-game[data-status="ready"] .race-charge,
+.coast-game[data-status="ready"] .race-footer > span:first-child {
+    visibility: hidden;
+}
