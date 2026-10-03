@@ -930,7 +930,13 @@ export class CommunityCore {
       this.db
         .prepare("DELETE FROM code_failures WHERE email=?")
         .run(hash("code-failures:" + email));
-      // Links were replaced by codes; clear any left by an older version.
+      // Links were replaced by codes; erase older outbox messages too.
+      for (const link of this.db
+        .prepare("SELECT token FROM magic_links WHERE candidate=? OR email=?")
+        .all(id, email))
+        try {
+          this.files.removeOutbox(link.token);
+        } catch {}
       this.db
         .prepare("DELETE FROM magic_links WHERE candidate=? OR email=?")
         .run(id, email);

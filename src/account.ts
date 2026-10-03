@@ -152,6 +152,7 @@ function codeForm(
     try {
       const p = await api<Profile>("auth/verify", { email, code: input.value });
       acceptProfile(p);
+      window.dispatchEvent(new Event("account-session"));
       flow.done(p);
     } catch (error) {
       status(host, (error as Error).message);

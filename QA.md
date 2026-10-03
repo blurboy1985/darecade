@@ -1,5 +1,14 @@
 # Darecade verification — 3 October 2026
 
+## Combined scaling, Coast Rush and email-code integration, 4 October 2026
+
+- Merged PR C (#7), then Coast Rush presentation (#3), preserving the World picker and both QA histories. Resolved the account/world route conflict in #5 by retaining the directory routes and new code endpoints.
+- Added an explicit world reconnect after email verification rotates the session. Retained erasure of legacy magic-link outbox messages, with regression coverage.
+- **74/74 Node tests and 6/6 Cloudflare tests passed**, including the build and deployment dry-run. Cloudflare coverage now opens a world socket, verifies an email, rejects the old session and reconnects with the new session. Shared simulation, racing physics and rules versions are unchanged.
+- Combined Node benchmark, 1,000 players / 20,000 runs: cached p95 **0.79 ms**, maximum **1.00 ms**; full rebuilds **33.46–40.57 ms**. The five-minute, 150-player PR C load measurements remain in HOSTING.md; that load was not run against production.
+- Local Chromium at 390×844 with the actual bundled Worker/World classes and an intercepted email provider: age/consent → Play now → Coast Rush → time-limit finish sequence → server-accepted result → name and outfit → code. The unsaved nickname survived an outfit change; a wrong code showed its error, the correct code saved the character and opened a replacement world WebSocket. No email left the fixture and no browser page errors occurred.
+- Remaining checks: physical iPhone rendering/touch/haptics, human listening to the new audio, and real inbox delivery of the new code format.
+
 ## First-race character setup and email codes, 4 October 2026
 
 See [ACCOUNTS.md](ACCOUNTS.md) for the rules. Sign-in links are replaced by typed codes.
@@ -8,6 +17,16 @@ See [ACCOUNTS.md](ACCOUNTS.md) for the rules. Sign-in links are replaced by type
 - Tested in an isolated local Chromium at 390×844 against `.browser/otp-qa-data` on port 4198 with a synthetic guest and `mango@example.test`, mail in outbox mode. A new player finished the first race; the result offered Name & customise your character and Another round. The wardrobe opened as step 1 of 2 wearing the lilac cap; a typed nickname survived choosing an outfit and was saved by Next. Step 2 took the email and showed the code field in the same dialog. A wrong code showed the error and cleared the field; the right code closed the dialog, showed the saved toast and left the account signed in with the name, outfit, cap and race best. The browser had one tab throughout. The outbox message contained a code and no link, and was removed once used.
 - Signed out, then signed back in from the welcome screen with a fresh code (email typed in different case): the same character returned. No page errors.
 - **Not verified:** real delivery through Resend, including how the code email looks in an inbox and whether phones offer the code from the keyboard; a physical phone.
+
+## Coast Rush items, touch, sound and finish, 4 October 2026
+
+See [Coast Rush](COAST-RUSH.md) for the behaviour. The race simulation was not changed.
+
+- **69/69 Node tests passed**; TypeScript and the Vite build passed with the existing large-bundle warning. The Cloudflare integration tests were not re-run.
+- Tested in an isolated local Chromium against `.browser/coast-finish-qa-data` on port 4197 with a synthetic guest. With sound switched on from the race cover, a keyboard-driven race finished in **0:46.00, 1st/8, 18/36 shells**. The finish sequence showed WINNER!, place, time, best lap and shells, then gave way to a server-verified result with New best and the lilac cap. A second race (1:04.77, 4th/8) was skipped to results with the button. No page errors in either.
+- **390×844 and 320×568**: no horizontal overflow and no modal scrolling; the race view is 526 px and 250 px tall respectively above 124 px steering buttons and a 2×2 pedal pad. **844×390**: no overflow or scrolling after moving the item box clear of the minimap.
+- Synthetic pointer events confirmed one pointer sliding GO → DRIFT → ITEM moves the held highlight with it and keeps the kart accelerating, and that lifting clears it.
+- **Not verified:** how the music and effects sound, since the automated browser has no listener; touch feel, haptics and performance on a physical phone; the coarse-pointer landscape layout, which the desktop browser does not report.
 
 ## Coast Rush steering and wheel fix, 3 October 2026
 

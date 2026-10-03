@@ -29,13 +29,72 @@ The owned sending domain `darecade.danielquek.com` is verified in Resend's Tokyo
 The sender is `Darecade <hello@darecade.danielquek.com>`. The user created and entered the prepared domain-restricted sending key directly into the production Worker secret `RESEND_API_KEY`; secret metadata was verified without revealing its value. Exactly one approved sign-in email was sent to the support alias, and Resend reports Delivered. The operator confirmed Gmail receipt and successful sign-in. The signed-in `Mail Check` profile is retained for the operator; it has no seeded scores or medals. The pre-verification guest session was revoked by account creation, and the local test-session credential was discarded. The key is absent from source control and browser assets.
 
 - Cloudflare Workers Static Assets delivers the built game, fonts and Blender models from `dist/` over HTTPS.
-- A SQLite-backed Durable Object holds the shared neighbourhood, accounts, saved looks, progression, score replays, dares, medals and private feedback. It requests Southeast Asia placement. This is a latency hint, **not a Singapore residency guarantee**.
+- Records, the existing SQLite Durable Object class `Neighbourhood` at `darecade-main-v1`, holds accounts, profiles, runs, medals, dares, reports, blocks and suspensions. The new SQLite class `World` holds each live room. It requests Southeast Asia placement. This is a latency hint, **not a Singapore residency guarantee**.
 - The original game/account rules are shared with the local Node server in `server/store-core.mjs` and `server/community-core.mjs`. `server/store.mjs` and `server/community.mjs` retain local SQLite/filesystem adapters, so existing local data and commands keep working.
 - Database transactions preserve one-time rewards and challenge limits. A daily Durable Object alarm awards Singapore-midnight medals and performs retention cleanup even when nobody is online. Requests also catch up missed medal settlements.
 - Resend delivers account sign-in emails. No local email outbox is available in the hosted game. `RESEND_API_KEY` is a Worker secret, never a browser asset or tracked configuration.
 - Private request limits use salted IP hashes in the database, shared across edge locations and retained through object eviction. Raw IP addresses are not stored by this application. Expired buckets are removed by daily cleanup (within approximately 24 hours). Cloudflare/provider infrastructure logs have their own policies.
 
-The current design is one shared neighbourhood for an initial beta. Presence polling and SQL reads/writes consume quotas; this is not an unlimited-capacity deployment. It does not create paid subscriptions or purchase a domain. Local test accounts are not automatically copied to the cloud.
+The scaling code described below is ready for review separately from the historical deployments above. Merging a PR does not deploy it. Local test accounts are never copied to the cloud.
+
+## Multi-world scaling
+
+### Architecture and migration
+
+Keep the existing `v1` migration, `Neighbourhood` class, and object name `darecade-main-v1`. The `WORLD` binding points to the new `World` class with migration `{"tag":"v2","new_sqlite_classes":["World"]}`. Rooms use `WORLD.idFromName("world-1")`, `world-2`, and so on. Never replace the Records namespace to install this release.
+
+Records computes shared boards, weekly results, dares and public cards in a 30-second memory cache, invalidated by completed rounds, posted dares, settlement and suspensions. Clients fetch their personal state every 30 seconds and on panel/game events. The Worker validates session cookies through Records before forwarding a WebSocket upgrade, replacing internal identity headers. Worlds retain public movement in hibernating sockets, send compact changed-player snapshots up to five times per second, and save position/activity to Records every 30 seconds and on departure. Each World reports occupancy every 10 seconds while occupied.
+
+Auto-join chooses the fullest available world below 25 players; manual room codes and Join friend can fill its remaining places up to the hard cap of 30. The destination enforces the cap even when directory counts are stale. Worlds are created on demand. Empty worlds have no recurring alarm or movement timer and can hibernate with no active compute charge. A small stored metadata footprint remains subject to storage quotas. The Worlds panel and top-bar room code do not add a step before the first game.
+
+Blocked pairs never receive each other's live or saved public cards, and the directory does not reveal a blocked player's room. Reports refresh affected worlds immediately. Suspension and session validity are refreshed within 30 seconds; new joins reject suspended players. Profile deletion and logout disconnect the live player before removing their identity/session. Away neighbours remain static between state refreshes. Node preview implements the same room selection and privacy rules over HTTP polling.
+
+### Capacity and cost
+
+The capacity target is about **25 players per world**, not 25 players for the whole service. Free supports SQLite Durable Objects and hibernating WebSockets. As checked on 4 October 2026, Free allows 100,000 Durable Object billable requests, 13,000 GB-s of active duration, 5 million SQL rows read and 100,000 rows written per day, with 5 GB stored across objects. Free quotas are shared across the account and reset at 00:00 UTC, or 08:00 Singapore time; exceeding one causes affected operations to fail until reset. Ordinary Worker requests have their own daily allowance. [Cloudflare quotas](https://developers.cloudflare.com/durable-objects/platform/pricing/)
+
+Cloudflare bills **20 incoming WebSocket messages as one Durable Object request**. The initial connection, HTTP calls, RPC calls and alarms also count; outgoing WebSocket messages do not. At continuous 5 Hz movement, one player-hour produces 18,000 messages, or 900 billable requests before those other calls. Worlds hibernate when idle, but sustained movement keeps them active. [WebSocket billing](https://developers.cloudflare.com/durable-objects/platform/pricing/)
+
+The initial planning estimate was roughly **100 player-hours/day** on Free, meaning 100 people for an hour or 25 people for four hours. Treat that as an optimistic light-use estimate, not a tested allowance. Continuous movement alone would use about 90,000 requests at that volume, before state reads and coordination. Snapshot rebuilds scan stored runs, so SQL reads can become the first limit as history grows. Use the local measurements below and hosted account usage to establish a safe operating budget.
+
+Workers Paid starts at **US$5/month** and includes larger monthly allowances, with additional usage billed beyond them. It is not a fixed $5 spending cap. Upgrading is the owner's decision; this code neither enables Paid nor changes billing, secrets or production deployment. [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/)
+
+### Local load test
+
+Windows PowerShell, from the repository root:
+
+```powershell
+npm ci
+npm run build
+npm run load:test
+# Short diagnostic run, not the acceptance load:
+npm run load:test -- --players 3 --seconds 5
+```
+
+The test starts its own `wrangler dev --local` on loopback port 8799, with inspector port 9249. It uses `scripts/wrangler.load.jsonc`, a separate Worker name, disposable `.browser/load-*/state` storage, synthetic email accounts and no production bindings. The fixture is not imported into the deployed Worker. It refuses non-loopback requests and the runner accepts no target URL or remote flag. Never deploy the fixture or run load traffic against production. `ws` is a development dependency only.
+
+The default run seeds 1,000 accounts and 20,000 runs, joins 150 players automatically across worlds, moves each at 5 Hz for five minutes, requests state every 30 seconds, and submits three actual replay-validated rounds after their required elapsed time. Seeding bypasses the public join rate limit without changing that limit in the application; it sends no email. Setup is excluded from the steady-state measurements. The fixture remains on disk for inspection and is not reused by subsequent runs.
+
+Each run writes `report.json`, `records.cpuprofile` and `wrangler.log` under its evidence directory. The report includes connections, both message rates, errors, p95 snapshot interval/size, state wall latency, completed rounds, Records HTTP/RPC counts and SQL cursor rows read/written. SQL counters cover Records queries; they exclude World KV/alarm writes and are a lower bound on total storage usage. CPU is a **local 1 ms DevTools sampling estimate attributed to Records stacks**, divided by Records invocations. Sample count is used because workerd's sample time gaps can include idle time. It is not a per-request percentile or Cloudflare billed CPU measurement. Physical phone performance, WAN jitter, hosted CPU and billing still require separate verification.
+
+#### Measured on 4 October 2026, 06:30 SGT
+
+The five-minute local run used 150 players in six worlds of 25, with 1,000 registered accounts and 20,000 stored runs. All 150 stayed connected, no errors occurred, and three submitted rounds passed replay validation.
+
+| Measurement | Result |
+| --- | ---: |
+| Incoming movement messages | 224,250 total, 747.46/s |
+| Outgoing snapshots | 217,100 total, 723.63/s |
+| Snapshot interval p95 / maximum | 213.59 / 409.45 ms |
+| Snapshot size p95 | 641 bytes |
+| State requests / p95 wall latency | 1,501 / 20.74 ms |
+| Records invocations including RPC | 1,807 |
+| Estimated local Records CPU per invocation | 0.705 ms mean, 1,274 attributed samples |
+| Records SQL rows read / written | 3,358,227 / 16,898 |
+
+This is 12.5 player-hours of continuous movement. Eight repeats of this same workload, equivalent to 100 player-hours, would read about **26.9 million rows** and write **135,184 rows in Records alone**. That exceeds Free's 5 million daily reads and 100,000 writes before counting World storage. The original 100 player-hours/day Free estimate is therefore **not supported for this stored history and workload**. Fewer stored runs and a different activity mix change the result; a smaller pilot needs its own usage budget. For sustained public use at this level, consider Workers Paid or further reductions in database reads. The owner must approve any upgrade.
+
+The corresponding Node benchmark measured cached-state p95 1.05 ms and full rebuilds of 35.77–46.58 ms. The earlier hosted PR A CPU check measured cached state/presence at 1–3 ms and rebuilds at 53–75 ms. These are separate measurements; the local load sample does not prove hosted CPU, physical iPhone rendering, or internet network performance. Neither the load run nor this PR deploys scaling code.
 
 ## Required before publishing
 
@@ -88,7 +147,7 @@ Cloudflare's SQLite point-in-time recovery history can retain data for up to 30 
 
 The Cloudflare runtime test uses the same bundled Worker under Miniflare/workerd, with synthetic addresses and an intercepted email provider (no email leaves the test). It checks secure cookies, age/consent, atomic single-use login, newest avatar persistence through object eviction, all five replay-validated games, duplicate reward rejection, private feedback/export/deletion, cross-origin rejection, body-size limits, durable rate limits and fail-closed launch configuration. The original Node tests still exercise daily/weekly settlement, ties, challenge limits and local restart persistence.
 
-## Official references checked 3 October 2026
+## Official references checked 4 October 2026
 
 - [Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/binding/)
 - [SQLite Durable Object transactions and recovery](https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/)

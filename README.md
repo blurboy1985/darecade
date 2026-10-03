@@ -1,6 +1,6 @@
 # Darecade — meet you downstairs
 
-A working shared 3D neighbourhood with persistent accounts, saved avatars, server-validated arcade progression and shared dares, inspired by the supplied Darecade implementation plan. Original Singapore neighbourhood scenery, four playable arcade games, and a hand-built Blender dragon playground.
+A working shared 3D neighbourhood with persistent accounts, saved avatars, server-validated arcade progression and shared dares, inspired by the supplied Darecade implementation plan. Original Singapore neighbourhood scenery, five playable arcade games, and a hand-built Blender dragon playground.
 
 ## Cloudflare hosting — 3 October 2026
 
@@ -10,13 +10,23 @@ The game is live at **https://darecade.daniel-tianwen.workers.dev** on Workers F
 
 The welcome check, age/privacy consent, guest-to-email account linking, saved avatar and progression, input-replay score validation, posted dares, weekly medals, reports, data download and deletion are connected to the server. See [ACCOUNTS.md](ACCOUNTS.md) for setup, fairness rules and recovery, and [PRIVACY-REVIEW.md](PRIVACY-REVIEW.md) for the pre-launch review.
 
-The local server uses a **private local test outbox**; the hosted service uses Resend for live email. New verified progress starts fresh; previous browser saves are archived locally and legacy medal totals are preserved. Current checks: **65/65 Node tests and 3/3 Cloudflare runtime tests**, plus local browser-verified arcade, shared dare and account/privacy journeys and the live launch checks above.
+The local server uses a **private local test outbox**; the hosted service uses Resend for live email. New verified progress starts fresh; previous browser saves are archived locally and legacy medal totals are preserved. The 3 October launch checks passed **65/65 Node tests and 3/3 Cloudflare runtime tests**, plus local browser-verified arcade, shared dare and account/privacy journeys and the live launch checks above.
 
 ## Run it
 
+### Worlds and scaling
+
+Records keeps accounts, scores, medals, dares and moderation in the existing `Neighbourhood` Durable Object named `darecade-main-v1`. Shared results are cached for 30 seconds and refreshed on relevant events. The new SQLite `World` class uses the `WORLD` binding and additive `v2` migration; `v1` stays unchanged. Each world has hibernating WebSockets, compact movement updates up to 5 Hz, interpolation, and a two-second HTTP fallback. Empty rooms stop scheduling work and hibernate.
+
+Your first visit auto-joins the fullest world below 25 players without adding a picker before the first game. The top bar shows your world and short room code. Open Worlds, enter a code such as W3, or use Join friend to visit a neighbour, up to a hard cap of 30. Accounts and results follow you between worlds. Blocks, suspensions and deletion apply across all worlds. Node preview uses HTTP polling for rooms.
+
+Capacity is about 25 players per world. The original Free-plan estimate of roughly 100 player-hours/day is an optimistic light-use target, not a guarantee. Twenty incoming WebSocket messages bill as one request, while SQL reads, writes, HTTP/RPC calls and active duration have separate quotas. The 150-player load run with 20,000 stored runs exceeded the SQL budget when extrapolated to 100 player-hours; that target is not supported by this workload on Free. Workers Paid starts at US$5/month with possible overages; upgrading is the owner's decision. [HOSTING.md](HOSTING.md#capacity-and-cost) explains the architecture, migration, current pricing sources and quota limits.
+
+Run `npm run load:test` after building to test 150 synthetic players for five minutes against a disposable local `wrangler dev`. It never accepts a production URL. Reports include message rates, errors, p95 snapshot interval, SQL usage and an estimated local Records CPU average. See [the load-test instructions](HOSTING.md#local-load-test) for commands and measurement limits.
+
 ### First-round welcome quest
 
-The optional welcome quest guides players to Noodle Run, plays the Blender cabinet interaction, and opens a short round. Completing a first round at any score unlocks the Lilac cap and grants +35 bonus cosmetic XP once, alongside the normal +20 round XP. “Wear my cap & meet Kopi” equips it and guides the player to the cat. “Another round” remains available. Skipping, interrupted walks and reloads retain progress. The 2D fallback offers the same reward. The reward is issued once per server profile after a verified round; existing preview saves are archived during the server-progression migration.
+The first Play opens Coast Rush after the age and consent checks. A world is assigned automatically in the background, with no room picker before the first game. Completing a first round at any score unlocks the Lilac cap and grants +35 bonus cosmetic XP once, alongside the normal +20 round XP. “Wear my cap & meet Kopi” equips it and guides the player to the cat. “Another round” remains available. Skipping, interrupted walks and reloads retain progress. The 2D fallback offers the same reward. The reward is issued once per server profile after a verified round; existing preview saves are archived during the server-progression migration.
 
 ### Real-phone playtest
 
@@ -58,7 +68,7 @@ The production site is emitted to `dist/`. `npm run preview` serves it at http:/
 - Chibi characters from the CC0 KayKit Adventurers pack: eight outfits (ranger, wizard, knight and explorer, each with or without a cape), eight heads and hats, six outfit colours, eight skin tones, earnable hats, seven companion pets and seven animated accessory choices. Clothing and effects are cosmetic only. Six avatar actions, a kickable ball and a bicycle bell remain available.
 - Five reachable treasure coins, a free Sprout hat on completion, a named sticker album, three claimable exploration missions, XP and cosmetic level progression.
 - Pick one of three named daily gifts. Daily eligibility uses Singapore midnight; the weekly coin hunt resets on Monday, Singapore time. Earned items persist. No missed-day penalty.
-- Day, golden-hour and night lighting, plus an option to follow Singapore time. Sound is opt-in and synthesized locally. Reduced decorative motion, a 30-active-minute break reminder, and a functional 2D lobby when WebGL fails or is disabled in Settings.
+- Day, golden-hour and night lighting, plus an option to follow Singapore time. Sound is synthesized locally, enabled for new profiles after a browser gesture, and can be muted; existing sound preferences are preserved. Reduced decorative motion, a 30-active-minute break reminder, and a functional 2D lobby when WebGL fails or is disabled in Settings.
 - Local persistence with malformed-save recovery. Fonts and art are served locally. The background world stops rendering while an activity panel is open.
 
 ## Controls
@@ -84,11 +94,11 @@ The production site is emitted to `dist/`. `npm run preview` serves it at http:/
 
 ## Scope and remaining product work
 
-This is a shared local-server prototype, not a deployed public service. Multiple independent browser profiles connected to the same server see saved player avatars and rankings. Five community characters remain decorative and are excluded from competition. Guest identity uses an HttpOnly cookie; clearing cookies creates a new player. Email-link account recovery is implemented; friend leagues, purchasing and public hosting are not configured.
+The project supports local Node preview and Cloudflare hosting. Independent browser profiles share saved accounts and rankings through Records and see live avatars within their selected world. Five community characters remain decorative and are excluded from competition. Guest identity uses an HttpOnly cookie; clearing cookies creates a new player. Email-link account recovery and public hosting are implemented; friend leagues and purchasing remain outside this release.
 
-The server owns medal awards, challenge limits, score snapshots and idempotent result storage. Game scores are derived by server input replay, with seeded rules, elapsed-time and ownership checks. Valid-input bots and collusion are still possible; this is not approval for valuable competitive prizes. Online positions update every two seconds. Remote active prop/emote animation is not yet synchronized; resting/offline activities are reconstructed from saved timestamps. Keep the server running for other visitors; clients cannot see the neighbourhood if its server is stopped. No internet hosting was configured.
+The server owns medal awards, challenge limits, score snapshots and idempotent result storage. Game scores are derived by server input replay, with seeded rules, elapsed-time and ownership checks. Valid-input bots and collusion are still possible; this is not approval for valuable competitive prizes. Cloudflare worlds send movement changes at up to 5 Hz with a 150 ms interpolation buffer. If WebSockets fail twice, the same world supports two-second HTTP polling. Resting/offline neighbours use saved activity snapshots. Keep the server running for other visitors; clients cannot see the neighbourhood if its server is stopped. The deployment history is in HOSTING.md; scaling PRs require separate deployment approval.
 
-Accounts, the neutral age check, server run replay, privacy/consent and reporting now work on the existing Node/SQLite service. The plan's Supabase migration, production hosting, payments, Holiday Pass, community rooftop unlock and dated seasonal releases remain separate product work. The Pocket Garden is accessible now; it is not presented as an unlocked community rooftop.
+Accounts, the neutral age check, server run replay, privacy/consent and reporting now work on the existing Node/SQLite service. The plan's Supabase migration, payments, Holiday Pass, community rooftop unlock and dated seasonal releases remain separate product work. The Pocket Garden is accessible now; it is not presented as an unlocked community rooftop.
 
 The plan was used as design context. Its dates, legal statements, commercial assumptions, and external service decisions were not treated as instructions to register accounts, purchase services, publish publicly, or claim regulatory compliance.
 
@@ -101,7 +111,7 @@ The plan was used as design context. Its dates, legal statements, commercial ass
 - `src/action-games.ts`: Hop Hop and Star Swarm simulation and Canvas rendering.
 - `shared/racing.ts`: deterministic Coast Rush physics and race-time encoding.
 - `src/racing-game.ts`, `src/race-view.ts`: racing controls/replays and the separately loaded Three.js track/driver view.
-- `src/catalog.ts`: four-game and away-activity definitions.
+- `src/catalog.ts`: game and away-activity definitions.
 - `src/neighbourhood.ts`: resident presets and timestamp-based activity routes and poses.
 - `src/interactions.ts`: prop locations, Blender clip loading, synchronized playback and animation retargeting to the player's current avatar.
 - `src/state.ts`: saved-state validation, Singapore date boundaries, unlocks and mission progress.

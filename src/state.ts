@@ -97,7 +97,7 @@ export function fresh(): Save {
     awayActivity: "jog",
     awaySince: 0,
     away: false,
-    sound: false,
+    sound: true,
     music: true,
     reduced:
       typeof matchMedia === "function" &&

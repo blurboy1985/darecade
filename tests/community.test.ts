@@ -475,6 +475,14 @@ test("deletion removes feedback and all pending codes for the deleted email", as
       join(s.directory, "playtests", "feedback.json"),
       JSON.stringify({ player: a.me.id, answers: { device: "test phone" } }),
     );
+    // A pre-code sign-in message must also be erased during an upgrade.
+    s.store.db
+      .prepare("INSERT INTO magic_links VALUES (?,?,?,?)")
+      .run("legacy-link", "erase@example.test", b.me.id, Date.now() + DAY);
+    writeFileSync(
+      join(s.directory, "mail-outbox", "legacy-link.json"),
+      JSON.stringify({ to: "erase@example.test", token: "legacy-link" }),
+    );
     assert.equal(s.community.export(a.me.id).playtests.length, 1);
     s.community.delete(a.me.id);
     assert.equal(readdirSync(join(s.directory, "playtests")).length, 0);
