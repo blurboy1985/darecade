@@ -1,3 +1,15 @@
+/* One-time code entry: large, spaced digits that are easy to check. */
+.account-dialog .code-input {
+  font:
+    700 28px "Space Grotesk",
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.35em;
+  text-align: center;
+}
+.account-dialog #code-resend:disabled {
+  opacity: 0.6;
+}
 .account-dialog {
   border: 0;
   border-radius: 24px;

@@ -96,14 +96,14 @@ export async function handleApi(
       const joined = c.join(data, token);
       return withCookie(joined.me, joined.token);
     }
-    if (method === "POST" && path === "/api/auth/consume") {
-      rate("consume", 12, 900000);
-      const signed = c.consume(data.token);
+    if (method === "POST" && path === "/api/auth/verify") {
+      rate("verify", 12, 900000);
+      const signed = c.verifyCode(data.email, data.code);
       return withCookie(signed.me, signed.token);
     }
-    if (method === "POST" && path === "/api/auth/login-link") {
+    if (method === "POST" && path === "/api/auth/login-code") {
       rate("email", 6, 900000);
-      return json(await c.requestExistingLink(data.email));
+      return json(await c.requestExistingCode(data.email));
     }
     if (!id)
       return json(
@@ -116,9 +116,9 @@ export async function handleApi(
       return json(worlds.directory(id));
     if (method === "POST" && path === "/api/worlds/join")
       return json({ world: worlds.destination(id, data) });
-    if (method === "POST" && path === "/api/auth/link") {
+    if (method === "POST" && path === "/api/auth/code") {
       rate("email", 6, 900000);
-      return json(await c.requestLink(id, data.email));
+      return json(await c.requestCode(id, data.email));
     }
     if (method === "POST" && path === "/api/auth/logout") {
       await worlds?.disconnect(id);

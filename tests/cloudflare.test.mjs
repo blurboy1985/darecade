@@ -114,7 +114,11 @@ test(
           once: true,
         }),
       );
-      ws.addEventListener("close", () => { try { ws.close(); } catch {} });
+      ws.addEventListener("close", () => {
+        try {
+          ws.close();
+        } catch {}
+      });
       ws.accept();
       return first;
     };
@@ -512,18 +516,48 @@ test(
         403,
       );
       assert.equal(
-        (await api("auth/link", { email: "cloud@example.test" }, cookie))
+        (await api("auth/code", { email: "cloud@example.test" }, cookie))
           .status,
         200,
       );
+      const previousCookie = cookie;
+      const beforeVerify = await mf.dispatchFetch(
+        origin + "/api/world/connect?connection=before-code",
+        {
+          headers: { Cookie: cookie, Origin: origin, Upgrade: "websocket" },
+        },
+      );
+      assert.equal(beforeVerify.status, 101);
+      beforeVerify.webSocket.accept();
       assert.equal(messages.length, 1);
-      const token = messages[0].text.match(/#login=([a-f0-9]+)/)[1];
+      const verify = {
+        email: "cloud@example.test",
+        code: messages[0].text.match(/code is (\d{6})/)[1],
+      };
       const signed = await Promise.all([
-        api("auth/consume", { token }),
-        api("auth/consume", { token }),
+        api("auth/verify", verify),
+        api("auth/verify", verify),
       ]);
       assert.deepEqual(signed.map((r) => r.status).sort(), [200, 400]);
       cookie = signed.find((r) => r.status === 200).cookie;
+      assert.equal(
+        (await api("auth/me", undefined, previousCookie)).status,
+        401,
+      );
+      const afterVerify = await mf.dispatchFetch(
+        origin + "/api/world/connect?world=world-1&connection=after-code",
+        {
+          headers: { Cookie: cookie, Origin: origin, Upgrade: "websocket" },
+        },
+      );
+      assert.equal(
+        afterVerify.status,
+        101,
+        "rotated session can replace its world connection",
+      );
+      afterVerify.webSocket.accept();
+      afterVerify.webSocket.close();
+      beforeVerify.webSocket.close();
       const sql = await mf.unsafeGetDurableObjectStorage(
         "darecade-test",
         "Neighbourhood",
@@ -747,45 +781,55 @@ test(
       });
       assert.equal(guest.status, 200, JSON.stringify(guest.data));
       assert.equal(
-        (await api("auth/link", { email: "cloud@example.test" }, guest.cookie))
+        (await api("auth/code", { email: "cloud@example.test" }, guest.cookie))
           .status,
         200,
       );
-      const first = messages[0].text.match(/#login=([a-f0-9]+)/)[1];
-      assert.equal((await api("auth/consume", { token: first })).status, 200);
+      assert.doesNotMatch(messages[0].text, /https?:/);
+      assert.equal(
+        (
+          await api("auth/verify", {
+            email: "cloud@example.test",
+            code: messages[0].text.match(/code is (\d{6})/)[1],
+          })
+        ).status,
+        200,
+      );
 
       // A signed-out browser (no cookie) asks to sign in to the existing account.
-      const known = await api("auth/login-link", {
+      const known = await api("auth/login-code", {
         email: "  Cloud@Example.test ",
       });
       assert.equal(known.status, 200, JSON.stringify(known.data));
       assert.equal(messages.length, 2);
       assert.deepEqual(messages[1].to, ["cloud@example.test"]);
-      const again = messages[1].text.match(/#login=([a-f0-9]+)/)[1];
-      const signed = await api("auth/consume", { token: again });
+      const signed = await api("auth/verify", {
+        email: "cloud@example.test",
+        code: messages[1].text.match(/code is (\d{6})/)[1],
+      });
       assert.equal(signed.status, 200);
       assert.equal(signed.data.id, guest.data.id);
 
-      // An address with no account still gets an email, but never a sign-in link.
-      const unknown = await api("auth/login-link", {
+      // An address with no account still gets an email, but never a sign-in code.
+      const unknown = await api("auth/login-code", {
         email: "guest-only@example.test",
       });
       assert.equal(unknown.status, 200);
       assert.deepEqual(unknown.data, known.data);
       assert.equal(messages.length, 3);
       assert.deepEqual(messages[2].to, ["guest-only@example.test"]);
-      assert.doesNotMatch(messages[2].text, /#login=/);
+      assert.doesNotMatch(messages[2].text, /\d{6}/);
       assert.match(messages[2].text, /Account & privacy/);
 
       // Repeat requests for an unknown address are not re-sent within the hour.
       assert.equal(
-        (await api("auth/login-link", { email: "guest-only@example.test" }))
+        (await api("auth/login-code", { email: "guest-only@example.test" }))
           .status,
         200,
       );
       assert.equal(messages.length, 3);
       assert.equal(
-        (await api("auth/login-link", { email: "not-an-email" })).status,
+        (await api("auth/login-code", { email: "not-an-email" })).status,
         400,
       );
     } finally {

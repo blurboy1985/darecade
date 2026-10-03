@@ -66,7 +66,7 @@ try {
         ? "Player data deleted."
         : command === "suspend"
           ? "Player suspended and signed out."
-          : "Player restored. They can request a new sign-in link.",
+          : "Player restored. They can request a new sign-in code.",
     );
   }
 } finally {

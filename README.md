@@ -68,7 +68,7 @@ The production site is emitted to `dist/`. `npm run preview` serves it at http:/
 - Chibi characters from the CC0 KayKit Adventurers pack: eight outfits (ranger, wizard, knight and explorer, each with or without a cape), eight heads and hats, six outfit colours, eight skin tones, earnable hats, seven companion pets and seven animated accessory choices. Clothing and effects are cosmetic only. Six avatar actions, a kickable ball and a bicycle bell remain available.
 - Five reachable treasure coins, a free Sprout hat on completion, a named sticker album, three claimable exploration missions, XP and cosmetic level progression.
 - Pick one of three named daily gifts. Daily eligibility uses Singapore midnight; the weekly coin hunt resets on Monday, Singapore time. Earned items persist. No missed-day penalty.
-- Day, golden-hour and night lighting, plus an option to follow Singapore time. Sound is opt-in and synthesized locally. Reduced decorative motion, a 30-active-minute break reminder, and a functional 2D lobby when WebGL fails or is disabled in Settings.
+- Day, golden-hour and night lighting, plus an option to follow Singapore time. Sound is synthesized locally, enabled for new profiles after a browser gesture, and can be muted; existing sound preferences are preserved. Reduced decorative motion, a 30-active-minute break reminder, and a functional 2D lobby when WebGL fails or is disabled in Settings.
 - Local persistence with malformed-save recovery. Fonts and art are served locally. The background world stops rendering while an activity panel is open.
 
 ## Controls

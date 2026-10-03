@@ -53,6 +53,14 @@ export class WorldConnection {
     this.receive(packet);
     this.start();
   }
+  refreshSession() {
+    this.stop(false);
+    this.connection = crypto.randomUUID();
+    this.failures = 0;
+    this.polling = false;
+    this.previous = "";
+    this.start();
+  }
   start() {
     if (!this.stopped) return;
     this.stopped = false;

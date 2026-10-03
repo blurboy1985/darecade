@@ -1386,6 +1386,7 @@
 
 /* World access stays visible on phones as well as desktop. */
 .world-pill {
+  pointer-events: auto;
   border: 1px solid #27374733;
   border-radius: 24px;
   padding: 9px 12px;
