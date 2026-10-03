@@ -1,10 +1,18 @@
 # Cloudflare hosting
 
-Opened 3 October 2026 at **https://darecade.daniel-tianwen.workers.dev** on the account's existing Workers Free plan. **Gameplay and accounts are enabled** (`LAUNCH_READY=true`) with a verified sending identity and private Resend secret. Worker version: `323a512c-9c50-471b-abe8-2fabbc4a1a73`. The privacy/support contact is `hello@darecade.danielquek.com`. Wrangler authorization is verified with account/user read, Workers Scripts Write and background access only. No paid upgrade has been made.
+Opened 3 October 2026 at **https://darecade.daniel-tianwen.workers.dev** on the account's existing Workers Free plan. **Gameplay and accounts are enabled** (`LAUNCH_READY=true`) with a verified sending identity and private Resend secret. Worker version: `b4d4835f-7789-4099-89eb-2e52b529f4fb`. The privacy/support contact is `hello@darecade.danielquek.com`. Wrangler authorization is verified with account/user read, Workers Scripts Write and background access only. No paid upgrade has been made.
 
 Free Cloudflare Email Routing is enabled for the domain and the `darecade` subdomain. The literal rule `hello@darecade.danielquek.com` is active and forwards to the operator's verified Gmail destination. Catch-all remains disabled. Authoritative DNS and the 1.1.1.1 resolver return the three Cloudflare MX records. The operator confirmed receipt of the approved sign-in test message in Gmail and successfully opened the neighbourhood from its link. This is incoming forwarding, not a separate mailbox or outgoing SMTP setup; ordinary replies from Gmail use the Gmail address until a separate authenticated sending configuration is added.
 
 Pre-opening checks confirmed HTTPS HTML and the 3,296,036-byte character model returned 200, static security headers were present, the closed launch returned 503, and private database/server paths returned 404. After opening, health/config returned 200, unauthenticated neighbourhood access returned 401, and the browser displayed the birth-month/year gate. An isolated live test verified age and consent rejection, secure cookies, avatar persistence, a replay-validated practice round, duplicate-reward protection, tampered-result rejection, weekly-board access, own-data export, profile erasure and session revocation. That gameplay fixture was deleted; it never qualified for medals. No local profiles were uploaded. Current live physical-iPhone verification remains pending.
+
+## Coast Rush deployment, 3 October 2026
+
+Fast-forwarded `codex/coast-rush-grand-prix` into `main` at `8df18e2`, pushed to GitHub and deployed Worker version `b4d4835f-7789-4099-89eb-2e52b529f4fb`. This publishes the three-lap, eight-kart race and first-visit flow, including the corrected keyboard/touch steering and independent tyre rolling/steering pivots.
+
+All **65 Node tests and three Cloudflare integration tests passed**, together with the production build and deployment dry-run. The existing bundle-size warning remains. Live `/api/health` returned `ready: true`, and the public HTML referenced the expected `index-CjZeC_gw.js` build. The live browser passed the age/privacy gates, opened Coast Rush through Play now, rendered all eight karts, and confirmed corrected A/D steering and pause. Existing account storage, the Durable Object identity, secrets, Wrangler variables and privacy version are unchanged. Historical two-lap results are preserved separately from the new race format.
+
+The isolated live guest finished **1st/8 in 46.78s with 17 shells**, and the server verified the practice result. The cap reward and new-best result appeared; Another round reopened the race without a reload. The browser automation connection needed a reconnect during the run, but the race completed. The temporary guest profile was then deleted successfully, and its session returned 401. No real email was sent and no test score entered the ranked boards.
 
 ## Login email fix deployment, 3 October 2026
 

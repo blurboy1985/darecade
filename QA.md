@@ -9,7 +9,7 @@
 
 ## Coast Rush street race branch, 3 October 2026
 
-- Work is isolated on `codex/coast-rush-grand-prix`. Production has not been deployed from this branch. Player data, the KayKit model, appearance indices, privacy version and mail configuration are unchanged.
+- Work is isolated on `codex/coast-rush-grand-prix`. This branch was deployed on 3 October 2026; see HOSTING.md for the version and live checks. Player data, the KayKit model, appearance indices, privacy version and mail configuration are unchanged.
 - **63/63 Node tests and 3/3 Cloudflare integration tests passed.** TypeScript/Vite build and Cloudflare dry-run passed; the pre-existing large-main-bundle warning remains. The four other simulations retain version 1. Coast Rush uses version 2 and excludes old two-lap records from new-format competition while preserving historical data and earned medals.
 - Tested against `.browser/grand-prix-qa-data` on port 4196 with synthetic guest profiles. Age/consent led to a simple Play now invitation; it opened Coast Rush directly. Shop, hunt, camera tools and extra menus were hidden. Completing a race restored the neighbourhood menus and unlocked the lilac cap exactly once.
 - Completed desktop races in **55.13s**, then **46.52s**, both 1st/8 with 18 shells and server-accepted replays. New best appeared after each improvement. Another round opened a fresh countdown without reload. Save your avatar and this score opened the email form; no test email was sent. Seven rivals remained labelled Game character and did not create real player/board records.
