@@ -4,13 +4,13 @@ A working shared 3D neighbourhood with persistent accounts, saved avatars, serve
 
 ## Cloudflare hosting — 3 October 2026
 
-The site is deployed at **https://darecade.daniel-tianwen.workers.dev** on Workers Free, with the persistent SQLite Durable Object binding. **It currently shows an opening-soon screen; gameplay and accounts remain closed** until outgoing sign-in email is connected. The support/privacy address `hello@darecade.danielquek.com` has active free Cloudflare forwarding to the operator's verified inbox. HTTPS assets, closed-launch responses and private-path protection were verified live. See [HOSTING.md](HOSTING.md) for the remaining setup and verification steps. No paid service or domain was purchased. The local Node service and its data remain supported.
+The game is live at **https://darecade.daniel-tianwen.workers.dev** on Workers Free, with accounts and the persistent SQLite Durable Object binding enabled. Resend sends sign-in links from the verified `hello@darecade.danielquek.com` identity using a private Cloudflare secret. The same support/privacy address has active free Cloudflare forwarding to the operator's verified inbox. Live checks verified age/consent rejection, avatar persistence, a replay-validated practice round, duplicate reward protection, weekly-board access, export and disposable-profile deletion. Resend reports the single approved test email as delivered; final Gmail receipt and link use await the operator's confirmation. See [HOSTING.md](HOSTING.md) for details and remaining operational checks. No paid service or domain was purchased. The local Node service and its data remain supported.
 
 ## Connected progression — 3 October 2026
 
 The welcome check, age/privacy consent, guest-to-email account linking, saved avatar and progression, input-replay score validation, posted dares, weekly medals, reports, data download and deletion are connected to the server. See [ACCOUNTS.md](ACCOUNTS.md) for setup, fairness rules and recovery, and [PRIVACY-REVIEW.md](PRIVACY-REVIEW.md) for the pre-launch review.
 
-The local server uses a **private local test outbox**; live email delivery is not configured. The hosted service stays closed until email and privacy disclosure settings are supplied. New verified progress starts fresh; previous browser saves are archived locally and legacy medal totals are preserved. Current checks: **45/45 Node tests and 2/2 Cloudflare runtime tests**, plus local browser-verified arcade, shared dare and account/privacy journeys.
+The local server uses a **private local test outbox**; the hosted service uses Resend for live email. New verified progress starts fresh; previous browser saves are archived locally and legacy medal totals are preserved. Current checks: **45/45 Node tests and 2/2 Cloudflare runtime tests**, plus local browser-verified arcade, shared dare and account/privacy journeys and the live launch checks above.
 
 ## Run it
 

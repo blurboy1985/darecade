@@ -1,12 +1,18 @@
 # Cloudflare hosting
 
-Deployed 3 October 2026 to **https://darecade.daniel-tianwen.workers.dev** on the account's existing Workers Free plan. **The site is online with an opening-soon screen; gameplay and accounts remain closed** (`LAUNCH_READY=false`) until the verified sending identity and Resend secret are configured. The privacy/support contact is `hello@darecade.danielquek.com`. Wrangler authorization is verified with account/user read, Workers Scripts Write and background access only. No paid upgrade has been made.
+Opened 3 October 2026 at **https://darecade.daniel-tianwen.workers.dev** on the account's existing Workers Free plan. **Gameplay and accounts are enabled** (`LAUNCH_READY=true`) with a verified sending identity and private Resend secret. Worker version: `ab098607-aa47-4b3f-999b-4069a70c8d07`. The privacy/support contact is `hello@darecade.danielquek.com`. Wrangler authorization is verified with account/user read, Workers Scripts Write and background access only. No paid upgrade has been made.
 
 Free Cloudflare Email Routing is enabled for the domain and the `darecade` subdomain. The literal rule `hello@darecade.danielquek.com` is active and forwards to the operator's verified Gmail destination. Catch-all remains disabled. Authoritative DNS and the 1.1.1.1 resolver return the three Cloudflare MX records. Receipt of a real test message has not yet been confirmed. This is incoming forwarding, not a separate mailbox or outgoing SMTP setup; ordinary replies from Gmail use the Gmail address until a separate authenticated sending configuration is added.
 
-Live checks confirm HTTPS HTML and the 3,296,036-byte character model return 200, static security headers are present, account/config requests and health return the intended closed-launch 503 response, and private database/server paths return 404. No local profiles were uploaded and no live account or email was created during these checks. Full live account/gameplay and iPhone verification remains pending setup.
+Pre-opening checks confirmed HTTPS HTML and the 3,296,036-byte character model returned 200, static security headers were present, the closed launch returned 503, and private database/server paths returned 404. After opening, health/config returned 200, unauthenticated neighbourhood access returned 401, and the browser displayed the birth-month/year gate. An isolated live test verified age and consent rejection, secure cookies, avatar persistence, a replay-validated practice round, duplicate-reward protection, tampered-result rejection, weekly-board access, own-data export, profile erasure and session revocation. That gameplay fixture was deleted; it never qualified for medals. No local profiles were uploaded. Current live physical-iPhone verification remains pending.
 
 ## What runs where
+
+### Resend setup, 3 October 2026
+
+The owned sending domain `darecade.danielquek.com` is verified in Resend's Tokyo (`ap-northeast-1`) region. Its DKIM TXT record and the DNS-only `rsend.darecade` and `send.darecade` CNAMEs resolve publicly. Sending is enabled, receiving remains disabled, and TLS is enforced. Tracking has not been configured. Existing Cloudflare incoming forwarding is preserved.
+
+The sender is `Darecade <hello@darecade.danielquek.com>`. The user created and entered the prepared domain-restricted sending key directly into the production Worker secret `RESEND_API_KEY`; secret metadata was verified without revealing its value. Exactly one approved sign-in email was sent to the support alias, and Resend reports Delivered. Gmail receipt and link consumption remain pending the operator's confirmation. A temporary mail-only profile named `Mail Check` has no scores or medals and is retained for that check. The key is absent from source control and browser assets.
 
 - Cloudflare Workers Static Assets delivers the built game, fonts and Blender models from `dist/` over HTTPS.
 - A SQLite-backed Durable Object holds the shared neighbourhood, accounts, saved looks, progression, score replays, dares, medals and private feedback. It requests Southeast Asia placement. This is a latency hint, **not a Singapore residency guarantee**.

@@ -19,10 +19,10 @@
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Neighbourhood"] }],
   "observability": { "enabled": false },
   "vars": {
-    "LAUNCH_READY": "false",
+    "LAUNCH_READY": "true",
     "PUBLIC_ORIGIN": "https://darecade.daniel-tianwen.workers.dev",
-    "MAIL_FROM": "",
+    "MAIL_FROM": "Darecade <hello@darecade.danielquek.com>",
     "PRIVACY_CONTACT": "hello@darecade.danielquek.com",
-    "STORAGE_NOTICE": "Darecade stores your account and game data with Cloudflare. Southeast Asia placement is requested, but storage is not guaranteed to remain in Singapore. Sign-in email is delivered through Resend. Deleted data may remain in Cloudflare recovery history for up to 30 days.",
+    "STORAGE_NOTICE": "Darecade stores your account and game data with Cloudflare. Southeast Asia placement is requested, but storage is not guaranteed to remain in Singapore. Sign-in email is delivered through Resend using its Tokyo sending region. Deleted data may remain in Cloudflare recovery history for up to 30 days.",
   },
 }
