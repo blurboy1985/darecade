@@ -1,17 +1,20 @@
 # Character asset credits
 
-Darecade's connected body topology, humanoid skeleton and two retained base hairstyles are adapted from **Universal Base Characters — Standard** by Quaternius, released under CC0 1.0 Universal:
-https://quaternius.com/packs/universalbasecharacters.html
+## Current avatars: KayKit Adventurers
+
+Darecade's player and neighbour avatars use the **KayKit Character Pack: Adventurers 1.0** by Kay Lousberg (www.kaylousberg.com), released under CC0 1.0 Universal:
+https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0 (commit 672074b)
 https://creativecommons.org/publicdomain/zero/1.0/
 
-The original licence is retained in `art/characters/source/Universal Base Characters[Standard]/License_Standard.txt`.
+Credit is not required by CC0; it is given here as thanks. The licence text is kept at `art/characters/kaykit/LICENSE.txt`.
 
-Darecade's rounded face, eyes, proportion edits, tailored clothing, shoes, curtain locks, six fitted hairstyles and motion retargeting were authored for this project. The user's supplied image guided the cute proportions and styling. This asset is not a Tripo export.
+The free pack's Knight, Barbarian, Mage, Rogue and hooded Rogue share one rig. `scripts/build_kaykit_character.mjs` merges their body, head, headwear and cape parts onto one skeleton, removes all weapons, props and the 76 baked clips, and quantizes the result.
 
-Editable master: `art/characters/neighbour-cute.blend`.
-Builder: `scripts/build_cute_character.py`.
-Runtime: `public/models/neighbour.glb` (all wardrobe variants; one outfit and hairstyle render at a time).
+Runtime: `public/models/neighbour-kaykit.glb` (about 0.7 MB).
+Sources (not committed): place the five Character GLBs in `art/characters/kaykit/`, then run `node scripts/build_kaykit_character.mjs`.
 
-The earlier `neighbour.blend` and `build_character.py` are retained as the previous rigid-part prototype, not the active asset builder.
+At runtime Darecade tints the skin swatch and the main outfit swatches of each texture, maps its own arm/leg/head controls onto the KayKit bones, and lifts the hips while seated so the existing Blender bench, swing and slide scenes still line up.
 
-The repository includes selected source model, texture and licence files for reproducible character builds. The full downloaded ZIP, unused kit variants, temporary import scene and automatic Blender backups remain local.
+## Earlier character (retired)
+
+The previous rounded character was adapted from **Universal Base Characters — Standard** by Quaternius (CC0 1.0), with a face, clothing and hairstyles authored for this project. Its editable master `art/characters/neighbour-cute.blend` and builder `scripts/build_cute_character.py` are kept for reference; its runtime GLB is no longer shipped.

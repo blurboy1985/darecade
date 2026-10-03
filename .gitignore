@@ -27,3 +27,6 @@ art/characters/source/
 art/characters/base-characters.zip
 art/characters/source-import.blend
 *.blend[0-9]*
+
+# KayKit Adventurers source characters (~18 MB). See scripts/build_kaykit_character.mjs.
+art/characters/kaykit/*.glb
