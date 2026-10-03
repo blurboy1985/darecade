@@ -240,7 +240,15 @@ function updateMusic() {
     save.light === "night" ||
     save.light === "dusk" ||
     (save.light === "auto" && (hour >= 19 || hour < 7));
-  audio.setTheme(game ? "game" : night ? "night" : "day");
+  audio.setTheme(
+    game instanceof RacingGame
+      ? "race"
+      : game
+        ? "game"
+        : night
+          ? "night"
+          : "day",
+  );
 }
 let shownLevel = 0;
 function renderStats() {
@@ -681,25 +689,44 @@ async function startGame(id: GameId, defender = "", dare = "") {
   boardGame = id;
   if (id === "coast") modal.classList.add("racing-modal");
   const onFinish = async (score: number, replay: Replay) => {
-    const raceSummary = game instanceof RacingGame ? game.summary() : "";
+    type Finished = {
+      race?: RaceResult & { newBest: boolean };
+      welcome?: boolean;
+      ranked?: boolean;
+      profile: Profile;
+    };
+    const racing = game instanceof RacingGame ? game : null;
+    const raceSummary = racing ? racing.summary() : "";
+    activeRun = null;
+    playtestEvent("round-finished");
+    const send = async () => {
+      await profileQueue;
+      const result = await api<Finished>("finish", {
+        id: run!.id,
+        score,
+        replay,
+      });
+      acceptProfile(result.profile);
+      return result;
+    };
+    // The race is saved while its finish sequence plays, so closing the
+    // window during the celebration cannot lose the result.
+    let pending = run ? send() : null;
+    pending?.catch(() => {});
+    if (racing) await racing.outro();
+    if (generation !== gameGeneration) return;
     modal.classList.remove("racing-modal");
     game?.dispose();
     game = null;
-    activeRun = null;
-    playtestEvent("round-finished");
+    updateMusic();
     body.innerHTML = "<h2>Checking score…</h2>";
     const render = async () => {
       try {
-        let result: {
-          race?: RaceResult & { newBest: boolean };
-          welcome?: boolean;
-          ranked?: boolean;
-          profile: Profile;
-        } | null = null;
+        let result: Finished | null = null;
         if (run) {
-          await profileQueue;
-          result = await api("finish", { id: run.id, score, replay });
-          acceptProfile(result!.profile);
+          const sent = pending ?? send();
+          pending = null;
+          result = await sent;
           await syncSocial();
         }
         if (generation !== gameGeneration) return;
@@ -819,6 +846,8 @@ async function startGame(id: GameId, defender = "", dare = "") {
             simple: save.twoD,
             target,
             best: shared?.self?.best.coast ?? save.best.coast,
+            soundOn: () => save.sound,
+            toggleSound,
           },
         )
       : new ArcadeGame(id, mount, onFinish, (name) => beep(name), run?.seed);
@@ -1141,13 +1170,14 @@ document.addEventListener("change", (e) => {
   }
   persist();
 });
-document.querySelector("#sound-toggle")!.addEventListener("click", () => {
+function toggleSound() {
   save.sound = !save.sound;
   persist();
   startTune();
   audio.unlock();
   beep("click");
-});
+}
+document.querySelector("#sound-toggle")!.addEventListener("click", toggleSound);
 document
   .querySelector("#rotate-left")!
   .addEventListener("click", () => world?.rotate(-0.2));

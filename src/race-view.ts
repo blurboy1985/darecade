@@ -14,6 +14,7 @@ import {
   RIVALS,
   itemCrates,
   pickups,
+  RACE_DISTANCE,
   ROAD_HALF_WIDTH,
   TRACK_LENGTH,
   trackPoint,
@@ -710,15 +711,21 @@ export class RaceView {
     return wheels;
   }
 
+  /** outro is seconds since the race ended, or -1 while it is still running. */
   draw(
     race: CoastRace,
     time: number,
     steer: number,
     ready: boolean,
     dt: number,
+    outro = -1,
   ) {
     if (this.disposed) return;
-    const p = trackPoint(race.distance, race.offset);
+    // After the flag the kart rolls to a stop. This is display only: the
+    // simulation, and so the recorded time, stopped at the line.
+    const roll = Math.min(Math.max(outro, 0), 2.5);
+    const distance = race.distance + race.speed * (roll - (roll * roll) / 5);
+    const p = trackPoint(distance, race.offset);
     this.kart.position.set(p.x, 0.15, p.z);
     this.kart.rotation.set(
       0,
@@ -726,7 +733,7 @@ export class RaceView {
       this.reduced ? 0 : -steer * 0.035,
     );
     this.wheel.rotation.z = -steer * 0.4;
-    this.wheels.forEach((w) => w.pose(race.distance, steer));
+    this.wheels.forEach((w) => w.pose(distance, steer));
     animateDetails(this.avatar, time, "drive", this.reduced);
     if (this.avatar.pet) {
       this.avatar.pet.root.position.set(1.12, 0.5, -0.18);
@@ -735,13 +742,30 @@ export class RaceView {
     }
     this.flame.visible = race.boost > 0;
     this.flame.scale.y = this.reduced ? 1 : 0.9 + Math.sin(time * 32) * 0.18;
-    this.shield.visible = race.shield > 0;
+    // The bubble blinks through its last second so its end is not a surprise.
+    this.shield.visible =
+      race.shield > 0 &&
+      (this.reduced || race.shield > 0.8 || Math.sin(time * 34) > -0.2);
+    this.shield.scale.setScalar(
+      this.reduced ? 1 : 1 + Math.sin(time * 9) * 0.04,
+    );
     race.rivals.forEach((r, i) => {
       const { kart, avatar, wheels } = this.rivals[i];
-      const at = trackPoint(r.distance, r.offset);
+      // Finishers roll on and park beyond the line instead of stacking on it.
+      const since = r.finishTick
+        ? (race.ticks - r.finishTick) / 60 + Math.max(outro, 0)
+        : 0;
+      const park = 42 + i * 6;
+      const along = r.finishTick
+        ? RACE_DISTANCE + park * (1 - Math.exp((-since * r.pace) / park))
+        : r.distance + r.speed * Math.max(outro, 0);
+      const at = trackPoint(
+        along,
+        r.offset + Math.sign(r.offset) * 1.4 * (1 - Math.exp(-since)),
+      );
       kart.position.set(at.x, 0.15, at.z);
       kart.rotation.y = at.yaw;
-      wheels.forEach((w) => w.pose(r.distance, 0));
+      wheels.forEach((w) => w.pose(along, 0));
       animateDetails(avatar, this.reduced ? 0 : time, "drive", this.reduced);
     });
     this.trackItems.forEach(({ group, kind, index }) => {
@@ -751,15 +775,20 @@ export class RaceView {
     });
     const tangent = new T.Vector3(Math.sin(p.yaw), 0, Math.cos(p.yaw));
     const side = new T.Vector3(Math.cos(p.yaw), 0, -Math.sin(p.yaw));
-    const targetPosition = this.kart.position.clone();
-    targetPosition
-      .addScaledVector(tangent, ready ? 5.2 : -6.6)
-      .addScaledVector(side, ready ? -4 : 0);
-    targetPosition.y += ready ? 3.1 : 3.25;
+    // The lobby shows the driver from the front. At the finish the chase
+    // camera swings round the kart's left side to reach the same view.
+    const swing =
+      outro < 0 ? Number(ready) : this.reduced ? 1 : 1 - Math.exp(-outro * 1.3);
+    const angle = Math.PI + swing * 2.486;
+    const targetPosition = this.kart.position
+      .clone()
+      .addScaledVector(tangent, Math.cos(angle) * 6.6)
+      .addScaledVector(side, Math.sin(angle) * 6.6);
+    targetPosition.y += 3.25 - swing * 0.15;
     const aim = this.kart.position
       .clone()
-      .addScaledVector(tangent, ready ? 0 : 7.5);
-    aim.y += ready ? 0.9 : 0.8;
+      .addScaledVector(tangent, 7.5 * (1 - swing));
+    aim.y += 0.8 + swing * 0.1;
     if (!this.cameraReady) {
       this.camera.position.copy(targetPosition);
       this.cameraReady = true;

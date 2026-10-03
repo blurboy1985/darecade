@@ -1,5 +1,15 @@
 # Darecade verification — 3 October 2026
 
+## Coast Rush items, touch, sound and finish, 4 October 2026
+
+See [Coast Rush](COAST-RUSH.md) for the behaviour. The race simulation was not changed.
+
+- **69/69 Node tests passed**; TypeScript and the Vite build passed with the existing large-bundle warning. The Cloudflare integration tests were not re-run.
+- Tested in an isolated local Chromium against `.browser/coast-finish-qa-data` on port 4197 with a synthetic guest. With sound switched on from the race cover, a keyboard-driven race finished in **0:46.00, 1st/8, 18/36 shells**. The finish sequence showed WINNER!, place, time, best lap and shells, then gave way to a server-verified result with New best and the lilac cap. A second race (1:04.77, 4th/8) was skipped to results with the button. No page errors in either.
+- **390×844 and 320×568**: no horizontal overflow and no modal scrolling; the race view is 526 px and 250 px tall respectively above 124 px steering buttons and a 2×2 pedal pad. **844×390**: no overflow or scrolling after moving the item box clear of the minimap.
+- Synthetic pointer events confirmed one pointer sliding GO → DRIFT → ITEM moves the held highlight with it and keeps the kart accelerating, and that lifting clears it.
+- **Not verified:** how the music and effects sound, since the automated browser has no listener; touch feel, haptics and performance on a physical phone; the coarse-pointer landscape layout, which the desktop browser does not report.
+
 ## Coast Rush steering and wheel fix, 3 October 2026
 
 - Corrected keyboard and on-screen left/right input to match the chase camera. The simulation and replay rules are unchanged; only input mapping and the incorrect track-coordinate comment changed.

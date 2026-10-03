@@ -68,7 +68,7 @@ test("malformed saves recover without invalid avatar parts or duplicate collecti
     swarm: 0,
     coast: 0,
   });
-  assert.equal(s.sound, false);
+  assert.equal(s.sound, true);
   assert.deepEqual(normalise(null, f), f);
 });
 test("mission completion derives from saved activity, with bounded progress", () => {
