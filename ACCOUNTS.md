@@ -1,6 +1,6 @@
 # Accounts, progression and shared dares
 
-Implemented 3 October 2026 on the existing Node/SQLite service. This is a persistent shared local service; public hosting and live email have not been provisioned. The existing cute Blender characters, outfits and interactions remain in use.
+Implemented 3 October 2026 on the existing Node/SQLite service. This is a persistent shared local service; the Cloudflare adapter is prepared (see HOSTING.md), but public hosting and live email have not been provisioned. The existing cute Blender characters, outfits and interactions remain in use.
 
 ## Local run
 
@@ -45,7 +45,7 @@ The outgoing limit retains the prior fairness revision: a receiver limit could l
 ## Privacy and operations
 
 - Under-13 or declined-consent requests create no profile/account. This is self-declared age screening, not age verification. No date of birth is retained or logged by this application.
-- Public: generated nickname, avatar, activity, positions, scores and dares. Private: email, age band, consent and reports. No free-text chat, photos, public real names, advertising tracker, purchases or marketing.
+- Public: player-chosen nickname, avatar preferences, activity, positions, scores and dares. Private: email, age band, consent and reports. No free-text chat, photos, advertising tracker, purchases or marketing. Players are asked not to use real names or contact details; nickname moderation remains necessary.
 - **Account & privacy** provides data download, sign-out, and explicit **DELETE** confirmation for consent withdrawal/erasure. Deletion revokes all sessions, removes owned scores/dares/medals/reports/feedback, removes pending links for the email, and anonymizes references in other players' rounds.
 - Raw game-input replays expire after 30 days. Inactive profiles expire after 12 calendar months. Expired sessions and magic links are cleaned up while the server is running. Offline backups require a separate retention and erasure process; see `PRIVACY-REVIEW.md`.
 - Reports immediately hide the player from the reporter and prevent mutual challenges. They do not automatically punish the reported account. The operator reviews them locally. There is no exposed administrative HTTP API.

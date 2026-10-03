@@ -1,5 +1,12 @@
 # Darecade verification — 3 October 2026
 
+## Cloudflare hosting adapter — prepared, not deployed
+
+- Production client build and Wrangler deployment dry run pass; the Worker bundle is approximately 72 KiB before gzip, separate from the static models/client assets.
+- **45/45 existing Node tests** still pass after extracting shared account/store logic. The local SQLite/filesystem wrappers preserve existing behaviour and data paths.
+- **2/2 Cloudflare runtime integration tests** pass under the pinned Miniflare/workerd runtime. These execute the actual bundled Worker and SQLite Durable Object, with no external email delivery. Coverage includes under-age rejection, Secure cookies, concurrent single-use token consumption, saved looks/account recovery across object eviction, replay validation for all four games, idempotent finish rewards, feedback/export/delete, private-path and origin rejection, request size bounds, persistent IP-bucket limits and the closed launch switch.
+- Only synthetic runtime records were created. The Cloudflare account was not authorized; remote deployment, actual email delivery, domain routing, operational recovery and physical-phone checks remain unverified. No local profiles were uploaded.
+
 ## Current My Look and ranking refresh
 
 - **45/45 automated tests pass** and the production TypeScript/Vite build passes. New coverage checks nickname validation before writes, inappropriate-name reports, cosmetic edits cannot add XP/medals, all eight clothing/hair skins, and newest appearance indices/name/gender surviving a database restart.

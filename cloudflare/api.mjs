@@ -1,0 +1,180 @@
+import { randomUUID } from "node:crypto";
+
+const security = {
+  "Content-Type": "application/json",
+  "Cache-Control": "no-store",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "no-referrer",
+  "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+};
+export const json = (value, status = 200, extra = {}) =>
+  new Response(JSON.stringify(value), {
+    status,
+    headers: { ...security, ...extra },
+  });
+const fail = (message, status) => {
+  const e = Error(message);
+  e.status = status;
+  throw e;
+};
+async function readBody(request, maximum) {
+  if (!request.headers.get("content-type")?.startsWith("application/json"))
+    fail("Send JSON data.", 415);
+  const reader = request.body?.getReader();
+  if (!reader) return {};
+  let size = 0;
+  const chunks = [];
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > maximum) {
+      await reader.cancel();
+      fail("Request too large.", 413);
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.length;
+  }
+  try {
+    const value = JSON.parse(new TextDecoder().decode(bytes) || "{}");
+    if (!value || typeof value !== "object" || Array.isArray(value))
+      throw Error();
+    return value;
+  } catch {
+    fail("Send a JSON object.", 400);
+  }
+}
+
+export async function handleApi(request, { community: c, store, files, rate }) {
+  try {
+    const url = new URL(request.url),
+      path = url.pathname,
+      method = request.method;
+    if (!["GET", "POST"].includes(method))
+      return json({ error: "Method not allowed." }, 405);
+    if (
+      request.headers.get("origin") &&
+      request.headers.get("origin") !== c.origin
+    )
+      return json({ error: "This request came from another site." }, 403);
+    if (request.headers.get("sec-fetch-site") === "cross-site")
+      return json({ error: "This request came from another site." }, 403);
+    rate("api", 360, 60000);
+    const data =
+      method === "POST"
+        ? await readBody(request, path === "/api/finish" ? 262144 : 8192)
+        : {};
+    const token = request.headers
+      .get("cookie")
+      ?.split(";")
+      .map((x) => x.trim())
+      .find((x) => x.startsWith("darecade_session="))
+      ?.slice(17);
+    const withCookie = (value, token) =>
+      json(value, 200, {
+        "Set-Cookie": `darecade_session=${token || ""}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${token ? 2592000 : 0}`,
+      });
+    if (method === "GET" && path === "/api/auth/config")
+      return json(c.config());
+    if (method === "POST" && path === "/api/auth/check") {
+      rate("age", 12, 900000);
+      c.eligible(data.month, data.year);
+      return json({ ok: true });
+    }
+    if (method === "POST" && path === "/api/auth/join") {
+      rate("join", 12, 900000);
+      const joined = c.join(data, token);
+      return withCookie(joined.me, joined.token);
+    }
+    if (method === "POST" && path === "/api/auth/consume") {
+      rate("consume", 12, 900000);
+      const signed = c.consume(data.token);
+      return withCookie(signed.me, signed.token);
+    }
+    if (method === "POST" && path === "/api/auth/login-link") {
+      rate("email", 6, 900000);
+      return json(await c.requestExistingLink(data.email));
+    }
+    const id = c.lookup(token);
+    if (!id)
+      return json(
+        { error: "Please complete the welcome check or sign in." },
+        401,
+      );
+    if (method === "GET" && path === "/api/auth/me")
+      return json(c.privateProfile(id));
+    if (method === "POST" && path === "/api/auth/link") {
+      rate("email", 6, 900000);
+      return json(await c.requestLink(id, data.email));
+    }
+    if (method === "POST" && path === "/api/auth/logout")
+      return withCookie(c.logout(id, token), null);
+    if (method === "GET" && path === "/api/privacy/export")
+      return json(c.export(id));
+    if (method === "POST" && path === "/api/privacy/delete") {
+      if (data.confirm !== "DELETE") fail("Confirm account deletion.", 400);
+      return withCookie(c.delete(id), null);
+    }
+    if (method === "POST" && path === "/api/profile")
+      return json(c.patch(id, data));
+    if (method === "POST" && path === "/api/progress")
+      return json(c.progression(id, data.event, data.value));
+    if (method === "POST" && path === "/api/dares")
+      return json(c.postDare(id, data.run));
+    if (method === "POST" && path === "/api/report")
+      return json(c.report(id, data.target, data.reason));
+    if (method === "POST" && path === "/api/playtest") {
+      if (
+        !data.answers ||
+        typeof data.answers.device !== "string" ||
+        !data.measurements
+      )
+        fail("Complete the phone test first.", 400);
+      const feedback = {
+        id: randomUUID(),
+        player: id,
+        savedAt: new Date().toISOString(),
+        answers: data.answers,
+        measurements: data.measurements,
+      };
+      files.saveFeedback(feedback);
+      return json({ id: feedback.id });
+    }
+    if (method === "GET" && path === "/api/state") return json(c.state(id));
+    if (method === "POST" && ["/api/presence", "/api/leave"].includes(path)) {
+      const look = JSON.parse(
+        store.db.prepare("SELECT look FROM players WHERE id=?").get(id).look,
+      );
+      store.heartbeat(id, { ...data, look }, path === "/api/leave");
+      return json(path === "/api/leave" ? { ok: true } : c.state(id));
+    }
+    if (method === "POST" && path === "/api/run")
+      return json(c.begin(id, data.game, data.target, data.dare));
+    if (method === "POST" && path === "/api/finish")
+      return json(c.finish(id, data));
+    if (method === "POST" && path === "/api/abandon") {
+      store.abandon(id, data.id);
+      return json({ ok: true });
+    }
+    return json({ error: "Not found." }, 404);
+  } catch (error) {
+    // Do not disclose SQL internals, paths or configuration in public responses.
+    const unexpected =
+      /SQLITE|SQL error|constraint failed|not a function|undefined|no such (table|column)/i.test(
+        error.message,
+      );
+    return json(
+      {
+        error: unexpected
+          ? "Unable to complete this request. Please try again."
+          : error.message,
+      },
+      unexpected ? 500 : error.status || 400,
+    );
+  }
+}

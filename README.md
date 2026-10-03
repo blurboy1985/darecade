@@ -2,6 +2,10 @@
 
 A working shared 3D neighbourhood with persistent accounts, saved avatars, server-validated arcade progression and shared dares, inspired by the supplied Darecade implementation plan. Original Singapore neighbourhood scenery, four playable arcade games, and a hand-built Blender dragon playground.
 
+## Cloudflare hosting preparation — 3 October 2026
+
+The Cloudflare Workers deployment and persistent SQLite Durable Object adapter are implemented and tested locally. **The game is not cloud-hosted yet:** account authorization expired and final email/domain/privacy settings are pending. See [HOSTING.md](HOSTING.md) for the deploy path and live verification steps. No paid service or domain was purchased. The local Node service and its data remain supported.
+
 ## Connected progression — 3 October 2026
 
 The welcome check, age/privacy consent, guest-to-email account linking, saved avatar and progression, input-replay score validation, posted dares, weekly medals, reports, data download and deletion are connected to the server. See [ACCOUNTS.md](ACCOUNTS.md) for setup, fairness rules and recovery, and [PRIVACY-REVIEW.md](PRIVACY-REVIEW.md) for the pre-launch review.

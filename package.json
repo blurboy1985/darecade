@@ -8,7 +8,11 @@
     "build": "tsc --noEmit && vite build",
     "preview": "node server/index.mjs",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
-    "start": "node server/index.mjs"
+    "start": "node server/index.mjs",
+    "cf:check": "npm run build && wrangler deploy --dry-run --outdir .browser/cloudflare-bundle",
+    "cf:dev": "wrangler dev",
+    "cf:deploy": "npm run build && wrangler deploy",
+    "test:cloudflare": "npm run cf:check && node --test tests/cloudflare.test.mjs"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "5.3.0",
@@ -17,8 +21,10 @@
   },
   "devDependencies": {
     "@types/three": "^0.183.0",
+    "miniflare": "5.20261001.0-alpha",
     "prettier": "3.6.2",
     "typescript": "~5.9.3",
-    "vite": "8.3.2"
+    "vite": "8.3.2",
+    "wrangler": "4.147.0"
   }
 }
