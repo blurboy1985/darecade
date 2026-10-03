@@ -275,3 +275,64 @@ test(
     }
   },
 );
+
+test(
+  "Cloudflare sign-in from a new device emails existing accounts and guides guest-only addresses",
+  { timeout: 60000 },
+  async () => {
+    const { mf, api, messages } = runtime();
+    try {
+      const guest = await api("auth/join", {
+        month: 1,
+        year: 2000,
+        consent: true,
+        privacyVersion: PRIVACY_VERSION,
+      });
+      assert.equal(guest.status, 200, JSON.stringify(guest.data));
+      assert.equal(
+        (await api("auth/link", { email: "cloud@example.test" }, guest.cookie))
+          .status,
+        200,
+      );
+      const first = messages[0].text.match(/#login=([a-f0-9]+)/)[1];
+      assert.equal((await api("auth/consume", { token: first })).status, 200);
+
+      // A signed-out browser (no cookie) asks to sign in to the existing account.
+      const known = await api("auth/login-link", {
+        email: "  Cloud@Example.test ",
+      });
+      assert.equal(known.status, 200, JSON.stringify(known.data));
+      assert.equal(messages.length, 2);
+      assert.deepEqual(messages[1].to, ["cloud@example.test"]);
+      const again = messages[1].text.match(/#login=([a-f0-9]+)/)[1];
+      const signed = await api("auth/consume", { token: again });
+      assert.equal(signed.status, 200);
+      assert.equal(signed.data.id, guest.data.id);
+
+      // An address with no account still gets an email, but never a sign-in link.
+      const unknown = await api("auth/login-link", {
+        email: "guest-only@example.test",
+      });
+      assert.equal(unknown.status, 200);
+      assert.deepEqual(unknown.data, known.data);
+      assert.equal(messages.length, 3);
+      assert.deepEqual(messages[2].to, ["guest-only@example.test"]);
+      assert.doesNotMatch(messages[2].text, /#login=/);
+      assert.match(messages[2].text, /Account & privacy/);
+
+      // Repeat requests for an unknown address are not re-sent within the hour.
+      assert.equal(
+        (await api("auth/login-link", { email: "guest-only@example.test" }))
+          .status,
+        200,
+      );
+      assert.equal(messages.length, 3);
+      assert.equal(
+        (await api("auth/login-link", { email: "not-an-email" })).status,
+        400,
+      );
+    } finally {
+      await mf.dispose();
+    }
+  },
+);
