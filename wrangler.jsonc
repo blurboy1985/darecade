@@ -14,9 +14,15 @@
     "not_found_handling": "none",
   },
   "durable_objects": {
-    "bindings": [{ "name": "NEIGHBOURHOOD", "class_name": "Neighbourhood" }],
+    "bindings": [
+      { "name": "NEIGHBOURHOOD", "class_name": "Neighbourhood" },
+      { "name": "WORLD", "class_name": "World" },
+    ],
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Neighbourhood"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Neighbourhood"] },
+    { "tag": "v2", "new_sqlite_classes": ["World"] },
+  ],
   "observability": { "enabled": false },
   "vars": {
     "LAUNCH_READY": "true",

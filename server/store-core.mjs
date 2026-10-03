@@ -131,6 +131,8 @@ export class StoreCore {
     return { id, token };
   }
   status(id) {
+    const live = this.liveStatus?.(id);
+    if (live) return live;
     const rows = this.db
       .prepare("SELECT away FROM presence WHERE player=? AND seen>?")
       .all(id, this.now() - 15000);
@@ -451,6 +453,8 @@ export class StoreCore {
     };
   }
   playerList(id, community = false) {
+    const worldPlayers = this.livePlayerList?.(id);
+    if (worldPlayers) return worldPlayers;
     const visibility = `p.id NOT IN (SELECT player FROM suspensions)${
       community
         ? `

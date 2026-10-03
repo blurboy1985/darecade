@@ -1,0 +1,33 @@
+// LOCAL ONLY. No production bindings, credentials, routes, or account ID.
+{
+  "name": "darecade-load-local",
+  "main": "load-worker.mjs",
+  "compatibility_date": "2026-10-03",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "dev": { "ip": "127.0.0.1", "port": 8799, "inspector_port": 9249 },
+  "assets": {
+    "directory": "../dist",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/__load/*"],
+  },
+  "durable_objects": {
+    "bindings": [
+      { "name": "NEIGHBOURHOOD", "class_name": "Neighbourhood" },
+      { "name": "WORLD", "class_name": "World" },
+    ],
+  },
+  "migrations": [
+    { "tag": "load-only-v1", "new_sqlite_classes": ["Neighbourhood", "World"] },
+  ],
+  "vars": {
+    "LOAD_TEST_LOCAL": "true",
+    "LAUNCH_READY": "true",
+    "PUBLIC_ORIGIN": "https://load.darecade.invalid",
+    "RESEND_API_KEY": "synthetic-never-send",
+    "MAIL_FROM": "test@example.test",
+    "PRIVACY_CONTACT": "test@example.test",
+    "STORAGE_NOTICE": "Disposable synthetic load fixture on this computer.",
+  },
+}

@@ -17,6 +17,7 @@ export type SharedPlayer = {
   x: number;
   z: number;
   yaw: number;
+  emote?: string;
   status: "online" | "resting" | "offline";
   best: Record<GameId, number>;
   points: number;
