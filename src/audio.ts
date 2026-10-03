@@ -73,7 +73,15 @@ function setup(offline?: BaseAudioContext) {
   const comp = ctx.createDynamicsCompressor();
   comp.threshold.value = -14;
   comp.ratio.value = 4;
-  master.connect(comp).connect(ctx.destination);
+  // Bound short combined music/effect peaks that a compressor can miss during
+  // its attack, while keeping quiet sounds close to their original level.
+  const limiter = ctx.createWaveShaper();
+  limiter.curve = Float32Array.from({ length: 2048 }, (_, i) => {
+    const x = (i / 2047) * 2 - 1;
+    return 0.9 * Math.tanh(x / 0.9);
+  });
+  limiter.oversample = "2x";
+  master.connect(comp).connect(limiter).connect(ctx.destination);
   musicBus = ctx.createGain();
   musicBus.gain.value = 0;
   musicBus.connect(master);
@@ -181,7 +189,7 @@ const throttle: Partial<Record<Sfx, number>> = {
 const penta = [72, 74, 76, 79, 81, 84, 86, 88, 91];
 
 export function play(name: Sfx) {
-  if (!soundOn || !setup() || ctx!.state !== "running") return;
+  if (!soundOn || !ctx || ctx.state !== "running") return;
   const t = ctx!.currentTime + 0.01;
   const gap = throttle[name];
   if (gap && t - (last.get(name) ?? -1) < gap) return;
@@ -822,7 +830,9 @@ function stopMusic() {
 
 function apply() {
   if (!ctx) return;
-  if (soundOn && musicOn && !document.hidden) startMusic();
+  master.gain.setTargetAtTime(soundOn ? 0.9 : 0, ctx.currentTime, 0.02);
+  if (soundOn && musicOn && !document.hidden && ctx.state === "running")
+    startMusic();
   else stopMusic();
 }
 
@@ -838,8 +848,9 @@ export const audio = {
   configure(sound: boolean, music: boolean) {
     soundOn = sound;
     musicOn = music;
-    if (sound) this.unlock();
-    else stopMusic();
+    // Configuration also runs while restoring a saved profile. Only unlock(),
+    // called by input handlers, may create or resume the live audio context.
+    apply();
   },
   setTheme(next: Theme) {
     nextTheme = next;

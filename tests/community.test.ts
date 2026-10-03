@@ -434,6 +434,8 @@ test("account, saved avatar and session survive a database restart", async () =>
     const account = community.consume(new URL(message.url).hash.slice(7));
     community.patch(account.me.id, {
       name: "Moon Mochi",
+      sound: true,
+      music: false,
       gender: 1,
       pet: 7,
       clothing: 7,
@@ -455,6 +457,8 @@ test("account, saved avatar and session survive a database restart", async () =>
     community = new Community(store, { directory });
     assert.equal(community.lookup(account.token), account.me.id);
     assert.equal(community.privateProfile(account.me.id).name, "Moon Mochi");
+    assert.equal(community.privateProfile(account.me.id).progress.sound, true);
+    assert.equal(community.privateProfile(account.me.id).progress.music, false);
     assert.equal(
       Object.hasOwn(community.privateProfile(account.me.id).progress, "gender"),
       false,

@@ -90,6 +90,7 @@ const preferenceKeys = [
   "pet",
   "accessory",
   "sound",
+  "music",
   "reduced",
   "twoD",
   "light",
@@ -224,6 +225,7 @@ function updateMusic() {
 }
 let shownLevel = 0;
 function renderStats() {
+  audio.configure(save.sound, save.music);
   document.querySelector("#coin-count")!.textContent =
     `${save.coins.length} / 5`;
   document.querySelector("#coin-dots")!.innerHTML = Array.from(
@@ -1025,6 +1027,7 @@ document.addEventListener("change", (e) => {
       .querySelector<HTMLInputElement>("#setting-music")
       ?.toggleAttribute("disabled", !el.checked);
     startTune();
+    audio.unlock();
     beep("click");
   }
   if (el.id === "setting-reduced") {
@@ -1034,6 +1037,7 @@ document.addEventListener("change", (e) => {
   if (el.id === "setting-music") {
     save.music = el.checked;
     startTune();
+    audio.unlock();
     beep("click");
   }
   if (el.id === "setting-light") {
@@ -1047,6 +1051,7 @@ document.querySelector("#sound-toggle")!.addEventListener("click", () => {
   save.sound = !save.sound;
   persist();
   startTune();
+  audio.unlock();
   beep("click");
 });
 document

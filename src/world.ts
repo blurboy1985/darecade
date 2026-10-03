@@ -1496,6 +1496,9 @@ export class LobbyWorld {
         }
       }
       this.followCamera.position.copy(focus).addScaledVector(offset, distance);
+      // A wall can compress the follow distance inside a large KayKit head.
+      // Lift the camera in tight spaces while continuing to aim at the player.
+      this.followCamera.position.y += Math.max(0, 1.25 - distance) * 2;
       this.followCamera.position.y = Math.max(
         0.35,
         this.followCamera.position.y,

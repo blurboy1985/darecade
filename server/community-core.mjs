@@ -26,6 +26,7 @@ const lookKeys = [
 ];
 const prefs = [
   "sound",
+  "music",
   "reduced",
   "twoD",
   "light",
