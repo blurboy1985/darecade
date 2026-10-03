@@ -140,6 +140,14 @@ const handler = async (req, res) => {
         return;
       }
       const session = { id: player };
+      if (req.method === "GET" && url.pathname === "/api/worlds") {
+        respond(worlds.directory(player));
+        return;
+      }
+      if (req.method === "POST" && url.pathname === "/api/worlds/join") {
+        respond({ world: worlds.destination(player, data) });
+        return;
+      }
       if (req.method === "POST" && url.pathname === "/api/world/poll") {
         respond(worlds.poll(player, url.searchParams.get("world"), data));
         return;

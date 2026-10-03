@@ -96,6 +96,98 @@ function play(game, seed) {
 }
 
 test(
+  "World auto-join fills 25 places, reuses the fullest room, and keeps empty rooms reusable",
+  { timeout: 60000 },
+  async () => {
+    const { mf, api } = runtime();
+    const sockets = [];
+    const users = [];
+    const join = async (cookie) => {
+      const response = await mf.dispatchFetch(origin + "/api/world/connect", {
+        headers: { Upgrade: "websocket", Cookie: cookie, Origin: origin },
+      });
+      assert.equal(response.status, 101);
+      const ws = response.webSocket;
+      sockets.push(ws);
+      const first = new Promise((resolve) =>
+        ws.addEventListener("message", (e) => resolve(JSON.parse(e.data)), {
+          once: true,
+        }),
+      );
+      ws.addEventListener("close", () => { try { ws.close(); } catch {} });
+      ws.accept();
+      return first;
+    };
+    try {
+      for (let i = 0; i < 27; i++) {
+        const user = await api(
+          "auth/join",
+          {
+            month: 1,
+            year: 2000,
+            consent: true,
+            privacyVersion: PRIVACY_VERSION,
+          },
+          "",
+          { "CF-Connecting-IP": `192.0.2.${i + 1}` },
+        );
+        users.push(user);
+        const packet = await join(user.cookie);
+        assert.equal(packet.world, i < 25 ? "world-1" : "world-2");
+      }
+      assert.deepEqual(
+        (await api("worlds", undefined, users[0].cookie)).data.worlds.map(
+          (w) => w.count,
+        ),
+        [25, 2],
+      );
+      sockets[0].close();
+      await new Promise((r) => setTimeout(r, 100));
+      assert.equal(
+        (await join(users[0].cookie)).world,
+        "world-1",
+        "24 places wins over a room with 2",
+      );
+      sockets[25].close();
+      sockets[26].close();
+      await new Promise((r) => setTimeout(r, 100));
+      const empty = (
+        await api("worlds", undefined, users[0].cookie)
+      ).data.worlds.find((w) => w.id === "world-2");
+      assert.equal(empty.count, 0);
+      assert.equal(
+        (await join(users[25].cookie)).world,
+        "world-2",
+        "empty room reused when first room has 25",
+      );
+      const sql = await mf.unsafeGetDurableObjectStorage(
+        "darecade-test",
+        "Neighbourhood",
+        { name: "darecade-main-v1" },
+      );
+      await sql.exec(
+        "UPDATE worlds SET occupancy=30,seen=0 WHERE name='world-2'",
+      );
+      await sql.exec(
+        "DELETE FROM world_members WHERE player=?",
+        users[26].data.id,
+      );
+      assert.equal(
+        (await join(users[26].cookie)).world,
+        "world-2",
+        "stale occupancy cannot strand a room forever",
+      );
+    } finally {
+      for (const ws of sockets)
+        try {
+          ws.close();
+        } catch {}
+      await mf.dispose();
+    }
+  },
+);
+
+test(
   "World sockets enforce capacity, privacy, trusted identity, hibernation and HTTP fallback",
   { timeout: 60000 },
   async () => {
@@ -181,6 +273,25 @@ test(
         "world membership preserves live status between position saves",
       );
       assert.equal((await connect(users[30].cookie, "world-1")).status, 409);
+      const directory = await api("worlds", undefined, users[0].cookie);
+      assert.equal(directory.status, 200);
+      assert.deepEqual(directory.data.worlds, [
+        { id: "world-1", code: "W1", count: 30 },
+      ]);
+      assert.doesNotMatch(
+        JSON.stringify(directory.data),
+        /session|email|ageBand|blockedIds/,
+      );
+      assert.equal(
+        (
+          await api(
+            "worlds/join",
+            { friend: users[0].data.id },
+            users[30].cookie,
+          )
+        ).status,
+        400,
+      );
       const b = sockets[1],
         bp = [];
       b.addEventListener("message", (e) => bp.push(JSON.parse(e.data)));
@@ -215,6 +326,20 @@ test(
       assert.ok(bp.slice(before).some((p) => p.gone.includes(slot)));
       const ownBlocked = a.packets.at(-1);
       assert.ok(ownBlocked.gone.length > 0);
+      for (const [viewer, hidden] of [
+        [users[0], users[1]],
+        [users[1], users[0]],
+      ]) {
+        const listing = await api("worlds", undefined, viewer.cookie);
+        assert.ok(
+          !listing.data.neighbours.some((p) => p.id === hidden.data.id),
+        );
+        assert.equal(
+          (await api("worlds/join", { friend: hidden.data.id }, viewer.cookie))
+            .status,
+          400,
+        );
+      }
       a.ws.send(JSON.stringify({ x: 3 }));
       await sleep(260);
       assert.ok(!bp.slice(before).some((p) => p.d.some((d) => d[0] === slot)));
@@ -310,6 +435,18 @@ test(
         users[3].data.id,
       );
       assert.equal(membership[0].world, "world-2");
+      const friend = await api(
+        "worlds/join",
+        { friend: users[3].data.id },
+        users[4].cookie,
+      );
+      assert.deepEqual(friend.data, { world: "world-2" });
+      assert.equal(
+        (await api("worlds/join", { world: "world-9999" }, users[4].cookie))
+          .status,
+        400,
+      );
+      assert.equal((await api("worlds", undefined)).status, 401);
     } finally {
       for (const ws of sockets)
         try {

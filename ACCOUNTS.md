@@ -1,6 +1,6 @@
 # Accounts, progression and shared dares
 
-Implemented 3 October 2026 on the existing Node/SQLite service. The Cloudflare version is deployed at https://darecade.daniel-tianwen.workers.dev (see HOSTING.md), with accounts and gameplay closed pending outgoing sign-in email setup. The privacy/support contact is hello@darecade.danielquek.com, forwarding to the operator's verified inbox. The local service and its private data remain available. The existing cute Blender characters, outfits and interactions remain in use.
+Implemented 3 October 2026 on the existing Node/SQLite service. The Cloudflare version is deployed at https://darecade.daniel-tianwen.workers.dev (see HOSTING.md), with the historical account/email launch checks recorded in HOSTING.md. The multi-world changes require a separately approved deployment. The privacy/support contact is hello@darecade.danielquek.com, forwarding to the operator's verified inbox. The local service and its private data remain available. The existing cute Blender characters, outfits and interactions remain in use.
 
 ## Local run
 
@@ -18,6 +18,12 @@ For phone testing, set `LAN_HOST` to the computer's current Wi-Fi IPv4 address a
 
 ## Sign-in and recovery
 
+Worlds share the same account, scores and privacy settings. Records remains `Neighbourhood` at `darecade-main-v1`; live rooms use the new SQLite `World` class, `WORLD` binding and additive `v2` migration. Joining automatically fills worlds to about 25 people. Use the top-bar Worlds button or More → Worlds & join friend to see counts, enter a room code such as W3, or join a visible neighbour up to the 30-player hard cap. The first Play still goes directly to the first game after consent.
+
+Movement uses hibernating WebSockets with HTTP fallback. Worlds save away positions to Records every 30 seconds and on departure; empty worlds stop scheduling work and hibernate. Live messages contain only public avatar data. Email, consent, age band and session credentials never appear in world broadcasts. Switching rooms preserves progression and never bypasses bilateral blocks or suspensions.
+
+The initial Free-plan estimate of roughly 100 player-hours/day assumes light use and needs a measured SQL/request budget. At 5 Hz, each player-hour alone costs about 900 Durable Object requests because 20 incoming WebSocket messages bill as one request. SQL history and HTTP fallback can reduce capacity. The 150-player load run with 20,000 stored runs exceeded the SQL budget when extrapolated to 100 player-hours; that target is not supported by this workload on Free. Workers Paid starts at US$5/month plus applicable overages; upgrading is the owner's decision. See [HOSTING.md](HOSTING.md#capacity-and-cost) for current official pricing links, quota caveats and the local load test.
+
 1. A new player enters birth month/year, then reads the privacy notice. Nothing is written to the database before eligibility and explicit consent. Only the age band and consent version/time are retained.
 2. A consenting guest can play and earn saved cosmetic progress. **More → Account & privacy** offers email account creation.
 3. A random, single-use email link verifies ownership and connects the existing guest avatar to the account. Links expire after 15 minutes. The database stores token hashes; sessions use HttpOnly, SameSite cookies. Production cookies require HTTPS.
@@ -25,7 +31,7 @@ For phone testing, set `LAN_HOST` to the computer's current Wi-Fi IPv4 address a
 
 Local default: `MAIL_MODE=outbox`. No external email is sent. The message is stored under `data/mail-outbox/` and is never served by HTTP. The operator can open the most recent test message locally and use its URL; treat it as a private password. Consumed messages are removed. Use synthetic addresses for testing.
 
-Configured delivery: `MAIL_MODE=resend`, `RESEND_API_KEY`, a verified `MAIL_FROM`, and `PUBLIC_ORIGIN` enable the [Resend send-email API](https://resend.com/docs/api-reference/emails/send-email). External delivery has **not** been tested in this environment. No Supabase service, domain or billable provider was created. Adding Supabase instead would be a separate account/data migration.
+Configured delivery: `MAIL_MODE=resend`, `RESEND_API_KEY`, a verified `MAIL_FROM`, and `PUBLIC_ORIGIN` enable the [Resend send-email API](https://resend.com/docs/api-reference/emails/send-email). The approved hosted delivery checks are recorded in HOSTING.md; local tests use an intercepted provider or private outbox. No Supabase service, domain or billable provider was created. Adding Supabase instead would be a separate account/data migration.
 
 `NODE_ENV=production` refuses to start without HTTPS origin, email configuration, `PRIVACY_CONTACT`, and an accurate `STORAGE_NOTICE`. These checks do not replace a deployment/security review. The service binds localhost; use a reviewed HTTPS reverse proxy for public hosting. Configure trusted network routing and per-client rate limiting at that proxy before a public rollout.
 
@@ -38,7 +44,7 @@ Configured delivery: `MAIL_MODE=resend`, `RESEND_API_KEY`, a verified `MAIL_FROM
 - Each day's regular rounds use the same seed for everyone; dare rounds replay the host's seed. Every positive, verified score finished that day by an email account enters daily medals. At Singapore midnight, shared ranks earn gold +3, silver +2 and bronze +1; ties share rank and skip places (1, 1, 3). Maximum 15 medal points per player per day. No purchase or outfit improves scores.
 - The weekly board sums that week's settled daily medals. It starts fresh Monday at 00:00 Asia/Singapore. Last week's results remain visible; lifetime medals and cosmetics stay saved. Today's medals are pending until midnight. There is no inactivity penalty or streak loss.
 - A player may post three positive verified rounds per Singapore day. Posts last 24 hours. A challenger receives the host's exact seed and target score, even when the host is online. Resting/offline avatars can also be challenged against their validated personal best.
-- Each challenger gets **three outgoing attempts per day**, to different neighbours across all games. Starting uses a slot, including abandoning. Each posted dare gets at most one attempt per challenger, including across midnight. Incoming dares are unlimited and never deduct the defender's points. Wins/draws are recorded separately, with no farmable extra medal points. A dare only affects daily medals if its seed matches today's ranked seed.
+- Each challenger gets **three outgoing attempts per day**, to different neighbours across all games. Starting uses a slot, including abandoning. Each posted dare gets at most one attempt per challenger, including across midnight. Incoming dares are unlimited and never deduct the defender's points. Wins/draws are recorded separately, with no farmable extra medal points. Every verified round by an email account counts towards daily medals, including dares with an older seed.
 
 The outgoing limit retains the prior fairness revision: a receiver limit could let other players exhaust someone's three slots. Cosmetic exploration events are bounded and idempotent, but are not position-proofed by a server world simulation. Replay validation rejects impossible/altered scores; it does not prevent bots that generate valid inputs, account sharing, or all forms of collusion. Do not attach cash prizes without stronger abuse controls and review.
 
@@ -46,9 +52,9 @@ The outgoing limit retains the prior fairness revision: a receiver limit could l
 
 - Under-13 or declined-consent requests create no profile/account. This is self-declared age screening, not age verification. No date of birth is retained or logged by this application.
 - Public: player-chosen nickname, avatar preferences, activity, positions, scores and dares. Private: email, age band, consent and reports. No free-text chat, photos, advertising tracker, purchases or marketing. Players are asked not to use real names or contact details; nickname moderation remains necessary.
-- **Account & privacy** provides data download, sign-out, and explicit **DELETE** confirmation for consent withdrawal/erasure. Deletion revokes all sessions, removes owned scores/dares/medals/reports/feedback, removes pending links for the email, and anonymizes references in other players' rounds.
+- **Account & privacy** provides data download, sign-out, and explicit **DELETE** confirmation for consent withdrawal/erasure. Deletion disconnects the player from their world, removes their directory membership, revokes all sessions, removes owned scores/dares/medals/reports/feedback, removes pending links for the email, and anonymizes references in other players' rounds.
 - Raw game-input replays expire after 30 days. Inactive profiles expire after 12 calendar months. Expired sessions and magic links are cleaned up while the server is running. Offline backups require a separate retention and erasure process; see `PRIVACY-REVIEW.md`.
-- Reports immediately hide the player from the reporter and prevent mutual challenges. They do not automatically punish the reported account. The operator reviews them locally. There is no exposed administrative HTTP API.
+- Reports immediately refresh live block lists and hide both players from each other in movement snapshots, room neighbour lists and challenges. Room codes cannot bypass the filter. They do not automatically punish the reported account. The operator reviews them locally. There is no exposed administrative HTTP API.
 
 Operator commands, **Windows PowerShell**:
 

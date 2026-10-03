@@ -14,6 +14,7 @@ import "./style.css";
 import "./neighbourhood.css";
 import { api, type SharedState, type SharedPlayer, type Run } from "./social";
 import { WorldConnection } from "./world-connection";
+import { WorldPicker, worldCode } from "./world-picker";
 import {
   ensureAccount,
   openAccount,
@@ -162,7 +163,7 @@ let activeMinutes = 0;
 const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
   <div id="world"></div><div class="vignette" aria-hidden="true"></div>
-  <header class="topbar"><a class="brand" href="#" aria-label="Darecade home"><span class="brand-mark">d<span>★</span></span><span>DARECADE<span class="brand-caption">MEET YOU DOWNSTAIRS.</span></span></a><div class="location-pill"><span class="status-dot"></span>THE NEIGHBOURHOOD<span class="divider"></span><span id="sgt-clock">SGT</span></div><div class="top-actions"><span class="demo-tag">LOCAL PREVIEW</span><button class="coin-pill" data-open="quests" aria-label="View pixel coin hunt"><span class="pixel-coin">✦</span><b id="coin-count">0 / 5</b></button><button class="icon-button" id="sound-toggle" aria-label="Turn sound on">${icon("mute")}</button><button class="icon-button" data-open="settings" aria-label="Settings">${icon("settings")}</button></div></header>
+  <header class="topbar"><a class="brand" href="#" aria-label="Darecade home"><span class="brand-mark">d<span>★</span></span><span>DARECADE<span class="brand-caption">MEET YOU DOWNSTAIRS.</span></span></a><div class="location-pill"><span class="status-dot"></span>THE NEIGHBOURHOOD<span class="divider"></span><span id="sgt-clock">SGT</span></div><button class="world-pill" data-open="worlds" aria-label="Worlds"><span id="current-world">Joining…</span></button><div class="top-actions"><span class="demo-tag">LOCAL PREVIEW</span><button class="coin-pill" data-open="quests" aria-label="View pixel coin hunt"><span class="pixel-coin">✦</span><b id="coin-count">0 / 5</b></button><button class="icon-button" id="sound-toggle" aria-label="Turn sound on">${icon("mute")}</button><button class="icon-button" data-open="settings" aria-label="Settings">${icon("settings")}</button></div></header>
   <main class="hud"><section class="welcome-panel"><div class="eyebrow"><span class="tiny-spark">✦</span> MEET YOU DOWNSTAIRS</div><h1>Good times.<br>Great company.</h1><button class="primary" data-open="arcade">Play ${icon("arrow")}</button></section>
   <button class="quest-card" data-open="quests" aria-label="Open pixel coin hunt"><span class="quest-icon">${icon("compass")}</span><span class="quest-copy"><span class="eyebrow">SIDE QUEST</span><strong>Pixel hunt</strong><span>Find 5 coins</span><span class="quest-progress" id="coin-dots">○ ○ ○ ○ ○</span></span><span class="card-arrow">↗</span></button>
   <div class="right-rail"><button class="gift-teaser" data-open="shop" aria-label="Choose your daily gift at the Mama Shop"><span class="gift-illustration">${icon("gift")}<i>✦</i></span><span class="eyebrow" id="gift-eyebrow">DAILY GIFT</span><strong id="gift-title">Free gift</strong><span id="gift-caption">At the Mama Shop</span><span class="gift-link">Open ${icon("arrow")}</span></button><button class="map-card" data-open="map" aria-label="Open neighbourhood map"><div class="mini-map" aria-hidden="true"><i class="map-building m1"></i><i class="map-building m2"></i><i class="map-building m3"></i><i class="map-tree t1"></i><i class="map-tree t2"></i><i class="map-you"></i><span>N ↑</span></div><span>${icon("pin")} The neighbourhood <b>↗</b></span></button></div>
@@ -435,11 +436,15 @@ function open(id: string) {
           : "DARECADE",
     id === "wardrobe" && !is2d,
   );
-  if (id === "phone-menu") {
+  if (id === "worlds") {
+    socialPanel = "worlds";
+    void worldPicker.open();
+  } else if (id === "phone-menu") {
     body.innerHTML = `<h2>More</h2><div class="phone-menu-grid">${[
       ["board", "Rankings & medals"],
       ["dares", "Challenge a neighbour"],
       ["neighbours", "Meet the neighbours"],
+      ["worlds", "Worlds & join friend"],
       ["wardrobe", "Change my look"],
       ["surroundings", "Play outside"],
       ["away", "Step away"],
@@ -837,6 +842,10 @@ async function startGame(id: GameId, defender = "", dare = "") {
 document.addEventListener("click", (e) => {
   const b = (e.target as Element).closest<HTMLButtonElement>("button");
   if (!b || b.disabled) return;
+  if (b.dataset.joinFriend) {
+    void worldPicker.join({ friend: b.dataset.joinFriend });
+    return;
+  }
   if (b.dataset.lookTab) {
     wardrobeTab = b.dataset.lookTab;
     open("wardrobe");
@@ -1630,7 +1639,7 @@ function playerRows() {
   );
 }
 function renderSharedNeighbours() {
-  body.innerHTML = `<h2>Neighbours</h2>${serverNote()}<div class="resident-list">${playerRows()}</div><h3>Around the block</h3><div class="resident-list">${residents.map((r) => `<button data-resident="${r.id}"><span class="resident-swatch" style="background:${outfits[r.outfit]}">${activities[r.activity].icon}</span><span><strong>${r.name}</strong><small>${activities[r.activity].name}</small></span><b>VISIT ↗</b></button>`).join("")}</div>`;
+  body.innerHTML = `<h2>Neighbours</h2><button class="secondary" data-open="worlds">Worlds & join friend →</button>${serverNote()}<div class="resident-list">${playerRows()}</div><h3>Around the block</h3><div class="resident-list">${residents.map((r) => `<button data-resident="${r.id}"><span class="resident-swatch" style="background:${outfits[r.outfit]}">${activities[r.activity].icon}</span><span><strong>${r.name}</strong><small>${activities[r.activity].name}</small></span><b>VISIT ↗</b></button>`).join("")}</div>`;
 }
 function renderSharedBoard() {
   modal.classList.toggle(
@@ -1747,7 +1756,7 @@ function renderPlayerInspector(id: string) {
   const p = shared?.players.find((p) => p.id === id);
   if (!p) return;
   const el = document.querySelector<HTMLElement>("#inspector")!;
-  el.innerHTML = `<button class="close-button" data-action="close-inspector" aria-label="Stop inspecting neighbour">×</button><span class="eyebrow">${p.status.toUpperCase()} · SAVED NEIGHBOUR</span><h3>${escapeText(p.name)}</h3><p>${p.points} medal points · ${p.wins} challenge wins<br>${activities[p.activity].icon} ${activities[p.activity].name}</p><div class="resident-outfit"><i style="background:${outfits[p.look.outfit]}"></i><span>${clothingNames[p.look.clothing || 0]} · ${petNames[p.look.pet || 0]} · ${accessoryNames[p.look.accessory || 0]}</span></div><strong>${shared?.challenged.includes(p.id) ? "Already challenged today" : "Ready for a friendly dare"}</strong>${challengeButtons(p)}<button class="secondary" data-report="${p.id}">Report or hide this player</button><p class="fine-print">Starting uses one of your three daily dares. Beat their saved score to win. Drag to orbit; scroll or pinch to zoom.</p>`;
+  el.innerHTML = `<button class="close-button" data-action="close-inspector" aria-label="Stop inspecting neighbour">×</button><span class="eyebrow">${p.status.toUpperCase()} · SAVED NEIGHBOUR</span><h3>${escapeText(p.name)}</h3><p>${p.points} medal points · ${p.wins} challenge wins<br>${activities[p.activity].icon} ${activities[p.activity].name}</p><div class="resident-outfit"><i style="background:${outfits[p.look.outfit]}"></i><span>${clothingNames[p.look.clothing || 0]} · ${petNames[p.look.pet || 0]} · ${accessoryNames[p.look.accessory || 0]}</span></div><strong>${shared?.challenged.includes(p.id) ? "Already challenged today" : "Ready for a friendly dare"}</strong>${challengeButtons(p)}<button class="secondary" data-join-friend="${p.id}">Join friend’s world</button><button class="secondary" data-report="${p.id}">Report or hide this player</button><p class="fine-print">Starting uses one of your three daily dares. Beat their saved score to win. Drag to orbit; scroll or pinch to zoom.</p>`;
 }
 function showPlayer(id: string) {
   if (!shared?.players.some((p) => p.id === id)) return;
@@ -1794,13 +1803,35 @@ function applyWorldPlayers() {
   world?.syncPlayers(shared.players, shared.me, liveIds);
   if (modal.open && socialPanel === "neighbours") renderSharedNeighbours();
 }
-const worldConnection = new WorldConnection(presenceData, (players) => {
-  const ids = new Set(players.map((p) => p.id));
-  for (const p of liveNeighbours)
-    if (!ids.has(p.id)) hiddenNeighbours.add(p.id);
-  liveNeighbours = players;
-  applyWorldPlayers();
-});
+let currentWorld = "";
+const worldConnection = new WorldConnection(
+  presenceData,
+  (players) => {
+    const ids = new Set(players.map((p) => p.id));
+    for (const p of liveNeighbours)
+      if (!ids.has(p.id)) hiddenNeighbours.add(p.id);
+    liveNeighbours = players;
+    applyWorldPlayers();
+  },
+  (name) => {
+    currentWorld = name;
+    document.querySelector("#current-world")!.textContent =
+      `World ${name.slice(6)} · ${worldCode(name)}`;
+  },
+);
+const worldPicker = new WorldPicker(
+  body,
+  () => modal.open && socialPanel === "worlds",
+  () => currentWorld,
+  async (name) => {
+    await worldConnection.join(name);
+    dismissInspector();
+    hiddenNeighbours.clear();
+    savedNeighbours = [];
+    await syncSocial();
+  },
+  toast,
+);
 
 function firstRacePending() {
   return save.rounds === 0;
