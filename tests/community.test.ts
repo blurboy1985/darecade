@@ -570,7 +570,7 @@ test("nickname and appearance edits validate before writing and never award rank
       clothing: 99,
       hair: -1,
       pet: "7",
-      accessory: 8,
+      accessory: 999,
     });
     assert.equal(Object.hasOwn(invalid.progress, "gender"), false);
     for (const key of ["clothing", "hair", "pet", "accessory"])

@@ -1,5 +1,6 @@
 import type { GameId } from "./state";
 import { games } from "./catalog";
+import type { Sfx } from "./audio";
 import { HopRun, StarFlight } from "./action-games";
 import {
   Simulation,
@@ -24,7 +25,7 @@ export class ArcadeGame extends Simulation {
     id: GameId,
     public container: HTMLElement,
     public finish: (score: number, replay: Replay) => void,
-    public beep: () => void,
+    public sound: (name: Sfx) => void,
     seed = 314159,
   ) {
     super(id, seed);
@@ -56,7 +57,7 @@ export class ArcadeGame extends Simulation {
       (container.querySelector("#pause-game") as HTMLButtonElement).disabled =
         false;
       this.canvas.focus();
-      this.beep();
+      this.sound("start");
     });
     container
       .querySelector("#pause-game")!
@@ -181,6 +182,47 @@ export class ArcadeGame extends Simulation {
         ? `${this.lives} LIVES`
         : "60 SECOND ROUND";
   }
+  /** Read-only view of the simulation, used to pick sound effects. */
+  private snapshot() {
+    const a = this.action;
+    return {
+      score: this.score,
+      lives: a instanceof StarFlight ? a.lives : this.lives,
+      vy: this.ball.vy,
+      jump: a instanceof HopRun ? a.velocity : 0,
+      shield: a instanceof StarFlight ? a.shield : 0,
+      boss: a instanceof StarFlight ? a.bossSpawned : false,
+      shots:
+        a instanceof StarFlight ? a.bullets.filter((b) => !b.enemy).length : 0,
+      ended: this.ended,
+    };
+  }
+  private cue(b: ReturnType<ArcadeGame["snapshot"]>) {
+    const n = this.snapshot();
+    const gained = n.score - b.score;
+    if (n.ended && !b.ended && this.id !== "hop")
+      this.sound(this.id === "swarm" ? "bigboom" : "hurt");
+    else if (n.ended && !b.ended) this.sound("hurt");
+    if (n.lives < b.lives) this.sound("hurt");
+    if (n.boss && !b.boss) this.sound("boss");
+    if (n.shield > b.shield + 1) this.sound("powerup");
+    if (n.jump > 0 && b.jump <= 0) this.sound("jump");
+    if (n.shots > b.shots) this.sound("shoot");
+    if (this.id === "brick" && b.vy > 0 && n.vy < 0 && gained === 0)
+      this.sound("paddle");
+    if (gained > 0)
+      this.sound(
+        this.id === "noodle"
+          ? "eat"
+          : this.id === "brick"
+            ? "brick"
+            : this.id === "hop"
+              ? "pass"
+              : gained >= 200
+                ? "bigboom"
+                : "boom",
+      );
+  }
   private loop = (now: number) => {
     this.frame = requestAnimationFrame(this.loop);
     const dt = this.last ? Math.min((now - this.last) / 1000, 0.15) : 0;
@@ -199,9 +241,9 @@ export class ArcadeGame extends Simulation {
           this.events.push([this.ticks, ...this.input]);
           this.previous = stamp;
         }
-        const oldScore = this.score;
+        const before = this.snapshot();
         this.advance(this.input);
-        if (this.score > oldScore) this.beep();
+        this.cue(before);
         this.input[3] = 0;
         this.accumulator -= 1 / 60;
       }

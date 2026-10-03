@@ -3,6 +3,9 @@ import { clone as cloneSkeleton } from "three/addons/utils/SkeletonUtils.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { outfits, skins } from "./state";
 import { clothingNames } from "./appearance";
+import { makePet, animatePet, type Pet } from "./pets";
+import { buildMagic, disposeMagic, type Magic } from "./magic";
+import { buildHeadgear, animateHeadgear, type Gear } from "./headgear";
 export {
   clothingNames,
   hairNames,
@@ -31,7 +34,8 @@ export type Avatar = {
   spine: T.Object3D;
   hat: T.Group;
   extras: T.Group;
-  pet: { root: T.Group; legs: T.Group[]; tail: T.Group } | null;
+  pet: Pet | null;
+  magic: Magic | null;
   look: Look;
   last: T.Vector3;
   materials: Map<string, T.MeshStandardMaterial>;
@@ -58,27 +62,66 @@ export function loadCharacter() {
 // KayKit Adventurers (CC0, Kay Lousberg). All four characters share one rig, so
 // each saved look picks a body set and a head set by toggling mesh visibility.
 const KAYKIT_SCALE = 0.86;
-const bodySets = [
-  ["Rogue", false],
-  ["Rogue", true],
-  ["Mage", false],
-  ["Mage", true],
-  ["Knight", false],
-  ["Knight", true],
-  ["Barbarian", false],
-  ["Barbarian", true],
-] as const;
-const headSets = [
-  ["Rogue_Head"],
-  ["Mage_Head"],
-  ["Knight_Head"],
-  ["Barbarian_Head"],
-  ["Rogue_Head_Hooded"],
-  ["Mage_Head", "Mage_Hat"],
-  ["Knight_Head", "Knight_Helmet"],
-  ["Barbarian_Head", "Barbarian_Hat"],
+type Who = "Rogue" | "Mage" | "Knight" | "Barbarian";
+// [top & arms, legs, cape or null]. Parts from different adventurers share one
+// rig, so they mix freely. Order matches clothingNames.
+const bodySets: [Who, Who, Who | null][] = [
+  ["Rogue", "Rogue", null],
+  ["Rogue", "Rogue", "Rogue"],
+  ["Mage", "Mage", null],
+  ["Mage", "Mage", "Mage"],
+  ["Knight", "Knight", null],
+  ["Knight", "Knight", "Knight"],
+  ["Barbarian", "Barbarian", null],
+  ["Barbarian", "Barbarian", "Barbarian"],
+  ["Rogue", "Knight", null],
+  ["Rogue", "Rogue", "Knight"],
+  ["Rogue", "Mage", "Mage"],
+  ["Mage", "Rogue", null],
+  ["Mage", "Mage", "Barbarian"],
+  ["Mage", "Knight", "Knight"],
+  ["Knight", "Rogue", null],
+  ["Knight", "Knight", "Mage"],
+  ["Knight", "Barbarian", "Barbarian"],
+  ["Barbarian", "Rogue", "Rogue"],
+  ["Barbarian", "Knight", "Knight"],
+  ["Barbarian", "Mage", "Mage"],
+  ["Rogue", "Barbarian", "Barbarian"],
+  ["Mage", "Rogue", "Rogue"],
+  ["Knight", "Mage", null],
+  ["Barbarian", "Rogue", null],
 ];
-const bodyParts = ["Body", "ArmLeft", "ArmRight", "LegLeft", "LegRight"];
+// [head mesh, KayKit headwear, procedural gear]. Order matches hairNames.
+const headSets: [string, string | null, Gear | null][] = [
+  ["Rogue_Head", null, null],
+  ["Mage_Head", null, null],
+  ["Knight_Head", null, null],
+  ["Barbarian_Head", null, null],
+  ["Rogue_Head_Hooded", null, null],
+  ["Mage_Head", "Mage_Hat", null],
+  ["Knight_Head", "Knight_Helmet", null],
+  ["Barbarian_Head", "Barbarian_Hat", null],
+  ["Rogue_Head", "Mage_Hat", null],
+  ["Barbarian_Head", "Knight_Helmet", null],
+  ["Rogue_Head", "Barbarian_Hat", null],
+  ["Rogue_Head", null, "cat"],
+  ["Mage_Head", null, "bunny"],
+  ["Knight_Head", null, "fox"],
+  ["Rogue_Head", null, "flowers"],
+  ["Knight_Head", null, "party"],
+  ["Mage_Head", null, "beanie"],
+  ["Barbarian_Head", null, "chef"],
+  ["Mage_Head", null, "grad"],
+  ["Knight_Head", null, "headphones"],
+  ["Rogue_Head", null, "propeller"],
+  ["Barbarian_Head", null, "viking"],
+  ["Mage_Head", null, "tiara"],
+  ["Rogue_Head", null, "mushroom"],
+  ["Knight_Head", null, "antlers"],
+  ["Barbarian_Head", null, "bandana"],
+  ["Knight_Head", null, "straw"],
+  ["Rogue_Head", null, "bow"],
+];
 const headwear = ["Mage_Hat", "Knight_Helmet", "Barbarian_Hat"];
 // Each KayKit texture is an 8 x 4 grid of 128 x 256 px gradient swatches. The
 // first swatch is skin in all four; the first two swatches of the second row
@@ -247,6 +290,7 @@ export function createAvatar(
     hat: new T.Group(),
     extras: new T.Group(),
     pet: null,
+    magic: null,
     look: {
       outfit: Math.max(0, outfits.indexOf(color)),
       skin: Math.max(0, skins.indexOf(skin)),
@@ -283,19 +327,20 @@ export function applyLook(
         m.needsUpdate = true;
       }
     }
-  const [outfit, cape] = bodySets[a.look.clothing! % clothingNames.length];
-  const head = headSets[a.look.hair! % headSets.length];
+  const [top, legs, cape] = bodySets[a.look.clothing! % bodySets.length];
+  const [head, wear, gear] = headSets[a.look.hair! % headSets.length];
   a.model.traverse((o) => {
     if (!(o instanceof T.Mesh)) return;
     const [who, part] = [
       o.name.split("_")[0],
       o.name.slice(o.name.indexOf("_") + 1),
     ];
-    if (bodyParts.includes(part)) o.visible = who === outfit;
-    else if (part === "Cape") o.visible = cape && who === outfit;
-    else if (o.name.includes("Head") || headwear.includes(o.name))
-      o.visible =
-        head.includes(o.name) && !(look.hat && headwear.includes(o.name));
+    if (["Body", "ArmLeft", "ArmRight"].includes(part)) o.visible = who === top;
+    else if (["LegLeft", "LegRight"].includes(part)) o.visible = who === legs;
+    else if (part === "Cape") o.visible = who === cape;
+    else if (headwear.includes(o.name))
+      o.visible = o.name === wear && !look.hat;
+    else if (o.name.includes("Head")) o.visible = o.name === head;
   });
   a.hat.clear();
   if (look.hat === 1) {
@@ -326,115 +371,12 @@ export function applyLook(
     part.scale.z *= 1.85;
     part.scale.y *= 1.25;
   }
-  a.extras.clear();
-  if (a.look.accessory === 1)
-    for (let i = 0; i < 3; i++) {
-      const star = group(a.extras);
-      star.userData.orbit = i;
-      for (const rot of [0, Math.PI / 2]) {
-        const ray = ellipsoid(
-          star,
-          [0, 0, 0],
-          [0.035, 0.13, 0.035],
-          "#ffe7a5",
-          true,
-        );
-        ray.rotation.z = rot;
-      }
-    }
-  if (a.look.accessory === 2)
-    for (const side of [-1, 1]) {
-      const wing = group(a.extras, [side * 0.14, 1.18, -0.18]);
-      wing.name = "Wing";
-      wing.userData.side = side;
-      const top = ellipsoid(
-        wing,
-        [side * 0.24, 0.12, -0.04],
-        [0.28, 0.35, 0.045],
-        "#c8a7ed",
-      );
-      top.rotation.z = -side * 0.45;
-      ellipsoid(wing, [side * 0.17, -0.22, 0], [0.2, 0.22, 0.035], "#9ddccb");
-      ellipsoid(wing, [side * 0.24, 0.15, 0.01], [0.13, 0.22, 0.02], "#f8d89a");
-    }
-  if (a.look.accessory === 3)
-    for (let i = 0; i < 4; i++) {
-      const firefly = ellipsoid(
-        a.extras,
-        [0, 1, 0],
-        [0.025, 0.025, 0.025],
-        i % 2 ? "#e3d0ff" : "#d0ffa8",
-        true,
-      );
-      firefly.userData.orbit = i;
-    }
-  if (a.look.accessory === 4) {
-    const halo = group(a.extras, [0, 2.08, 0]);
-    halo.name = "Halo";
-    for (let i = 0; i < 24; i++) {
-      const r = (i * Math.PI) / 12;
-      ellipsoid(
-        halo,
-        [Math.cos(r) * 0.36, 0, Math.sin(r) * 0.3],
-        [0.024, 0.018, 0.024],
-        "#ffe6a2",
-        true,
-      );
-    }
-    ellipsoid(halo, [0.37, 0.04, 0], [0.045, 0.085, 0.025], "#fff2bf", true);
+  // Wardrobe headgear sits under an earned hat's slot: the earned hat wins.
+  if (gear && !look.hat) buildHeadgear(a.hat, gear);
+  if (previous.accessory !== a.look.accessory || !a.magic) {
+    disposeMagic(a.magic);
+    a.magic = buildMagic(a.extras, a.look.accessory!);
   }
-  if (a.look.accessory === 5) {
-    const crown = group(a.extras, [0, 1.86, 0]);
-    crown.name = "Crown";
-    for (let i = 0; i < 5; i++) {
-      const crystal = ellipsoid(
-        crown,
-        [(i - 2) * 0.11, 0.04 - Math.abs(i - 2) * 0.015, 0.07],
-        [0.045, 0.1 - Math.abs(i - 2) * 0.016, 0.035],
-        ["#bd9aff", "#86ede6", "#ffe1a4"][i % 3],
-        true,
-      );
-      crystal.rotation.z = (2 - i) * 0.18;
-    }
-  }
-  if (a.look.accessory === 6) {
-    const ribbon = group(a.extras, [0, 1.22, -0.19]);
-    ribbon.name = "Ribbon";
-    for (let j = 0; j < 4; j++)
-      for (let i = 0; i < 16; i++) {
-        const angle = (i / 15) * Math.PI;
-        ellipsoid(
-          ribbon,
-          [
-            Math.cos(angle) * (0.42 + j * 0.042),
-            Math.sin(angle) * (0.42 + j * 0.042),
-            0,
-          ],
-          [0.038, 0.04, 0.026],
-          ["#ffa6b5", "#ffdb85", "#a8eccb", "#b8acfa"][j],
-          true,
-        );
-      }
-  }
-  if (a.look.accessory === 7)
-    for (let i = 0; i < 7; i++) {
-      const bubble = group(a.extras);
-      bubble.userData.orbit = i;
-      ellipsoid(
-        bubble,
-        [0, 0, 0],
-        [0.06, 0.06, 0.06],
-        i % 2 ? "#c1eaff" : "#e5c2fa",
-        true,
-      );
-      ellipsoid(
-        bubble,
-        [-0.017, 0.025, 0.05],
-        [0.018, 0.009, 0.009],
-        "#ffffff",
-        true,
-      );
-    }
   if (previous.pet !== a.look.pet || (!!a.look.pet && !a.pet)) {
     a.pet?.root.removeFromParent();
     a.pet = a.look.pet ? makePet(a.root.parent!, a.look.pet) : null;
@@ -443,130 +385,6 @@ export function applyLook(
         .copy(a.root.position)
         .add(new T.Vector3(0.85, 0, 0.7));
   }
-}
-function makePet(parent: T.Object3D, kind: number) {
-  const root = group(parent);
-  root.userData.companion = true;
-  const legs: T.Group[] = [];
-  const tail = group(root, [0, 0.32, -0.28]);
-  if (kind === 3) {
-    ellipsoid(root, [0, 0.5, 0], [0.23, 0.2, 0.25], "#ddedeb");
-    ellipsoid(root, [0, 0.52, 0.2], [0.17, 0.085, 0.065], "#364f6a");
-    for (const x of [-0.07, 0.07])
-      ellipsoid(root, [x, 0.54, 0.26], [0.025, 0.028, 0.012], "#baf5d9", true);
-    ellipsoid(root, [0, 0.73, 0], [0.025, 0.1, 0.025], "#e7c077");
-    ellipsoid(root, [0, 0.84, 0], [0.06, 0.06, 0.06], "#e7c077", true);
-  } else if (kind === 7) {
-    ellipsoid(root, [0, 0.43, 0], [0.24, 0.28, 0.21], "#b29bbf");
-    ellipsoid(root, [0, 0.41, 0.16], [0.18, 0.21, 0.08], "#f2e2cc");
-    for (const side of [-1, 1]) {
-      ellipsoid(
-        root,
-        [side * 0.1, 0.55, 0.19],
-        [0.105, 0.115, 0.06],
-        "#f5edd9",
-      );
-      ellipsoid(
-        root,
-        [side * 0.1, 0.55, 0.246],
-        [0.042, 0.052, 0.02],
-        "#343449",
-      );
-      ellipsoid(
-        root,
-        [side * 0.1 - 0.01, 0.575, 0.263],
-        [0.014, 0.017, 0.006],
-        "#ffffff",
-      );
-      const wing = group(root, [side * 0.22, 0.46, 0]);
-      wing.name = "PetWing";
-      wing.userData.side = side;
-      ellipsoid(wing, [side * 0.08, -0.02, 0], [0.14, 0.2, 0.07], "#88739d");
-      ellipsoid(root, [side * 0.1, 0.16, 0.04], [0.07, 0.035, 0.08], "#e6b55c");
-    }
-    ellipsoid(root, [0, 0.46, 0.25], [0.045, 0.055, 0.055], "#e6b55c");
-  } else {
-    const color =
-      kind === 4
-        ? "#f0d5cd"
-        : kind === 5
-          ? "#df9457"
-          : kind === 6
-            ? "#93cdb1"
-            : kind === 1
-              ? "#b2a0bd"
-              : "#ca9a69";
-    ellipsoid(root, [0, 0.31, 0], [0.19, 0.2, 0.31], color);
-    ellipsoid(root, [0, 0.5, 0.22], [0.2, 0.19, 0.18], color);
-    ellipsoid(root, [0, 0.43, 0.36], [0.11, 0.085, 0.095], "#f4dfb9");
-    for (const side of [-1, 1]) {
-      const ear = ellipsoid(
-        root,
-        [side * 0.14, 0.65, 0.18],
-        kind === 4
-          ? [0.06, 0.26, 0.055]
-          : kind === 5
-            ? [0.08, 0.16, 0.065]
-            : kind === 6
-              ? [0.045, 0.07, 0.04]
-              : kind === 1
-                ? [0.075, 0.16, 0.06]
-                : [0.1, 0.2, 0.065],
-        kind === 4
-          ? "#e8b9b5"
-          : kind === 5
-            ? "#7f5847"
-            : kind === 6
-              ? "#e6c572"
-              : kind === 1
-                ? "#aa91b5"
-                : "#8b654c",
-      );
-      ear.rotation.z = side * ([1, 4, 5, 6].includes(kind) ? 0.2 : 0.7);
-      ellipsoid(
-        root,
-        [side * 0.075, 0.53, 0.37],
-        [0.027, 0.032, 0.014],
-        "#243c45",
-      );
-    }
-    ellipsoid(root, [0, 0.45, 0.44], [0.034, 0.025, 0.02], "#684c53");
-    for (const x of [-0.12, 0.12])
-      for (const z of [-0.18, 0.18]) {
-        const leg = group(root, [x, 0.22, z]);
-        ellipsoid(leg, [0, -0.08, 0], [0.06, 0.13, 0.065], color);
-        legs.push(leg);
-      }
-    const t = ellipsoid(tail, [0, 0.1, -0.09], [0.07, 0.18, 0.075], color);
-    t.rotation.x = -0.8;
-    if (kind === 4) t.scale.set(0.08, 0.08, 0.08);
-    if (kind === 5) {
-      t.scale.set(0.13, 0.25, 0.14);
-      ellipsoid(tail, [0, 0.2, -0.2], [0.12, 0.12, 0.1], "#fff1d8");
-    }
-    if (kind === 6) {
-      for (const side of [-1, 1]) {
-        const wing = group(root, [side * 0.14, 0.43, -0.07]);
-        wing.name = "PetWing";
-        wing.userData.side = side;
-        ellipsoid(
-          wing,
-          [side * 0.14, 0.08, -0.03],
-          [0.2, 0.12, 0.045],
-          "#caacf0",
-        );
-        ellipsoid(wing, [side * 0.1, 0.04, 0], [0.13, 0.065, 0.02], "#e9d7fa");
-      }
-      for (let i = 0; i < 3; i++)
-        ellipsoid(
-          root,
-          [0, 0.47 - i * 0.035, -0.1 - i * 0.1],
-          [0.04, 0.07, 0.04],
-          "#e9cb79",
-        );
-    }
-  }
-  return { root, legs, tail };
 }
 export function animateDetails(
   a: Avatar,
@@ -643,23 +461,8 @@ export function animateDetails(
       ? -a.legs[1].rotation.x * 0.65
       : -Math.sin(t * 1.9) * 0.035;
   }
-  for (const child of a.extras.children) {
-    if (child.name === "Wing")
-      child.rotation.y =
-        child.userData.side * (0.15 + Math.sin(t * 3.5) * 0.22);
-    else if (["Halo", "Crown", "Ribbon"].includes(child.name))
-      child.rotation.y =
-        child.name === "Halo" ? t * 0.35 : Math.sin(t * 1.8) * 0.08;
-    else {
-      const i = child.userData.orbit || 0;
-      child.position.set(
-        Math.cos(t * 1.4 + i * 2.1) * 0.55,
-        2.18 + Math.sin(t * 1.8 + i) * 0.14,
-        Math.sin(t * 1.4 + i * 2.1) * 0.55,
-      );
-      child.rotation.z = t * 0.8 + i;
-    }
-  }
+  a.magic?.tick(t, a.moving);
+  animateHeadgear(a.hat, t);
   poseSkin(a, mode);
   if (a.pet) {
     const target = new T.Vector3(0.8, 0.02, 0.9)
@@ -672,22 +475,7 @@ export function animateDetails(
       target.x - pet.root.position.x,
       target.z - pet.root.position.z,
     );
-    pet.legs.forEach(
-      (l, i) =>
-        (l.rotation.x = a.moving
-          ? Math.sin(t * 14 + (i % 2) * Math.PI) * 0.55
-          : 0),
-    );
-    pet.tail.rotation.z = Math.sin(t * 7) * 0.35;
-    pet.root.children
-      .filter((c) => c.name === "PetWing")
-      .forEach((c) => {
-        c.rotation.z = c.userData.side * Math.sin(t * 5) * 0.35;
-      });
-    if (a.look.pet === 4 && a.moving)
-      pet.root.position.y += Math.abs(Math.sin(t * 9)) * 0.1;
-    if ([3, 7].includes(a.look.pet!))
-      pet.root.position.y = 0.1 + Math.sin(t * 2) * 0.08;
+    animatePet(pet, t, a.moving);
   }
 }
 const axisZ = new T.Vector3(0, 0, 1);
@@ -964,6 +752,7 @@ export function createCharacterPreview(
       cancelAnimationFrame(frame);
       observer.disconnect();
       a.materials.forEach((m) => m.dispose());
+      disposeMagic(a.magic);
       const skeletons = new Set<T.Skeleton>();
       a.model.traverse((o) => {
         if (o instanceof T.SkinnedMesh) skeletons.add(o.skeleton);

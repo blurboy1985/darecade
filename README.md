@@ -147,6 +147,15 @@ See `QA.md` for checked behaviours, screenshots, and limits. Mobile browser emul
 - `npm test` includes isolated in-memory database tests. Browser QA uses `.browser/social-data`, separate from the actual neighbourhood data. `PORT` and `DARECADE_DATA` environment variables allow an isolated QA server.
 
 
+## Wardrobe, magic and sound expansion — 3 October 2026
+
+- **Outfits (24):** the eight KayKit sets plus mix-and-match tops, legs and capes (for example Spellblade, Battle mage, Forest druid). See `bodySets` in `src/character.ts`.
+- **Heads & headgear (28):** five KayKit heads, their helmet/wizard/bear hats in new combinations, and 17 procedural pieces in `src/headgear.ts` (ears, flower crown, party hat, headphones, propeller cap, viking horns, tiara, antlers and more).
+- **Pets (25):** the original seven plus otter, penguin, panda, red panda, hamster, hedgehog, frog, turtle, duckling, corgi, sheep, axolotl, unicorn foal, phoenix, slime, ghost, merlion cub and jellyfish (`src/pets.ts`), each with its own movement style.
+- **Magic (26):** rebuilt in `src/magic.ts` as glowing meshes plus a small sparkle-particle shader: stardust trails, snow, sakura, aurora, embers, lightning, glitter rain, hearts, music notes, rune circle, galaxy orbit, angel and dragon wings, ice crystals, wisps, starfall, rainbow comet, moonbeam and forest spirits.
+- Saved looks keep their meaning: every list kept its first eight entries and only grew. Server validation reads the new list lengths from `src/appearance.ts`.
+- **Sound (`src/audio.ts`):** original music and effects synthesised live with Web Audio — no audio files or licences. Music has three moods that change on a bar line: mellow lo-fi by day, soft pads and celesta at night/dusk, and chiptune while a game is open. Effects cover menus, footsteps, coins, gifts, level-ups, wardrobe changes, each pet, the bell, swing, slide, bench and cabinet, plus per-game events (eat, brick, paddle, jump, hits, explosions, boss, power-up, win). Sound stays opt-in; Settings has separate **Sound effects** and **Background music** switches. Game sounds only read the simulation, so server replay validation is unchanged.
+
 ## KayKit character swap — 3 October 2026
 
 Avatars now use the free KayKit Adventurers pack (CC0). `scripts/build_kaykit_character.mjs` merges the Knight, Barbarian, Mage, Rogue and hooded Rogue parts onto one shared rig and strips weapons and baked clips, giving a ~0.7 MB `public/models/neighbour-kaykit.glb` (the previous model was 3.3 MB). `src/character.ts` keeps the same avatar API: the existing arm/leg/head controls and Blender interaction scenes drive the KayKit bones, the skin and main outfit swatches are tinted per player, and the hips lift while seated so benches, the swing and the slide line up. Saved clothing/hair indices are unchanged in range but now point to KayKit outfits and heads.

@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { clothingNames, hairNames } from "../src/appearance.ts";
+import {
+  clothingNames,
+  hairNames,
+  petNames,
+  accessoryNames,
+} from "../src/appearance.ts";
 
 const file = readFileSync(
   new URL("../public/models/neighbour-kaykit.glb", import.meta.url),
@@ -16,7 +21,9 @@ test("KayKit character fits the download budget and has one shared rig", () => {
   assert.equal(file.toString("utf8", 0, 4), "glTF");
   assert.ok(file.length < 1_500_000, "Character download budget: 1.5MB");
   assert.equal(gltf.animations?.length ?? 0, 0, "Baked clips are stripped");
-  const joints = new Set(gltf.skins.map((s: { joints: number[] }) => s.joints.join()));
+  const joints = new Set(
+    gltf.skins.map((s: { joints: number[] }) => s.joints.join()),
+  );
   assert.equal(joints.size, 1, "Every part binds to the same skeleton");
   for (const side of ["l", "r"])
     for (const [parent, child] of [
@@ -34,13 +41,35 @@ test("KayKit character fits the download budget and has one shared rig", () => {
 });
 
 test("every wardrobe choice has its KayKit meshes", () => {
-  // Mirrors bodySets/headSets in src/character.ts; indices are saved, so the
-  // option counts must stay at eight.
-  assert.equal(clothingNames.length, 8);
-  assert.equal(hairNames.length, 8);
+  // Saved looks store indices, so lists only ever grow; each has 20+ choices.
+  assert.ok(clothingNames.length >= 20);
+  assert.ok(hairNames.length >= 20);
+  assert.ok(petNames.length > 20);
+  assert.ok(accessoryNames.length > 20);
+  assert.deepEqual(clothingNames.slice(0, 2), [
+    "Ranger tunic",
+    "Ranger tunic & cape",
+  ]);
+  assert.deepEqual(hairNames.slice(5, 8), [
+    "Wizard hat",
+    "Knight helmet",
+    "Bear hat",
+  ]);
   for (const who of ["Rogue", "Mage", "Knight", "Barbarian"]) {
-    for (const part of ["Body", "ArmLeft", "ArmRight", "LegLeft", "LegRight", "Head", "Cape"])
-      assert.notEqual(node(`${who}_${part}`)?.mesh, undefined, `${who}_${part}`);
+    for (const part of [
+      "Body",
+      "ArmLeft",
+      "ArmRight",
+      "LegLeft",
+      "LegRight",
+      "Head",
+      "Cape",
+    ])
+      assert.notEqual(
+        node(`${who}_${part}`)?.mesh,
+        undefined,
+        `${who}_${part}`,
+      );
   }
   assert.notEqual(node("Rogue_Head_Hooded")?.skin, undefined);
   for (const [hat, bone] of [
@@ -50,20 +79,25 @@ test("every wardrobe choice has its KayKit meshes", () => {
   ])
     assert.ok(node(bone).children.includes(gltf.nodes.indexOf(node(hat))), hat);
   const weapons = gltf.nodes.filter((n: { name: string }) =>
-    /Sword|Axe|Shield|Crossbow|Knife|Staff|Wand|Spellbook|Mug|Throwable/.test(n.name),
+    /Sword|Axe|Shield|Crossbow|Knife|Staff|Wand|Spellbook|Mug|Throwable/.test(
+      n.name,
+    ),
   );
   assert.deepEqual(weapons, [], "No weapons or props are shipped");
-  assert.deepEqual(
-    gltf.materials.map((m: { name: string }) => m.name).sort(),
-    ["barbarian", "knight", "mage", "rogue"],
-  );
+  assert.deepEqual(gltf.materials.map((m: { name: string }) => m.name).sort(), [
+    "barbarian",
+    "knight",
+    "mage",
+    "rogue",
+  ]);
 });
 
 test("skinned parts have finite, normalised weights on valid joints", () => {
   const read = (id: number, row: number, col: number) => {
     const a = gltf.accessors[id],
       view = gltf.bufferViews[a.bufferView];
-    const size = a.componentType === 5126 ? 4 : a.componentType === 5123 ? 2 : 1;
+    const size =
+      a.componentType === 5126 ? 4 : a.componentType === 5123 ? 2 : 1;
     const comps = a.type === "VEC4" ? 4 : 1;
     const offset =
       binaryStart +
@@ -80,7 +114,9 @@ test("skinned parts have finite, normalised weights on valid joints", () => {
     return a.normalized ? raw / (size === 2 ? 65535 : 255) : raw;
   };
   let weighted = 0;
-  for (const n of gltf.nodes.filter((n: { skin?: number }) => n.skin !== undefined)) {
+  for (const n of gltf.nodes.filter(
+    (n: { skin?: number }) => n.skin !== undefined,
+  )) {
     const skin = gltf.skins[n.skin];
     for (const p of gltf.meshes[n.mesh].primitives) {
       const weights = p.attributes.WEIGHTS_0,
@@ -94,7 +130,10 @@ test("skinned parts have finite, normalised weights on valid joints", () => {
           assert.ok(read(joints, v, c) < skin.joints.length);
           total += w;
         }
-        assert.ok(Math.abs(total - 1) < 0.02, "No unweighted or exploding skin vertices");
+        assert.ok(
+          Math.abs(total - 1) < 0.02,
+          "No unweighted or exploding skin vertices",
+        );
       }
       weighted += count;
     }

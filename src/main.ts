@@ -1,3 +1,4 @@
+import { audio, petSound, type Sfx } from "./audio";
 import { celebrate } from "./celebration";
 import {
   loadCharacter,
@@ -138,8 +139,6 @@ let is2d = false;
 let nearId = "";
 let toastTimer = 0;
 let lastFocus: HTMLElement | null = null;
-let audio: AudioContext | null = null;
-let tuneTimer = 0;
 let activeMinutes = 0;
 const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
@@ -202,32 +201,28 @@ function toast(message: string) {
   clearTimeout(toastTimer);
   toastTimer = window.setTimeout(() => el.classList.remove("show"), 4200);
 }
-function beep(freq = 660) {
-  if (!save.sound) return;
-  try {
-    audio ??= new AudioContext();
-    void audio.resume();
-    const o = audio.createOscillator(),
-      g = audio.createGain();
-    o.type = "sine";
-    o.frequency.value = freq;
-    g.gain.setValueAtTime(0.035, audio.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.24);
-    o.connect(g);
-    g.connect(audio.destination);
-    o.start();
-    o.stop(audio.currentTime + 0.25);
-  } catch {}
+function beep(name: Sfx = "click") {
+  audio.play(name);
 }
 function startTune() {
-  clearInterval(tuneTimer);
-  if (!save.sound) return;
-  let i = 0;
-  const notes = [261.63, 329.63, 392, 329.63, 293.66, 349.23, 440, 349.23];
-  tuneTimer = window.setInterval(() => {
-    if (!document.hidden && !game) beep(notes[i++ % notes.length]);
-  }, 1200);
+  audio.configure(save.sound, save.music);
+  updateMusic();
 }
+function updateMusic() {
+  const hour = Number(
+    new Intl.DateTimeFormat("en-GB", {
+      hour: "numeric",
+      hourCycle: "h23",
+      timeZone: "Asia/Singapore",
+    }).format(new Date()),
+  );
+  const night =
+    save.light === "night" ||
+    save.light === "dusk" ||
+    (save.light === "auto" && (hour >= 19 || hour < 7));
+  audio.setTheme(game ? "game" : night ? "night" : "day");
+}
+let shownLevel = 0;
 function renderStats() {
   document.querySelector("#coin-count")!.textContent =
     `${save.coins.length} / 5`;
@@ -235,6 +230,9 @@ function renderStats() {
     { length: 5 },
     (_, i) => `<i class="${i < save.coins.length ? "found" : ""}">✦</i>`,
   ).join("");
+  const level = 1 + Math.floor(save.xp / 100);
+  if (shownLevel && level > shownLevel) beep("levelup");
+  shownLevel = level;
   document.querySelector("#level-label")!.textContent =
     `LEVEL ${1 + Math.floor(save.xp / 100)} · ${save.xp >= 200 ? "NEIGHBOURHOOD REGULAR" : "NEW KID ON THE BLOCK"}`;
   (document.querySelector("#xp-fill") as HTMLElement).style.width =
@@ -275,7 +273,7 @@ function collect(id: string) {
   save.coins.push(id);
   progress("coin", id);
   save.xp += 10;
-  beep(880);
+  beep("coin");
   if (save.coins.length === 5) {
     save.hat = 3;
     if (!save.unlockedHats.includes(3)) save.unlockedHats.push(3);
@@ -307,13 +305,15 @@ function openShell(kicker: string, keepPreview = false) {
   lastFocus = document.activeElement as HTMLElement;
   document.querySelector("#modal-kicker")!.textContent = kicker;
   modal.className = "";
-  if (!modal.open) modal.showModal();
+  if (!modal.open) {
+    modal.showModal();
+    beep("open");
+  }
   if (world) {
     world.paused = true;
     world.keys.clear();
     world.joystick = { x: 0, y: 0 };
   }
-  beep(440);
 }
 function close() {
   disposeCelebration?.();
@@ -324,6 +324,7 @@ function close() {
   socialPanel = "";
   game?.dispose();
   game = null;
+  if (modal.open) beep("close");
   modal.close();
   if (world) {
     world.paused = false;
@@ -449,7 +450,7 @@ function open(id: string) {
       )
       .join(
         "",
-      )}</div><section class="character-options">${wardrobeTab === "style" ? `<h3>Find your favourite fit.</h3><p class="fine-print">Outfit colour tints the tunic, robe, cape or hood.</p>${choices("clothing", clothingNames)}<label class="field-label">OUTFIT COLOUR</label><div class="swatches">${outfits.map((c, i) => `<button data-outfit="${i}" style="--swatch:${c}" class="${save.outfit === i ? "active" : ""}" aria-label="${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][i]} outfit" aria-pressed="${save.outfit === i}"></button>`).join("")}</div><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">TOP IT OFF</label><div class="hat-options">${["No hat", "Bucket", "Cap", "Sprout"].map((n, i) => `<button data-hat="${i}" ${save.unlockedHats.includes(i) ? "" : "disabled"} class="${save.hat === i ? "active" : ""}" aria-pressed="${save.hat === i}">${n}${save.unlockedHats.includes(i) ? "" : " · locked"}</button>`).join("")}</div>` : wardrobeTab === "hair" ? `<h3>Heads, hoods and hats.</h3><p class="fine-print">Mix any head with any outfit. An earned hat replaces the helmet or wizard hat.</p>${choices("hair", hairNames)}` : wardrobeTab === "pets" ? `<h3>A little friend, always.</h3><p class="fine-print">Your companion follows you around the neighbourhood.</p>${choices("pet", petNames)}` : `<h3>A little everyday magic.</h3><p class="fine-print">Floating charms, soft wings and tiny spells.</p>${choices("accessory", accessoryNames)}`}</section><p class="fine-print">All looks are free and cosmetic. They never change your score.</p>${actionButton("done-look", "Love it. Let’s play →")}</div></div>`;
+      )}</div><section class="character-options">${wardrobeTab === "style" ? `<h3>Find your favourite fit.</h3><p class="fine-print">${clothingNames.length} adventurer outfits to mix. Outfit colour tints the tunic, robe, cape or hood.</p>${choices("clothing", clothingNames)}<label class="field-label">OUTFIT COLOUR</label><div class="swatches">${outfits.map((c, i) => `<button data-outfit="${i}" style="--swatch:${c}" class="${save.outfit === i ? "active" : ""}" aria-label="${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][i]} outfit" aria-pressed="${save.outfit === i}"></button>`).join("")}</div><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">TOP IT OFF</label><div class="hat-options">${["No hat", "Bucket", "Cap", "Sprout"].map((n, i) => `<button data-hat="${i}" ${save.unlockedHats.includes(i) ? "" : "disabled"} class="${save.hat === i ? "active" : ""}" aria-pressed="${save.hat === i}">${n}${save.unlockedHats.includes(i) ? "" : " · locked"}</button>`).join("")}</div>` : wardrobeTab === "hair" ? `<h3>Heads, hoods and hats.</h3><p class="fine-print">${hairNames.length} looks, from ears and crowns to helmets. An earned hat replaces any headgear.</p>${choices("hair", hairNames)}` : wardrobeTab === "pets" ? `<h3>A little friend, always.</h3><p class="fine-print">${petNames.length - 1} companions follow you around the neighbourhood, from otters to a merlion cub.</p>${choices("pet", petNames)}` : `<h3>A little everyday magic.</h3><p class="fine-print">${accessoryNames.length - 1} sparkling spells: stardust, wings, auroras and rune circles.</p>${choices("accessory", accessoryNames)}`}</section><p class="fine-print">All looks are free and cosmetic. They never change your score.</p>${actionButton("done-look", "Love it. Let’s play →")}</div></div>`;
     const preview = body.querySelector<HTMLElement>(".character-preview")!;
     if (!is2d) {
       try {
@@ -542,7 +543,7 @@ function open(id: string) {
         "",
       )}</div><div class="button-row">${actionButton("start-away", "Save & step away →")}${actionButton("save-away", "Save preference", "secondary")}</div><p class="fine-print">Your saved avatar stays in this neighbourhood while you’re away. Each player can send three challenges a day to different neighbours. Your saved score can receive unlimited challenges without losing points. Away activities don’t earn XP or game scores; daily ranking medals still apply. Keep this server running so other visitors can see you.</p>`;
   } else if (id === "settings") {
-    body.innerHTML = `<button class="secondary" data-account>Account & privacy →</button><h2>Your kind of comfortable.</h2><p class="lead">Make the neighbourhood feel right.</p><label class="settings-row"><span><strong>Neighbourhood sounds</strong><small>A soft, original melody and playful little sounds</small></span><input id="setting-sound" type="checkbox" ${save.sound ? "checked" : ""}></label><label class="settings-row"><span><strong>Reduce motion</strong><small>Less decorative movement and a quieter interface</small></span><input id="setting-reduced" type="checkbox" ${save.reduced ? "checked" : ""}></label><label class="settings-row"><span><strong>Time of day</strong><small>Singapore time, or your favourite atmosphere</small></span><select id="setting-light">${[
+    body.innerHTML = `<button class="secondary" data-account>Account & privacy →</button><h2>Your kind of comfortable.</h2><p class="lead">Make the neighbourhood feel right.</p><label class="settings-row"><span><strong>Sound effects</strong><small>Footsteps, pets, arcade blips and sparkles</small></span><input id="setting-sound" type="checkbox" ${save.sound ? "checked" : ""}></label><label class="settings-row"><span><strong>Background music</strong><small>Original lo-fi by day, dreamy pads at night, chiptune in the arcade</small></span><input id="setting-music" type="checkbox" ${save.music ? "checked" : ""} ${save.sound ? "" : "disabled"}></label><label class="settings-row"><span><strong>Reduce motion</strong><small>Less decorative movement and a quieter interface</small></span><input id="setting-reduced" type="checkbox" ${save.reduced ? "checked" : ""}></label><label class="settings-row"><span><strong>Time of day</strong><small>Singapore time, or your favourite atmosphere</small></span><select id="setting-light">${[
       ["auto", "Follow SGT"],
       ["day", "Daylight"],
       ["dusk", "Golden hour"],
@@ -718,7 +719,7 @@ async function startGame(id: GameId, defender = "", dare = "") {
               "afterend",
               `<div class="round-breakdown"><span>Cosmetic XP<strong>${result ? "+20" : "0"}</strong><small>For your avatar level</small></span><span>Today’s rank<strong>${result?.ranked && standing ? "#" + standing.rank : "Practice"}</strong><small>${result?.ranked && standing && standing.rank <= 3 ? `+${4 - standing.rank} medals if held at midnight` : "Medals are separate from game scores"}</small></span></div>`,
             );
-          beep(score > target ? 880 : 550);
+          beep(score > target ? "win" : "finish");
         } catch (error) {
           if (generation !== gameGeneration) return;
           body.innerHTML =
@@ -732,7 +733,7 @@ async function startGame(id: GameId, defender = "", dare = "") {
       };
       await render();
     },
-    () => beep(620),
+    (name) => beep(name),
     run?.seed,
   );
 }
@@ -835,7 +836,7 @@ document.addEventListener("click", (e) => {
       world?.updateAvatar();
       open("shop");
       toast("A new look, on the house. +30 XP");
-      beep(880);
+      beep("gift");
     }
     return;
   }
@@ -850,6 +851,17 @@ document.addEventListener("click", (e) => {
   ] as const)
     if (b.dataset[key] !== undefined) {
       save[key] = Number(b.dataset[key]);
+      beep(
+        key === "pet"
+          ? save.pet
+            ? petSound(save.pet)
+            : "click"
+          : key === "accessory"
+            ? save.accessory
+              ? "sparkle"
+              : "click"
+            : "equip",
+      );
       persist();
       world?.updateAvatar();
       const scroll = modal.scrollTop;
@@ -964,7 +976,7 @@ document.addEventListener("click", (e) => {
       return;
     }
     if (a === "pet") {
-      beep(240);
+      beep("meow");
       toast("Prrrr. You have been approved by Kopi.");
       return;
     }
@@ -1009,24 +1021,33 @@ document.addEventListener("change", (e) => {
   const el = e.target as HTMLInputElement;
   if (el.id === "setting-sound") {
     save.sound = el.checked;
-    beep();
+    document
+      .querySelector<HTMLInputElement>("#setting-music")
+      ?.toggleAttribute("disabled", !el.checked);
     startTune();
+    beep("click");
   }
   if (el.id === "setting-reduced") {
     save.reduced = el.checked;
     world?.setReduced(el.checked);
   }
+  if (el.id === "setting-music") {
+    save.music = el.checked;
+    startTune();
+    beep("click");
+  }
   if (el.id === "setting-light") {
     save.light = el.value;
     world?.setLighting(el.value);
+    updateMusic();
   }
   persist();
 });
 document.querySelector("#sound-toggle")!.addEventListener("click", () => {
   save.sound = !save.sound;
   persist();
-  beep();
   startTune();
+  beep("click");
 });
 document
   .querySelector("#rotate-left")!
@@ -1125,7 +1146,22 @@ window.addEventListener("world-interaction", (event) => {
     );
     void startGame("noodle");
   }
-  if (d.phase === "playing" && d.id === "bell") beep(1100);
+  if (d.phase === "playing")
+    beep(
+      d.id === "bell"
+        ? "bell"
+        : d.id === "swing"
+          ? "swing"
+          : d.id === "dragon"
+            ? "slide"
+            : d.id === "pet"
+              ? "meow"
+              : d.id.startsWith("bench")
+                ? "page"
+                : d.id.startsWith("cabinet")
+                  ? "arcade"
+                  : "click",
+    );
   if (d.phase === "error") toast(d.message);
   if (d.phase === "complete") {
     if (d.id === "pet" && !save.cat) {
@@ -1699,3 +1735,14 @@ if (playtestEnabled)
       "beforeend",
       '<button class="phone-test-button" data-action="phone-test">Phone test · feedback</button>',
     );
+
+// Sound: browsers only start audio after a gesture, so unlock on the first
+// tap or key. Music follows the time of day and switches to chiptune in games.
+startTune();
+for (const type of ["pointerdown", "keydown"])
+  document.addEventListener(type, () => audio.unlock(), { passive: true });
+window.setInterval(updateMusic, 1000);
+window.setInterval(() => {
+  if (world && !world.paused && !modal.open && world.player?.moving)
+    beep("step");
+}, 300);

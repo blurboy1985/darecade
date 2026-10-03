@@ -44,6 +44,7 @@ export type Save = {
   rounds: number;
   best: Record<GameId, number>;
   sound: boolean;
+  music: boolean;
   reduced: boolean;
   twoD: boolean;
   light: string;
@@ -93,6 +94,7 @@ export function fresh(): Save {
     awaySince: 0,
     away: false,
     sound: false,
+    music: true,
     reduced:
       typeof matchMedia === "function" &&
       matchMedia("(prefers-reduced-motion: reduce)").matches,
@@ -143,7 +145,7 @@ export function normalise(raw: unknown, fallback: Save): Save {
   for (const key of ["xp", "rounds"] as const)
     if (Number.isFinite(r[key]) && r[key]! >= 0)
       s[key] = Math.floor(Math.min(r[key]!, 1e8));
-  for (const key of ["sound", "reduced", "cat", "twoD"] as const)
+  for (const key of ["sound", "music", "reduced", "cat", "twoD"] as const)
     if (typeof r[key] === "boolean") s[key] = r[key]!;
   for (const key of ["visited", "claims"] as const)
     if (Array.isArray(r[key]))
