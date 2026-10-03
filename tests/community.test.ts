@@ -440,12 +440,48 @@ test("account, saved avatar and session survive a database restart", async () =>
       hair: 7,
       accessory: 7,
     });
+    // Simulate a profile saved before the gender preference was retired.
+    store.db.exec("DELETE FROM rules WHERE key='gender_retired'");
+    store.db
+      .prepare(
+        "UPDATE profiles SET progress=json_set(progress,'$.gender',1,'$.xp',75) WHERE player=?",
+      )
+      .run(account.me.id);
+    store.db
+      .prepare("UPDATE players SET look=json_set(look,'$.gender',1) WHERE id=?")
+      .run(account.me.id);
     store.close();
     store = new Store(join(directory, "test.sqlite"));
     community = new Community(store, { directory });
     assert.equal(community.lookup(account.token), account.me.id);
     assert.equal(community.privateProfile(account.me.id).name, "Moon Mochi");
-    assert.equal(community.privateProfile(account.me.id).progress.gender, 1);
+    assert.equal(
+      Object.hasOwn(community.privateProfile(account.me.id).progress, "gender"),
+      false,
+    );
+    assert.equal(community.privateProfile(account.me.id).progress.xp, 75);
+    assert.equal(
+      Object.hasOwn(
+        JSON.parse(
+          store.db
+            .prepare("SELECT progress FROM profiles WHERE player=?")
+            .get(account.me.id).progress,
+        ),
+        "gender",
+      ),
+      false,
+    );
+    assert.equal(
+      Object.hasOwn(
+        JSON.parse(
+          store.db
+            .prepare("SELECT look FROM players WHERE id=?")
+            .get(account.me.id).look,
+        ),
+        "gender",
+      ),
+      false,
+    );
     assert.equal(community.privateProfile(account.me.id).progress.hair, 7);
     assert.equal(community.privateProfile(account.me.id).progress.clothing, 7);
     assert.equal(community.privateProfile(account.me.id).progress.accessory, 7);
@@ -521,7 +557,7 @@ test("nickname and appearance edits validate before writing and never award rank
     });
     assert.equal(p.name, "Moon Mochi");
     assert.equal(p.progress.xp, 0);
-    assert.equal(p.progress.gender, 3);
+    assert.equal(Object.hasOwn(p.progress, "gender"), false);
     assert.equal(p.progress.hair, 7);
     const other = s.community.join(consent);
     assert.equal(
@@ -536,7 +572,8 @@ test("nickname and appearance edits validate before writing and never award rank
       pet: "7",
       accessory: 8,
     });
-    for (const key of ["gender", "clothing", "hair", "pet", "accessory"])
+    assert.equal(Object.hasOwn(invalid.progress, "gender"), false);
+    for (const key of ["clothing", "hair", "pet", "accessory"])
       assert.equal(invalid.progress[key], 0);
   } finally {
     s.close();

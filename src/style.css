@@ -3088,12 +3088,6 @@ dialog::backdrop {
   font-size: 12px;
   margin: 4px 0;
 }
-.avatar-identity {
-  border-block: 1px solid #d9dfcf;
-  padding: 13px 0;
-  margin: 16px 0;
-}
-.avatar-identity summary,
 .scoring-guide summary {
   cursor: pointer;
   font-weight: 700;

@@ -1,5 +1,4 @@
 // Shared by the renderer and server validation; indices remain stable for saved looks.
-export const genderNames = ["Not specified", "Girl", "Boy", "Non-binary"];
 export const clothingNames = [
   "Ranger tunic",
   "Ranger tunic & cape",
@@ -41,7 +40,6 @@ export const accessoryNames = [
   "Bubble spell",
 ];
 export const appearanceLimits = {
-  gender: genderNames.length,
   clothing: clothingNames.length,
   hair: hairNames.length,
   pet: petNames.length,

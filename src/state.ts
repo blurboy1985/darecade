@@ -28,7 +28,6 @@ export type Save = {
   version: 1;
   outfit: number;
   skin: number;
-  gender: number;
   clothing: number;
   hair: number;
   pet: number;
@@ -74,7 +73,6 @@ export function fresh(): Save {
     version: 1,
     outfit: 0,
     skin: 0,
-    gender: 0,
     clothing: 0,
     hair: 0,
     pet: 0,
@@ -124,7 +122,6 @@ export function normalise(raw: unknown, fallback: Save): Save {
     "skin",
     "hat",
     "gift",
-    "gender",
     "clothing",
     "hair",
     "pet",

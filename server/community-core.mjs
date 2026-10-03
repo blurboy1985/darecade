@@ -19,7 +19,6 @@ const lookKeys = [
   "outfit",
   "skin",
   "hat",
-  "gender",
   "clothing",
   "hair",
   "pet",
@@ -82,6 +81,17 @@ export class CommunityCore {
   CREATE TABLE IF NOT EXISTS reports(id TEXT PRIMARY KEY,reporter TEXT REFERENCES players(id),target TEXT REFERENCES players(id),reason TEXT,created INTEGER,status TEXT DEFAULT 'open');
   CREATE TABLE IF NOT EXISTS blocks(player TEXT REFERENCES players(id),target TEXT REFERENCES players(id),PRIMARY KEY(player,target));
   CREATE TABLE IF NOT EXISTS suspensions(player TEXT PRIMARY KEY REFERENCES players(id),created INTEGER);`);
+    // Retire the unused preference without changing avatars or earned progress.
+    this.store.transaction(() => {
+      if (
+        this.db.prepare("SELECT 1 FROM rules WHERE key='gender_retired'").get()
+      )
+        return;
+      this.db
+        .exec(`UPDATE profiles SET progress=json_remove(progress,'$.gender') WHERE json_type(progress,'$.gender') IS NOT NULL;
+        UPDATE players SET look=json_remove(look,'$.gender') WHERE json_type(look,'$.gender') IS NOT NULL;
+        INSERT INTO rules VALUES('gender_retired','1');`);
+    });
     this.db
       .prepare("INSERT OR IGNORE INTO rules VALUES('verified_rules_from',?)")
       .run(day(this.now()));

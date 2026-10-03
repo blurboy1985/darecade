@@ -1,4 +1,3 @@
-import { genderNames } from "./appearance";
 import { celebrate } from "./celebration";
 import {
   loadCharacter,
@@ -85,7 +84,6 @@ const preferenceKeys = [
   "outfit",
   "skin",
   "hat",
-  "gender",
   "clothing",
   "hair",
   "pet",
@@ -428,7 +426,7 @@ function open(id: string) {
     body.innerHTML = `<h2>${taken ? "Good choice, neighbour." : "Something for your noggin."}</h2><p class="lead">${taken ? "Your free gift is in your wardrobe. Come back any day." : "Pick one. It’s yours to keep. No catch, no lucky dip."}</p><div class="gift-grid">${["The Kopitiam Bucket", "Lilac Daydream", "Just a Little Sprout"].map((n, i) => `<button class="gift-option ${taken && save.gift === i ? "chosen" : ""}" data-gift="${i}" ${taken ? "disabled" : ""}><span class="hat-art hat-${i}">${["▰", "◒", "♧"][i]}</span><strong>${n}</strong><span>${taken ? (save.gift === i ? "YOURS TO KEEP" : "ANOTHER DAY") : "FREE · CHOOSE ME"}</span></button>`).join("")}</div><div class="note">${icon("leaf")} A new choice each day, Singapore time. Miss a day? You won’t lose a thing.</div>${taken ? actionButton("wardrobe", "Wear it your way →") : ""}`;
   } else if (id === "wardrobe") {
     const choices = (
-      key: "gender" | "clothing" | "hair" | "pet" | "accessory",
+      key: "clothing" | "hair" | "pet" | "accessory",
       names: string[],
     ) =>
       `<div class="look-options">${names.map((name, i) => `<button class="secondary ${save[key] === i ? "chosen" : ""}" data-${key}="${i}" aria-pressed="${save[key] === i}">${name}</button>`).join("")}</div>`;
@@ -436,7 +434,7 @@ function open(id: string) {
       currentProfile?.name ||
       shared?.players.find((p) => p.id === shared?.me)?.name ||
       "New neighbour";
-    body.innerHTML = `<div class="wardrobe-layout"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${escapeText(nickname)}</strong><small>DRAG TO TURN · SAVES AS YOU GO</small><span class="look-caption">${clothingNames[save.clothing]} · ${hairNames[save.hair]}</span></div><div class="wardrobe-controls"><span class="eyebrow">YOUR NEIGHBOURHOOD SELF</span><h2>Make it you.</h2><details class="look-identity" ${innerWidth > 600 ? "open" : ""}><summary>Name & avatar gender</summary><form id="nickname-form"><label class="field-label" for="nickname">YOUR NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" value="${escapeText(nickname)}" minlength="2" maxlength="20" autocomplete="off" required><button class="secondary" type="submit">Save name</button></div><p class="fine-print">Visible to everyone. Use a nickname, not your real name or contact details.</p><p id="nickname-status" role="status"></p></form><details class="avatar-identity"><summary>Avatar gender · ${genderNames[save.gender]}</summary><p class="fine-print">A character choice only. Every hairstyle and outfit is available to everyone.</p>${choices("gender", genderNames)}</details></details><div class="look-tabs" aria-label="Wardrobe sections">${[
+    body.innerHTML = `<div class="wardrobe-layout"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${escapeText(nickname)}</strong><small>DRAG TO TURN · SAVES AS YOU GO</small><span class="look-caption">${clothingNames[save.clothing]} · ${hairNames[save.hair]}</span></div><div class="wardrobe-controls"><span class="eyebrow">YOUR NEIGHBOURHOOD SELF</span><h2>Make it you.</h2><details class="look-identity" ${innerWidth > 600 ? "open" : ""}><summary>Your nickname</summary><form id="nickname-form"><label class="field-label" for="nickname">YOUR NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" value="${escapeText(nickname)}" minlength="2" maxlength="20" autocomplete="off" required><button class="secondary" type="submit">Save name</button></div><p class="fine-print">Visible to everyone. Use a nickname, not your real name or contact details.</p><p id="nickname-status" role="status"></p></form></details><div class="look-tabs" aria-label="Wardrobe sections">${[
       ["style", "Outfits"],
       ["hair", "Head"],
       ["pets", "Pets"],
@@ -841,7 +839,6 @@ document.addEventListener("click", (e) => {
     "outfit",
     "skin",
     "hat",
-    "gender",
     "clothing",
     "hair",
     "pet",
@@ -1398,7 +1395,6 @@ function presenceData() {
       outfit: save.outfit,
       skin: save.skin,
       hat: save.hat,
-      gender: save.gender,
       clothing: save.clothing,
       hair: save.hair,
       pet: save.pet,

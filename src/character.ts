@@ -13,7 +13,6 @@ export type Look = {
   outfit: number;
   skin: number;
   hat: number;
-  gender?: number;
   clothing?: number;
   hair?: number;
   pet?: number;

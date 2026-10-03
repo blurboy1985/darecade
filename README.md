@@ -173,7 +173,7 @@ Increment the model URL revision in `src/character.ts` when exporting a changed 
 
 ## My Look and scoring refresh — 3 October 2026
 
-My Look now has a server-saved nickname (2–20 letters/numbers/spaces/hyphens), an optional avatar gender preference, eight outfits and eight hairstyles. Every style is available for every gender. The double buns and long layers are rebuilt for the chibi head. New styles include a petal dress, cardigan, sports kit, starlight jacket, bob, ponytail, curls and braids. All new fitted hair and clothing are authored in the editable Blender master.
+My Look has a server-saved nickname (2–20 letters/numbers/spaces/hyphens), eight KayKit outfits and eight head options. Gender is not collected. Mix any head with any outfit; clothes include ranger, wizard, knight and explorer styles, with or without a cape.
 
 Seven companions include a bunny, fox, small dragon and owl; seven magic choices include a moon halo, crystal crown, rainbow ribbon and bubbles. A lightweight Three.js star burst celebrates completed rounds, releases its GPU resources, and respects reduced motion and 2D mode. The three decorative podium mannequins have been removed from the central plaza; actual shared players remain.
 
