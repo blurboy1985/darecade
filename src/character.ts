@@ -36,6 +36,7 @@ export type Avatar = {
   look: Look;
   last: T.Vector3;
   materials: Map<string, T.MeshStandardMaterial>;
+  footrest: T.Mesh;
   moving: boolean;
   rig: Map<string, { bone: T.Object3D; rest: T.Quaternion }>;
 };
@@ -43,6 +44,12 @@ let template: T.Group;
 let loading: Promise<void> | null = null;
 export function loadCharacter() {
   return (loading ??= new GLTFLoader()
+    .register((parser) => {
+      // Embedded GLB images are blob URLs. Load them as images (img-src blob:)
+      // rather than ImageBitmapLoader's fetch, which our connect-src forbids.
+      parser.textureLoader = new T.TextureLoader(parser.options.manager);
+      return { name: "DarecadeEmbeddedImages" };
+    })
     .loadAsync("/models/neighbour-kaykit.glb?v=kaykit-1")
     .then((g) => {
       template = g.scene;
@@ -82,7 +89,10 @@ function tintedTexture(src: T.Texture, skin: string, outfit: string) {
   const key = `${src.uuid}|${skin}|${outfit}`;
   const hit = tintCache.get(key);
   if (hit) return hit;
-  const img = src.image as CanvasImageSource & { width: number; height: number };
+  const img = src.image as CanvasImageSource & {
+    width: number;
+    height: number;
+  };
   if (typeof document === "undefined" || !img?.width) return src;
   const canvas = document.createElement("canvas");
   canvas.width = img.width;
@@ -97,7 +107,8 @@ function tintedTexture(src: T.Texture, skin: string, outfit: string) {
     const data = ctx.getImageData(col * cw, row * ch, cw, ch);
     const px = data.data;
     // Keep each swatch's light-to-dark gradient but take the hue from the target.
-    const lum = (i: number) => 0.3 * px[i] + 0.59 * px[i + 1] + 0.11 * px[i + 2];
+    const lum = (i: number) =>
+      0.3 * px[i] + 0.59 * px[i + 1] + 0.11 * px[i + 2];
     let mean = 0;
     for (let i = 0; i < px.length; i += 4) mean += lum(i);
     mean = Math.max(1, mean / (px.length / 4));
@@ -121,6 +132,7 @@ function tintedTexture(src: T.Texture, skin: string, outfit: string) {
   return tex;
 }
 const unitBall = new T.SphereGeometry(1, 12, 8);
+const stepGeometry = new T.BoxGeometry(0.78, 0.38, 0.64);
 const mats = new Map<string, T.MeshStandardMaterial>();
 function mat(color: string, glow = false) {
   const key = color + glow;
@@ -169,6 +181,12 @@ export function createAvatar(
   const root = new T.Group();
   root.position.set(x, 0.1, z);
   parent.add(root);
+  // A small step lets the shorter adventurers reach the full-size cabinets.
+  const footrest = new T.Mesh(stepGeometry, mat("#94795c"));
+  footrest.visible = false;
+  footrest.castShadow = true;
+  footrest.receiveShadow = true;
+  root.add(footrest);
   const model = cloneSkeleton(template) as T.Group;
   root.add(model);
   const materials = new Map<string, T.MeshStandardMaterial>();
@@ -224,13 +242,14 @@ export function createAvatar(
     },
     last: root.position.clone(),
     materials,
+    footrest,
     moving: false,
     rig,
   };
   root.add(a.hat, a.extras);
   root.userData.avatar = a;
   applyLook(a, a.look, color, skin);
-  poseSkin(a);
+  poseSkin(a, "idle");
   return a;
 }
 export function applyLook(
@@ -250,7 +269,10 @@ export function applyLook(
   const head = headSets[a.look.hair! % headSets.length];
   a.model.traverse((o) => {
     if (!(o instanceof T.Mesh)) return;
-    const [who, part] = [o.name.split("_")[0], o.name.slice(o.name.indexOf("_") + 1)];
+    const [who, part] = [
+      o.name.split("_")[0],
+      o.name.slice(o.name.indexOf("_") + 1),
+    ];
     if (bodyParts.includes(part)) o.visible = who === outfit;
     else if (part === "Cape") o.visible = cape && who === outfit;
     else if (o.name.includes("Head") || headwear.includes(o.name))
@@ -534,6 +556,12 @@ export function animateDetails(
   mode = "idle",
   reduced = false,
 ) {
+  if (a.root.userData.poseMode !== mode) {
+    a.root.userData.poseMode = mode;
+    a.root.userData.poseStarted = time;
+    a.root.userData.contactProps = new Map<string, T.Object3D>();
+  }
+  a.root.userData.poseTime = Math.max(0, time - a.root.userData.poseStarted);
   const travel = a.root.position.distanceTo(a.last);
   a.moving = travel > 0.008;
   a.last.copy(a.root.position);
@@ -586,6 +614,9 @@ export function animateDetails(
     mode === "think" ? 0.09 : 0,
   );
   a.spine.rotation.z = !performing && a.moving ? gait * 0.025 : 0;
+  // The older clip bends the whole root toward Kopi. Keep the larger KayKit
+  // head upright while crouching so its face does not intersect the cat.
+  a.spine.rotation.x = mode === "pet" ? -0.25 : 0;
   if (!performing && ["idle", "walk", "jog"].includes(mode)) {
     a.left.rotation.x = a.moving
       ? -a.legs[0].rotation.x * 0.65
@@ -611,7 +642,7 @@ export function animateDetails(
       child.rotation.z = t * 0.8 + i;
     }
   }
-  poseSkin(a);
+  poseSkin(a, mode);
   if (a.pet) {
     const target = new T.Vector3(0.8, 0.02, 0.9)
       .applyAxisAngle(new T.Vector3(0, 1, 0), a.root.rotation.y)
@@ -645,7 +676,47 @@ const axisZ = new T.Vector3(0, 0, 1);
 const rootQ = new T.Quaternion(),
   parentQ = new T.Quaternion(),
   targetQ = new T.Quaternion();
-function poseSkin(a: Avatar) {
+function poseSkin(a: Avatar, mode: string) {
+  const pitch = -(a.legs[0].rotation.x + a.legs[1].rotation.x) / 2;
+  const seated = ["rest", "bench", "swing", "dragon"].includes(mode)
+    ? T.MathUtils.clamp(pitch / 1.35, 0, 1)
+    : 0;
+  const reach = T.MathUtils.clamp(
+    Math.max(-a.left.rotation.x, -a.right.rotation.x) /
+      (mode === "bell" ? 1.85 : 1.2),
+    0,
+    1,
+  );
+  // A short hop reaches the bicycle bell without pushing the large head into it.
+  const bellHop =
+    mode === "bell"
+      ? 0.46 *
+        Math.sin(
+          Math.PI *
+            T.MathUtils.clamp((a.root.userData.poseTime - 0.4) / 2.3, 0, 1),
+        )
+      : 0;
+  const stepLift = mode === "arcade" ? 0.2 * reach : 0;
+  // The authored sit/swing/slide clips place the hips for the earlier, longer-
+  // legged rig (thigh at 0.73 m). KayKit hips sit at 0.45 m, so lift the body
+  // as the thighs come forward to keep seats, swings and the slide aligned.
+  a.model.position.set(
+    0,
+    0.28 * seated + bellHop + stepLift,
+    -0.22 * seated +
+      (mode === "bell"
+        ? 0.28
+        : mode === "arcade"
+          ? 0.08
+          : mode === "pet"
+            ? -0.08
+            : 0) *
+        reach,
+  );
+  const stepHeight = Math.max(0, a.root.position.y + stepLift - 0.1);
+  a.footrest.visible = mode === "arcade" && stepHeight > 0.05;
+  a.footrest.scale.y = stepHeight / 0.38;
+  a.footrest.position.set(0, 0.1 + stepHeight / 2 - a.root.position.y, 0.08);
   a.root.updateMatrixWorld(true);
   a.root.getWorldQuaternion(rootQ);
   const set = (name: string, delta: T.Quaternion) => {
@@ -679,19 +750,113 @@ function poseSkin(a: Avatar) {
     set(bone("lowerleg"), leg);
     set(bone("foot"), leg);
   }
-  // The authored sit/swing/slide clips place the hips for the earlier, longer-
-  // legged rig (thigh at 0.73 m). KayKit hips sit at 0.45 m, so lift the body
-  // as the thighs come forward to keep seats, swings and the slide aligned.
-  const pitch = -(a.legs[0].rotation.x + a.legs[1].rotation.x) / 2;
-  const seated = Math.min(1, Math.max(0, pitch / 1.35));
-  a.model.position.y = 0.28 * seated;
-  // Shorter thighs also leave the seat behind the hips; sit back onto it.
-  a.model.position.z = -0.22 * seated;
+
+  fitHands(a, mode, reach);
   const pivot = new T.Vector3(0, 1.241 * KAYKIT_SCALE, 0);
   a.hat.quaternion.copy(head);
   a.hat.position.copy(pivot).sub(pivot.clone().applyQuaternion(head));
   a.hat.position.y += a.model.position.y;
+  a.hat.position.x += a.model.position.x;
+  a.hat.position.z += a.model.position.z;
+  a.extras.position.x = a.model.position.x;
   a.extras.position.y = a.model.position.y;
+  a.extras.position.z = a.model.position.z;
+}
+
+/** Match the existing animated props without stretching or rebuilding the skin. */
+function fitHands(a: Avatar, mode: string, weight: number) {
+  if (!["swing", "pet", "bell", "arcade"].includes(mode) || weight <= 0) return;
+  const prop = (name: string) => {
+    const cache = a.root.userData.contactProps as Map<string, T.Object3D>;
+    let nearest = cache?.get(name),
+      distance = Infinity;
+    if (!nearest) {
+      a.root.parent?.traverse((o) => {
+        if (o.name !== name) return;
+        const d = o
+          .getWorldPosition(new T.Vector3())
+          .distanceToSquared(a.root.position);
+        if (d < distance) {
+          nearest = o;
+          distance = d;
+        }
+      });
+      if (nearest) cache?.set(name, nearest);
+    }
+    return nearest
+      ? a.root.worldToLocal(nearest.getWorldPosition(new T.Vector3()))
+      : null;
+  };
+  const solve = (side: "r" | "l", goal: T.Vector3) => {
+    const upper = a.rig.get("upperarm" + side)!.bone;
+    const lower = a.rig.get("lowerarm" + side)!.bone;
+    const wrist = a.rig.get("wrist" + side)!.bone;
+    const start = upper.getWorldPosition(new T.Vector3());
+    const elbow = lower.getWorldPosition(new T.Vector3());
+    const hand = wrist.getWorldPosition(new T.Vector3());
+    const end = hand.clone().lerp(a.root.localToWorld(goal), weight);
+    const first = start.distanceTo(elbow),
+      second = elbow.distanceTo(hand);
+    const direction = end.clone().sub(start).normalize();
+    const distance = T.MathUtils.clamp(
+      start.distanceTo(end),
+      Math.abs(first - second) + 0.001,
+      first + second - 0.001,
+    );
+    const along =
+      (first * first + distance * distance - second * second) / (2 * distance);
+    const pole = new T.Vector3(
+      side === "r" ? -0.6 : 0.6,
+      -1,
+      0.25,
+    ).applyQuaternion(rootQ);
+    pole.addScaledVector(direction, -pole.dot(direction)).normalize();
+    const bend = start
+      .clone()
+      .addScaledVector(direction, along)
+      .addScaledVector(
+        pole,
+        Math.sqrt(Math.max(0, first * first - along * along)),
+      );
+    const turn = (bone: T.Object3D, child: T.Object3D, target: T.Vector3) => {
+      const p = bone.getWorldPosition(new T.Vector3());
+      const from = child.getWorldPosition(new T.Vector3()).sub(p).normalize();
+      const to = target.clone().sub(p).normalize();
+      const q = new T.Quaternion()
+        .setFromUnitVectors(from, to)
+        .multiply(bone.getWorldQuaternion(new T.Quaternion()));
+      bone.quaternion
+        .copy(bone.parent!.getWorldQuaternion(new T.Quaternion()).invert())
+        .multiply(q);
+      bone.updateMatrixWorld(true);
+    };
+    turn(upper, lower, bend);
+    turn(lower, wrist, start.clone().addScaledVector(direction, distance));
+  };
+  if (mode === "swing") {
+    for (const [side, name] of [
+      ["r", "Swing_chain"],
+      ["l", "Swing_chain001"],
+    ] as const) {
+      const p = prop(name);
+      if (p) {
+        p.x *= 0.85;
+        p.y = 1.2;
+        solve(side, p);
+      }
+    }
+  } else if (mode === "pet") {
+    const p = prop("Kopi_head");
+    if (p) solve("l", p.add(new T.Vector3(0, 0.16, -0.2)));
+  } else if (mode === "bell") {
+    const p = prop("Bell_lever");
+    if (p) solve("r", p.add(new T.Vector3(-0.03, -0.07, -0.1)));
+  } else {
+    const button = prop("Arcade_button"),
+      stick = prop("Joystick_grip");
+    if (button) solve("r", button.add(new T.Vector3(0, 0.06, -0.09)));
+    if (stick) solve("l", stick.add(new T.Vector3(-0.05, -0.11, -0.05)));
+  }
 }
 export function createCharacterPreview(
   host: HTMLElement,
