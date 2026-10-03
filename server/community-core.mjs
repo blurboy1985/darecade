@@ -453,6 +453,10 @@ export class CommunityCore {
       .get(id);
     return !!a && a.created + DAY <= this.now();
   }
+  // Every verified round by an email account is ranked; only dares wait 24h.
+  rankedAccount(id) {
+    return !!this.db.prepare("SELECT 1 FROM accounts WHERE player=?").get(id);
+  }
   begin(id, game, target = null, dareId = null) {
     if (!gameIds.includes(game)) throw Error("Choose an arcade game.");
     let seed = seedFor(game, day(this.now())),
@@ -521,7 +525,7 @@ export class CommunityCore {
       ...run,
       seed,
       version: rulesVersion(game),
-      ranked: this.eligibleAccount(id),
+      ranked: this.rankedAccount(id),
       dailySeed: seed === seedFor(game, day(this.now())),
     };
   }
@@ -542,6 +546,7 @@ export class CommunityCore {
         won: !!r.target && r.score > r.targetScore,
         profile: this.privateProfile(id),
         verified: true,
+        ranked: !!r.eligible,
       };
     }
     if (
@@ -560,8 +565,7 @@ export class CommunityCore {
         "This replay was submitted faster than the round could be played.",
       );
     return this.store.transaction(() => {
-      const ranked =
-        this.eligibleAccount(id) && r.seed === seedFor(r.game, day(this.now()));
+      const ranked = this.rankedAccount(id);
       this.db
         .prepare(
           "UPDATE runs SET score=?,finished=?,status='finished',verified=1,eligible=?,replay=?,digest=? WHERE id=?",
@@ -666,8 +670,8 @@ export class CommunityCore {
       const own = this.store.state(id).players.find((p) => p.id === id);
       if (own) state.players = [own, ...state.players.slice(0, 29)];
     }
-    // Personal bests and friendly targets include verified practice rounds.
-    // Daily medal boards separately require an eligible account and today's seed.
+    // Personal bests and friendly targets include verified guest rounds.
+    // Daily medal boards separately require an email account.
     const bests = this.db
       .prepare(
         "SELECT player,game,MAX(score) score FROM runs WHERE verified=1 AND status='finished' AND version=CASE WHEN game='coast' THEN 2 ELSE 1 END GROUP BY player,game",
