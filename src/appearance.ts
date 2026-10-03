@@ -1,24 +1,24 @@
 // Shared by the renderer and server validation; indices remain stable for saved looks.
 export const genderNames = ["Not specified", "Girl", "Boy", "Non-binary"];
 export const clothingNames = [
-  "Weekend hoodie",
-  "Arcade varsity",
-  "Trail explorer",
-  "Everyday tee",
-  "Petal dress",
-  "Cloud cardigan",
-  "Sport club",
-  "Starlight jacket",
+  "Ranger tunic",
+  "Ranger tunic & cape",
+  "Wizard robe",
+  "Wizard robe & cape",
+  "Knight armour",
+  "Knight armour & cape",
+  "Explorer furs",
+  "Explorer furs & cloak",
 ];
 export const hairNames = [
-  "Side-swept waves",
-  "Soft double buns",
-  "Close crop",
-  "Silky long layers",
-  "Rounded bob",
-  "High ponytail",
-  "Cloud curls",
-  "Twin braids",
+  "Auburn locks",
+  "Neat black crop",
+  "Sandy short cut",
+  "Grey beard",
+  "Green hood",
+  "Wizard hat",
+  "Knight helmet",
+  "Bear hat",
 ];
 export const petNames = [
   "No companion",

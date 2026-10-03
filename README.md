@@ -55,7 +55,7 @@ The production site is emitted to `dist/`. `npm run preview` serves it at http:/
 - Five animated example residents jog, climb and slide, dance, sit on a bench and play a cabinet. Accessories, garden paths, flowers, bunting and moving pigeons add neighbourhood activity. The Blender playground has a stair flight, handrails and a slide landing matched to the animation route.
 - Choose an away activity, save the preference or step away immediately. Closing the page and browser disconnect events save the selected activity and its start time; reopening reconstructs its current phase. No away XP, coins, visits or game scores are awarded.
 - Direct surroundings interactions: tap a prop, press E nearby, or use **Play outside**. Walk to the dragon and climb/slide, ride the new swing, sit and open a book on any of four benches, pet Kopi, ring the bicycle bell, or operate any of four arcade cabinets before its game opens. Six original Blender animation scenes synchronize the player's body and the props. Camera orbit/zoom remain available; Stop, Escape, movement keys, or opening another panel safely interrupt the action. The player's outfit stays intact.
-- Cute Blender-built characters with a connected humanoid skeleton, expressive eyes, eight outfits, eight hairstyles, six outfit colours, eight skin tones, earnable hats, seven companion pets and seven animated accessory choices. Clothing and effects are cosmetic only. Six avatar actions, a kickable ball and a bicycle bell remain available.
+- Chibi characters from the CC0 KayKit Adventurers pack: eight outfits (ranger, wizard, knight and explorer, each with or without a cape), eight heads and hats, six outfit colours, eight skin tones, earnable hats, seven companion pets and seven animated accessory choices. Clothing and effects are cosmetic only. Six avatar actions, a kickable ball and a bicycle bell remain available.
 - Five reachable treasure coins, a free Sprout hat on completion, a named sticker album, three claimable exploration missions, XP and cosmetic level progression.
 - Pick one of three named daily gifts. Daily eligibility uses Singapore midnight; the weekly coin hunt resets on Monday, Singapore time. Earned items persist. No missed-day penalty.
 - Day, golden-hour and night lighting, plus an option to follow Singapore time. Sound is opt-in and synthesized locally. Reduced decorative motion, a 30-active-minute break reminder, and a functional 2D lobby when WebGL fails or is disabled in Settings.
@@ -112,7 +112,7 @@ The plan was used as design context. Its dates, legal statements, commercial ass
 
 ## Blender asset
 
-`art/dragon-playground.blend` is the editable master. `public/models/dragon-playground.glb` is the runtime model. Both were generated from the original script `scripts/build_dragon.py`; the playground and arcade art are original. Character body topology, skeleton and base hairstyles use the CC0 Quaternius Universal Base Characters pack; see `art/characters/CREDITS.md`.
+`art/dragon-playground.blend` is the editable master. `public/models/dragon-playground.glb` is the runtime model. Both were generated from the original script `scripts/build_dragon.py`; the playground and arcade art are original. Avatars use the CC0 KayKit Adventurers character pack by Kay Lousberg; see `art/characters/CREDITS.md`.
 
 To rebuild the model on this Windows machine:
 
@@ -147,7 +147,17 @@ See `QA.md` for checked behaviours, screenshots, and limits. Mobile browser emul
 - `npm test` includes isolated in-memory database tests. Browser QA uses `.browser/social-data`, separate from the actual neighbourhood data. `PORT` and `DARECADE_DATA` environment variables allow an isolated QA server.
 
 
-## Cute character revision — 3 October 2026
+## KayKit character swap — 3 October 2026
+
+Avatars now use the free KayKit Adventurers pack (CC0). `scripts/build_kaykit_character.mjs` merges the Knight, Barbarian, Mage, Rogue and hooded Rogue parts onto one shared rig and strips weapons and baked clips, giving a ~0.7 MB `public/models/neighbour-kaykit.glb` (the previous model was 3.3 MB). `src/character.ts` keeps the same avatar API: the existing arm/leg/head controls and Blender interaction scenes drive the KayKit bones, the skin and main outfit swatches are tinted per player, and the hips lift while seated so benches, the swing and the slide line up. Saved clothing/hair indices are unchanged in range but now point to KayKit outfits and heads.
+
+Rebuild (Windows PowerShell, after placing the five KayKit Character GLBs in `art/characters/kaykit/`):
+
+```powershell
+node scripts/build_kaykit_character.mjs
+```
+
+## Cute character revision — 3 October 2026 (retired)
 
 The active master is `art/characters/neighbour-cute.blend`, exported by `scripts/build_cute_character.py`. It adapts CC0 connected humanoid topology and hairstyles, with a new rounded face, large eyes, compact proportions, eight tailored outfit variants and cream trainers. The approximately 3.30 MB GLB includes all choices. `src/character.ts` clones independent skeletons for each neighbour and retargets the movement and Blender interaction timelines to shoulders, elbows, wrists, hips and knees. Wardrobe previews support drag-to-turn and release their WebGL contexts when replaced.
 

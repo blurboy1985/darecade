@@ -43,10 +43,82 @@ let template: T.Group;
 let loading: Promise<void> | null = null;
 export function loadCharacter() {
   return (loading ??= new GLTFLoader()
-    .loadAsync("/models/neighbour.glb?v=look-12")
+    .loadAsync("/models/neighbour-kaykit.glb?v=kaykit-1")
     .then((g) => {
       template = g.scene;
+      template.scale.setScalar(KAYKIT_SCALE);
     }));
+}
+// KayKit Adventurers (CC0, Kay Lousberg). All four characters share one rig, so
+// each saved look picks a body set and a head set by toggling mesh visibility.
+const KAYKIT_SCALE = 0.86;
+const bodySets = [
+  ["Rogue", false],
+  ["Rogue", true],
+  ["Mage", false],
+  ["Mage", true],
+  ["Knight", false],
+  ["Knight", true],
+  ["Barbarian", false],
+  ["Barbarian", true],
+] as const;
+const headSets = [
+  ["Rogue_Head"],
+  ["Mage_Head"],
+  ["Knight_Head"],
+  ["Barbarian_Head"],
+  ["Rogue_Head_Hooded"],
+  ["Mage_Head", "Mage_Hat"],
+  ["Knight_Head", "Knight_Helmet"],
+  ["Barbarian_Head", "Barbarian_Hat"],
+];
+const bodyParts = ["Body", "ArmLeft", "ArmRight", "LegLeft", "LegRight"];
+const headwear = ["Mage_Hat", "Knight_Helmet", "Barbarian_Hat"];
+// Each KayKit texture is an 8 x 4 grid of 128 x 256 px gradient swatches. The
+// first swatch is skin in all four; the first two swatches of the second row
+// carry each outfit's main colour (tunic, robe, plume/cape, hood, wizard hat).
+const tintCache = new Map<string, T.Texture>();
+function tintedTexture(src: T.Texture, skin: string, outfit: string) {
+  const key = `${src.uuid}|${skin}|${outfit}`;
+  const hit = tintCache.get(key);
+  if (hit) return hit;
+  const img = src.image as CanvasImageSource & { width: number; height: number };
+  if (typeof document === "undefined" || !img?.width) return src;
+  const canvas = document.createElement("canvas");
+  canvas.width = img.width;
+  canvas.height = img.height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+  ctx.drawImage(img, 0, 0);
+  const cw = img.width / 8,
+    ch = img.height / 4;
+  const paint = (col: number, row: number, hex: string, shade = 1) => {
+    const target = new T.Color(hex).convertLinearToSRGB();
+    const want = [target.r, target.g, target.b].map((v) => v * 255 * shade);
+    const data = ctx.getImageData(col * cw, row * ch, cw, ch);
+    const px = data.data;
+    // Keep each swatch's light-to-dark gradient but take the hue from the target.
+    const lum = (i: number) => 0.3 * px[i] + 0.59 * px[i + 1] + 0.11 * px[i + 2];
+    let mean = 0;
+    for (let i = 0; i < px.length; i += 4) mean += lum(i);
+    mean = Math.max(1, mean / (px.length / 4));
+    for (let i = 0; i < px.length; i += 4) {
+      const k = lum(i) / mean;
+      for (let c = 0; c < 3; c++) px[i + c] = Math.min(255, want[c] * k);
+    }
+    ctx.putImageData(data, col * cw, row * ch);
+  };
+  paint(0, 0, skin);
+  paint(0, 1, outfit);
+  paint(1, 1, outfit, 0.82);
+  const tex = new T.CanvasTexture(canvas);
+  tex.flipY = src.flipY;
+  tex.colorSpace = src.colorSpace;
+  tex.magFilter = src.magFilter;
+  tex.minFilter = src.minFilter;
+  tex.wrapS = src.wrapS;
+  tex.wrapT = src.wrapT;
+  tintCache.set(key, tex);
+  return tex;
 }
 const unitBall = new T.SphereGeometry(1, 12, 8);
 const mats = new Map<string, T.MeshStandardMaterial>();
@@ -106,6 +178,7 @@ export function createAvatar(
       let m = materials.get(original.name);
       if (!m) {
         m = original.clone();
+        m.userData.source = original.map;
         materials.set(original.name, m);
       }
       o.material = m;
@@ -168,12 +241,22 @@ export function applyLook(
 ) {
   const previous = a.look;
   a.look = { clothing: 0, hair: 0, pet: 0, accessory: 0, ...look };
-  a.materials.get("Fabric")!.color.set(color);
-  a.materials.get("Skin")!.color.set(skin);
-  for (let i = 0; i < clothingNames.length; i++) {
-    a.model.getObjectByName("Clothing" + i)!.visible = i === a.look.clothing;
-    a.model.getObjectByName("Hair" + i)!.visible = i === a.look.hair;
-  }
+  for (const m of a.materials.values())
+    if (m.userData.source) {
+      m.map = tintedTexture(m.userData.source, skin, color);
+      m.needsUpdate = true;
+    }
+  const [outfit, cape] = bodySets[a.look.clothing! % clothingNames.length];
+  const head = headSets[a.look.hair! % headSets.length];
+  a.model.traverse((o) => {
+    if (!(o instanceof T.Mesh)) return;
+    const [who, part] = [o.name.split("_")[0], o.name.slice(o.name.indexOf("_") + 1)];
+    if (bodyParts.includes(part)) o.visible = who === outfit;
+    else if (part === "Cape") o.visible = cape && who === outfit;
+    else if (o.name.includes("Head") || headwear.includes(o.name))
+      o.visible =
+        head.includes(o.name) && !(look.hat && headwear.includes(o.name));
+  });
   a.hat.clear();
   if (look.hat === 1) {
     ellipsoid(a.hat, [0, 1.83, 0], [0.24, 0.12, 0.22], "#e7a769");
@@ -193,12 +276,15 @@ export function applyLook(
     );
     leaf.rotation.z = 0.5;
   }
+  // Earned hats were sized for the earlier head; fit them to the KayKit head
+  // (about 0.87 wide, crown at y 1.78 after scaling).
   for (const part of a.hat.children) {
-    part.position.x *= 1.6;
-    part.position.z *= 1.6;
-    part.position.y += 0.065;
-    part.scale.x *= 1.6;
-    part.scale.z *= 1.6;
+    part.position.x *= 1.85;
+    part.position.z *= 1.85;
+    part.position.y -= 0.16;
+    part.scale.x *= 1.85;
+    part.scale.z *= 1.85;
+    part.scale.y *= 1.25;
   }
   a.extras.clear();
   if (a.look.accessory === 1)
@@ -258,7 +344,7 @@ export function applyLook(
     ellipsoid(halo, [0.37, 0.04, 0], [0.045, 0.085, 0.025], "#fff2bf", true);
   }
   if (a.look.accessory === 5) {
-    const crown = group(a.extras, [0, 2.04, 0]);
+    const crown = group(a.extras, [0, 1.86, 0]);
     crown.name = "Crown";
     for (let i = 0; i < 5; i++) {
       const crystal = ellipsoid(
@@ -571,30 +657,41 @@ function poseSkin(a: Avatar) {
     entry.bone.updateMatrixWorld(true);
   };
   const torso = a.spine.quaternion.clone();
-  set("spine_03", torso);
+  set("chest", torso);
   const head = torso.clone().multiply(a.head.quaternion);
-  set("Head", head);
+  set("head", head);
   // Skin rest arms are horizontal. Rotate into the game's neutral arms-down pose.
   for (const [i, suffix] of ["r", "l"].entries()) {
+    const bone = (n: string) => n + suffix; // GLTFLoader strips "." from "upperarm.l"
     const arm = (i === 0 ? a.left : a.right).quaternion;
     const down = new T.Quaternion().setFromAxisAngle(
       axisZ,
       i === 0 ? 1.4 : -1.4,
     );
     const upper = torso.clone().multiply(arm);
-    set("upperarm_" + suffix, upper.clone().multiply(down));
+    set(bone("upperarm"), upper.clone().multiply(down));
     const lower = upper.clone().multiply(a.elbows[i].quaternion);
-    set("lowerarm_" + suffix, lower.clone().multiply(down));
-    set("hand_" + suffix, lower.multiply(a.hands[i].quaternion).multiply(down));
+    set(bone("lowerarm"), lower.clone().multiply(down));
+    set(bone("wrist"), lower.multiply(a.hands[i].quaternion).multiply(down));
     const leg = a.legs[i].quaternion.clone();
-    set("thigh_" + suffix, leg);
+    set(bone("upperleg"), leg);
     leg.multiply(a.knees[i].quaternion);
-    set("calf_" + suffix, leg);
-    set("foot_" + suffix, leg);
+    set(bone("lowerleg"), leg);
+    set(bone("foot"), leg);
   }
-  const pivot = new T.Vector3(0, 1.38, -0.04);
+  // The authored sit/swing/slide clips place the hips for the earlier, longer-
+  // legged rig (thigh at 0.73 m). KayKit hips sit at 0.45 m, so lift the body
+  // as the thighs come forward to keep seats, swings and the slide aligned.
+  const pitch = -(a.legs[0].rotation.x + a.legs[1].rotation.x) / 2;
+  const seated = Math.min(1, Math.max(0, pitch / 1.35));
+  a.model.position.y = 0.28 * seated;
+  // Shorter thighs also leave the seat behind the hips; sit back onto it.
+  a.model.position.z = -0.22 * seated;
+  const pivot = new T.Vector3(0, 1.241 * KAYKIT_SCALE, 0);
   a.hat.quaternion.copy(head);
   a.hat.position.copy(pivot).sub(pivot.clone().applyQuaternion(head));
+  a.hat.position.y += a.model.position.y;
+  a.extras.position.y = a.model.position.y;
 }
 export function createCharacterPreview(
   host: HTMLElement,
