@@ -70,7 +70,9 @@ async function register(s: ReturnType<typeof setup>, email: string) {
   const messages = readdirSync(join(s.directory, "mail-outbox")).map((n) =>
     JSON.parse(readFileSync(join(s.directory, "mail-outbox", n), "utf8")),
   );
-  const raw = new URL(messages.find((m) => m.to === email).url).hash.slice(7);
+  const raw = new URL(
+    messages.find((m) => m.to === email && m.url).url,
+  ).hash.slice(7);
   return { ...s.community.consume(raw), raw };
 }
 test("all five games replay exactly from bounded tick inputs and seeded rules", () => {
@@ -579,6 +581,60 @@ test("nickname and appearance edits validate before writing and never award rank
     assert.equal(Object.hasOwn(invalid.progress, "gender"), false);
     for (const key of ["clothing", "hair", "pet", "accessory"])
       assert.equal(invalid.progress[key], 0);
+  } finally {
+    s.close();
+  }
+});
+test("sign-in requests for an address with no account send guidance, not a link, at most hourly", async () => {
+  const s = setup();
+  try {
+    const outbox = () => {
+      try {
+        return readdirSync(join(s.directory, "mail-outbox")).map((n) =>
+          JSON.parse(readFileSync(join(s.directory, "mail-outbox", n), "utf8")),
+        );
+      } catch {
+        return [];
+      }
+    };
+    await assert.rejects(
+      s.community.requestExistingLink("not-an-email"),
+      /valid email/,
+    );
+    const reply = await s.community.requestExistingLink(" Guest@Example.test ");
+    assert.deepEqual(reply, { sent: true, delivery: "outbox" });
+    const [notice] = outbox();
+    assert.equal(notice.to, "guest@example.test");
+    assert.equal(notice.notice, true);
+    assert.equal(notice.url, undefined);
+    assert.doesNotMatch(notice.text, /#login=/);
+    assert.match(notice.text, /Account & privacy/);
+    // Only a hash of the address is kept for throttling.
+    assert.equal(
+      JSON.stringify(
+        s.store.db.prepare("SELECT * FROM login_notices").all(),
+      ).includes("guest@"),
+      false,
+    );
+    await s.community.requestExistingLink("guest@example.test");
+    assert.equal(outbox().length, 1);
+    s.tick(61 * 60000);
+    await s.community.requestExistingLink("guest@example.test");
+    assert.equal(outbox().length, 2);
+    // Once the guest saves this email, the same form sends a real sign-in link.
+    const account = await register(s, "guest@example.test");
+    s.community.logout(account.me.id, account.token);
+    await s.community.requestExistingLink("guest@example.test");
+    const link = outbox().find(
+      (m) =>
+        m.url &&
+        m.to === "guest@example.test" &&
+        new URL(m.url).hash.slice(7) !== account.raw,
+    );
+    assert.equal(
+      s.community.consume(new URL(link.url).hash.slice(7)).me.id,
+      account.me.id,
+    );
   } finally {
     s.close();
   }

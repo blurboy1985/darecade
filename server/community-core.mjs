@@ -78,6 +78,7 @@ export class CommunityCore {
   CREATE TABLE IF NOT EXISTS accounts(player TEXT PRIMARY KEY REFERENCES players(id),email TEXT UNIQUE NOT NULL,created INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,player TEXT REFERENCES players(id),expires INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS magic_links(token TEXT PRIMARY KEY,email TEXT NOT NULL,candidate TEXT REFERENCES players(id),expires INTEGER NOT NULL);
+  CREATE TABLE IF NOT EXISTS login_notices(email TEXT PRIMARY KEY,expires INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS dares(id TEXT PRIMARY KEY,host TEXT REFERENCES players(id),run TEXT REFERENCES runs(id),game TEXT,seed INTEGER,score INTEGER,created INTEGER,expires INTEGER);
   CREATE TABLE IF NOT EXISTS reports(id TEXT PRIMARY KEY,reporter TEXT REFERENCES players(id),target TEXT REFERENCES players(id),reason TEXT,created INTEGER,status TEXT DEFAULT 'open');
   CREATE TABLE IF NOT EXISTS blocks(player TEXT REFERENCES players(id),target TEXT REFERENCES players(id),PRIMARY KEY(player,target));
@@ -313,10 +314,37 @@ export class CommunityCore {
       return this.privateProfile(id);
     });
   }
-  async requestLink(id, email) {
+  normaliseEmail(email) {
     email = typeof email === "string" ? email.trim().toLowerCase() : "";
     if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
       throw Error("Enter a valid email address.");
+    return email;
+  }
+  /** Sends one transactional email, or writes it to the local test outbox. */
+  async sendEmail(email, subject, text, outboxId, outbox) {
+    if (this.mailMode === "resend") {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.mailKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: this.mailFrom,
+          to: [email],
+          subject,
+          text,
+        }),
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!response.ok)
+        throw Error("Email delivery is unavailable. Please try later.");
+    } else if (this.mailMode === "outbox" && !this.production) {
+      this.files.writeOutbox(outboxId, { to: email, subject, text, ...outbox });
+    } else throw Error("Email delivery is not configured.");
+  }
+  async requestLink(id, email) {
+    email = this.normaliseEmail(email);
     const old = this.db
       .prepare("SELECT 1 FROM magic_links WHERE email=? AND expires>?")
       .get(email, this.now() + 14 * 60000);
@@ -328,30 +356,13 @@ export class CommunityCore {
       .run(hash(token), email, id, this.now() + 15 * 60000);
     const url = `${this.origin}/#login=${token}`;
     try {
-      if (this.mailMode === "resend") {
-        const response = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${this.mailKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            from: this.mailFrom,
-            to: [email],
-            subject: "Your Darecade sign-in link",
-            text: `Open this link to sign in to Darecade. It expires in 15 minutes and works once. Do not share it.\n\n${url}\n\nIf you did not request this, ignore this email.`,
-          }),
-          signal: AbortSignal.timeout(10000),
-        });
-        if (!response.ok)
-          throw Error("Email delivery is unavailable. Please try later.");
-      } else if (this.mailMode === "outbox" && !this.production) {
-        this.files.writeOutbox(hash(token), {
-          to: email,
-          url,
-          expires: this.now() + 15 * 60000,
-        });
-      } else throw Error("Email delivery is not configured.");
+      await this.sendEmail(
+        email,
+        "Your Darecade sign-in link",
+        `Open this link to sign in to Darecade. It expires in 15 minutes and works once. Do not share it.\n\n${url}\n\nIf you did not request this, ignore this email.`,
+        hash(token),
+        { url, expires: this.now() + 15 * 60000 },
+      );
     } catch (e) {
       this.db.prepare("DELETE FROM magic_links WHERE token=?").run(hash(token));
       throw e;
@@ -359,11 +370,35 @@ export class CommunityCore {
     return { sent: true, delivery: this.mailMode };
   }
   async requestExistingLink(email) {
-    const normal = typeof email === "string" ? email.trim().toLowerCase() : "";
+    const normal = this.normaliseEmail(email);
     const account = this.db
       .prepare("SELECT player FROM accounts WHERE email=?")
       .get(normal);
-    if (account) await this.requestLink(account.player, normal);
+    if (account) return this.requestLink(account.player, normal);
+    // No account uses this address (often a guest who never saved an email).
+    // Reply exactly as for a real account, but email guidance instead of
+    // silence. Only a hash of the address is kept, for one hour, so the same
+    // inbox is not emailed repeatedly.
+    const key = hash("login-notice:" + normal);
+    const recent = this.db
+      .prepare("SELECT 1 FROM login_notices WHERE email=? AND expires>?")
+      .get(key, this.now());
+    if (recent) return { sent: true, delivery: this.mailMode };
+    this.db
+      .prepare("INSERT OR REPLACE INTO login_notices VALUES(?,?)")
+      .run(key, this.now() + 60 * 60000);
+    try {
+      await this.sendEmail(
+        normal,
+        "Your Darecade sign-in request",
+        `Someone asked to sign in to Darecade with this email address, but no Darecade account uses it yet.\n\nPlayed as a guest? Your avatar and progress are saved in the browser you played on. Open Darecade there, choose More → Account & privacy → Create my account, and enter this email. After that you can sign in on any device.\n\nNew to Darecade? Start here: ${this.origin}\n\nIf you did not ask for this, ignore this email. We will not email this address again for at least an hour.`,
+        hash(randomBytes(32)),
+        { notice: true },
+      );
+    } catch (e) {
+      this.db.prepare("DELETE FROM login_notices WHERE email=?").run(key);
+      throw e;
+    }
     return { sent: true, delivery: this.mailMode };
   }
   consume(raw) {
@@ -758,6 +793,9 @@ export class CommunityCore {
   cleanup() {
     this.db.prepare("DELETE FROM sessions WHERE expires<=?").run(this.now());
     this.db.prepare("DELETE FROM magic_links WHERE expires<=?").run(this.now());
+    this.db
+      .prepare("DELETE FROM login_notices WHERE expires<=?")
+      .run(this.now());
     const cutoff = new Date(this.now());
     cutoff.setUTCFullYear(cutoff.getUTCFullYear() - 1);
     for (const p of this.db

@@ -67,28 +67,47 @@ function clearLocalProfile() {
   localStorage.removeItem("darecade-v1");
   localStorage.removeItem("darecade-preview-backup");
 }
-function deliveryText() {
+function deliveryText(signIn: boolean) {
   return config.mailMode === "outbox"
     ? "Local testing: the sign-in message was saved to the operator’s private test outbox. Live email delivery is not connected. Ask the operator for your test link."
-    : "If the address can be used, a sign-in link will arrive shortly. It lasts 15 minutes and works once.";
+    : signIn
+      ? "Email sent. Check your inbox and spam folder for a message from Darecade. Sign-in links last 15 minutes and work once."
+      : "Email sent. Open the link in it to save your account. It lasts 15 minutes and works once.";
 }
 function emailForm(host: HTMLElement, path: string, back: () => void) {
-  host.innerHTML = `<span class="eyebrow">KEEP YOUR PLACE</span><h2>One email. Your neighbourhood.</h2><p>Use the same email to return on another device. We send a sign-in link; there is no password.</p><form id="email-form"><label>Email<input name="email" type="email" autocomplete="email" maxlength="254" required></label><button class="primary">Send sign-in link →</button><p role="status" id="account-status"></p></form><button class="secondary" id="account-back">Back</button>`;
+  const signIn = path === "auth/login-link";
+  host.innerHTML = signIn
+    ? `<span class="eyebrow">WELCOME BACK</span><h2>Sign in with email.</h2><p>Enter the email you saved your account with. We’ll send a sign-in link; there is no password.</p><form id="email-form"><label>Email<input name="email" type="email" autocomplete="email" maxlength="254" required></label><button class="primary">Send sign-in link →</button><p role="status" id="account-status"></p></form><p class="fine-print">Only played as a guest? Your progress is in the browser you played on. Open Darecade there and choose Account & privacy → Create my account first.</p><button class="secondary" id="account-back">Back</button>`
+    : `<span class="eyebrow">KEEP YOUR PLACE</span><h2>One email. Your neighbourhood.</h2><p>Use the same email to return on another device. We send a sign-in link; there is no password.</p><form id="email-form"><label>Email<input name="email" type="email" autocomplete="email" maxlength="254" required></label><button class="primary">Send sign-in link →</button><p role="status" id="account-status"></p></form><button class="secondary" id="account-back">Back</button>`;
   host.querySelector("#account-back")!.addEventListener("click", back);
   host.querySelector("form")!.addEventListener("submit", async (e) => {
     e.preventDefault();
     const form = e.currentTarget as HTMLFormElement;
     const button = form.querySelector("button")!;
+    const label = button.textContent;
     button.disabled = true;
     try {
       await api(path, { email: new FormData(form).get("email") });
-      host.querySelector("#account-status")!.textContent = deliveryText();
+      host.querySelector("#account-status")!.textContent = deliveryText(signIn);
+      // Repeat requests within a minute are not re-sent, so say so clearly.
+      let wait = 60;
+      const tick = () => {
+        if (!button.isConnected) return;
+        if (wait <= 0) {
+          button.disabled = false;
+          button.textContent = "Send again →";
+          return;
+        }
+        button.textContent = `Send again in ${wait--}s`;
+        setTimeout(tick, 1000);
+      };
+      tick();
     } catch (error) {
       host.querySelector("#account-status")!.textContent = (
         error as Error
       ).message;
-    } finally {
       button.disabled = false;
+      button.textContent = label;
     }
   });
 }

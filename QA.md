@@ -1,5 +1,12 @@
 # Darecade verification — 3 October 2026
 
+## Login email fix, 3 October 2026
+
+- Merged `claude/fix-login-email` without conflicts; retained all five-game tests and racing helpers. Current totals: **57/57 Node tests and 3/3 Cloudflare runtime tests**. TypeScript/Vite build passed with the existing bundle-size warning.
+- In fresh local browser sessions at port 4173, an unknown synthetic address displayed the disabled `Send again in 60s` button and produced a guidance outbox message with no URL. A locally registered address received a real login link; consuming it from a separate browser session restored the same player ID, name and avatar choices.
+- QA storage was isolated in `.browser/login-email-qa-data`, including its private `mail-outbox`; no existing local player data was changed. No application console errors were observed.
+- The new automated tests cover identical API responses for known/unknown addresses, invalid-email rejection, hourly notice suppression, hashed notice keys and expiry cleanup. Existing per-IP rate limits and `PRIVACY_VERSION` are unchanged. Live delivery results and the deployed version are recorded in `HOSTING.md`.
+
 ## Arcade UI refresh merge, 3 October 2026
 
 - Merged `claude/arcade-ui-refresh` over Coast Rush. Only `src/main.ts` conflicted: retained the shorter copy and effects lifecycle alongside the five-game catalogue, race construction, time formatting, race results and 15-point daily maximum. The shared simulation, race physics, character model and server scoring were unchanged.

@@ -21,7 +21,7 @@ For phone testing, set `LAN_HOST` to the computer's current Wi-Fi IPv4 address a
 1. A new player enters birth month/year, then reads the privacy notice. Nothing is written to the database before eligibility and explicit consent. Only the age band and consent version/time are retained.
 2. A consenting guest can play and earn saved cosmetic progress. **More → Account & privacy** offers email account creation.
 3. A random, single-use email link verifies ownership and connects the existing guest avatar to the account. Links expire after 15 minutes. The database stores token hashes; sessions use HttpOnly, SameSite cookies. Production cookies require HTTPS.
-4. **I already have an account** sends a new link to recover the same avatar on another browser/device. There is no password to forget. The email form returns a generic response, including for unknown accounts.
+4. **I already have an account** sends a new link to recover the same avatar on another browser/device. There is no password to forget. The email form returns a generic response, including for unknown accounts. Addresses with no account receive a guidance email (no sign-in link, at most hourly, only a hash of the address is kept for one hour).
 
 Local default: `MAIL_MODE=outbox`. No external email is sent. The message is stored under `data/mail-outbox/` and is never served by HTTP. The operator can open the most recent test message locally and use its URL; treat it as a private password. Consumed messages are removed. Use synthetic addresses for testing.
 

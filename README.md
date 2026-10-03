@@ -10,7 +10,7 @@ The game is live at **https://darecade.daniel-tianwen.workers.dev** on Workers F
 
 The welcome check, age/privacy consent, guest-to-email account linking, saved avatar and progression, input-replay score validation, posted dares, weekly medals, reports, data download and deletion are connected to the server. See [ACCOUNTS.md](ACCOUNTS.md) for setup, fairness rules and recovery, and [PRIVACY-REVIEW.md](PRIVACY-REVIEW.md) for the pre-launch review.
 
-The local server uses a **private local test outbox**; the hosted service uses Resend for live email. New verified progress starts fresh; previous browser saves are archived locally and legacy medal totals are preserved. Current checks: **45/45 Node tests and 2/2 Cloudflare runtime tests**, plus local browser-verified arcade, shared dare and account/privacy journeys and the live launch checks above.
+The local server uses a **private local test outbox**; the hosted service uses Resend for live email. New verified progress starts fresh; previous browser saves are archived locally and legacy medal totals are preserved. Current checks: **57/57 Node tests and 3/3 Cloudflare runtime tests**, plus local browser-verified arcade, shared dare and account/privacy journeys and the live launch checks above.
 
 ## Run it
 
