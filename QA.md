@@ -1,5 +1,17 @@
 # Darecade verification — 3 October 2026
 
+## Current My Look and ranking refresh
+
+- **45/45 automated tests pass** and the production TypeScript/Vite build passes. New coverage checks nickname validation before writes, inappropriate-name reports, cosmetic edits cannot add XP/medals, all eight clothing/hair skins, and newest appearance indices/name/gender surviving a database restart.
+- The rebuilt Blender character is **3,296,036 bytes**, within the existing 3.5 MB asset budget. Six fitted hairstyles are authored for the cute head; double buns and long layers no longer stretch adult hair meshes. All eight clothing and hair variants retain normalized skin weights.
+- Chromium selected all eight choices in each of the outfit, hair, pet and accessory categories (including no pet/magic), verified selected states and server persistence. Rapid successive hair changes and a reload retained the last choice; nickname also survived reload. Four new hair silhouettes, fitted buns/layers and the new pets were visually inspected.
+- 320×844, 390×844 and 844×390 browser layouts have no page/dialog horizontal overflow. Wardrobe tabs have 44 px targets; the narrow-phone Pets label was shortened after visual review. A bunny was selected using CDP touch events, not just a scripted click. Companion previews face the camera and drag with the avatar.
+- A real browser Hop Hop round finished at 40, was server verified, and showed the Three.js star burst plus separate game score/XP/practice rank. The burst canvas was removed after 3.8 seconds. A separate completed round with reduced motion enabled created no burst canvas. No uncaught app errors in these journeys.
+- Synthetic **browser response fixtures only** exercised the weekly/daily podium at ranks 1, 1, 3, the own-rank highlight, weekly 3 / pending +1 / lifetime 19 distinction, and the 40/200 score meter. These numbers were never inserted into the real neighbourhood database. Actual settlement/tie logic remains covered by server tests.
+- The central plaza is visibly clear of its three decorative mannequins and podiums. Other decorative activity residents and real shared players remain.
+- Evidence: `.browser/look-qa.json`, `.browser/look-final.json`, `.browser/community-look-layers.png`, `.browser/community-look-buns.png`, `.browser/community-final-look-320.png`, `.browser/community-finish-celebration.png`, `.browser/community-fixture-weekly-320.png`, `.browser/community-open-plaza.png`. All test profiles live under `.browser/look-data`; the real data directory was not seeded with test scores.
+- **This revision has not been tested on a physical iPhone.** Browser touch emulation does not establish Safari performance, phone temperature or human replay desire. Existing physical-phone feedback describes earlier builds.
+
 ## Current accounts and progression revision
 
 - **44/44 automated tests pass**, including a real HTTP server test. Coverage: no account before age/consent, hashed single-use expiring links, session ownership and restart persistence, replay-derived scores for four games, forged/early/malformed result rejection, duplicate rewards, warmup, daily/shared seed eligibility, three outgoing attempts, cross-midnight posted-dare retry rejection, weekly Monday rollover, suspension, export, deletion and retention. HTTP checks cover unauthenticated requests, cross-origin writes, cookie flags, private-file isolation and throttling.
@@ -115,8 +127,8 @@ New captures:
 - `art/fallback-320.png` — lightweight lobby.
 - `art/lobby-landscape.png` — short landscape viewport.
 
-## Limits
+## Historical prototype limits
 
 Testing used desktop Chromium with resized browser viewports and pointer input. Physical Android/iPhone performance, Safari/Firefox differences, sustained thermal behaviour, and the plan's 30-avatar/30-FPS device target are not verified. The 30-minute reminder is implemented but was not exercised by waiting for a full 30-minute foreground session.
 
-This prototype does not implement authentication/logout, public multiplayer, trusted scores, server-side challenge accounting, payments or cloud persistence. Away activities resume locally from saved timestamps; a closed browser does not render them for other users. The demo names and scores are clearly identified in their panels. It is not a validated launch of the entire implementation plan.
+At the time of this historical baseline, the prototype did not implement authentication/logout, public multiplayer, trusted scores, server-side challenge accounting, payments or cloud persistence. The current sections above supersede those account and scoring limits. Away activities resume locally from saved timestamps; a closed browser does not render them for other users. The demo names and scores are clearly identified in their panels. It is not a validated launch of the entire implementation plan.

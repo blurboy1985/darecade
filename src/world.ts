@@ -720,38 +720,7 @@ export class LobbyWorld {
       26,
     );
     floor.rotation.x = -Math.PI / 2;
-    for (let i = 0; i < 3; i++) {
-      const x = -2.5 + i * 2.5,
-        z = i === 1 ? -0.3 : 0.3;
-      cylinder(
-        this.root,
-        x,
-        0.51,
-        z,
-        0.8,
-        0.6,
-        ["#ada3cb", "#d5bc7c", "#a7bbb3"][i],
-      );
-      const a = avatar(this.root, x, z, ["#bb9ddb", "#edbd6d", "#7caeb4"][i]);
-      a.root.position.y = 0.83;
-      a.root.rotation.y = 0.3;
-      a.left.rotation.z = i === 1 ? -0.8 : 0;
-      const id = `dare${i}`;
-      a.root.userData.id = id;
-      this.targets.push({ mesh: a.root, id });
-      sign(
-        this.root,
-        ["+2", "+3", "+1"][i],
-        x,
-        3.26,
-        z,
-        0.9,
-        0.45,
-        "#354252",
-        "#e4f7b0",
-        36,
-      );
-    }
+    // Keep the plaza open; rankings live on the board, without mannequin placeholders.
     for (const x of [-5, 5]) {
       cylinder(this.root, x, 2.9, 0, 0.085, 5.8, "#556c69");
       sphere(this.root, x, 5.85, 0, 0.18, "#e3c58c");
@@ -1144,6 +1113,20 @@ export class LobbyWorld {
         label.userData.playerLabel = true;
         item = { data: p, avatar: a, look };
         this.sharedPlayers.set(p.id, item);
+      }
+      if (item.data.name !== p.name) {
+        const label = item.avatar.root.children.find(
+          (c) => c.userData.playerLabel,
+        ) as T.Mesh<T.PlaneGeometry, T.MeshBasicMaterial> | undefined;
+        if (label) {
+          const canvas = label.material.map!.image as HTMLCanvasElement;
+          const ctx = canvas.getContext("2d")!;
+          ctx.fillStyle = "#354c43";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = "#fff5d8";
+          ctx.fillText(p.name, 512, canvas.height / 2, 970);
+          label.material.map!.needsUpdate = true;
+        }
       }
       item.data = p;
     }

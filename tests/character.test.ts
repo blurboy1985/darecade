@@ -28,7 +28,7 @@ test("Blender character has usable skin weights, connected joints and selectable
         `${child} must follow ${parent}`,
       );
     }
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 8; i++) {
     assert.notEqual(node("Clothing" + i).skin, undefined);
     assert.notEqual(node("Hair" + i).skin, undefined);
   }

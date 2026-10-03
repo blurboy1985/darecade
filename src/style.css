@@ -3058,3 +3058,407 @@ dialog::backdrop {
     padding: 0 0 10px;
   }
 }
+/* Fitting room and scoring: clear groups, readable on small phones. */
+.wardrobe-controls {
+  min-width: 0;
+}
+.wardrobe-controls h3 {
+  margin: 0 0 12px;
+}
+.nickname-row {
+  display: flex;
+  gap: 8px;
+}
+.nickname-row input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #bbc8b4;
+  border-radius: 10px;
+  padding: 10px;
+  font: inherit;
+  font-size: 16px;
+  background: #fffef8;
+  color: #243a32;
+}
+.nickname-row button {
+  flex-shrink: 0;
+  font-size: 12px;
+}
+#nickname-status {
+  font-size: 12px;
+  margin: 4px 0;
+}
+.avatar-identity {
+  border-block: 1px solid #d9dfcf;
+  padding: 13px 0;
+  margin: 16px 0;
+}
+.avatar-identity summary,
+.scoring-guide summary {
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 28px;
+}
+.look-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 5px;
+  background: #e7ecdf;
+  border-radius: 13px;
+  margin: 20px 0;
+}
+.look-tabs button {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #4b5f52;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 5px;
+}
+.look-tabs button.active {
+  background: #314c3a;
+  color: #fffef2;
+  box-shadow: 0 3px 8px #314c3a22;
+}
+.wardrobe-layout .avatar-preview {
+  padding-bottom: 18px;
+  overflow: hidden;
+}
+.wardrobe-layout .avatar-preview strong {
+  font-size: 16px;
+  overflow-wrap: anywhere;
+  padding: 0 12px;
+  text-align: center;
+}
+.wardrobe-layout .avatar-preview .look-caption {
+  margin: 0;
+  padding: 0 12px;
+  font-size: 11px;
+  letter-spacing: 0;
+  text-align: center;
+  color: #506244;
+}
+.look-2d {
+  display: block;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  padding: 15px;
+  margin: auto;
+}
+.look-2d svg {
+  width: 100%;
+  height: 100%;
+}
+.your-standing {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 24px;
+  background: #2c4536;
+  color: #f7f4de;
+  border-radius: 20px;
+  padding: 25px;
+  margin: 20px 0;
+}
+.your-standing > div > span {
+  font-size: 10px;
+  letter-spacing: 1.4px;
+}
+.your-standing > div > strong {
+  display: block;
+  font-size: 56px;
+  line-height: 1.25;
+  color: #d5f392;
+}
+.your-standing small {
+  display: block;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.standing-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: center;
+  text-align: center;
+}
+.your-standing .standing-stats span {
+  font-size: 11px;
+  letter-spacing: 0;
+}
+.standing-stats b {
+  display: block;
+  font-size: 26px;
+  margin-bottom: 5px;
+}
+.game-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.game-filters button {
+  white-space: normal;
+  min-height: 44px;
+  font-size: 13px;
+}
+.game-filters .chosen {
+  border-color: #3c5d37;
+  background: #e8f3b5;
+}
+.podium-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 20px 0;
+}
+.podium-card {
+  border: 1px solid #ded7b9;
+  border-radius: 17px;
+  background: linear-gradient(150deg, #fff6d3, #f5eedc);
+  padding: 20px 12px;
+  text-align: center;
+  min-width: 0;
+}
+.podium-card.medal-2 {
+  background: linear-gradient(150deg, #f1f4f5, #e0e8e7);
+}
+.podium-card.medal-3 {
+  background: linear-gradient(150deg, #ffe9d8, #f2d9c5);
+}
+.podium-card.is-you {
+  outline: 2px solid #5a793c;
+  outline-offset: 2px;
+}
+.podium-medal {
+  display: block;
+  font-size: 35px;
+  margin-bottom: 12px;
+}
+.podium-card small {
+  display: block;
+  font-size: 9px;
+  line-height: 1.5;
+}
+.podium-card h3 {
+  font-size: 15px;
+  overflow-wrap: anywhere;
+  margin: 10px 0;
+}
+.podium-card strong {
+  display: block;
+  font-size: 30px;
+}
+.board-empty {
+  grid-column: 1/-1;
+  text-align: center;
+  background: #f0f0e3;
+  border: 1px dashed #c5ceb4;
+  border-radius: 18px;
+  padding: 26px;
+}
+.board-empty > span {
+  color: #7c9954;
+  font-size: 38px;
+}
+.board-empty h3 {
+  margin: 12px 0;
+}
+.board-empty p {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.scoring-guide {
+  border-top: 1px solid #d9dfcf;
+  margin-top: 22px;
+  padding-top: 18px;
+}
+.scoring-guide p {
+  font-size: 13px;
+  line-height: 1.65;
+}
+.medal-rule {
+  display: flex;
+  justify-content: space-around;
+  background: #f0eddd;
+  border-radius: 14px;
+  padding: 16px;
+  margin-top: 14px;
+}
+.medal-rule span {
+  text-align: center;
+  font-size: 14px;
+}
+.medal-rule b {
+  display: block;
+  font-size: 25px;
+  margin: 5px;
+}
+.score-target {
+  margin: 20px 0;
+}
+.score-target label {
+  display: block;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.score-target b {
+  float: right;
+}
+.score-target progress {
+  display: block;
+  width: 100%;
+  accent-color: #76934d;
+  height: 12px;
+  margin-top: 9px;
+}
+#modal-body {
+  position: relative;
+}
+.finish-effects {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  overflow: hidden;
+  border-radius: 18px;
+}
+.finish-effects canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.round-breakdown {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 18px 0 24px;
+}
+.round-breakdown > span {
+  background: #edf1e2;
+  border: 1px solid #d8dfc7;
+  border-radius: 15px;
+  padding: 16px;
+  font-size: 11px;
+}
+.round-breakdown strong {
+  display: block;
+  font-size: 27px;
+  margin: 8px 0;
+  color: #3d5c35;
+}
+.round-breakdown small {
+  display: block;
+  font-size: 11px;
+  line-height: 1.5;
+}
+@media (max-width: 600px) {
+  .wardrobe-layout {
+    gap: 20px;
+  }
+  .wardrobe-layout .avatar-preview {
+    position: relative;
+    height: auto;
+    min-height: 230px;
+    padding-bottom: 14px;
+  }
+  .wardrobe-layout .character-preview {
+    height: 230px;
+  }
+  .wardrobe-layout .avatar-preview small {
+    padding: 6px;
+    font-size: 9px;
+  }
+  .wardrobe-layout .avatar-preview .look-caption {
+    font-size: 10px;
+  }
+  .wardrobe-layout h2 {
+    font-size: 30px;
+  }
+  .look-tabs {
+    gap: 2px;
+  }
+  .look-tabs button {
+    font-size: 11px;
+  }
+  .your-standing {
+    grid-template-columns: 1fr;
+    gap: 18px;
+    padding: 20px;
+  }
+  .your-standing > div > strong {
+    font-size: 44px;
+  }
+  .standing-stats {
+    border-top: 1px solid #ffffff24;
+    padding-top: 18px;
+  }
+  .podium-cards {
+    gap: 7px;
+  }
+  .podium-card {
+    padding: 14px 6px;
+  }
+  .podium-card h3 {
+    font-size: 12px;
+  }
+  .podium-card strong {
+    font-size: 24px;
+  }
+  .podium-card small {
+    font-size: 8px;
+  }
+  .round-breakdown > span {
+    padding: 12px;
+  }
+}
+
+.look-identity > summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 12px 0;
+  min-height: 44px;
+}
+.look-identity .field-label {
+  display: block;
+  margin: 12px 0 8px;
+}
+@media (max-width: 600px) {
+  .wardrobe-layout .avatar-preview {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    min-height: 215px;
+    height: 215px;
+    padding-bottom: 8px;
+  }
+  .wardrobe-layout .character-preview {
+    height: 174px;
+    flex-shrink: 0;
+  }
+  .wardrobe-layout .avatar-preview .look-caption {
+    display: none;
+  }
+  .wardrobe-layout .avatar-preview strong {
+    font-size: 13px;
+  }
+  .wardrobe-layout .avatar-preview small {
+    font-size: 8px;
+    padding: 5px;
+  }
+}
+
+@media (min-width: 601px) {
+  .wardrobe-layout {
+    grid-template-columns: 236px minmax(0, 1fr);
+    gap: 26px;
+  }
+  .wardrobe-layout .character-preview {
+    height: 330px;
+  }
+}

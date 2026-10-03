@@ -100,6 +100,8 @@ for side,suffix in [(1,'l'),(-1,'r')]:
 def garment(style):
  verts=[];faces=[];segments=24
  rings=[(.715,.205,.135),(.75,.22,.145),(.93,.235,.15),(1.065,.235,.145),(1.12,.20,.115),(1.15,.085,.075)]
+ if style==4:rings=[(.48,.28,.17),(.57,.27,.165),(.80,.19,.13),*rings[2:]]
+ if style==5:rings=[(.62,.225,.15),(.76,.23,.15),*rings[2:]]
  for z,w,d in rings:
   for i in range(segments):
    angle=2*math.pi*i/segments;verts.append((w*math.cos(angle),d*math.sin(angle),z))
@@ -111,7 +113,7 @@ def garment(style):
  o=bpy.data.objects.new('Clothing'+str(style),mesh);bpy.context.collection.objects.link(o)
  parts=[o]
  for side in [-1,1]:
-  end=.585 if style==0 else .445
+  end=.585 if style in [0,5,6,7] else .445
   length=end-.19
   bpy.ops.mesh.primitive_cylinder_add(vertices=20,radius=.084,depth=length,location=(side*(.19+length/2),.05,1.092),rotation=(0,math.pi/2,0))
   parts.append(bpy.context.object)
@@ -123,9 +125,9 @@ def garment(style):
  de=o.modifiers.new('Mobile topology','DECIMATE');de.ratio=.22;bpy.ops.object.modifier_apply(modifier=de.name)
  for m in [M['Fabric'],M['Jacket'],M['Trim']]:o.data.materials.append(m)
  for face in o.data.polygons:
-  q=face.center;face.material_index=1 if style==1 else 0
-  if style in [1,2] and abs(q.x)<.065 and q.y<-.07:face.material_index=2
-  if q.z<.74:face.material_index=0 if style in [1,2] else 2
+  q=face.center;face.material_index=1 if style in [1,7] else 0
+  if style in [1,2,5,7] and abs(q.x)<.065 and q.y<-.07:face.material_index=2
+  if q.z<.74:face.material_index=2 if style in [0,3] else (1 if style==7 else 0)
   face.use_smooth=True
  groups={n:o.vertex_groups.new(name=n) for n in ['spine_01','spine_02','spine_03','upperarm_l','upperarm_r','lowerarm_l','lowerarm_r']}
  for v in o.data.vertices:
@@ -135,7 +137,7 @@ def garment(style):
   for bone,weight in [(spine,1-arm),('upperarm_'+side,arm*(1-fore)),('lowerarm_'+side,arm*fore)]:
    if weight>0:groups[bone].add([v.index],weight,'REPLACE')
  mod=o.modifiers.new('Skin','ARMATURE');mod.object=rig;o.parent=rig;return o
-clothes=[garment(i) for i in range(4)]
+clothes=[garment(i) for i in range(8)]
 # A softly sculpted original chibi face on the connected humanoid rig.
 def orb(name,loc,size,material):
  bpy.ops.mesh.primitive_uv_sphere_add(segments=32 if name=='Face' else 16,ring_count=24 if name=='Face' else 10,radius=1,location=loc)
@@ -177,7 +179,7 @@ face.name='BodyAndFace'
 # All face vertices share the head bone; the neck overlaps under the collar.
 # Four hairstyles from the same CC0 base, bound to the head for independent choice.
 hairdir=SOURCE/'Hairstyles/Origin at 0/glTF (Godot)'
-for i,name in enumerate(['Hair_SimpleParted','Hair_Buns','Hair_Buzzed','Hair_Long']):
+for i,name in [(0,'Hair_SimpleParted'),(2,'Hair_Buzzed')]:
  before=set(bpy.data.objects);bpy.ops.import_scene.gltf(filepath=str(hairdir/(name+'.gltf')))
  imported=[o for o in bpy.data.objects if o not in before]
  mesh=next(o for o in imported if o.type=='MESH');mesh.name='Hair'+str(i)
@@ -213,8 +215,8 @@ for o in details:o.select_set(True)
 bpy.context.view_layer.objects.active=clothes[0];bpy.ops.object.join()
 # Layered curtain locks echo the reference's silhouette without duplicating its costume.
 def hair_lock(name,points,radii):
- curve=bpy.data.curves.new(name,'CURVE');curve.dimensions='3D';curve.resolution_u=10
- curve.bevel_depth=.045;curve.bevel_resolution=3
+ curve=bpy.data.curves.new(name,'CURVE');curve.dimensions='3D';curve.resolution_u=6
+ curve.bevel_depth=.045;curve.bevel_resolution=2
  path=curve.splines.new('BEZIER');path.bezier_points.add(len(points)-1)
  for b,p,r in zip(path.bezier_points,points,radii):b.co=p;b.radius=r;b.handle_left_type='AUTO';b.handle_right_type='AUTO'
  for b in path.bezier_points:b.co.z-=.075
@@ -227,6 +229,84 @@ for side in [-1,1]:
 hair=bpy.data.objects['Hair0'];bpy.ops.object.select_all(action='DESELECT');hair.select_set(True)
 for o in locks:o.select_set(True)
 bpy.context.view_layer.objects.active=hair;bpy.ops.object.join()
+# Fitted chibi hair replaces stretched adult buns and long strands. All hair
+# stays outside the cheek silhouette and follows the head joint.
+def fitted_cap(style):
+ verts=[];faces=[];segments=40;rows=12
+ for row in range(rows+1):
+  for j in range(segments):
+   phi=2*math.pi*j/segments
+   # Front fringe sits above the brows; sides and back cover the scalp.
+   front=max(0,-math.sin(phi))**6
+   limit=2.02-.91*front
+   theta=.015+(limit-.015)*row/rows
+   verts.append((.350*math.sin(theta)*math.cos(phi),.296*math.sin(theta)*math.sin(phi),1.575+.345*math.cos(theta)))
+ for row in range(rows):
+  for j in range(segments):
+   a=row*segments+j;b=row*segments+(j+1)%segments;faces.append((a,b,b+segments,a+segments))
+ faces.append(tuple(reversed(range(segments))))
+ mesh=bpy.data.meshes.new('Fitted_hair');mesh.from_pydata(verts,[],faces);mesh.update()
+ o=bpy.data.objects.new('Hair'+str(style),mesh);bpy.context.collection.objects.link(o);o.data.materials.append(M['Hair']);bind(o,'Head');return o
+for style in [1,3,4,5,6,7]:
+ hair=fitted_cap(style);parts=[]
+ # Side-swept fringe is tapered and clears both eyes.
+ for side in [-1,1]:
+  parts.append(hair_lock('Soft_fringe',[(side*.015,-.19,1.97),(side*.14,-.286,1.94),(side*.27,-.23,1.81),(side*.30,-.17,1.70)],[1.05,1.3,1,.08]))
+ if style==1:
+  for side in [-1,1]:
+   parts.append(orb('Soft_bun',(side*.28,.09,1.87),(.135,.13,.13),'Hair'))
+   parts.append(orb('Bun_ribbon',(side*.285,.005,1.86),(.055,.022,.04),'Trim'))
+ if style in [3,4]:
+  # One continuous curtain of hair, with soft edges instead of separate blunt tubes.
+  verts=[];faces=[];segments=32
+  bottom=1.08 if style==3 else 1.36
+  rows=[(1.80,.235,.21),(1.68,.326,.28),(1.48,.350,.295),(bottom+.07,.335,.285),(bottom,.29,.255)]
+  for z,w,d in rows:
+   for j in range(segments+1):
+    phi=-.13+(math.pi+.26)*j/segments
+    verts.append((w*math.cos(phi),d*math.sin(phi)+.016,z+.04*abs(math.cos(phi)) if z==bottom else z))
+  for k in range(len(rows)-1):
+   for j in range(segments):
+    n=k*(segments+1)+j;faces.append((n,n+1,n+segments+2,n+segments+1))
+  mesh=bpy.data.meshes.new('Continuous_layers');mesh.from_pydata(verts,[],faces);mesh.update()
+  o=bpy.data.objects.new('Smooth_layers',mesh);bpy.context.collection.objects.link(o);o.data.materials.append(M['Hair'])
+  bpy.context.view_layer.objects.active=o
+  sub=o.modifiers.new('Flowing silhouette','SUBSURF');sub.levels=1;bpy.ops.object.modifier_apply(modifier=sub.name)
+  thick=o.modifiers.new('Soft edge','SOLIDIFY');thick.thickness=.022;bpy.ops.object.modifier_apply(modifier=thick.name)
+  bind(o,'Head');parts.append(o)
+ if style==5:
+  parts.append(orb('Pony_tie',(0,.27,1.81),(.10,.055,.09),'Trim'))
+  for x in [-.06,0,.06]:parts.append(hair_lock('Ponytail',[(x,.30,1.88),(x,.43,1.74),(x,.46,1.48),(x+.03,.38,1.32)],[1.1,1.5,1,.10]))
+ if style==6:
+  for j in range(18):
+   phi=2*math.pi*j/18
+   parts.append(orb('Curl',(.295*math.cos(phi),.24*math.sin(phi),1.80+.06*math.sin(j*2)),(.075,.075,.075),'Hair'))
+  for x,y in [(-.13,0),(0,0),(.13,0),(0,-.12),(0,.12)]:parts.append(orb('Crown_curl',(x,y,1.91),(.10,.10,.07),'Hair'))
+ if style==7:
+  for side in [-1,1]:
+   for j in range(6):parts.append(orb('Braid',(side*(.30+.016*math.sin(j*math.pi/2)),.08,1.55-j*.055),(.063-j*.005,.062-j*.004,.055),'Hair'))
+   parts.append(orb('Braid_tie',(side*.29,.08,1.24),(.04,.042,.022),'Trim'))
+ bpy.ops.object.select_all(action='DESELECT');hair.select_set(True)
+ for o in parts:o.select_set(True)
+ bpy.context.view_layer.objects.active=hair;bpy.ops.object.join()
+# Four additional silhouettes with sewn details; every piece retains skin weights.
+for style in [4,5,6,7]:
+ parts=[]
+ if style==4:
+  parts.append(block('Dress_waist',(0,-.139,.81),(.34,.024,.035),'Trim','spine_01',.01))
+  for side in [-1,1]:parts.append(block('Dress_strap',(side*.12,-.14,1.015),(.034,.026,.20),'Trim','spine_02',.012))
+ if style==5:
+  for z in [.75,.85,.95,1.05]:parts.append(block('Pearl_button',(.066,-.155,z),(.021,.018,.021),'Trim','spine_02',.007))
+ if style==6:
+  for side in [-1,1]:parts.append(block('Sport_stripe',(side*.12,-.155,.93),(.035,.02,.31),'Trim','spine_02',.009))
+  parts.append(block('Club_badge',(.12,-.172,1.045),(.065,.016,.05),'Accent','spine_03',.013))
+ if style==7:
+  parts.append(block('Star_badge',(.125,-.162,1.02),(.075,.03,.075),'Accent','spine_03',.018))
+  for side in [-1,1]:parts.append(block('Jacket_trim',(side*.085,-.15,.93),(.022,.024,.29),'Fabric','spine_02',.006))
+ bpy.ops.object.select_all(action='DESELECT');clothes[style].select_set(True)
+ for o in parts:o.select_set(True)
+ bpy.context.view_layer.objects.active=clothes[style];bpy.ops.object.join()
+
 # Jacket details use the spine rig, not detached floating costume blocks.
 for i in [1,2]:
  garment=clothes[i]
@@ -242,6 +322,11 @@ for i in [1,2]:
  bpy.ops.object.select_all(action='DESELECT');garment.select_set(True)
  for o in details:o.select_set(True)
  bpy.context.view_layer.objects.active=garment;bpy.ops.object.join()
+# The fitted hair shares smooth normals; fewer triangles keep eight variants
+# inside the existing phone download budget without simplifying the face.
+for style in [1,3,4,5,6,7]:
+ o=bpy.data.objects['Hair'+str(style)];bpy.context.view_layer.objects.active=o
+ de=o.modifiers.new('Phone hair topology','DECIMATE');de.ratio=.65;bpy.ops.object.modifier_apply(modifier=de.name)
 # Missing normal maps from the source's filename aliases should not create bad exports.
 for material in bpy.data.materials:
  if not material.use_nodes:continue

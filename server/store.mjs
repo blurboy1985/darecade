@@ -1,3 +1,4 @@
+import { appearanceLimits } from "../src/appearance.ts";
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID, randomBytes, createHash } from "node:crypto";
 
@@ -112,10 +113,10 @@ export class Store {
       ["outfit", 5],
       ["skin", 7],
       ["hat", 3],
-      ["clothing", 3],
-      ["hair", 3],
-      ["pet", 3],
-      ["accessory", 3],
+      ...Object.entries(appearanceLimits).map(([key, count]) => [
+        key,
+        count - 1,
+      ]),
     ])
       if (
         Number.isInteger(data.look?.[key]) &&

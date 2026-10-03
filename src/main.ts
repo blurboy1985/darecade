@@ -1,3 +1,5 @@
+import { genderNames } from "./appearance";
+import { celebrate } from "./celebration";
 import {
   loadCharacter,
   createCharacterPreview,
@@ -64,6 +66,10 @@ function icon(name: string) {
 const save = readSave();
 let world: LobbyWorld | null = null;
 let game: ArcadeGame | null = null;
+let wardrobeTab = "style";
+let boardTab = "week";
+let boardGame: GameId = "noodle";
+let disposeCelebration: (() => void) | null = null;
 let disposePreview: (() => void) | null = null;
 let shared: SharedState | null = null;
 let profileReady = false;
@@ -79,6 +85,7 @@ const preferenceKeys = [
   "outfit",
   "skin",
   "hat",
+  "gender",
   "clothing",
   "hair",
   "pet",
@@ -91,13 +98,30 @@ const preferenceKeys = [
   "awayActivity",
   "welcomeDismissed",
 ] as const;
+let pendingPreferences = 0;
 function profileMutation(path: string, data: unknown) {
+  const preferenceChange = path === "profile";
+  if (preferenceChange) pendingPreferences++;
   profileQueue = profileQueue
     .then(async () => {
-      const p = await api<Profile>(path, data);
+      let p: Profile;
+      try {
+        p = await api<Profile>(path, data);
+      } finally {
+        if (preferenceChange) pendingPreferences--;
+      }
+      // Earlier saves must not undo a newer choice while its request is queued.
+      if (pendingPreferences)
+        Object.assign(
+          p.progress,
+          Object.fromEntries(preferenceKeys.map((k) => [k, save[k]])),
+        );
       acceptProfile(p);
     })
-    .catch((error) => toast((error as Error).message));
+    .catch((error) => {
+      if (preferenceChange) sentPreferences = "";
+      toast((error as Error).message);
+    });
   return profileQueue;
 }
 function progress(event: string, value?: unknown) {
@@ -270,6 +294,8 @@ function abandonRound() {
   activeRun = null;
 }
 function openShell(kicker: string) {
+  disposeCelebration?.();
+  disposeCelebration = null;
   disposePreview?.();
   disposePreview = null;
   abandonRound();
@@ -290,6 +316,8 @@ function openShell(kicker: string) {
   beep(440);
 }
 function close() {
+  disposeCelebration?.();
+  disposeCelebration = null;
   disposePreview?.();
   disposePreview = null;
   abandonRound();
@@ -374,7 +402,7 @@ function open(id: string) {
   );
   if (id === "phone-menu") {
     body.innerHTML = `<h2>Your neighbourhood.</h2><p class="lead">Everything else, when you need it.</p><div class="phone-menu-grid">${[
-      ["board", "Daily rankings"],
+      ["board", "Rankings & medals"],
       ["dares", "Challenge a neighbour"],
       ["neighbours", "Meet the neighbours"],
       ["wardrobe", "Change my look"],
@@ -399,36 +427,61 @@ function open(id: string) {
     const taken = save.giftDay === singaporeDay();
     body.innerHTML = `<h2>${taken ? "Good choice, neighbour." : "Something for your noggin."}</h2><p class="lead">${taken ? "Your free gift is in your wardrobe. Come back any day." : "Pick one. It’s yours to keep. No catch, no lucky dip."}</p><div class="gift-grid">${["The Kopitiam Bucket", "Lilac Daydream", "Just a Little Sprout"].map((n, i) => `<button class="gift-option ${taken && save.gift === i ? "chosen" : ""}" data-gift="${i}" ${taken ? "disabled" : ""}><span class="hat-art hat-${i}">${["▰", "◒", "♧"][i]}</span><strong>${n}</strong><span>${taken ? (save.gift === i ? "YOURS TO KEEP" : "ANOTHER DAY") : "FREE · CHOOSE ME"}</span></button>`).join("")}</div><div class="note">${icon("leaf")} A new choice each day, Singapore time. Miss a day? You won’t lose a thing.</div>${taken ? actionButton("wardrobe", "Wear it your way →") : ""}`;
   } else if (id === "wardrobe") {
-    body.innerHTML = `<div class="wardrobe-layout"><div class="avatar-preview" style="--outfit:${outfits[save.outfit]};--skin:${skins[save.skin]}"><div class="avatar-large"><i class="hair"></i><i class="face"><b></b><b></b></i><i class="body"></i><i class="arm a-left"></i><i class="arm a-right"></i><i class="leg l-left"></i><i class="leg l-right"></i><span class="preview-hat">${["", "▰", "◒", "♧"][save.hat]}</span></div><span>${escapeText(shared?.players.find((p) => p.id === shared!.me)?.name || "YOUR LOOK")}</span></div><div><h2>Very you.</h2><p class="lead">Mix it up. Everything here is free.</p><label class="field-label">YOUR COLOUR</label><div class="swatches">${outfits.map((c, i) => `<button data-outfit="${i}" style="--swatch:${c}" class="${save.outfit === i ? "active" : ""}" aria-label="${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][i]} outfit" aria-pressed="${save.outfit === i}"></button>`).join("")}</div><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">TOP IT OFF</label><div class="hat-options">${["No hat", "Bucket", "Cap", "Sprout"].map((n, i) => `<button data-hat="${i}" ${save.unlockedHats.includes(i) ? "" : 'disabled title="Find it at the Mama Shop or finish the coin hunt"'} class="${save.hat === i ? "active" : ""}" aria-pressed="${save.hat === i}">${n}</button>`).join("")}</div>${actionButton("done-look", "That’s my look →")}<p class="fine-print">Changes save as you go.</p></div></div>`;
-    const preview = body.querySelector<HTMLElement>(".avatar-preview");
-    if (preview && !is2d) {
-      preview.innerHTML =
-        '<div class="character-preview" aria-label="3D character preview; drag to turn"></div><small>DRAG TO TURN</small>';
+    const choices = (
+      key: "gender" | "clothing" | "hair" | "pet" | "accessory",
+      names: string[],
+    ) =>
+      `<div class="look-options">${names.map((name, i) => `<button class="secondary ${save[key] === i ? "chosen" : ""}" data-${key}="${i}" aria-pressed="${save[key] === i}">${name}</button>`).join("")}</div>`;
+    const nickname =
+      currentProfile?.name ||
+      shared?.players.find((p) => p.id === shared?.me)?.name ||
+      "New neighbour";
+    body.innerHTML = `<div class="wardrobe-layout"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${escapeText(nickname)}</strong><small>DRAG TO TURN · SAVES AS YOU GO</small><span class="look-caption">${clothingNames[save.clothing]} · ${hairNames[save.hair]}</span></div><div class="wardrobe-controls"><span class="eyebrow">YOUR NEIGHBOURHOOD SELF</span><h2>Make it you.</h2><details class="look-identity" ${innerWidth > 600 ? "open" : ""}><summary>Name & avatar gender</summary><form id="nickname-form"><label class="field-label" for="nickname">YOUR NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" value="${escapeText(nickname)}" minlength="2" maxlength="20" autocomplete="off" required><button class="secondary" type="submit">Save name</button></div><p class="fine-print">Visible to everyone. Use a nickname, not your real name or contact details.</p><p id="nickname-status" role="status"></p></form><details class="avatar-identity"><summary>Avatar gender · ${genderNames[save.gender]}</summary><p class="fine-print">A character choice only. Every hairstyle and outfit is available to everyone.</p>${choices("gender", genderNames)}</details></details><div class="look-tabs" aria-label="Wardrobe sections">${[
+      ["style", "Outfits"],
+      ["hair", "Hair"],
+      ["pets", "Pets"],
+      ["magic", "Magic"],
+    ]
+      .map(
+        ([key, label]) =>
+          `<button class="${wardrobeTab === key ? "active" : ""}" data-look-tab="${key}" aria-pressed="${wardrobeTab === key}">${label}</button>`,
+      )
+      .join(
+        "",
+      )}</div><section class="character-options">${wardrobeTab === "style" ? `<h3>Find your favourite fit.</h3>${choices("clothing", clothingNames)}<label class="field-label">OUTFIT COLOUR</label><div class="swatches">${outfits.map((c, i) => `<button data-outfit="${i}" style="--swatch:${c}" class="${save.outfit === i ? "active" : ""}" aria-label="${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][i]} outfit" aria-pressed="${save.outfit === i}"></button>`).join("")}</div><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">TOP IT OFF</label><div class="hat-options">${["No hat", "Bucket", "Cap", "Sprout"].map((n, i) => `<button data-hat="${i}" ${save.unlockedHats.includes(i) ? "" : "disabled"} class="${save.hat === i ? "active" : ""}" aria-pressed="${save.hat === i}">${n}${save.unlockedHats.includes(i) ? "" : " · locked"}</button>`).join("")}</div>` : wardrobeTab === "hair" ? `<h3>A good hair day.</h3><p class="fine-print">Soft buns, flowing layers and fresh cuts. Pick any style.</p>${choices("hair", hairNames)}` : wardrobeTab === "pets" ? `<h3>A little friend, always.</h3><p class="fine-print">Your companion follows you around the neighbourhood.</p>${choices("pet", petNames)}` : `<h3>A little everyday magic.</h3><p class="fine-print">Floating charms, soft wings and tiny spells.</p>${choices("accessory", accessoryNames)}`}</section><p class="fine-print">All looks are free and cosmetic. They never change your score.</p>${actionButton("done-look", "Love it. Let’s play →")}</div></div>`;
+    const preview = body.querySelector<HTMLElement>(".character-preview")!;
+    if (!is2d) {
       try {
-        disposePreview = createCharacterPreview(
-          preview.querySelector(".character-preview")!,
-          save,
-        );
+        disposePreview = createCharacterPreview(preview, save);
       } catch {
         preview.textContent = "Your look will appear in the neighbourhood.";
       }
-    }
-    const options = document.createElement("section");
-    options.className = "character-options";
-    options.innerHTML = `<h3>Make it yours.</h3><p class="fine-print">All outfits, companions and effects here are cosmetic. No score bonuses.</p>${(
-      [
-        ["clothing", "YOUR OUTFIT", clothingNames],
-        ["hair", "YOUR HAIR", hairNames],
-        ["pet", "YOUR COMPANION", petNames],
-        ["accessory", "A LITTLE MAGIC", accessoryNames],
-      ] as const
-    )
-      .map(
-        ([key, title, names]) =>
-          `<label class="field-label">${title}</label><div class="look-options">${names.map((name, i) => `<button class="secondary ${save[key] === i ? "chosen" : ""}" data-${key}="${i}" aria-pressed="${save[key] === i}">${name}</button>`).join("")}</div>`,
-      )
-      .join("")}`;
-    body.querySelector(".wardrobe-layout > div:last-child")!.append(options);
+    } else
+      preview.innerHTML = `<span class="look-2d" style="background:${outfits[save.outfit]}">${icon("shirt")}</span><p>3D preview is available in 3D mode.</p>`;
+    body.querySelector<HTMLFormElement>("#nickname-form")!.onsubmit = async (
+      e,
+    ) => {
+      e.preventDefault();
+      const status = body.querySelector<HTMLElement>("#nickname-status")!;
+      const button = body.querySelector<HTMLButtonElement>(
+        "#nickname-form button",
+      )!;
+      const name = body.querySelector<HTMLInputElement>("#nickname")!.value;
+      button.disabled = true;
+      try {
+        await profileQueue;
+        const profile = await api<Profile>("profile", { name });
+        acceptProfile(profile);
+        await syncSocial();
+        status.textContent = "Nickname saved.";
+        body.querySelector(".avatar-preview strong")!.textContent =
+          profile.name;
+      } catch (error) {
+        status.textContent = (error as Error).message;
+      } finally {
+        button.disabled = false;
+      }
+    };
   } else if (id === "map") {
     body.innerHTML = `<h2>A small world.<br>A lot to get lost in.</h2><p class="lead">Pick a spot and we’ll take a little walk.</p><div class="zone-grid">${spots.map((s, i) => `<button data-walk="${s.id}"><span class="zone-number">0${i + 1}</span>${icon(["game", "trophy", "gift", "shirt", "trophy", "leaf", "cat", "star"][i])}<strong>${s.name}</strong><span>${save.visited.includes(s.id) ? "✓ DISCOVERED" : "LET’S EXPLORE →"}</span></button>`).join("")}</div><div class="note">${is2d ? "You’re in the lightweight 2D lobby. All games and rewards are available." : "WASD or arrows to walk · click the ground to choose a route · E to interact · space to jump"}</div>`;
   } else if (id === "quests") {
@@ -643,6 +696,26 @@ async function startGame(id: GameId, defender = "", dare = "") {
             (!currentProfile?.account
               ? '<button class="secondary" data-account>Create an account to keep my progress →</button>'
               : "");
+          body.insertAdjacentHTML(
+            "afterbegin",
+            '<div class="finish-effects" aria-hidden="true"></div>',
+          );
+          if (!is2d && !save.reduced) {
+            try {
+              disposeCelebration = celebrate(
+                body.querySelector(".finish-effects")!,
+              );
+            } catch {
+              /* Rewards remain readable without WebGL. */
+            }
+          }
+          const standing = shared?.boards[id]?.find((p) => p.id === shared?.me);
+          body
+            .querySelector(".result-score")!
+            .insertAdjacentHTML(
+              "afterend",
+              `<div class="round-breakdown"><span>Cosmetic XP<strong>${result ? "+20" : "0"}</strong><small>For your avatar level</small></span><span>Today’s rank<strong>${result?.ranked && standing ? "#" + standing.rank : "Practice"}</strong><small>${result?.ranked && standing && standing.rank <= 3 ? `+${4 - standing.rank} medals if held at midnight` : "Medals are separate from game scores"}</small></span></div>`,
+            );
           beep(score > target ? 880 : 550);
         } catch (error) {
           if (generation !== gameGeneration) return;
@@ -665,6 +738,21 @@ async function startGame(id: GameId, defender = "", dare = "") {
 document.addEventListener("click", (e) => {
   const b = (e.target as Element).closest<HTMLButtonElement>("button");
   if (!b || b.disabled) return;
+  if (b.dataset.lookTab) {
+    wardrobeTab = b.dataset.lookTab;
+    open("wardrobe");
+    return;
+  }
+  if (b.dataset.boardTab) {
+    boardTab = b.dataset.boardTab;
+    renderSharedBoard();
+    return;
+  }
+  if (b.dataset.boardGame) {
+    boardGame = b.dataset.boardGame as GameId;
+    renderSharedBoard();
+    return;
+  }
   if (b.dataset.account !== undefined) {
     void openAccount();
     return;
@@ -753,6 +841,7 @@ document.addEventListener("click", (e) => {
     "outfit",
     "skin",
     "hat",
+    "gender",
     "clothing",
     "hair",
     "pet",
@@ -1303,6 +1392,7 @@ function presenceData() {
       outfit: save.outfit,
       skin: save.skin,
       hat: save.hat,
+      gender: save.gender,
       clothing: save.clothing,
       hair: save.hair,
       pet: save.pet,
@@ -1322,6 +1412,7 @@ async function syncSocial() {
       shared.day,
       shared.players.map((p) => [
         p.id,
+        p.name,
         p.status,
         p.look,
         p.activity,
@@ -1332,6 +1423,7 @@ async function syncSocial() {
         p.best,
       ]),
       shared.boards,
+      shared.weekly,
       shared.history,
     ]);
     const changed = signature !== sharedSignature || !connected;
@@ -1380,57 +1472,23 @@ function renderSharedNeighbours() {
   body.innerHTML = `<h2>Your neighbours.<br>Still downstairs.</h2><p class="lead">Visit a saved avatar, inspect their outfit, or challenge their best while they’re resting.</p>${serverNote()}<div class="resident-list">${playerRows()}</div><h3>Around the block</h3><p class="fine-print">Community characters bring the park to life. They don’t compete for medals.</p><div class="resident-list">${residents.map((r) => `<button data-resident="${r.id}"><span class="resident-swatch" style="background:${outfits[r.outfit]}">${activities[r.activity].icon}</span><span><strong>${r.name}</strong><small>COMMUNITY CHARACTER · ${activities[r.activity].name}</small></span><b>VISIT ↗</b></button>`).join("")}</div>`;
 }
 function renderSharedBoard() {
-  const me = shared?.players.find((p) => p.id === shared!.me);
-  const leaders = [...(shared?.players || [])].sort(
-    (a, b) => b.points - a.points || a.name.localeCompare(b.name),
-  );
-  body.innerHTML = `<span class="eyebrow">DAILY MEDALS · SINGAPORE TIME</span><h2>Start at zero.<br>Make your mark.</h2><p class="lead">Four games. Three podium spots in each.<br>Gold <b>+3</b> · Silver <b>+2</b> · Bronze <b>+1</b></p>${serverNote()}<div class="medal-summary"><span>Your medal points<strong>${me?.points || 0}</strong></span><span>Next awards<strong>${shared ? new Date(shared.nextReset).toLocaleDateString("en-SG", { timeZone: "Asia/Singapore", day: "numeric", month: "short" }) : "Tonight"} · 00:00 SGT</strong></span></div><p class="fine-print">Only your best score finished today qualifies; the board resets at midnight SGT. Equal scores share a rank (1, 1, 3). Positive scores only. Up to 12 medal points per day. Your all-time best stays available for friendly dares. XP and outfits never boost scores.</p><div class="ranking-grid">${gameIds
-    .map(
-      (g) =>
-        `<section class="ranking-card"><h3>${games[g].name}</h3><span class="eyebrow">CURRENT SCORES · MEDALS PENDING</span>${
-          (shared?.boards[g] || [])
-            .filter((p) => p.rank <= 3)
-            .map(
-              (p) =>
-                `<div class="ranking-row"><span>${["🥇", "🥈", "🥉"][p.rank - 1]}</span><span>${escapeText(p.name)}<small>${p.score} · rank ${p.rank}</small></span><b>+${4 - p.rank}</b></div>`,
-            )
-            .join("") ||
-          '<p class="fine-print">A fresh board. Set today’s first score.</p>'
-        }<button class="secondary" data-game="${g}">Play ${games[g].name} →</button></section>`,
-    )
-    .join(
-      "",
-    )}</div><h3>Neighbourhood medal standings</h3><div class="leaderboard">${leaders.map((p, i) => `<div class="${p.id === shared?.me ? "you-row" : ""}"><b>${i + 1}</b><span>${escapeText(p.name)}${p.id === shared?.me ? " · You" : ""}</span><strong>${p.points}<small>MEDAL PTS</small></strong></div>`).join("") || "<p>Everyone starts at zero. Play your first round.</p>"}</div>`;
-  const rows = (list: SharedState["weekly"]) =>
-    list
-      .map(
-        (p) =>
-          '<div class="' +
-          (p.id === shared?.me ? "you-row" : "") +
-          '"><b>' +
-          p.rank +
-          "</b><span>" +
-          escapeText(p.name) +
-          "</span><strong>" +
-          p.points +
-          "<small>MEDAL PTS</small></strong></div>",
-      )
-      .join("") ||
-    "<p>A fresh week. Finish today’s games to qualify for midnight medals.</p>";
-  body.insertAdjacentHTML(
-    "afterbegin",
-    '<section class="weekly-board"><span class="eyebrow">WEEKLY BOARD · ' +
-      (shared?.week || "THIS WEEK") +
-      '</span><h2>A fresh chance, every Monday.</h2><p>This week’s daily medals. Resets Monday at 00:00 Singapore time. Your lifetime medals and cosmetic progress stay saved.</p><div class="leaderboard">' +
-      rows(shared?.weekly || []) +
-      '</div><details><summary>Last week’s champions</summary><div class="leaderboard">' +
-      rows(shared?.lastWeek || []) +
-      '</div></details><p class="fine-print">' +
-      (shared?.competitionReady
-        ? "Your account is ready for ranked play."
-        : "Verify your email and wait 24 hours to enter ranked boards and shared dares. Regular rounds earn cosmetic progress now.") +
-      '</p><button class="secondary" data-account>Account & privacy →</button></section>',
-  );
+  const me = shared?.players.find((p) => p.id === shared?.me);
+  const week = shared?.weekly || [];
+  const ownWeek = week.find((p) => p.id === shared?.me);
+  const board = shared?.boards[boardGame] || [];
+  const ownDay = board.find((p) => p.id === shared?.me);
+  const pending = gameIds.reduce((sum, g) => {
+    const r = shared?.boards[g].find((p) => p.id === shared?.me)?.rank;
+    return sum + (r && r <= 3 ? 4 - r : 0);
+  }, 0);
+  const list =
+    boardTab === "week"
+      ? week.map((p) => ({ ...p, value: p.points }))
+      : board.map((p) => ({ ...p, value: p.score }));
+  const unit = boardTab === "week" ? "MEDAL PTS" : "GAME SCORE";
+  const rank = boardTab === "week" ? ownWeek?.rank : ownDay?.rank;
+  const podium = list.filter((p) => p.rank <= 3);
+  body.innerHTML = `<span class="eyebrow">YOUR NEIGHBOURHOOD LEAGUE</span><h2>Small wins.<br>Something to show for them.</h2>${serverNote()}<section class="your-standing"><div><span>YOUR ${boardTab === "week" ? "WEEKLY" : "DAILY"} RANK</span><strong>${rank ? "#" + rank : "—"}</strong><small>${rank ? "Keep playing at your own pace" : shared?.competitionReady ? "Set a score to join the board" : "Practice now · ranked play unlocks after verification + 24h"}</small></div><div class="standing-stats"><span><b>${ownWeek?.points || 0}</b>This week</span><span><b>${pending ? "+" + pending : "0"}</b>Pending tonight</span><span><b>${me?.points || 0}</b>Lifetime</span></div></section><div class="look-tabs board-tabs"><button data-board-tab="week" class="${boardTab === "week" ? "active" : ""}" aria-pressed="${boardTab === "week"}">Weekly medals</button><button data-board-tab="daily" class="${boardTab === "daily" ? "active" : ""}" aria-pressed="${boardTab === "daily"}">Today’s game scores</button></div>${boardTab === "daily" ? `<div class="game-filters">${gameIds.map((g) => `<button class="secondary ${g === boardGame ? "chosen" : ""}" data-board-game="${g}" aria-pressed="${g === boardGame}">${games[g].name}</button>`).join("")}</div><p class="fine-print">${games[boardGame].name} · Your best today: <b>${ownDay?.score || 0}</b> · Medals are pending until 00:00 SGT.</p>` : `<p class="fine-print">Week of ${shared?.week || "Monday"} · Awarded daily medals only. A fresh board every Monday, 00:00 SGT.</p>`}<div class="podium-cards">${podium.length ? podium.map((p) => `<article class="podium-card medal-${p.rank} ${p.id === shared?.me ? "is-you" : ""}"><span class="podium-medal">${["🥇", "🥈", "🥉"][p.rank - 1]}</span><small>RANK ${p.rank}${p.id === shared?.me ? " · YOU" : ""}</small><h3>${escapeText(p.name)}</h3><strong>${p.value}</strong><small>${unit}${boardTab === "daily" ? ` · +${4 - p.rank} PENDING` : ""}</small></article>`).join("") : `<div class="board-empty"><span>✦</span><h3>${boardTab === "week" ? "Your next chapter starts at zero." : "The first spot is open."}</h3><p>${boardTab === "week" ? "Finish today’s games. Top-three scores earn medals at midnight." : "Finish a ranked round to set today’s first score."}</p><button class="primary" data-game="${boardGame}">Play ${games[boardGame].name} →</button></div>`}</div>${list.length ? `<div class="leaderboard">${list.map((p) => `<div class="${p.id === shared?.me ? "you-row" : ""}"><b>#${p.rank}</b><span>${escapeText(p.name)}${p.id === shared?.me ? " · You" : ""}</span><strong>${p.value}<small>${unit}</small></strong></div>`).join("")}</div>` : ""}${boardTab === "daily" && ownDay && board[0] ? `<div class="score-target"><label>Your score compared with today’s leader <b>${ownDay.score} / ${board[0].score}</b></label><progress value="${ownDay.score}" max="${Math.max(1, board[0].score)}"></progress></div>` : ""}${boardTab === "daily" ? `<button class="primary" data-game="${boardGame}">Play ${games[boardGame].name} →</button>` : ""}<details class="scoring-guide"><summary>How scores become medals</summary><div class="medal-rule"><span>🥇<b>+3</b>Gold</span><span>🥈<b>+2</b>Silver</span><span>🥉<b>+1</b>Bronze</span></div><p>1. Play any of the four daily games. Your best positive score counts.</p><p>2. At midnight Singapore time, each game awards its top three ranks. Up to 12 medal points a day.</p><p>3. Daily medals build your weekly total. The weekly board resets Monday; lifetime medals stay.</p><p class="fine-print">Ties share a rank (1, 1, 3). Pending medals can change before midnight. Cosmetic XP levels up your avatar and never affects ranks. Dares record wins separately.</p></details><details class="scoring-guide"><summary>Last week’s champions</summary><div class="leaderboard">${(shared?.lastWeek || []).map((p) => `<div><b>#${p.rank}</b><span>${escapeText(p.name)}</span><strong>${p.points}<small>MEDAL PTS</small></strong></div>`).join("") || "<p>No completed week yet.</p>"}</div></details>${!shared?.competitionReady ? '<button class="secondary" data-account>Account & ranked play →</button>' : ""}`;
 }
 function challengeButtons(p: SharedPlayer) {
   const eligible =

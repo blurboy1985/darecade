@@ -3,6 +3,7 @@ import type { Save } from "./state";
 import "./account.css";
 export type Profile = {
   id: string;
+  name: string;
   account: null | { email: string; created: number; eligibleAt: number };
   ageBand: string;
   privacyVersion: string;
@@ -48,7 +49,7 @@ export function acceptProfile(p: Profile) {
   currentProfile = p;
   window.dispatchEvent(new CustomEvent("account-profile", { detail: p }));
 }
-export const privacyCopy = `<h2>Your play. Your privacy.</h2><p>We save your avatar, progress, scores, preset nickname and age band. If you create an account, we also keep your email so you can sign in on another device. We do not keep your birth month or year.</p><p>Other players can see your nickname, avatar, activity, scores and dares. They cannot see your email or age band. There is no chat, photo upload or advertising tracker.</p><p>We check recorded game inputs before saving scores. Inputs are deleted after 30 days; scores stay with your profile. Sign-in links expire after 15 minutes. Inactive profiles are deleted after 12 months. Optional phone-test feedback is saved only when you send it and is included in your data download and deletion.</p><p>You can download your data or withdraw consent and delete your profile under Account & privacy. Deleting removes your avatar, scores, dares and access. It cannot be undone.</p><p>This local test stores data on the arcade operator's computer. Email delivery, when enabled, uses a transactional email provider. No purchases or marketing emails are enabled.</p><p>If anything is unclear, stop here and ask a trusted adult or the arcade operator. You do not need to agree to continue reading this notice.</p>`;
+export const privacyCopy = `<h2>Your play. Your privacy.</h2><p>We save your avatar, progress, scores, chosen nickname, avatar gender preference and age band. If you create an account, we also keep your email so you can sign in on another device. We do not keep your birth month or year.</p><p>Other players can see your nickname, avatar, activity, scores and dares. They cannot see your email or age band. Choose a nickname rather than your real name or contact details. Avatar gender is an optional character preference, not a request for your real gender. There is no chat, photo upload or advertising tracker.</p><p>We check recorded game inputs before saving scores. Inputs are deleted after 30 days; scores stay with your profile. Sign-in links expire after 15 minutes. Inactive profiles are deleted after 12 months. Optional phone-test feedback is saved only when you send it and is included in your data download and deletion.</p><p>You can download your data or withdraw consent and delete your profile under Account & privacy. Deleting removes your avatar, scores, dares and access. It cannot be undone.</p><p>This local test stores data on the arcade operator's computer. Email delivery, when enabled, uses a transactional email provider. No purchases or marketing emails are enabled.</p><p>If anything is unclear, stop here and ask a trusted adult or the arcade operator. You do not need to agree to continue reading this notice.</p>`;
 function privacyNotice() {
   return (
     privacyCopy.replace(
@@ -260,7 +261,7 @@ export async function openAccount() {
 export function reportPlayer(target: string) {
   const { host } = shell();
   host.innerHTML =
-    '<h2>Help keep the neighbourhood safe.</h2><p>The report goes privately to the arcade operator. This player will be hidden from your neighbourhood.</p><form><label>What concerns you?<select name="reason"><option value="under-age">They may be under 13</option><option value="suspected-cheating">Their score may be unfair</option><option value="unsafe-behaviour">Unsafe behaviour</option></select></label><button class="primary">Send report & hide player</button><p role="status"></p></form>';
+    '<h2>Help keep the neighbourhood safe.</h2><p>The report goes privately to the arcade operator. This player will be hidden from your neighbourhood.</p><form><label>What concerns you?<select name="reason"><option value="under-age">They may be under 13</option><option value="suspected-cheating">Their score may be unfair</option><option value="unsafe-behaviour">Unsafe behaviour</option><option value="inappropriate-name">Inappropriate nickname or contact details</option></select></label><button class="primary">Send report & hide player</button><p role="status"></p></form>';
   host.querySelector("form")!.addEventListener("submit", async (e) => {
     e.preventDefault();
     try {

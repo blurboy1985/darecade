@@ -28,6 +28,7 @@ const lookKeys = [
   "outfit",
   "skin",
   "hat",
+  "gender",
   "clothing",
   "hair",
   "pet",
@@ -194,6 +195,7 @@ export class Community {
     const progress = normalise(JSON.parse(p.progress), fresh());
     return {
       id,
+      name: this.db.prepare("SELECT name FROM players WHERE id=?").get(id).name,
       account: account
         ? {
             email: account.email,
@@ -213,6 +215,15 @@ export class Community {
   }
   patch(id, patch) {
     if (!patch || typeof patch !== "object") throw Error("Choose a setting.");
+    let name;
+    if (Object.hasOwn(patch, "name")) {
+      if (typeof patch.name !== "string") throw Error("Choose a nickname.");
+      name = patch.name.trim().replace(/\s+/g, " ");
+      if (!/^[\p{L}][\p{L}\p{N} _-]{1,19}$/u.test(name) || /\d{5}/.test(name))
+        throw Error(
+          "Use 2–20 letters, numbers, spaces or hyphens; no contact details.",
+        );
+    }
     const p = this.privateProfile(id).progress,
       allowed = {};
     for (const k of [...lookKeys, ...prefs])
@@ -221,6 +232,8 @@ export class Community {
     if (!p.unlockedHats.includes(candidate.hat))
       throw Error("Unlock this hat before wearing it.");
     for (const k of [...lookKeys, ...prefs]) p[k] = candidate[k];
+    if (name !== undefined)
+      this.db.prepare("UPDATE players SET name=? WHERE id=?").run(name, id);
     this.save(id, p);
     const look = Object.fromEntries(lookKeys.map((k) => [k, p[k]]));
     this.db
@@ -639,7 +652,12 @@ export class Community {
     )
       throw Error("Choose another neighbour.");
     if (
-      !["under-age", "unsafe-behaviour", "suspected-cheating"].includes(reason)
+      ![
+        "under-age",
+        "unsafe-behaviour",
+        "suspected-cheating",
+        "inappropriate-name",
+      ].includes(reason)
     )
       throw Error("Choose a report reason.");
     if (

@@ -2,34 +2,18 @@ import * as T from "three";
 import { clone as cloneSkeleton } from "three/addons/utils/SkeletonUtils.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { outfits, skins } from "./state";
-export const clothingNames = [
-  "Weekend hoodie",
-  "Arcade varsity",
-  "Trail explorer",
-  "Everyday tee",
-];
-export const hairNames = [
-  "Side-swept waves",
-  "Double buns",
-  "Close crop",
-  "Long layers",
-];
-export const petNames = [
-  "No companion",
-  "Mochi the cat",
-  "Biscuit the pup",
-  "Little cloudbot",
-];
-export const accessoryNames = [
-  "Keep it simple",
-  "Orbiting stars",
-  "Butterfly wings",
-  "Firefly friends",
-];
+import { clothingNames } from "./appearance";
+export {
+  clothingNames,
+  hairNames,
+  petNames,
+  accessoryNames,
+} from "./appearance";
 export type Look = {
   outfit: number;
   skin: number;
   hat: number;
+  gender?: number;
   clothing?: number;
   hair?: number;
   pet?: number;
@@ -59,7 +43,7 @@ let template: T.Group;
 let loading: Promise<void> | null = null;
 export function loadCharacter() {
   return (loading ??= new GLTFLoader()
-    .loadAsync("/models/neighbour.glb?v=cute-10")
+    .loadAsync("/models/neighbour.glb?v=look-12")
     .then((g) => {
       template = g.scene;
     }));
@@ -186,7 +170,7 @@ export function applyLook(
   a.look = { clothing: 0, hair: 0, pet: 0, accessory: 0, ...look };
   a.materials.get("Fabric")!.color.set(color);
   a.materials.get("Skin")!.color.set(skin);
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < clothingNames.length; i++) {
     a.model.getObjectByName("Clothing" + i)!.visible = i === a.look.clothing;
     a.model.getObjectByName("Hair" + i)!.visible = i === a.look.hair;
   }
@@ -258,6 +242,73 @@ export function applyLook(
       );
       firefly.userData.orbit = i;
     }
+  if (a.look.accessory === 4) {
+    const halo = group(a.extras, [0, 2.08, 0]);
+    halo.name = "Halo";
+    for (let i = 0; i < 24; i++) {
+      const r = (i * Math.PI) / 12;
+      ellipsoid(
+        halo,
+        [Math.cos(r) * 0.36, 0, Math.sin(r) * 0.3],
+        [0.024, 0.018, 0.024],
+        "#ffe6a2",
+        true,
+      );
+    }
+    ellipsoid(halo, [0.37, 0.04, 0], [0.045, 0.085, 0.025], "#fff2bf", true);
+  }
+  if (a.look.accessory === 5) {
+    const crown = group(a.extras, [0, 2.04, 0]);
+    crown.name = "Crown";
+    for (let i = 0; i < 5; i++) {
+      const crystal = ellipsoid(
+        crown,
+        [(i - 2) * 0.11, 0.04 - Math.abs(i - 2) * 0.015, 0.07],
+        [0.045, 0.1 - Math.abs(i - 2) * 0.016, 0.035],
+        ["#bd9aff", "#86ede6", "#ffe1a4"][i % 3],
+        true,
+      );
+      crystal.rotation.z = (2 - i) * 0.18;
+    }
+  }
+  if (a.look.accessory === 6) {
+    const ribbon = group(a.extras, [0, 1.22, -0.19]);
+    ribbon.name = "Ribbon";
+    for (let j = 0; j < 4; j++)
+      for (let i = 0; i < 16; i++) {
+        const angle = (i / 15) * Math.PI;
+        ellipsoid(
+          ribbon,
+          [
+            Math.cos(angle) * (0.42 + j * 0.042),
+            Math.sin(angle) * (0.42 + j * 0.042),
+            0,
+          ],
+          [0.038, 0.04, 0.026],
+          ["#ffa6b5", "#ffdb85", "#a8eccb", "#b8acfa"][j],
+          true,
+        );
+      }
+  }
+  if (a.look.accessory === 7)
+    for (let i = 0; i < 7; i++) {
+      const bubble = group(a.extras);
+      bubble.userData.orbit = i;
+      ellipsoid(
+        bubble,
+        [0, 0, 0],
+        [0.06, 0.06, 0.06],
+        i % 2 ? "#c1eaff" : "#e5c2fa",
+        true,
+      );
+      ellipsoid(
+        bubble,
+        [-0.017, 0.025, 0.05],
+        [0.018, 0.009, 0.009],
+        "#ffffff",
+        true,
+      );
+    }
   if (previous.pet !== a.look.pet || (!!a.look.pet && !a.pet)) {
     a.pet?.root.removeFromParent();
     a.pet = a.look.pet ? makePet(a.root.parent!, a.look.pet) : null;
@@ -279,8 +330,46 @@ function makePet(parent: T.Object3D, kind: number) {
       ellipsoid(root, [x, 0.54, 0.26], [0.025, 0.028, 0.012], "#baf5d9", true);
     ellipsoid(root, [0, 0.73, 0], [0.025, 0.1, 0.025], "#e7c077");
     ellipsoid(root, [0, 0.84, 0], [0.06, 0.06, 0.06], "#e7c077", true);
+  } else if (kind === 7) {
+    ellipsoid(root, [0, 0.43, 0], [0.24, 0.28, 0.21], "#b29bbf");
+    ellipsoid(root, [0, 0.41, 0.16], [0.18, 0.21, 0.08], "#f2e2cc");
+    for (const side of [-1, 1]) {
+      ellipsoid(
+        root,
+        [side * 0.1, 0.55, 0.19],
+        [0.105, 0.115, 0.06],
+        "#f5edd9",
+      );
+      ellipsoid(
+        root,
+        [side * 0.1, 0.55, 0.246],
+        [0.042, 0.052, 0.02],
+        "#343449",
+      );
+      ellipsoid(
+        root,
+        [side * 0.1 - 0.01, 0.575, 0.263],
+        [0.014, 0.017, 0.006],
+        "#ffffff",
+      );
+      const wing = group(root, [side * 0.22, 0.46, 0]);
+      wing.name = "PetWing";
+      wing.userData.side = side;
+      ellipsoid(wing, [side * 0.08, -0.02, 0], [0.14, 0.2, 0.07], "#88739d");
+      ellipsoid(root, [side * 0.1, 0.16, 0.04], [0.07, 0.035, 0.08], "#e6b55c");
+    }
+    ellipsoid(root, [0, 0.46, 0.25], [0.045, 0.055, 0.055], "#e6b55c");
   } else {
-    const color = kind === 1 ? "#b2a0bd" : "#ca9a69";
+    const color =
+      kind === 4
+        ? "#f0d5cd"
+        : kind === 5
+          ? "#df9457"
+          : kind === 6
+            ? "#93cdb1"
+            : kind === 1
+              ? "#b2a0bd"
+              : "#ca9a69";
     ellipsoid(root, [0, 0.31, 0], [0.19, 0.2, 0.31], color);
     ellipsoid(root, [0, 0.5, 0.22], [0.2, 0.19, 0.18], color);
     ellipsoid(root, [0, 0.43, 0.36], [0.11, 0.085, 0.095], "#f4dfb9");
@@ -288,10 +377,26 @@ function makePet(parent: T.Object3D, kind: number) {
       const ear = ellipsoid(
         root,
         [side * 0.14, 0.65, 0.18],
-        kind === 1 ? [0.075, 0.16, 0.06] : [0.1, 0.2, 0.065],
-        kind === 1 ? "#aa91b5" : "#8b654c",
+        kind === 4
+          ? [0.06, 0.26, 0.055]
+          : kind === 5
+            ? [0.08, 0.16, 0.065]
+            : kind === 6
+              ? [0.045, 0.07, 0.04]
+              : kind === 1
+                ? [0.075, 0.16, 0.06]
+                : [0.1, 0.2, 0.065],
+        kind === 4
+          ? "#e8b9b5"
+          : kind === 5
+            ? "#7f5847"
+            : kind === 6
+              ? "#e6c572"
+              : kind === 1
+                ? "#aa91b5"
+                : "#8b654c",
       );
-      ear.rotation.z = side * (kind === 1 ? 0.2 : 0.7);
+      ear.rotation.z = side * ([1, 4, 5, 6].includes(kind) ? 0.2 : 0.7);
       ellipsoid(
         root,
         [side * 0.075, 0.53, 0.37],
@@ -308,6 +413,32 @@ function makePet(parent: T.Object3D, kind: number) {
       }
     const t = ellipsoid(tail, [0, 0.1, -0.09], [0.07, 0.18, 0.075], color);
     t.rotation.x = -0.8;
+    if (kind === 4) t.scale.set(0.08, 0.08, 0.08);
+    if (kind === 5) {
+      t.scale.set(0.13, 0.25, 0.14);
+      ellipsoid(tail, [0, 0.2, -0.2], [0.12, 0.12, 0.1], "#fff1d8");
+    }
+    if (kind === 6) {
+      for (const side of [-1, 1]) {
+        const wing = group(root, [side * 0.14, 0.43, -0.07]);
+        wing.name = "PetWing";
+        wing.userData.side = side;
+        ellipsoid(
+          wing,
+          [side * 0.14, 0.08, -0.03],
+          [0.2, 0.12, 0.045],
+          "#caacf0",
+        );
+        ellipsoid(wing, [side * 0.1, 0.04, 0], [0.13, 0.065, 0.02], "#e9d7fa");
+      }
+      for (let i = 0; i < 3; i++)
+        ellipsoid(
+          root,
+          [0, 0.47 - i * 0.035, -0.1 - i * 0.1],
+          [0.04, 0.07, 0.04],
+          "#e9cb79",
+        );
+    }
   }
   return { root, legs, tail };
 }
@@ -381,6 +512,9 @@ export function animateDetails(
     if (child.name === "Wing")
       child.rotation.y =
         child.userData.side * (0.15 + Math.sin(t * 3.5) * 0.22);
+    else if (["Halo", "Crown", "Ribbon"].includes(child.name))
+      child.rotation.y =
+        child.name === "Halo" ? t * 0.35 : Math.sin(t * 1.8) * 0.08;
     else {
       const i = child.userData.orbit || 0;
       child.position.set(
@@ -410,7 +544,15 @@ export function animateDetails(
           : 0),
     );
     pet.tail.rotation.z = Math.sin(t * 7) * 0.35;
-    if (a.look.pet === 3) pet.root.position.y = 0.1 + Math.sin(t * 2) * 0.08;
+    pet.root.children
+      .filter((c) => c.name === "PetWing")
+      .forEach((c) => {
+        c.rotation.z = c.userData.side * Math.sin(t * 5) * 0.35;
+      });
+    if (a.look.pet === 4 && a.moving)
+      pet.root.position.y += Math.abs(Math.sin(t * 9)) * 0.1;
+    if ([3, 7].includes(a.look.pet!))
+      pet.root.position.y = 0.1 + Math.sin(t * 2) * 0.08;
   }
 }
 const axisZ = new T.Vector3(0, 0, 1);
@@ -475,11 +617,11 @@ export function createCharacterPreview(
     30,
   );
   const distance = Math.max(
-    4.2,
-    (look.pet ? 1.3 : 0.72) / (camera.aspect * Math.tan((Math.PI * 35) / 360)),
+    4.6,
+    (look.pet ? 1.15 : 0.72) / (camera.aspect * Math.tan((Math.PI * 35) / 360)),
   );
-  camera.position.set(look.pet ? 0.3 : 0, 1.3, distance);
-  camera.lookAt(look.pet ? 0.3 : 0, 1.05, 0);
+  camera.position.set(look.pet ? 0.3 : 0, 1.45, distance);
+  camera.lookAt(look.pet ? 0.3 : 0, 1.13, 0);
   const observer = new ResizeObserver(() => {
     const w = host.clientWidth,
       h = Math.max(160, host.clientHeight);
@@ -487,11 +629,11 @@ export function createCharacterPreview(
     renderer.setSize(w, h);
     camera.aspect = w / h;
     camera.position.z = Math.max(
-      4.2,
-      (look.pet ? 1.3 : 0.72) /
+      4.6,
+      (look.pet ? 1.15 : 0.72) /
         (camera.aspect * Math.tan((Math.PI * 35) / 360)),
     );
-    camera.lookAt(look.pet ? 0.3 : 0, 1.05, 0);
+    camera.lookAt(look.pet ? 0.3 : 0, 1.13, 0);
     camera.updateProjectionMatrix();
   });
   observer.observe(host);
@@ -512,6 +654,7 @@ export function createCharacterPreview(
     if (t - last < 33) return;
     last = t;
     animateDetails(a, t / 1000, "idle", look.reduced);
+    if (a.pet) a.pet.root.rotation.y = a.root.rotation.y - 0.18;
     renderer.render(scene, camera);
   };
   frame = requestAnimationFrame(loop);

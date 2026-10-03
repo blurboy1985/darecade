@@ -6,7 +6,7 @@ A working shared 3D neighbourhood with persistent accounts, saved avatars, serve
 
 The welcome check, age/privacy consent, guest-to-email account linking, saved avatar and progression, input-replay score validation, posted dares, weekly medals, reports, data download and deletion are connected to the server. See [ACCOUNTS.md](ACCOUNTS.md) for setup, fairness rules and recovery, and [PRIVACY-REVIEW.md](PRIVACY-REVIEW.md) for the pre-launch review.
 
-Email currently uses a **private local test outbox**; live delivery and public hosting are not configured. The service rejects production mode until HTTPS, email and privacy disclosure settings are supplied. New verified progress starts fresh; previous browser saves are archived locally and legacy medal totals are preserved. Current checks: **44/44 automated tests**, four browser-verified arcade rounds, two-account shared dare and account/privacy journeys.
+Email currently uses a **private local test outbox**; live delivery and public hosting are not configured. The service rejects production mode until HTTPS, email and privacy disclosure settings are supplied. New verified progress starts fresh; previous browser saves are archived locally and legacy medal totals are preserved. Current checks: **45/45 automated tests**, four browser-verified arcade rounds, two-account shared dare and account/privacy journeys.
 
 ## Run it
 
@@ -16,7 +16,7 @@ The optional welcome quest guides players to Noodle Run, plays the Blender cabin
 
 ### Real-phone playtest
 
-The current phone link is `http://192.168.1.109:4173/?playtest=1&revision=accounts1`, for an iPhone on the same home network. The server keeps its localhost listener and additionally binds this explicit LAN address when `LAN_HOST` is set. No public tunnel or internet hosting is created. The LAN address can change after reconnecting the computer. Keep the server running during the test.
+The current phone link is `http://192.168.1.109:4173/?playtest=1&revision=look12`, for an iPhone on the same home network. The server keeps its localhost listener and additionally binds this explicit LAN address when `LAN_HOST` is set. No public tunnel or internet hosting is created. The LAN address can change after reconnecting the computer. Keep the server running during the test.
 
 Explore for roughly two minutes, then tap **More → Phone test · feedback** on the phone. Only an explicit Save sends the report. It includes device/browser details, movement/readability/performance observations, clarity of the next step, desire for another round, optional notes, quest timings and sampled world FPS. Reports save in `data/playtests/`, outside the public files. Desktop synthetic reports use isolated QA storage and are never physical-device or human-fun evidence. Replay desire is self-reported; replay clicks are recorded independently.
 
@@ -51,7 +51,7 @@ The production site is emitted to `dist/`. `npm run preview` serves it at http:/
 - Five animated example residents jog, climb and slide, dance, sit on a bench and play a cabinet. Accessories, garden paths, flowers, bunting and moving pigeons add neighbourhood activity. The Blender playground has a stair flight, handrails and a slide landing matched to the animation route.
 - Choose an away activity, save the preference or step away immediately. Closing the page and browser disconnect events save the selected activity and its start time; reopening reconstructs its current phase. No away XP, coins, visits or game scores are awarded.
 - Direct surroundings interactions: tap a prop, press E nearby, or use **Play outside**. Walk to the dragon and climb/slide, ride the new swing, sit and open a book on any of four benches, pet Kopi, ring the bicycle bell, or operate any of four arcade cabinets before its game opens. Six original Blender animation scenes synchronize the player's body and the props. Camera orbit/zoom remain available; Stop, Escape, movement keys, or opening another panel safely interrupt the action. The player's outfit stays intact.
-- Cute Blender-built characters with a connected humanoid skeleton, expressive eyes, four outfits, four hairstyles, six outfit colours, eight skin tones, earnable hats, three companion pets and three animated accessory choices. Clothing and effects are cosmetic only. Six avatar actions, a kickable ball and a bicycle bell remain available.
+- Cute Blender-built characters with a connected humanoid skeleton, expressive eyes, eight outfits, eight hairstyles, six outfit colours, eight skin tones, earnable hats, seven companion pets and seven animated accessory choices. Clothing and effects are cosmetic only. Six avatar actions, a kickable ball and a bicycle bell remain available.
 - Five reachable treasure coins, a free Sprout hat on completion, a named sticker album, three claimable exploration missions, XP and cosmetic level progression.
 - Pick one of three named daily gifts. Daily eligibility uses Singapore midnight; the weekly coin hunt resets on Monday, Singapore time. Earned items persist. No missed-day penalty.
 - Day, golden-hour and night lighting, plus an option to follow Singapore time. Sound is opt-in and synthesized locally. Reduced decorative motion, a 30-active-minute break reminder, and a functional 2D lobby when WebGL fails or is disabled in Settings.
@@ -145,7 +145,7 @@ See `QA.md` for checked behaviours, screenshots, and limits. Mobile browser emul
 
 ## Cute character revision — 3 October 2026
 
-The active master is `art/characters/neighbour-cute.blend`, exported by `scripts/build_cute_character.py`. It adapts CC0 connected humanoid topology and hairstyles, with a new rounded face, large eyes, compact proportions, tailored hoodie/jacket/explorer/tee variants and cream trainers. The approximately 2.91 MB GLB includes all choices. `src/character.ts` clones independent skeletons for each neighbour and retargets the movement and Blender interaction timelines to shoulders, elbows, wrists, hips and knees. Wardrobe previews support drag-to-turn and release their WebGL contexts when replaced.
+The active master is `art/characters/neighbour-cute.blend`, exported by `scripts/build_cute_character.py`. It adapts CC0 connected humanoid topology and hairstyles, with a new rounded face, large eyes, compact proportions, eight tailored outfit variants and cream trainers. The approximately 3.30 MB GLB includes all choices. `src/character.ts` clones independent skeletons for each neighbour and retargets the movement and Blender interaction timelines to shoulders, elbows, wrists, hips and knees. Wardrobe previews support drag-to-turn and release their WebGL contexts when replaced.
 
 To rebuild (Windows PowerShell):
 
@@ -155,3 +155,12 @@ npm run build
 ```
 
 Increment the model URL revision in `src/character.ts` when exporting a changed model, so returning browsers fetch the new asset. The model source folder must be present to rebuild; Blender is unnecessary for normal play. See `art/characters/CREDITS.md` for provenance.
+
+
+## My Look and scoring refresh — 3 October 2026
+
+My Look now has a server-saved nickname (2–20 letters/numbers/spaces/hyphens), an optional avatar gender preference, eight outfits and eight hairstyles. Every style is available for every gender. The double buns and long layers are rebuilt for the chibi head. New styles include a petal dress, cardigan, sports kit, starlight jacket, bob, ponytail, curls and braids. All new fitted hair and clothing are authored in the editable Blender master.
+
+Seven companions include a bunny, fox, small dragon and owl; seven magic choices include a moon halo, crystal crown, rainbow ribbon and bubbles. A lightweight Three.js star burst celebrates completed rounds, releases its GPU resources, and respects reduced motion and 2D mode. The three decorative podium mannequins have been removed from the central plaza; actual shared players remain.
+
+Rankings have separate weekly and daily views, tied-rank podium cards and a personal summary showing awarded weekly medals, pending midnight medals and lifetime medals. Round results distinguish game score, cosmetic XP and daily rank. Existing server scoring and Singapore reset rules are unchanged. Nicknames are public; email, link and phone-like strings are rejected, and inappropriate-name reporting uses the existing private report/hide flow. Free-form names still require operator moderation before a public launch.

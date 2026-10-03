@@ -432,12 +432,24 @@ test("account, saved avatar and session survive a database restart", async () =>
       readFileSync(join(directory, "mail-outbox", file), "utf8"),
     );
     const account = community.consume(new URL(message.url).hash.slice(7));
-    community.patch(account.me.id, { pet: 2, clothing: 3 });
+    community.patch(account.me.id, {
+      name: "Moon Mochi",
+      gender: 1,
+      pet: 7,
+      clothing: 7,
+      hair: 7,
+      accessory: 7,
+    });
     store.close();
     store = new Store(join(directory, "test.sqlite"));
     community = new Community(store, { directory });
     assert.equal(community.lookup(account.token), account.me.id);
-    assert.equal(community.privateProfile(account.me.id).progress.pet, 2);
+    assert.equal(community.privateProfile(account.me.id).name, "Moon Mochi");
+    assert.equal(community.privateProfile(account.me.id).progress.gender, 1);
+    assert.equal(community.privateProfile(account.me.id).progress.hair, 7);
+    assert.equal(community.privateProfile(account.me.id).progress.clothing, 7);
+    assert.equal(community.privateProfile(account.me.id).progress.accessory, 7);
+    assert.equal(community.privateProfile(account.me.id).progress.pet, 7);
     assert.equal(
       community.privateProfile(account.me.id).account.email,
       "restart@example.test",
@@ -475,6 +487,57 @@ test("hiding a player does not improve your weekly rank", async () => {
     assert.equal(own.length, 1);
     assert.equal(own[0].id, a.me.id);
     assert.equal(own[0].rank, 2);
+  } finally {
+    s.close();
+  }
+});
+
+test("nickname and appearance edits validate before writing and never award rank or progress", () => {
+  const s = setup();
+  try {
+    const guest = s.community.join(consent);
+    const id = guest.me.id;
+    for (const name of [
+      "<script>alert(1)</script>",
+      "name@example.test",
+      "x123456",
+      "a",
+      123,
+      "A".repeat(21),
+    ]) {
+      assert.throws(() => s.community.patch(id, { name, pet: 7 }));
+      assert.equal(s.community.privateProfile(id).name, guest.me.name);
+      assert.equal(s.community.privateProfile(id).progress.pet, 0);
+    }
+    const p = s.community.patch(id, {
+      name: "  Moon   Mochi ",
+      gender: 3,
+      clothing: 7,
+      hair: 7,
+      pet: 7,
+      accessory: 7,
+      xp: 999,
+      points: 999,
+    });
+    assert.equal(p.name, "Moon Mochi");
+    assert.equal(p.progress.xp, 0);
+    assert.equal(p.progress.gender, 3);
+    assert.equal(p.progress.hair, 7);
+    const other = s.community.join(consent);
+    assert.equal(
+      s.community.report(other.me.id, id, "inappropriate-name").ok,
+      true,
+    );
+    assert.equal(s.store.state(id).players.find((p) => p.id === id).points, 0);
+    const invalid = s.community.patch(id, {
+      gender: 99,
+      clothing: 99,
+      hair: -1,
+      pet: "7",
+      accessory: 8,
+    });
+    for (const key of ["gender", "clothing", "hair", "pet", "accessory"])
+      assert.equal(invalid.progress[key], 0);
   } finally {
     s.close();
   }

@@ -1,3 +1,4 @@
+import { appearanceLimits } from "./appearance.ts";
 export const outfits = [
   "#bbec66",
   "#b4a0f5",
@@ -27,6 +28,7 @@ export type Save = {
   version: 1;
   outfit: number;
   skin: number;
+  gender: number;
   clothing: number;
   hair: number;
   pet: number;
@@ -72,6 +74,7 @@ export function fresh(): Save {
     version: 1,
     outfit: 0,
     skin: 0,
+    gender: 0,
     clothing: 0,
     hair: 0,
     pet: 0,
@@ -121,6 +124,7 @@ export function normalise(raw: unknown, fallback: Save): Save {
     "skin",
     "hat",
     "gift",
+    "gender",
     "clothing",
     "hair",
     "pet",
@@ -135,10 +139,7 @@ export function normalise(raw: unknown, fallback: Save): Save {
           skin: 8,
           hat: 4,
           gift: 3,
-          clothing: 4,
-          hair: 4,
-          pet: 4,
-          accessory: 4,
+          ...appearanceLimits,
         }[key]
     )
       s[key] = r[key]!;
