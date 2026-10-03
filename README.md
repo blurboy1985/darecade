@@ -4,7 +4,7 @@ A working shared 3D neighbourhood with persistent accounts, saved avatars, serve
 
 ## Cloudflare hosting — 3 October 2026
 
-The site is deployed at **https://darecade.daniel-tianwen.workers.dev** on Workers Free, with the persistent SQLite Durable Object binding. **It currently shows an opening-soon screen; gameplay and accounts remain closed** until sign-in email and privacy contact settings are complete. HTTPS assets, closed-launch responses and private-path protection were verified live. See [HOSTING.md](HOSTING.md) for the remaining setup and verification steps. No paid service or domain was purchased. The local Node service and its data remain supported.
+The site is deployed at **https://darecade.daniel-tianwen.workers.dev** on Workers Free, with the persistent SQLite Durable Object binding. **It currently shows an opening-soon screen; gameplay and accounts remain closed** until outgoing sign-in email is connected. The support/privacy address `hello@darecade.danielquek.com` has active free Cloudflare forwarding to the operator's verified inbox. HTTPS assets, closed-launch responses and private-path protection were verified live. See [HOSTING.md](HOSTING.md) for the remaining setup and verification steps. No paid service or domain was purchased. The local Node service and its data remain supported.
 
 ## Connected progression — 3 October 2026
 

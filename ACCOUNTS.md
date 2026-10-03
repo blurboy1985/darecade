@@ -1,6 +1,6 @@
 # Accounts, progression and shared dares
 
-Implemented 3 October 2026 on the existing Node/SQLite service. The Cloudflare version is deployed at https://darecade.daniel-tianwen.workers.dev (see HOSTING.md), with accounts and gameplay closed pending live email and privacy-contact setup. The local service and its private data remain available. The existing cute Blender characters, outfits and interactions remain in use.
+Implemented 3 October 2026 on the existing Node/SQLite service. The Cloudflare version is deployed at https://darecade.daniel-tianwen.workers.dev (see HOSTING.md), with accounts and gameplay closed pending outgoing sign-in email setup. The privacy/support contact is hello@darecade.danielquek.com, forwarding to the operator's verified inbox. The local service and its private data remain available. The existing cute Blender characters, outfits and interactions remain in use.
 
 ## Local run
 
