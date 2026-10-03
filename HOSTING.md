@@ -1,10 +1,16 @@
 # Cloudflare hosting
 
-Opened 3 October 2026 at **https://darecade.daniel-tianwen.workers.dev** on the account's existing Workers Free plan. **Gameplay and accounts are enabled** (`LAUNCH_READY=true`) with a verified sending identity and private Resend secret. Worker version: `ab098607-aa47-4b3f-999b-4069a70c8d07`. The privacy/support contact is `hello@darecade.danielquek.com`. Wrangler authorization is verified with account/user read, Workers Scripts Write and background access only. No paid upgrade has been made.
+Opened 3 October 2026 at **https://darecade.daniel-tianwen.workers.dev** on the account's existing Workers Free plan. **Gameplay and accounts are enabled** (`LAUNCH_READY=true`) with a verified sending identity and private Resend secret. Worker version: `323a512c-9c50-471b-abe8-2fabbc4a1a73`. The privacy/support contact is `hello@darecade.danielquek.com`. Wrangler authorization is verified with account/user read, Workers Scripts Write and background access only. No paid upgrade has been made.
 
 Free Cloudflare Email Routing is enabled for the domain and the `darecade` subdomain. The literal rule `hello@darecade.danielquek.com` is active and forwards to the operator's verified Gmail destination. Catch-all remains disabled. Authoritative DNS and the 1.1.1.1 resolver return the three Cloudflare MX records. The operator confirmed receipt of the approved sign-in test message in Gmail and successfully opened the neighbourhood from its link. This is incoming forwarding, not a separate mailbox or outgoing SMTP setup; ordinary replies from Gmail use the Gmail address until a separate authenticated sending configuration is added.
 
 Pre-opening checks confirmed HTTPS HTML and the 3,296,036-byte character model returned 200, static security headers were present, the closed launch returned 503, and private database/server paths returned 404. After opening, health/config returned 200, unauthenticated neighbourhood access returned 401, and the browser displayed the birth-month/year gate. An isolated live test verified age and consent rejection, secure cookies, avatar persistence, a replay-validated practice round, duplicate-reward protection, tampered-result rejection, weekly-board access, own-data export, profile erasure and session revocation. That gameplay fixture was deleted; it never qualified for medals. No local profiles were uploaded. Current live physical-iPhone verification remains pending.
+
+## Login email fix deployment, 3 October 2026
+
+Merged `claude/fix-login-email` without conflicts in `9292e35` and deployed Worker version `323a512c-9c50-471b-abe8-2fabbc4a1a73`. All 57 Node tests, three Cloudflare integration tests and the production build passed. The deployed health endpoint returns `ready: true`. Resend secrets, Wrangler variables, rate limits and `PRIVACY_VERSION` are unchanged.
+
+The explicitly authorized live guidance request was sent once to the operator's Gmail. Gmail received it in Inbox within seconds at 21:31 SGT. Its body contains account-creation guidance and no `#login=` token. Account verification and the final recovery test are pending access to the operator's original guest browser; the reopened in-app browser was signed out. No replacement avatar was created.
 
 ## What runs where
 
@@ -72,7 +78,7 @@ Cloudflare's SQLite point-in-time recovery history can retain data for up to 30 
 
 ## Verified locally
 
-The Cloudflare runtime test uses the same bundled Worker under Miniflare/workerd, with synthetic addresses and an intercepted email provider (no email leaves the test). It checks secure cookies, age/consent, atomic single-use login, newest avatar persistence through object eviction, all four replay-validated games, duplicate reward rejection, private feedback/export/deletion, cross-origin rejection, body-size limits, durable rate limits and fail-closed launch configuration. The original Node tests still exercise daily/weekly settlement, ties, challenge limits and local restart persistence.
+The Cloudflare runtime test uses the same bundled Worker under Miniflare/workerd, with synthetic addresses and an intercepted email provider (no email leaves the test). It checks secure cookies, age/consent, atomic single-use login, newest avatar persistence through object eviction, all five replay-validated games, duplicate reward rejection, private feedback/export/deletion, cross-origin rejection, body-size limits, durable rate limits and fail-closed launch configuration. The original Node tests still exercise daily/weekly settlement, ties, challenge limits and local restart persistence.
 
 ## Official references checked 3 October 2026
 
