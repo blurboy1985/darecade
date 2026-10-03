@@ -43,6 +43,8 @@ export type Save = {
   cat: boolean;
   rounds: number;
   best: Record<GameId, number>;
+  coastRecord: { version: 2; timeTicks: number; place: number };
+  coastLegacyBest: number;
   sound: boolean;
   music: boolean;
   reduced: boolean;
@@ -89,6 +91,8 @@ export function fresh(): Save {
     cat: false,
     rounds: 0,
     best: { noodle: 0, brick: 0, hop: 0, swarm: 0, coast: 0 },
+    coastRecord: { version: 2, timeTicks: 0, place: 0 },
+    coastLegacyBest: 0,
     cameraMode: "isometric",
     awayActivity: "jog",
     awaySince: 0,
@@ -171,6 +175,26 @@ export function normalise(raw: unknown, fallback: Save): Save {
   for (const key of gameIds)
     if (Number.isFinite(r.best?.[key]) && r.best![key] >= 0)
       s.best[key] = Math.min(1e7, Math.floor(r.best![key]));
+  const record = r.coastRecord;
+  if (
+    record?.version === 2 &&
+    Number.isInteger(record.timeTicks) &&
+    record.timeTicks >= 0 &&
+    record.timeTicks <= 7200 &&
+    Number.isInteger(record.place) &&
+    record.place >= 0 &&
+    record.place <= 8
+  ) {
+    s.coastRecord = { ...record };
+    s.coastLegacyBest = Number.isFinite(r.coastLegacyBest)
+      ? Math.max(0, r.coastLegacyBest!)
+      : 0;
+  } else {
+    // Preserve the old trial record, but never compare two laps with three.
+    s.coastLegacyBest = s.best.coast;
+    s.best.coast = 0;
+    s.coastRecord = { version: 2, timeTicks: 0, place: 0 };
+  }
   return s;
 }
 export function readSave(): Save {

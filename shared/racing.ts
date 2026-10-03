@@ -1,6 +1,6 @@
 /** Coast Rush physics. No rendering, wall clock, random rewards or avatar stats. */
 export const RACE_TICKS = 120 * 60;
-export const RACE_LAPS = 2;
+export const RACE_LAPS = 3;
 export const ROAD_HALF_WIDTH = 5.4;
 const TAU = Math.PI * 2;
 const SAMPLES = 720;
@@ -55,11 +55,6 @@ export const boostPads = [
   { distance: TRACK_LENGTH * 0.43, offset: 2.7 },
   { distance: TRACK_LENGTH * 0.77, offset: -2.7 },
 ] as const;
-export const cones = [
-  { distance: TRACK_LENGTH * 0.25, offset: 2.5 },
-  { distance: TRACK_LENGTH * 0.57, offset: -2.2 },
-  { distance: TRACK_LENGTH * 0.9, offset: 0 },
-] as const;
 
 export function raceTime(ticks: number) {
   const centiseconds = Math.round((ticks * 100) / 60);
@@ -74,10 +69,49 @@ export function raceScoreTime(score: number) {
   return score > 0 ? raceTime(RACE_TICKS + 1 - score) : "No finish";
 }
 
+export type RaceItem = "shield" | "turbo" | null;
+export type TurboTier = "Mini" | "Super" | "Ultra";
+export const RIVALS = [
+  { name: "Marina", pace: 24.2, color: "#ab94ed" },
+  { name: "Reef", pace: 22.8, color: "#59c8d8" },
+  { name: "Sunny", pace: 21.4, color: "#f5c65e" },
+  { name: "Pebble", pace: 20, color: "#87c989" },
+  { name: "Mango", pace: 18.6, color: "#f9a267" },
+  { name: "Breeze", pace: 17, color: "#dfa5cb" },
+  { name: "Coco", pace: 14.5, color: "#b8c8d5" },
+] as const;
+export const itemCrates = [0.08, 0.37, 0.68].map((f, i) => ({
+  distance: TRACK_LENGTH * f,
+  offset: [0, 2.7, -2.7][i],
+}));
+export const pickups = Array.from({ length: 12 }, (_, i) => ({
+  distance: TRACK_LENGTH * (0.05 + i * 0.078),
+  offset: [0, -2.7, 0, 2.7][i % 4],
+}));
+export const ordinal = (place: number) =>
+  `${place}${place === 1 ? "st" : place === 2 ? "nd" : place === 3 ? "rd" : "th"}`;
+export function driftTier(seconds: number): TurboTier | null {
+  return seconds >= 2.4
+    ? "Ultra"
+    : seconds >= 1.6
+      ? "Super"
+      : seconds >= 0.8
+        ? "Mini"
+        : null;
+}
+export type RaceResult = {
+  place: number;
+  finished: boolean;
+  timeTicks: number;
+  bestLap: number;
+  pickups: number;
+  penaltyTicks: number;
+};
+
 export class CoastRace {
   ticks = 0;
   distance = 0;
-  offset = 0;
+  offset = -1.7;
   speed = 0;
   lateralSpeed = 0;
   charge = 0;
@@ -85,85 +119,162 @@ export class CoastRace {
   boosts = 0;
   bumps = 0;
   bumpCooldown = 0;
+  penaltyTicks = 0;
+  stunTicks = 0;
+  shield = 0;
+  item: RaceItem = null;
+  pickupCount = 0;
+  lastTurbo: TurboTier | null = null;
   drifting = false;
   ended = false;
   score = 0;
   lapTicks: number[] = [];
+  readonly collected = new Set<string>();
+  readonly rivals = RIVALS.map((r, i) => ({
+    ...r,
+    distance: 24 - i * 3,
+    offset: i % 2 ? -2.8 : 2.8,
+    speed: 0,
+    finishTick: 0,
+  }));
   private previousLapTick = 0;
+  private itemHeld = false;
   get offroad() {
     return Math.abs(this.offset) > ROAD_HALF_WIDTH;
   }
   get lap() {
     return Math.min(RACE_LAPS, Math.floor(this.distance / TRACK_LENGTH) + 1);
   }
-  advance(steer: number, brake: boolean, drift: boolean) {
+  get place() {
+    return (
+      1 +
+      this.rivals.filter((r) =>
+        r.finishTick
+          ? !this.score || r.finishTick <= this.ticks
+          : r.distance > this.distance,
+      ).length
+    );
+  }
+  get tier() {
+    return driftTier(this.charge * 2.4 + 1e-8);
+  }
+  result(): RaceResult {
+    return {
+      place: this.place,
+      finished: this.score > 0,
+      timeTicks: this.ticks,
+      bestLap: this.lapTicks.length ? Math.min(...this.lapTicks) : 0,
+      pickups: this.pickupCount,
+      penaltyTicks: this.penaltyTicks,
+    };
+  }
+  /** throttle is -1 brake, 0 coast, 1 accelerate. Item use is edge-triggered. */
+  advance(steer: number, throttle: number, drift: boolean, useItem = false) {
     if (this.ended) return;
     this.ticks++;
     const dt = 1 / 60;
-    const curve = trackCurve(this.distance);
+    if (useItem && !this.itemHeld && this.item) {
+      if (this.item === "shield") this.shield = 3;
+      else {
+        this.boost = 2;
+        this.boosts++;
+        this.lastTurbo = null;
+      }
+      this.item = null;
+    }
+    this.itemHeld = useItem;
+    this.shield = Math.max(0, this.shield - dt);
+    this.boost = Math.max(0, this.boost - dt);
+    this.bumpCooldown = Math.max(0, this.bumpCooldown - dt);
+    for (const r of this.rivals) {
+      if (r.finishTick) continue;
+      r.speed = Math.min(r.pace, r.speed + dt * 6);
+      r.distance = Math.min(RACE_DISTANCE, r.distance + r.speed * dt);
+      if (r.distance === RACE_DISTANCE) r.finishTick = this.ticks;
+    }
     const wasDrifting = this.drifting;
-    this.drifting = drift && !brake && !this.offroad && this.speed > 10;
-    // Charge only while steering into a real bend. Holding drift on a straight
-    // or oscillating the steering cannot generate a free turbo.
-    if (this.drifting && Math.abs(curve) > 0.007 && steer * curve > 0)
-      this.charge = Math.min(1, this.charge + dt * 0.65);
-    else if (!this.drifting) {
-      if (wasDrifting && this.charge >= 0.45 && !brake && !this.offroad) {
-        this.boost = Math.max(this.boost, 0.65 + this.charge * 1.15);
+    this.drifting = drift && throttle > 0 && this.speed > 9 && !this.stunTicks;
+    if (this.drifting) {
+      // Holding a moving drift charges predictably; steering is still needed to keep a clean line.
+      this.charge = Math.min(1, this.charge + dt / 2.4);
+    } else {
+      const tier = this.tier;
+      if (wasDrifting && tier && throttle > 0 && !this.stunTicks) {
+        this.lastTurbo = tier;
+        this.boost = Math.max(
+          this.boost,
+          { Mini: 0.8, Super: 1.4, Ultra: 2.1 }[tier],
+        );
         this.boosts++;
       }
       this.charge = 0;
     }
-    this.boost = Math.max(0, this.boost - dt);
-    this.bumpCooldown = Math.max(0, this.bumpCooldown - dt);
-    const target = brake
-      ? 6
-      : this.offroad
-        ? 10
-        : this.boost > 0
-          ? 30
-          : this.drifting
-            ? 21
-            : 23;
-    const acceleration = this.speed > target ? 18 : 9;
-    this.speed += Math.max(
-      -acceleration * dt,
-      Math.min(acceleration * dt, target - this.speed),
-    );
-    const steering =
-      steer * (this.drifting ? 6.8 : 5.6) * Math.min(1, this.speed / 12);
-    const outward = -curve * this.speed * this.speed * 0.14;
-    this.lateralSpeed +=
-      (steering + outward - this.lateralSpeed) * (this.drifting ? 0.075 : 0.12);
-    this.offset += this.lateralSpeed * dt;
-    if (Math.abs(this.offset) > 8.2) {
-      this.offset = Math.sign(this.offset) * 8.2;
-      this.lateralSpeed = 0;
-      if (!this.bumpCooldown) this.hit();
-    }
     const previous = this.distance;
-    this.distance = Math.min(RACE_DISTANCE, this.distance + this.speed * dt);
-    for (let lap = 0; lap < RACE_LAPS; lap++) {
-      for (const pad of boostPads) {
-        const at = pad.distance + lap * TRACK_LENGTH;
-        if (
-          previous < at &&
-          this.distance >= at &&
-          Math.abs(this.offset - pad.offset) < 1.35
-        ) {
-          this.boost = 1.1;
-          this.boosts++;
-        }
+    if (this.stunTicks) {
+      this.stunTicks--;
+      this.penaltyTicks++;
+      this.speed = 0;
+      this.lateralSpeed = 0;
+    } else {
+      const target =
+        throttle <= 0 ? 0 : this.boost > 0 ? 31 : this.offroad ? 22 : 23;
+      const acceleration = throttle < 0 ? 30 : this.speed > target ? 12 : 12;
+      this.speed += Math.max(
+        -acceleration * dt,
+        Math.min(acceleration * dt, target - this.speed),
+      );
+      const steering =
+        steer * (this.drifting ? 7.5 : 6.4) * Math.min(1, this.speed / 10);
+      const outward =
+        -trackCurve(this.distance) * this.speed * this.speed * 0.1;
+      this.lateralSpeed += (steering + outward - this.lateralSpeed) * 0.15;
+      this.offset += this.lateralSpeed * dt;
+      if (Math.abs(this.offset) > 6.4) {
+        this.offset = Math.sign(this.offset) * 6.4;
+        this.lateralSpeed = 0;
+        this.hit();
       }
-      for (const cone of cones) {
-        const at = cone.distance + lap * TRACK_LENGTH;
+      this.distance = Math.min(RACE_DISTANCE, this.distance + this.speed * dt);
+      for (const r of this.rivals) {
+        const gap =
+          ((((r.distance - this.distance) % TRACK_LENGTH) +
+            TRACK_LENGTH * 1.5) %
+            TRACK_LENGTH) -
+          TRACK_LENGTH / 2;
         if (
-          previous < at &&
-          this.distance >= at &&
-          Math.abs(this.offset - cone.offset) < 0.9
+          !r.finishTick &&
+          Math.abs(gap) < 1.8 &&
+          Math.abs(r.offset - this.offset) < 1.35
         )
           this.hit();
       }
+    }
+    for (let lap = 0; lap < RACE_LAPS; lap++) {
+      const crossed = (
+        p: { distance: number; offset: number },
+        width: number,
+      ) =>
+        previous < p.distance + lap * TRACK_LENGTH &&
+        this.distance >= p.distance + lap * TRACK_LENGTH &&
+        Math.abs(this.offset - p.offset) < width;
+      for (const pad of boostPads)
+        if (crossed(pad, 1.35)) {
+          this.boost = Math.max(this.boost, 1.1);
+          this.boosts++;
+          this.lastTurbo = null;
+        }
+      itemCrates.forEach((p, i) => {
+        if (crossed(p, 1.45) && !this.item) {
+          this.item = (lap + i) % 2 ? "turbo" : "shield";
+          this.collected.add(`crate:${lap}:${i}`);
+        }
+      });
+      pickups.forEach((p, i) => {
+        if (crossed(p, 1.1)) {
+          this.pickupCount++;
+          this.collected.add(`pickup:${lap}:${i}`);
+        }
+      });
       const line = (lap + 1) * TRACK_LENGTH;
       if (previous < line && this.distance >= line) {
         this.lapTicks.push(this.ticks - this.previousLapTick);
@@ -176,10 +287,12 @@ export class CoastRace {
     } else if (this.ticks >= RACE_TICKS) this.ended = true;
   }
   private hit() {
-    this.speed *= 0.55;
+    if (this.shield > 0 || this.bumpCooldown > 0) return;
+    this.speed = 0;
     this.boost = 0;
     this.charge = 0;
     this.bumps++;
-    this.bumpCooldown = 0.8;
+    this.stunTicks = 45;
+    this.bumpCooldown = 1.75;
   }
 }

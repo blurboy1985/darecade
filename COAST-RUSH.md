@@ -1,37 +1,35 @@
 # Coast Rush
 
-Darecade's fifth game is an original two-lap time trial around Palm Bay. It uses the player's saved KayKit character, colours, clothing, headgear, magic and companion. The companion rides in a sidecar. All karts have identical handling.
-
-The requested reference, [Tidal Rush](https://github.com/hammadshakeelai/tidal-rush), contains a wrapper around a separately hosted game, not the game source. Coast Rush takes inspiration from the tropical kart-racing concept. Its course, scenery, kart, controls and deterministic simulation were built for Darecade. No hosted game code, music, branding or screenshots are bundled. KayKit remains credited in `art/characters/CREDITS.md`.
+Coast Rush is Darecade's original three-lap race around Palm Bay. Eight karts share the grid: the saved player avatar and seven named game characters. The coastal course, scenery, kart and simulation are Darecade's own work. No Tidal Rush art, name, code or audio is included. KayKit characters remain credited in `art/characters/CREDITS.md`.
 
 ## Playing
 
-- Acceleration is automatic. Left/right arrows or A/D steer; down/S brakes.
-- Hold Space or the Drift button while steering into a bend. Release after the meter passes its threshold for a turbo. Drifting without steering into a bend earns no charge.
-- Teal strips give a boost. Cones, the sand and the outer barrier slow the kart.
-- Complete two laps before the two-minute limit. A gold translucent kart is a non-colliding, constant-pace guide based on the dare target, personal best or a 55-second starter target. It is not a live opponent or a recorded player replay.
-- Pause, loss of focus and hidden tabs freeze the simulation and clear held controls. Simple graphics use the same simulation and controls. Graphics context loss pauses the game and offers Resume in simple view.
+- W/up or the touch GO button accelerates. A/D or left/right steers. S/down brakes. There is no automatic acceleration.
+- Hold Space or DRIFT while moving, then release for Mini (0.8 seconds held), Super (1.6 seconds) or Ultra (2.4 seconds). The meter names the available tier. Turbos last 0.8, 1.4 or 2.1 seconds respectively.
+- Crates give either a three-second shield or a two-second speed turbo. E or ITEM uses the current item once per press. Holding E cannot use a subsequently collected item. Crate contents follow a fixed lap/position sequence, with no purchases or random reward system.
+- Teal boost pads stay. Shells are optional track pickups, up to 36 across three laps. They are counted at the finish and do not grant speed, currency or medal bonuses.
+- Hitting a wall or another kart causes a visible 0.75-second stop plus acceleration recovery. Shield prevents these hits. Sand only slightly reduces cruising speed. Repeated contact has a short cooldown.
+- The 3, 2, 1 countdown precedes the race clock. Place is always shown as, for example, 3rd / 8, and all eight karts appear on the minimap.
+- Marina, Reef, Sunny, Pebble, Mango, Breeze and Coco form the street ladder. Every rival is labelled Game character in the scene and results. Fixed, staggered paces make a first-lap pass possible without drifting. They never create player accounts, shared challenges or medal entries.
+- Results show place, total time, best lap, shells and hit-stop time. A first completed race or an improvement in personal time or place displays New best. Another round starts in the same page. A two-minute unfinished race records No finish, earns the normal completion cosmetic reward, and cannot set a racing best or rank.
+- Pause, loss of focus and hidden tabs freeze the simulation and clear controls. Simple graphics uses the same race rules. Graphics context loss pauses the race and allows resuming in the map view.
 
-## Competition
+## First visit and accounts
 
-The lowest completed two-lap time is best. Lap splits, boosts and bumps explain a run but do not add bonus points. Finishing late or quitting cannot produce a ranked time. The course and physics are fixed for everyone; cosmetics do not affect speed or collisions.
+Age and privacy consent still come first. Play now opens Coast Rush directly. Before the first completed round, the neighbourhood's shop, hunt, camera tools and extra menus are hidden and walking is paused. Sound, accessibility settings and account/privacy controls remain accessible. Closing an unfinished race returns to Play now.
 
-Only a player's best eligible time that day counts. At midnight Singapore time, the top three ranks earn +3/+2/+1 medal points, with competition ties such as 1, 1, 3. Coast Rush contributes at most three points per player per day, the same as every other cabinet. Five games therefore allow up to 15 medal points per day. Daily medals feed the existing weekly and lifetime boards.
+Any completed game round, including a zero-score finish, still unlocks the lilac cap and its one-time welcome XP. The first race result reveals the neighbourhood and the other four cabinets. A guest's new-best result offers Save your avatar and this score, opening the existing email form. Creating an account is optional; guest progress remains saved on the current session. No email is sent without submitting that form.
 
-Race dares lock the defender's best time at the start. A faster time wins and an equal tick time draws. The existing shared limit remains three outgoing attempts per day against three different neighbours, across all five games. Incoming dares are unlimited and never subtract medals. Account verification, the 24-hour eligibility wait, age/consent gates, privacy controls and retention rules remain in force.
+## Competition and preservation
 
-## Implementation and compatibility
+Verified players compete by fastest completed three-lap time. Street-ladder place and shells never add medal points. Account verification and the existing 24-hour ranked eligibility wait remain. Gold/silver/bronze award 3/2/1 at midnight Singapore time, ties share ranks, and five cabinets allow up to 15 points per day. Missing a day never subtracts points. The existing shared-dare rules remain unchanged.
 
-- `shared/racing.ts` owns arc-length track sampling and 60 Hz physics. No browser state, avatar values, frame time or random items enter the simulation.
-- `shared/simulation.ts` replays recorded inputs for all five games. Coast Rush permits at most 7,200 ticks/events; the other games retain their 3,600-tick limit. The server checks the replay, claimed score, owner, run status and minimum elapsed wall time before saving.
-- Completed times use the exact integer encoding `7201 - finishTicks`, so the existing descending-score board and dare comparisons remain valid. Zero means no finish. `formatScore` displays race times everywhere, including results, cards, boards and dares. Ties are exact simulation ticks, displayed to hundredths.
-- The existing rules version remains unchanged because no previous game physics changed and Coast Rush had no previous scores. Any future race-physics change needs a rules/leaderboard migration strategy before deployment.
-- `src/racing-game.ts` owns controls, countdown, replay collection and the result summary. `src/race-view.ts` loads only when racing is opened; it renders scenery, driver and pace ghost without changing the simulation.
-- A driving pose and hand targets were added to `src/character.ts`. Other poses, the reused wardrobe preview and the KayKit GLB are preserved. No model rebuild or asset replacement was required.
-- Legacy saves gain `best.coast = 0` through normalisation. Existing indices, scores, accounts and awards are retained. No production database migration or reset is required.
+Coast Rush now uses replay rules version 2. The other four games stay on version 1 with unchanged simulation behaviour. Completed race scores remain the exact integer `7201 - finishTicks`; zero is DNF. The server replays inputs to derive time, place, lap and pickup results. It stores personal bests and the run's result transactionally so retries neither duplicate rewards nor lose the original New best flag. Graphics and sound only observe simulation state.
 
-## Verification
+Old two-lap runs are retained in the database. The previous personal best is retained as `coastLegacyBest` in progress/export data. Old race times and posted dares are excluded from the new race boards and targets. Historical awarded medals remain unchanged; unprocessed days before the Singapore cutover day settle against the old race version. On the cutover day, only three-lap runs compete for Coast Rush's pending medals. Other games, saved avatars and cosmetic indices are preserved.
 
-Automated checks cover deterministic replay across seeds, faster times sorting first, lap completion, drift advantage, collision penalties, DNF exclusion, tampered and premature results, ties, midnight/weekly medals, idempotent finish retries and the shared dare limit. The Cloudflare runtime test exercises all five games, score validation, saved accounts and privacy controls.
+## Checks
 
-Browser checks use an isolated local database under `.browser/coast-qa-data`, never production accounts. A keyboard-driven race completed in 42.78 seconds with two lap splits and a server-accepted replay. Responsive checks include 320×568, 390×844 and short landscape. These are desktop Chromium checks, not physical iPhone performance measurements.
+Automated coverage includes manual throttle, first-lap passing, all drift tiers, both items, one-use input edges, shield protection, collision stops, replay determinism, tampering, DNF, personal records, retry handling, old-score migration, midnight medals and the shared dare limit. The Cloudflare test completes a three-lap race and checks its persisted result and real-player board entry.
+
+Browser testing uses isolated local data and synthetic guest accounts. Desktop phone-size checks do not establish performance or touch feel on a physical iPhone.

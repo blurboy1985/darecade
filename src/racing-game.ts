@@ -1,11 +1,13 @@
 import {
   Simulation,
-  RULES_VERSION,
+  rulesVersion,
   type Input,
   type Replay,
 } from "../shared/simulation";
 import {
-  RACE_DISTANCE,
+  ordinal,
+  itemCrates,
+  pickups,
   RACE_TICKS,
   TRACK_LENGTH,
   raceTime,
@@ -69,26 +71,21 @@ export class RacingGame {
         ? RACE_TICKS + 1 - options.target
         : options.best > 0
           ? RACE_TICKS + 1 - options.best
-          : 55 * 60;
-    const targetLabel = options.target
-      ? "DARE TO BEAT"
-      : options.best
-        ? "YOUR BEST"
-        : "PACE GHOST";
-    container.innerHTML = `<section class="coast-game" aria-label="Coast Rush time trial">
-      <div class="race-head"><span>PALM BAY <b>02 LAPS</b></span><span>${targetLabel} <b>${raceTime(this.targetTicks)}</b></span></div>
+          : RACE_TICKS;
+    container.innerHTML = `<section class="coast-game" tabindex="-1" aria-label="Coast Rush street race">
+      <div class="race-head"><span>PALM BAY <b>3 LAPS · 8 KARTS</b></span><span>7 GAME CHARACTERS</span></div>
       <div class="race-screen">
         <div class="race-view"></div>
-        <div class="race-hud"><span class="stat-pill score-pill"><small>TIME</small><b id="run-score">0:00.00</b></span><span id="run-state">LAP <b id="race-lap">1 / 2</b></span><span class="stat-pill time-pill"><small>LEFT</small><b id="run-time">120</b></span></div>
+        <div class="race-hud"><span class="stat-pill place-pill"><small>PLACE</small><b id="race-place">8th / 8</b></span><span class="stat-pill score-pill"><small>TIME</small><b id="run-score">0:00.00</b></span><span id="run-state">LAP <b id="race-lap">1 / 3</b></span><span class="stat-pill time-pill"><small>LEFT</small><b id="run-time">120</b></span></div>
         <div class="game-pops" aria-hidden="true"></div>
-        <canvas class="race-map" width="180" height="130" aria-label="Circuit map. Your kart is coral and the pace ghost is gold."></canvas>
+        <canvas class="race-map" width="180" height="130" aria-label="All eight karts. You are coral with a white ring. Seven coloured dots are game characters."></canvas>
         <div class="race-speed"><b id="race-speed">0</b><span>KM/H</span></div>
-        <div class="race-notice" role="status" aria-live="polite">Loading your driver…</div>
-        <div class="race-cover"><span class="eyebrow">DARECADE / ISLAND CIRCUIT</span><h3>COAST<br><em>RUSH</em></h3><p>Two laps. Your avatar. One best time.</p><div class="race-instructions"><span>STEER<br><b>← → / A D</b></span><span>DRIFT<br><b>Hold SPACE</b></span><span>BRAKE<br><b>↓ / S</b></span></div><p class="race-tip">Auto-accelerate is on. Hold Drift while steering into a bend, then release for a turbo. Teal pads boost; cones slow you.</p><button class="primary" id="start-game" disabled>Getting your kart ready…</button><small>Same kart for everyone · 2 minute limit<br>Gold ghost is a non-colliding pace guide.</small></div>
+        <div class="race-item"><span>ITEM · E</span><b id="race-item">Empty</b><small id="race-pickups">0 shells</small></div><div class="race-notice" role="status" aria-live="polite">Loading your driver…</div>
+        <div class="race-cover"><span class="eyebrow">DARECADE / ISLAND CIRCUIT</span><h3>COAST<br><em>RUSH</em></h3><p>Your avatar. Seven rivals. Three laps.</p><div class="race-instructions"><span>DRIVE<br><b>W A S D</b></span><span>DRIFT<br><b>Hold SPACE</b></span><span>ITEM<br><b>Tap E</b></span></div><p class="race-tip">Hold W to go. A/D steer, S brakes. Release Drift for Mini, Super or Ultra turbo. Crates give a shield or speed turbo. Collect shells!</p><button class="primary" id="start-game" disabled>Getting your kart ready…</button><small>Same kart for everyone · 2 minute limit<br>7 rivals are game characters, not real players.</small></div>
       </div>
-      <div class="race-charge"><label for="drift-charge">DRIFT TURBO <span id="drift-label">Hold through a bend</span></label><meter id="drift-charge" min="0" max="1" low=".45" optimum="1" value="0">0</meter></div>
-      <div class="race-touch" aria-label="Driving controls"><div><button data-race-control="left" aria-label="Steer left">←</button><button data-race-control="right" aria-label="Steer right">→</button></div><div><button data-race-control="brake">BRAKE</button><button data-race-control="drift">DRIFT</button></div></div>
-      <div class="race-footer"><span>Fastest complete race wins. Looks are cosmetic.</span><button class="text-button" id="pause-game" disabled>Pause</button></div>
+      <div class="race-charge"><label for="drift-charge">DRIFT TURBO <span id="drift-label">Hold Space while moving</span></label><meter id="drift-charge" min="0" max="1" low=".333" optimum="1" value="0">0</meter></div>
+      <div class="race-touch" aria-label="Driving controls"><div><button data-race-control="left" aria-label="Steer left">←</button><button data-race-control="right" aria-label="Steer right">→</button></div><div><button data-race-control="gas">GO</button><button data-race-control="brake">BRAKE</button><button data-race-control="drift">DRIFT</button><button data-race-control="item">ITEM</button></div></div>
+      <div class="race-footer"><span>Hold GO to drive · Hits cost a 0.75s stop</span><button class="text-button" id="pause-game" disabled>Pause</button></div>
     </section>`;
     this.host = container.querySelector(".race-view")!;
     this.cover = container.querySelector(".race-cover")!;
@@ -117,7 +114,8 @@ export class RacingGame {
           "pointerdown",
           (e) => {
             e.preventDefault();
-            if (this.paused || this.status !== "racing") return;
+            if (this.paused || !["racing", "countdown"].includes(this.status))
+              return;
             b.setPointerCapture(e.pointerId);
             this.pointers.set(e.pointerId, b.dataset.raceControl!);
             b.classList.add("held");
@@ -143,12 +141,7 @@ export class RacingGame {
           loadCharacter(),
         ]);
         if (this.disposed) return;
-        this.view = new module.RaceView(
-          this.host,
-          look,
-          this.reduced,
-          this.targetTicks / 60,
-        );
+        this.view = new module.RaceView(this.host, look, this.reduced);
         this.view.renderer.domElement.addEventListener(
           "webglcontextlost",
           this.contextLost,
@@ -167,14 +160,14 @@ export class RacingGame {
     const button =
       this.container.querySelector<HTMLButtonElement>("#start-game")!;
     button.disabled = false;
-    button.textContent = "Start your lap →";
+    button.textContent = "Race! →";
     this.frame = requestAnimationFrame(this.loop);
   }
   private enableSimple() {
     this.stats.classList.add("simple-race");
     this.host.replaceChildren();
     this.cover.querySelector(".race-tip")!.textContent =
-      "Simple view: your kart is coral. Arrows steer across the track; hold Drift into bends and release for a turbo. Racing rules and scores are unchanged.";
+      "Simple view: coral is you; coloured dots are game characters. Hold W or GO, A/D steer, Space to drift, E for your item.";
   }
   private contextLost = (e: Event) => {
     e.preventDefault();
@@ -200,10 +193,22 @@ export class RacingGame {
   private keyDown = (e: KeyboardEvent) => {
     const key = e.key.toLowerCase();
     if (
-      ["arrowleft", "arrowright", "arrowdown", "a", "d", "s", " "].includes(key)
+      [
+        "arrowleft",
+        "arrowright",
+        "arrowdown",
+        "arrowup",
+        "w",
+        "a",
+        "d",
+        "s",
+        " ",
+        "e",
+      ].includes(key)
     ) {
       e.preventDefault();
-      if (!this.paused && this.status === "racing") this.keys.add(key);
+      if (!this.paused && ["racing", "countdown"].includes(this.status))
+        this.keys.add(key);
     }
     if (key === "p" && !e.repeat) this.togglePause();
   };
@@ -248,10 +253,12 @@ export class RacingGame {
         Number(
           touch.has("left") || this.keys.has("arrowleft") || this.keys.has("a"),
         ),
-      Number(
-        touch.has("brake") || this.keys.has("arrowdown") || this.keys.has("s"),
-      ),
-      -1,
+      touch.has("brake") || this.keys.has("arrowdown") || this.keys.has("s")
+        ? -1
+        : Number(
+            touch.has("gas") || this.keys.has("w") || this.keys.has("arrowup"),
+          ),
+      Number(touch.has("item") || this.keys.has("e")),
       Number(touch.has("drift") || this.keys.has(" ")),
       -1,
       -1,
@@ -305,24 +312,23 @@ export class RacingGame {
         this.status = "finished";
         cancelAnimationFrame(this.frame);
         this.finish(this.sim.score, {
-          version: RULES_VERSION,
+          version: rulesVersion("coast"),
           ticks: this.sim.ticks,
           events: this.events,
         });
         return;
       }
-      const message =
-        race.boost > 0
-          ? "TURBO!"
-          : race.offroad
-            ? "Sand slows you · steer back"
-            : race.bumpCooldown > 0
-              ? "Bump! Find a clean line"
-              : race.charge >= 0.45
-                ? "Release Drift for turbo"
-                : this.sim.ticks < 90
-                  ? "GO!"
-                  : "";
+      const message = race.stunTicks
+        ? "HIT! +0.75s stop"
+        : race.shield > 0
+          ? `Shield · ${Math.ceil(race.shield)}s`
+          : race.boost > 0
+            ? `${race.lastTurbo || "Speed"} turbo!`
+            : race.tier
+              ? `${race.tier} ready · release Drift!`
+              : race.ticks < 120
+                ? "Hold W / GO to accelerate"
+                : "";
       if (this.notice.textContent !== message)
         this.notice.textContent = message;
     }
@@ -338,15 +344,30 @@ export class RacingGame {
       time.parentElement!.classList.toggle("hurry", left <= 10);
       this.onTime?.(left);
     }
-    this.lap.textContent = `${race.lap} / 2`;
+    this.lap.textContent = `${race.lap} / 3`;
     this.speed.textContent = String(Math.round(race.speed * 3.6));
     this.meter.value = race.charge;
     this.container.querySelector("#drift-label")!.textContent =
       race.boost > 0
-        ? "Turbo active"
-        : race.charge >= 0.45
-          ? "Release to boost!"
-          : "Hold through a bend";
+        ? `${race.lastTurbo || "Speed"} turbo active`
+        : race.tier
+          ? `${race.tier} · release to boost`
+          : "Mini 0.8s · Super 1.6s · Ultra 2.4s";
+    this.container.querySelector("#race-place")!.textContent =
+      `${ordinal(race.place)} / 8`;
+    this.container.querySelector("#race-item")!.textContent =
+      race.item === "shield"
+        ? "Shield"
+        : race.item === "turbo"
+          ? "Speed turbo"
+          : "Empty";
+    this.container.querySelector("#race-pickups")!.textContent =
+      `${race.pickupCount} shells`;
+    this.stats.dataset.place = String(race.place);
+    this.stats.dataset.pickups = String(race.pickupCount);
+    this.stats.dataset.item = race.item || "empty";
+    this.stats.dataset.speed = race.speed.toFixed(2);
+    this.stats.dataset.charge = race.charge.toFixed(3);
     this.view?.draw(race, now / 1000, input[0], this.status === "ready", dt);
     this.drawMap();
   };
@@ -405,16 +426,23 @@ export class RacingGame {
     const start = plot(0);
     ctx.fillStyle = "#fff5d2";
     ctx.fillRect(start.x - 4, start.y - 1, 8, 2);
-    const ghost = plot(
-      Math.min(
-        RACE_DISTANCE,
-        (Math.max(0, race.ticks) / this.targetTicks) * RACE_DISTANCE,
-      ),
-    );
-    ctx.fillStyle = "#ffd68c";
-    ctx.beginPath();
-    ctx.arc(ghost.x, ghost.y, 3, 0, Math.PI * 2);
-    ctx.fill();
+    for (const [kind, objects] of [
+      ["crate", itemCrates],
+      ["pickup", pickups],
+    ] as const)
+      objects.forEach((object, i) => {
+        if (race.collected.has(`${kind}:${race.lap - 1}:${i}`)) return;
+        const point = plot(object.distance, object.offset);
+        ctx.fillStyle = kind === "crate" ? "#83fff1" : "#fff0a6";
+        ctx.fillRect(point.x - 1.5, point.y - 1.5, 3, 3);
+      });
+    for (const rival of race.rivals) {
+      const point = plot(rival.distance, rival.offset);
+      ctx.fillStyle = rival.color;
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
     const p = plot(race.distance, race.offset);
     ctx.fillStyle = "#ff927b";
     ctx.strokeStyle = "#fff7d7";
@@ -426,8 +454,29 @@ export class RacingGame {
   }
   summary() {
     const race = this.sim.race!;
-    return `<div class="race-result-detail"><p>${race.score > 0 ? "Two laps completed. Shorter time ranks higher." : "Time limit reached. Finish both laps to set a ranked time."}</p><div>${race.lapTicks.map((t, i) => `<span>LAP ${i + 1}<b>${raceTime(t)}</b></span>`).join("")}<span>TURBOS<b>${race.boosts}</b></span><span>BUMPS<b>${race.bumps}</b></span></div><p>${race.score > 0 ? `Pace target ${raceTime(this.targetTicks)} · ${race.ticks < this.targetTicks ? "Beat it by " + raceTime(this.targetTicks - race.ticks) : race.ticks === this.targetTicks ? "Matched your target" : "Next target: gain " + raceTime(race.ticks - this.targetTicks)}.` : "Brake before tight bends and release Drift as the road opens."}</p><small>Palm Bay · ${raceScoreTime(race.score)}</small></div>`;
+    const result = race.result();
+    const ladder = [
+      ...race.rivals.map((r) => ({
+        name: r.name + " · Game character",
+        distance: r.distance,
+        time: r.finishTick || Infinity,
+        you: false,
+      })),
+      {
+        name: "You",
+        distance: race.distance,
+        time: race.score ? race.ticks : Infinity,
+        you: true,
+      },
+    ].sort(
+      (a, b) =>
+        a.time - b.time ||
+        b.distance - a.distance ||
+        Number(a.you) - Number(b.you),
+    );
+    return `<div class="race-result-detail"><h3>${ordinal(result.place)} / 8${result.finished ? " · Finish!" : " · Time limit"}</h3><div><span>TOTAL TIME<b>${raceTime(result.timeTicks)}</b></span><span>BEST LAP<b>${result.bestLap ? raceTime(result.bestLap) : "—"}</b></span><span>SHELL PICKUPS<b>${result.pickups}</b></span><span>HIT STOPS<b>${raceTime(result.penaltyTicks)}</b></span></div><p>${result.finished ? "Three laps complete. Try a cleaner line or a longer drift." : "Hold W or GO to drive. Finish three laps to set a best time."}</p><details><summary>Street ladder · seven game characters</summary><ol class="street-ladder">${ladder.map((r) => `<li class="${r.you ? "is-you" : ""}"><span>${r.name}</span><b>${Number.isFinite(r.time) ? raceTime(r.time) : "Racing"}</b></li>`).join("")}</ol></details><small>Game characters never enter medal boards. Verified players rank by fastest three-lap time.${this.targetTicks < 7200 ? ` Your time target: ${raceScoreTime(7201 - this.targetTicks)}.` : ""}</small></div>`;
   }
+
   dispose() {
     if (this.disposed) return;
     this.disposed = true;

@@ -36,6 +36,7 @@ export class StoreCore {
       ["replay", "TEXT"],
       ["digest", "TEXT"],
       ["dare", "TEXT"],
+      ["race_result", "TEXT"],
     ])
       if (!columns.includes(name))
         this.db.exec(`ALTER TABLE runs ADD COLUMN ${name} ${type}`);
@@ -54,6 +55,12 @@ export class StoreCore {
           .run(day(this.now()));
       }
     });
+    this.db
+      .prepare("INSERT OR IGNORE INTO rules VALUES('coast_gp_from',?)")
+      .run(day(this.now()));
+    this.coastFrom = this.db
+      .prepare("SELECT value FROM rules WHERE key='coast_gp_from'")
+      .get().value;
     this.rulesFrom = this.db
       .prepare("SELECT value FROM rules WHERE key='daily_rules_from'")
       .get().value;
@@ -160,12 +167,21 @@ export class StoreCore {
     const rows = this.db
       .prepare(
         `WITH best AS (
-      SELECT player,MAX(score) score FROM runs WHERE game=? AND status='finished' AND verified=1 AND eligible=1 AND finished>=? AND finished<? AND score>0 AND player NOT IN (SELECT player FROM suspensions) GROUP BY player)
+      SELECT player,MAX(score) score FROM runs WHERE game=? AND status='finished' AND verified=1 AND eligible=1 AND (game!='coast' OR COALESCE(version,1)=?) AND finished>=? AND finished<? AND score>0 AND player NOT IN (SELECT player FROM suspensions) GROUP BY player)
       SELECT p.id,p.name,b.score,MIN(r.finished) achieved FROM best b JOIN players p ON p.id=b.player
-      JOIN runs r ON r.player=b.player AND r.game=? AND r.score=b.score AND r.finished>=? AND r.finished<? AND r.status='finished'
+      JOIN runs r ON r.player=b.player AND r.game=? AND r.score=b.score AND r.finished>=? AND r.finished<? AND r.status='finished' AND r.verified=1 AND r.eligible=1 AND (r.game!='coast' OR COALESCE(r.version,1)=?)
       GROUP BY p.id ORDER BY b.score DESC,achieved ASC,p.id ASC`,
       )
-      .all(game, after, before, game, after, before);
+      .all(
+        game,
+        before <= boundary(this.coastFrom) ? 1 : 2,
+        after,
+        before,
+        game,
+        after,
+        before,
+        before <= boundary(this.coastFrom) ? 1 : 2,
+      );
     let rank = 0;
     return rows.map((p, i) => {
       if (!i || p.score !== rows[i - 1].score) rank = i + 1;
@@ -262,6 +278,9 @@ export class StoreCore {
           day(this.now()),
           "started",
         );
+      this.db
+        .prepare("UPDATE runs SET version=? WHERE id=?")
+        .run(game === "coast" ? 2 : 1, run.id);
       return run;
     });
   }

@@ -924,3 +924,237 @@ dialog.game-modal #modal-body:has(.result-score) > .secondary {
     animation: none !important;
   }
 }
+
+/* The first race is the only invitation until a round has been completed. */
+.first-race .quest-card,
+.first-race .right-rail,
+.first-race .coin-pill,
+.first-race .bottom-bar,
+.first-race .world-controls,
+.first-race .move-hint,
+.first-race .scene-label,
+.first-race #interaction,
+.first-race #joystick,
+.first-race .mobile-actions,
+.first-race #camera-toggle,
+.first-race #action-banner,
+.first-race #resident-inspector,
+.first-race .phone-bar,
+.first-race .away-bar {
+  display: none !important;
+}
+.race-item {
+  position: absolute;
+  right: 14px;
+  bottom: 16px;
+  display: grid;
+  gap: 3px;
+  color: #fff5d7;
+  background: #163c4ce8;
+  border: 1px solid #8bdfd0;
+  border-radius: 12px;
+  padding: 9px 12px;
+  min-width: 100px;
+  text-align: center;
+}
+.race-item span,
+.race-item small {
+  font-size: 10px;
+}
+.race-item b {
+  font-size: 16px;
+}
+.race-map {
+  top: 100px;
+}
+.race-hud {
+  right: 14px;
+  justify-content: space-between;
+  gap: 8px;
+}
+dialog.game-modal .race-hud .stat-pill b {
+  font-size: 24px !important;
+}
+.race-hud .stat-pill {
+  padding: 4px 9px;
+  min-width: 0;
+}
+.race-hud .place-pill {
+  background: #f7d575;
+  color: #173e48;
+}
+.race-touch {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 8px;
+}
+.race-touch > div {
+  display: flex;
+  gap: 6px;
+}
+.race-touch button {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+.race-touch [data-race-control="gas"] {
+  background: #c5ed8e;
+}
+.race-touch [data-race-control="item"] {
+  background: #b7e8e7;
+}
+.race-notice {
+  bottom: 86px;
+  left: 50%;
+  max-width: 80%;
+}
+.new-best {
+  text-align: center;
+  font-size: 26px;
+  font-weight: 800;
+  color: #346444;
+  background: #e5f4ba;
+  padding: 10px;
+  border-radius: 14px;
+}
+.street-ladder {
+  padding-left: 24px;
+  text-align: left;
+}
+.street-ladder li {
+  padding: 7px 0;
+  font-size: 12px;
+}
+.street-ladder li span {
+  display: inline;
+  font-size: 12px;
+}
+.street-ladder b {
+  float: right;
+  font-size: 12px;
+}
+.street-ladder .is-you {
+  font-weight: 800;
+  color: #2b6652;
+}
+@media (max-width: 600px) {
+  .race-hud {
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    padding: 6px;
+    gap: 4px;
+  }
+  dialog.game-modal .race-hud .stat-pill b,
+  .race-hud b {
+    font-size: 17px !important;
+    white-space: nowrap;
+  }
+  .race-hud .stat-pill {
+    padding: 3px 5px;
+    border-width: 1px;
+    box-shadow: none;
+  }
+  .race-hud .stat-pill small {
+    font-size: 9px;
+  }
+  .race-map {
+    top: 82px;
+    right: 8px;
+  }
+  .race-charge label {
+    font-size: 8px;
+    letter-spacing: 0;
+  }
+  .race-cover {
+    overflow-y: auto;
+    justify-content: flex-start;
+    padding: 15px;
+  }
+  .race-cover h3 {
+    font-size: 40px;
+    margin: 10px 0;
+  }
+  .race-cover .primary {
+    font-size: 18px !important;
+  }
+  .race-touch {
+    gap: 5px;
+  }
+  .race-touch > div {
+    gap: 4px;
+  }
+  .race-touch button {
+    font-size: 12px;
+    min-height: 48px;
+  }
+  .race-footer {
+    font-size: 9px;
+  }
+  .race-result-detail > div {
+    gap: 16px;
+  }
+}
+
+.first-race .neighbour-tools,
+.first-race .phone-more,
+.first-race #phone-next,
+.first-race #camera-hint,
+.first-race #away-banner {
+  display: none !important;
+}
+.first-race.mode-2d #fallback > :not(#fallback-welcome) {
+  display: none !important;
+}
+
+dialog.game-modal .race-hud .place-pill b {
+  color: #173e48 !important;
+  text-shadow: none !important;
+}
+.race-cover {
+  overflow-y: auto;
+}
+
+dialog.game-modal[data-game="coast"] #modal-body:has(.result-score) {
+  padding: 18px;
+}
+dialog.game-modal[data-game="coast"] .result-star {
+  display: none;
+}
+dialog.game-modal[data-game="coast"] .round-breakdown {
+  margin: 8px 0;
+  gap: 8px;
+}
+dialog.game-modal[data-game="coast"] .round-breakdown > span {
+  padding: 8px;
+}
+dialog.game-modal[data-game="coast"] .new-best {
+  font-size: 22px;
+  padding: 6px;
+  margin: 8px 0;
+}
+dialog.game-modal[data-game="coast"] .race-result-detail {
+  margin: 10px 0;
+  padding: 10px;
+}
+dialog.game-modal[data-game="coast"] .button-row {
+  margin: 10px 0;
+}
+dialog.game-modal[data-game="coast"] .button-row .primary {
+  flex-basis: 100%;
+}
+dialog.game-modal[data-game="coast"] .lead:empty {
+  display: none;
+}
+
+dialog.game-modal[data-game="coast"] .round-breakdown strong {
+  font-size: 22px !important;
+  white-space: nowrap;
+}
+.race-touch button {
+  font-size: 12px;
+}
+
+.first-race .welcome-panel {
+  max-width: calc(100vw - 32px);
+}

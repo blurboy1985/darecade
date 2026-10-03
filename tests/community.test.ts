@@ -15,7 +15,7 @@ import { Community, PRIVACY_VERSION } from "../server/community.mjs";
 import {
   Simulation,
   replayRun,
-  RULES_VERSION,
+  rulesVersion,
   type Input,
   type Replay,
 } from "../shared/simulation.ts";
@@ -61,7 +61,7 @@ function play(game: string, seed: number): { score: number; replay: Replay } {
   }
   return {
     score: sim.score,
-    replay: { version: RULES_VERSION, ticks: sim.ticks, events },
+    replay: { version: rulesVersion(game), ticks: sim.ticks, events },
   };
 }
 async function register(s: ReturnType<typeof setup>, email: string) {
@@ -79,10 +79,9 @@ test("all five games replay exactly from bounded tick inputs and seeded rules", 
   for (const game of ["noodle", "brick", "hop", "swarm", "coast"])
     for (const seed of [1, 987654321]) {
       const run = play(game, seed);
-      assert.deepEqual(replayRun(game, seed, run.replay), {
-        score: run.score,
-        ticks: run.replay.ticks,
-      });
+      const checked = replayRun(game, seed, run.replay);
+      assert.equal(checked.score, run.score);
+      assert.equal(checked.ticks, run.replay.ticks);
       assert.deepEqual(play(game, seed), run);
       assert.throws(
         () => replayRun(game, seed, { ...run.replay, ticks: 1 }),

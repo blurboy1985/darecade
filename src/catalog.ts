@@ -35,10 +35,10 @@ export const games = {
   coast: {
     name: "Coast Rush",
     tagline: "Coast Rush",
-    rule: "Two laps. Drift. Boost. Beat your time.",
-    controls: "← → steer · ↓ brake · Space drift",
+    rule: "Three laps. Seven rivals. Race your avatar.",
+    controls: "WASD drive · Space drift · E item",
     genre: "RACING",
-    description: "Your avatar. Your fastest time.",
+    description: "Eight karts. One coastal finish.",
   },
 } as const;
 export type GameId = keyof typeof games;

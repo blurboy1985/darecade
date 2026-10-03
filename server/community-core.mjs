@@ -9,7 +9,11 @@ import {
   missionProgress,
   singaporeWeek,
 } from "../src/state.ts";
-import { replayRun, RULES_VERSION } from "../shared/simulation.ts";
+import {
+  replayRun,
+  RULES_VERSION,
+  rulesVersion,
+} from "../shared/simulation.ts";
 export const PRIVACY_VERSION = "2026-10-03";
 const DAY = 86400000;
 const hash = (x) => createHash("sha256").update(x).digest("hex");
@@ -458,7 +462,13 @@ export class CommunityCore {
       dare = this.db
         .prepare("SELECT * FROM dares WHERE id=? AND expires>?")
         .get(dareId, this.now());
-      if (!dare || dare.game !== game) throw Error("This dare has closed.");
+      if (
+        !dare ||
+        dare.game !== game ||
+        this.db.prepare("SELECT version FROM runs WHERE id=?").get(dare.run)
+          ?.version !== rulesVersion(game)
+      )
+        throw Error("This dare has closed.");
       if (
         this.db
           .prepare("SELECT 1 FROM runs WHERE player=? AND dare=?")
@@ -491,7 +501,7 @@ export class CommunityCore {
           .prepare(
             "SELECT score,seed FROM runs WHERE player=? AND game=? AND verified=1 AND seed IS NOT NULL AND version=? AND status='finished' AND score>0 ORDER BY score DESC,finished ASC LIMIT 1",
           )
-          .get(target, game, RULES_VERSION);
+          .get(target, game, rulesVersion(game));
         if (!best) throw Error("This neighbour has no validated score yet.");
         seed = best.seed;
         score = best.score;
@@ -506,11 +516,11 @@ export class CommunityCore {
       .prepare(
         "UPDATE runs SET seed=?,version=?,targetScore=?,dare=? WHERE id=?",
       )
-      .run(seed, RULES_VERSION, score, dareId, run.id);
+      .run(seed, rulesVersion(game), score, dareId, run.id);
     return {
       ...run,
       seed,
-      version: RULES_VERSION,
+      version: rulesVersion(game),
       ranked: this.eligibleAccount(id),
       dailySeed: seed === seedFor(game, day(this.now())),
     };
@@ -527,6 +537,7 @@ export class CommunityCore {
       if (r.digest !== digest)
         throw Error("This round was already saved with a different result.");
       return {
+        race: r.race_result ? JSON.parse(r.race_result) : undefined,
         score: r.score,
         won: !!r.target && r.score > r.targetScore,
         profile: this.privateProfile(id),
@@ -536,7 +547,7 @@ export class CommunityCore {
     if (
       r.status !== "started" ||
       this.now() - r.started > 600000 ||
-      r.version !== RULES_VERSION
+      r.version !== rulesVersion(r.game)
     )
       throw Error("This round has expired. Start a new round.");
     const result = replayRun(r.game, r.seed, data.replay);
@@ -564,6 +575,30 @@ export class CommunityCore {
           r.id,
         );
       const p = this.privateProfile(id).progress;
+      let race;
+      if (result.race) {
+        const previous = p.coastRecord;
+        const newBest =
+          result.race.finished &&
+          (!previous.timeTicks ||
+            result.race.timeTicks < previous.timeTicks ||
+            !previous.place ||
+            result.race.place < previous.place);
+        race = { ...result.race, newBest };
+        if (race.finished)
+          p.coastRecord = {
+            version: 2,
+            timeTicks: previous.timeTicks
+              ? Math.min(previous.timeTicks, race.timeTicks)
+              : race.timeTicks,
+            place: previous.place
+              ? Math.min(previous.place, race.place)
+              : race.place,
+          };
+        this.db
+          .prepare("UPDATE runs SET race_result=? WHERE id=?")
+          .run(JSON.stringify(race), r.id);
+      }
       const welcome = completeWelcomeRound(p);
       p.rounds++;
       p.xp += 20;
@@ -575,6 +610,7 @@ export class CommunityCore {
         verified: true,
         ranked,
         welcome,
+        race,
         profile: this.privateProfile(id),
       };
     });
@@ -585,9 +621,9 @@ export class CommunityCore {
     return this.store.transaction(() => {
       const r = this.db
         .prepare(
-          "SELECT * FROM runs WHERE id=? AND player=? AND verified=1 AND status='finished' AND score>0 AND version=?",
+          "SELECT * FROM runs WHERE id=? AND player=? AND verified=1 AND status='finished' AND score>0 AND version=CASE WHEN game='coast' THEN 2 ELSE 1 END",
         )
-        .get(runId, id, RULES_VERSION);
+        .get(runId, id);
       if (!r) throw Error("Choose a positive, validated round to post.");
       if (this.db.prepare("SELECT 1 FROM dares WHERE run=?").get(runId))
         throw Error("This round is already a dare.");
@@ -634,9 +670,9 @@ export class CommunityCore {
     // Daily medal boards separately require an eligible account and today's seed.
     const bests = this.db
       .prepare(
-        "SELECT player,game,MAX(score) score FROM runs WHERE verified=1 AND status='finished' AND version=? GROUP BY player,game",
+        "SELECT player,game,MAX(score) score FROM runs WHERE verified=1 AND status='finished' AND version=CASE WHEN game='coast' THEN 2 ELSE 1 END GROUP BY player,game",
       )
-      .all(RULES_VERSION);
+      .all();
     for (const player of state.players) {
       player.best = Object.fromEntries(gameIds.map((game) => [game, 0]));
       for (const r of bests)
@@ -667,7 +703,7 @@ export class CommunityCore {
     state.lastWeek = weekly(last, week);
     state.dares = this.db
       .prepare(
-        "SELECT d.*,p.name FROM dares d JOIN players p ON p.id=d.host WHERE d.expires>? ORDER BY d.created DESC LIMIT 100",
+        "SELECT d.*,p.name FROM dares d JOIN players p ON p.id=d.host JOIN runs r ON r.id=d.run WHERE r.version=CASE WHEN d.game='coast' THEN 2 ELSE 1 END AND d.expires>? ORDER BY d.created DESC LIMIT 100",
       )
       .all(this.now())
       .filter((d) => allowed.has(d.host));
@@ -675,9 +711,14 @@ export class CommunityCore {
     state.competitionReady = this.eligibleAccount(id);
     state.recentRuns = this.db
       .prepare(
-        "SELECT id,game,score,finished FROM runs WHERE player=? AND verified=1 AND status='finished' ORDER BY finished DESC LIMIT 12",
+        "SELECT id,game,score,finished FROM runs WHERE player=? AND verified=1 AND status='finished' AND version=CASE WHEN game='coast' THEN 2 ELSE 1 END ORDER BY finished DESC LIMIT 12",
       )
       .all(id);
+    if (!state.profile.account) {
+      state.boards = Object.fromEntries(gameIds.map((game) => [game, []]));
+      state.weekly = [];
+      state.lastWeek = [];
+    }
     return state;
   }
   report(id, target, reason) {

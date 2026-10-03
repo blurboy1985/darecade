@@ -24,6 +24,7 @@ import {
 import { LobbyWorld, spots } from "./world";
 import { ArcadeGame } from "./games";
 import { RacingGame } from "./racing-game";
+import { ordinal, type RaceResult } from "../shared/racing";
 import type { Replay } from "../shared/simulation";
 import {
   games,
@@ -288,6 +289,7 @@ function visit(id: string) {
   }
 }
 function collect(id: string) {
+  if (firstRacePending()) return;
   if (save.coins.includes(id)) return;
   save.coins.push(id);
   progress("coin", id);
@@ -348,7 +350,7 @@ function close() {
   if (modal.open) beep("close");
   modal.close();
   if (world) {
-    world.paused = false;
+    world.paused = firstRacePending();
     world.keys.clear();
   }
   lastFocus?.focus({ preventScroll: true });
@@ -366,9 +368,17 @@ function cards() {
       '<span class="star-ship">▲</span><span class="star-enemy">▼</span><i>✦ · ✧ · ✦</i>',
     coast: "<span>🏎</span><b>PALM BAY</b><i>05</i>",
   };
-  return `<div class="game-grid four-games">${gameIds.map((id) => `<button class="game-card ${id}" data-game="${id}"><div class="game-art ${id}-art">${art[id]}</div><span class="eyebrow">${games[id].genre}</span><h3>${games[id].name}</h3><p>${games[id].description}</p><div><span>${id === "coast" ? "2 laps" : "60s"} · BEST ${formatScore(id, shared?.players.find((p) => p.id === shared!.me)?.best[id] ?? 0)}</span>${icon("arrow")}</div></button>`).join("")}</div>`;
+  return `<div class="game-grid four-games">${gameIds.map((id) => `<button class="game-card ${id}" data-game="${id}"><div class="game-art ${id}-art">${art[id]}</div><span class="eyebrow">${games[id].genre}</span><h3>${games[id].name}</h3><p>${games[id].description}</p><div><span>${id === "coast" ? "3 laps" : "60s"} · BEST ${formatScore(id, shared?.players.find((p) => p.id === shared!.me)?.best[id] ?? 0)}</span>${icon("arrow")}</div></button>`).join("")}</div>`;
 }
 function open(id: string) {
+  if (firstRacePending() && id !== "settings") {
+    void startGame("coast");
+    return;
+  }
+  if (id === "board" && !currentProfile?.account) {
+    void openAccount();
+    return;
+  }
   if (id.startsWith("player:")) {
     showPlayer(id.slice(7));
     return;
@@ -609,6 +619,11 @@ function openDares() {
   renderSharedDares();
 }
 async function startGame(id: GameId, defender = "", dare = "") {
+  if (firstRacePending() && id !== "coast") {
+    id = "coast";
+    defender = "";
+    dare = "";
+  }
   if (save.away) {
     save.away = false;
     save.awaySince = 0;
@@ -676,6 +691,7 @@ async function startGame(id: GameId, defender = "", dare = "") {
     const render = async () => {
       try {
         let result: {
+          race?: RaceResult & { newBest: boolean };
           welcome?: boolean;
           ranked?: boolean;
           profile: Profile;
@@ -694,8 +710,11 @@ async function startGame(id: GameId, defender = "", dare = "") {
           '</div><h2 class="result-score">' +
           formatScore(id, score) +
           "<small>" +
-          (id === "coast" ? "TWO-LAP TIME" : "GAME SCORE") +
+          (id === "coast" ? "THREE-LAP TIME" : "GAME SCORE") +
           "</small></h2>" +
+          (result?.race?.newBest
+            ? '<p class="new-best" role="status">✦ New best!</p>'
+            : "") +
           raceSummary +
           '<p class="lead">' +
           (target
@@ -710,18 +729,24 @@ async function startGame(id: GameId, defender = "", dare = "") {
             ? '<div class="welcome-reward"><span class="cap-badge">✦</span><span><strong>First round complete!</strong><span>Lilac cap unlocked · +35 bonus XP</span></span></div>'
             : "") +
           '<div class="button-row">' +
-          (reward
+          (id !== "coast" && reward
             ? '<button class="primary" data-action="welcome-wear">Wear my cap & meet Kopi →</button>'
             : '<button class="primary" data-replay="' +
               id +
-              '">Another round →</button>') +
-          '<button class="secondary" data-open="board">Rankings</button></div>' +
+              '">Another round</button>') +
+          (id === "coast" && reward
+            ? '<button class="secondary" data-action="welcome-wear">Wear my lilac cap</button>'
+            : "") +
+          (currentProfile?.account
+            ? '<button class="secondary" data-open="board">Rankings</button>'
+            : "") +
+          "</div>" +
           '<div class="note">' +
           (result
             ? "✓ Verified · " +
               (result.ranked
                 ? id === "coast" && score === 0
-                  ? "No ranked time this round. Finish two laps to enter the board."
+                  ? "No ranked time this round. Finish three laps to enter the board."
                   : "in the running for tonight’s medals."
                 : "practice round. Ranked play opens 24h after you verify an account.")
             : "Offline · nothing saved.") +
@@ -732,8 +757,17 @@ async function startGame(id: GameId, defender = "", dare = "") {
               '">Post as 24h dare →</button>'
             : "") +
           (!currentProfile?.account
-            ? '<button class="secondary" data-account>Save my progress →</button>'
+            ? result?.race?.newBest
+              ? '<button class="secondary" id="save-race-best">Save your avatar and this score</button>'
+              : '<button class="secondary" data-account>Save my progress →</button>'
             : "");
+        if (id === "coast") {
+          const actions = body.querySelector(".button-row")!;
+          body.querySelector(".race-result-detail")!.before(actions);
+        }
+        body
+          .querySelector("#save-race-best")
+          ?.addEventListener("click", () => void openAccount(true));
         body.insertAdjacentHTML(
           "afterbegin",
           '<div class="finish-effects" aria-hidden="true"></div>',
@@ -755,7 +789,7 @@ async function startGame(id: GameId, defender = "", dare = "") {
           .querySelector(".result-score")!
           .insertAdjacentHTML(
             "afterend",
-            `<div class="round-breakdown"><span>XP<strong>${result ? "+20" : "0"}</strong></span><span>Rank<strong>${result?.ranked && standing ? "#" + standing.rank : "Practice"}</strong>${result?.ranked && standing && standing.rank <= 3 ? `<small>+${4 - standing.rank} medals at midnight</small>` : ""}</span></div>`,
+            `<div class="round-breakdown"><span>XP<strong>${result ? "+20" : "0"}</strong></span><span>${id === "coast" ? "Street place" : "Rank"}<strong>${id === "coast" && result?.race ? ordinal(result.race.place) + " / 8" : result?.ranked && standing ? "#" + standing.rank : "Practice"}</strong>${result?.ranked && standing && standing.rank <= 3 ? `<small>+${4 - standing.rank} medals at midnight</small>` : ""}</span></div>`,
           );
         beep(score > target ? "win" : "finish");
       } catch (error) {
@@ -967,8 +1001,7 @@ document.addEventListener("click", (e) => {
       if (save.welcome === "new") save.welcome = "cabinet";
       persist();
       playtestEvent("welcome-start");
-      if (is2d) void startGame("noodle");
-      else startOutdoor("cabinet-noodle");
+      void startGame("coast");
       return;
     }
     if (a === "welcome-skip") {
@@ -1178,6 +1211,10 @@ document
     `<aside id="action-banner" class="action-banner" aria-live="polite" hidden><span class="action-status">LET’S GO OUTSIDE</span><strong></strong><span class="action-track" aria-hidden="true"><i></i></span><button data-action="stop-interaction">Stop <kbd>Esc</kbd></button></aside>`,
   );
 function startOutdoor(id: string) {
+  if (firstRacePending()) {
+    void startGame("coast");
+    return;
+  }
   if (is2d) {
     toast("Switch to 3D in Settings to play with the surroundings.");
     return;
@@ -1469,6 +1506,14 @@ requestAnimationFrame(async () => {
     if (save.away) world.setAway(true);
     renderCameraUI();
     renderAway();
+    world.paused = modal.open;
+    if (firstRacePending() && !modal.open) {
+      // Paint the neighbourhood once behind the invitation before pausing input.
+      const lobby = world;
+      requestAnimationFrame(() => {
+        if (world === lobby && firstRacePending()) lobby.paused = true;
+      });
+    }
   } catch (error) {
     if (!profileReady) {
       const loading = document.querySelector("#loading")!;
@@ -1611,7 +1656,7 @@ function renderSharedBoard() {
         : "GAME SCORE";
   const rank = boardTab === "week" ? ownWeek?.rank : ownDay?.rank;
   const podium = list.filter((p) => p.rank <= 3);
-  body.innerHTML = `<span class="eyebrow">LEAGUE</span><h2>Rankings</h2>${serverNote()}<section class="your-standing"><div><span>YOUR ${boardTab === "week" ? "WEEKLY" : "DAILY"} RANK</span><strong>${rank ? "#" + rank : "—"}</strong><small>${rank ? "Nice!" : shared?.competitionReady ? "Set a score to join the board" : "Practice now · ranked play unlocks after verification + 24h"}</small></div><div class="standing-stats"><span><b>${ownWeek?.points || 0}</b>This week</span><span><b>${pending ? "+" + pending : "0"}</b>Pending tonight</span><span><b>${me?.points || 0}</b>Lifetime</span></div></section><div class="look-tabs board-tabs"><button data-board-tab="week" class="${boardTab === "week" ? "active" : ""}" aria-pressed="${boardTab === "week"}">Weekly medals</button><button data-board-tab="daily" class="${boardTab === "daily" ? "active" : ""}" aria-pressed="${boardTab === "daily"}">Today’s game scores</button></div>${boardTab === "daily" ? `<div class="game-filters">${gameIds.map((g) => `<button class="secondary ${g === boardGame ? "chosen" : ""}" data-board-game="${g}" aria-pressed="${g === boardGame}">${games[g].name}</button>`).join("")}</div><p class="fine-print">${games[boardGame].name}${boardGame === "coast" ? " · Fastest two-lap time wins" : ""} · Your best today: <b>${formatScore(boardGame, ownDay?.score || 0)}</b> · Medals are pending until 00:00 SGT.</p>` : `<p class="fine-print">Week of ${shared?.week || "Monday"} · resets Monday 00:00 SGT</p>`}<div class="podium-cards">${podium.length ? podium.map((p) => `<article class="podium-card medal-${p.rank} ${p.id === shared?.me ? "is-you" : ""}"><span class="podium-medal">${["🥇", "🥈", "🥉"][p.rank - 1]}</span><small>RANK ${p.rank}${p.id === shared?.me ? " · YOU" : ""}</small><h3>${escapeText(p.name)}</h3><strong>${p.value}</strong><small>${unit}${boardTab === "daily" ? ` · +${4 - p.rank} PENDING` : ""}</small></article>`).join("") : `<div class="board-empty"><span>✦</span><h3>${boardTab === "week" ? "Nothing yet!" : "Be the first!"}</h3><p>${boardTab === "week" ? "Top 3 daily scores win medals at midnight." : "Finish a ranked round to claim #1."}</p><button class="primary" data-game="${boardGame}">Play ${games[boardGame].name} →</button></div>`}</div>${list.length ? `<div class="leaderboard">${list.map((p) => `<div class="${p.id === shared?.me ? "you-row" : ""}"><b>#${p.rank}</b><span>${escapeText(p.name)}${p.id === shared?.me ? " · You" : ""}</span><strong>${p.value}<small>${unit}</small></strong></div>`).join("")}</div>` : ""}${boardTab === "daily" && ownDay && board[0] ? `<div class="score-target"><label>${boardGame === "coast" ? "Your time / today’s fastest" : "Your score compared with today’s leader"} <b>${formatScore(boardGame, ownDay.score)} / ${formatScore(boardGame, board[0].score)}</b></label><progress value="${ownDay.score}" max="${Math.max(1, board[0].score)}"></progress></div>` : ""}${boardTab === "daily" ? `<button class="primary" data-game="${boardGame}">Play ${games[boardGame].name} →</button>` : ""}<details class="scoring-guide"><summary>How scores become medals</summary><div class="medal-rule"><span>🥇<b>+3</b>Gold</span><span>🥈<b>+2</b>Silver</span><span>🥉<b>+1</b>Bronze</span></div><p>1. Play any of the five daily games. Your best positive score counts. Coast Rush ranks fastest two-lap times.</p><p>2. At midnight Singapore time, each game awards its top three ranks. Up to 15 medal points a day.</p><p>3. Daily medals build your weekly total. The weekly board resets Monday; lifetime medals stay.</p><p class="fine-print">Ties share a rank (1, 1, 3). Pending medals can change before midnight. Cosmetic XP levels up your avatar and never affects ranks. Dares record wins separately.</p></details><details class="scoring-guide"><summary>Last week’s champions</summary><div class="leaderboard">${(shared?.lastWeek || []).map((p) => `<div><b>#${p.rank}</b><span>${escapeText(p.name)}</span><strong>${p.points}<small>MEDAL PTS</small></strong></div>`).join("") || "<p>No completed week yet.</p>"}</div></details>${!shared?.competitionReady ? '<button class="secondary" data-account>Account & ranked play →</button>' : ""}`;
+  body.innerHTML = `<span class="eyebrow">LEAGUE</span><h2>Rankings</h2>${serverNote()}<section class="your-standing"><div><span>YOUR ${boardTab === "week" ? "WEEKLY" : "DAILY"} RANK</span><strong>${rank ? "#" + rank : "—"}</strong><small>${rank ? "Nice!" : shared?.competitionReady ? "Set a score to join the board" : "Practice now · ranked play unlocks after verification + 24h"}</small></div><div class="standing-stats"><span><b>${ownWeek?.points || 0}</b>This week</span><span><b>${pending ? "+" + pending : "0"}</b>Pending tonight</span><span><b>${me?.points || 0}</b>Lifetime</span></div></section><div class="look-tabs board-tabs"><button data-board-tab="week" class="${boardTab === "week" ? "active" : ""}" aria-pressed="${boardTab === "week"}">Weekly medals</button><button data-board-tab="daily" class="${boardTab === "daily" ? "active" : ""}" aria-pressed="${boardTab === "daily"}">Today’s game scores</button></div>${boardTab === "daily" ? `<div class="game-filters">${gameIds.map((g) => `<button class="secondary ${g === boardGame ? "chosen" : ""}" data-board-game="${g}" aria-pressed="${g === boardGame}">${games[g].name}</button>`).join("")}</div><p class="fine-print">${games[boardGame].name}${boardGame === "coast" ? " · Fastest three-lap time wins" : ""} · Your best today: <b>${formatScore(boardGame, ownDay?.score || 0)}</b> · Medals are pending until 00:00 SGT.</p>` : `<p class="fine-print">Week of ${shared?.week || "Monday"} · resets Monday 00:00 SGT</p>`}<div class="podium-cards">${podium.length ? podium.map((p) => `<article class="podium-card medal-${p.rank} ${p.id === shared?.me ? "is-you" : ""}"><span class="podium-medal">${["🥇", "🥈", "🥉"][p.rank - 1]}</span><small>RANK ${p.rank}${p.id === shared?.me ? " · YOU" : ""}</small><h3>${escapeText(p.name)}</h3><strong>${p.value}</strong><small>${unit}${boardTab === "daily" ? ` · +${4 - p.rank} PENDING` : ""}</small></article>`).join("") : `<div class="board-empty"><span>✦</span><h3>${boardTab === "week" ? "Nothing yet!" : "Be the first!"}</h3><p>${boardTab === "week" ? "Top 3 daily scores win medals at midnight." : "Finish a ranked round to claim #1."}</p><button class="primary" data-game="${boardGame}">Play ${games[boardGame].name} →</button></div>`}</div>${list.length ? `<div class="leaderboard">${list.map((p) => `<div class="${p.id === shared?.me ? "you-row" : ""}"><b>#${p.rank}</b><span>${escapeText(p.name)}${p.id === shared?.me ? " · You" : ""}</span><strong>${p.value}<small>${unit}</small></strong></div>`).join("")}</div>` : ""}${boardTab === "daily" && ownDay && board[0] ? `<div class="score-target"><label>${boardGame === "coast" ? "Your time / today’s fastest" : "Your score compared with today’s leader"} <b>${formatScore(boardGame, ownDay.score)} / ${formatScore(boardGame, board[0].score)}</b></label><progress value="${ownDay.score}" max="${Math.max(1, board[0].score)}"></progress></div>` : ""}${boardTab === "daily" ? `<button class="primary" data-game="${boardGame}">Play ${games[boardGame].name} →</button>` : ""}<details class="scoring-guide"><summary>How scores become medals</summary><div class="medal-rule"><span>🥇<b>+3</b>Gold</span><span>🥈<b>+2</b>Silver</span><span>🥉<b>+1</b>Bronze</span></div><p>1. Play any of the five daily games. Your best positive score counts. Coast Rush ranks fastest three-lap times.</p><p>2. At midnight Singapore time, each game awards its top three ranks. Up to 15 medal points a day.</p><p>3. Daily medals build your weekly total. The weekly board resets Monday; lifetime medals stay.</p><p class="fine-print">Ties share a rank (1, 1, 3). Pending medals can change before midnight. Cosmetic XP levels up your avatar and never affects ranks. Dares record wins separately.</p></details><details class="scoring-guide"><summary>Last week’s champions</summary><div class="leaderboard">${(shared?.lastWeek || []).map((p) => `<div><b>#${p.rank}</b><span>${escapeText(p.name)}</span><strong>${p.points}<small>MEDAL PTS</small></strong></div>`).join("") || "<p>No completed week yet.</p>"}</div></details>${!shared?.competitionReady ? '<button class="secondary" data-account>Account & ranked play →</button>' : ""}`;
 }
 function challengeButtons(p: SharedPlayer) {
   const eligible =
@@ -1721,7 +1766,13 @@ function showPlayer(id: string) {
 void syncSocial();
 window.setInterval(() => void syncSocial(), 2000);
 
+function firstRacePending() {
+  return save.rounds === 0;
+}
 function renderWelcome() {
+  const firstRace = firstRacePending();
+  document.body.classList.toggle("first-race", firstRace);
+  if (world && firstRace) world.paused = true;
   document.body.classList.toggle("welcome-played", save.welcome === "played");
   const next = document.querySelector<HTMLElement>("#phone-next");
   if (next) {
@@ -1737,16 +1788,21 @@ function renderWelcome() {
   const fallback = document.querySelector("#fallback-welcome");
   if (fallback)
     fallback.innerHTML =
-      save.welcome === "complete"
+      save.welcome === "complete" && !firstRace
         ? ""
-        : `<div class="note"><strong>First win</strong><p>Play 1 round → lilac cap + 35 XP.</p><button class="primary" data-action="${save.welcome === "played" ? "welcome-wear" : "welcome-resume"}">${save.welcome === "played" ? "Wear my cap & meet Kopi" : "Play my first round"} →</button></div>`;
+        : `<div class="note"><strong>First win</strong><p>Play 1 round → lilac cap + 35 XP.</p><button class="primary" data-action="${save.welcome === "played" ? "welcome-wear" : "welcome-resume"}">${save.welcome === "played" ? "Wear my cap & meet Kopi" : "Play now"} →</button>${firstRace ? '<button class="text-button" data-open="settings">Sound & accessibility</button>' : ""}</div>`;
   const el = document.querySelector<HTMLElement>(".welcome-panel");
   if (!el) return;
-  const active = save.welcome !== "complete" && !save.welcomeDismissed;
+  const active =
+    firstRace || (save.welcome !== "complete" && !save.welcomeDismissed);
   document.body.classList.toggle("welcome-active", active);
   const stage = save.welcome;
   if (!active) {
     el.innerHTML = `<div class="eyebrow">MEET YOU DOWNSTAIRS</div><h1>Good times.<br>Great company.</h1><button class="primary" data-open="arcade">Play →</button>${stage !== "complete" ? `<button class="welcome-later" data-action="${stage === "played" ? "welcome-wear" : "welcome-resume"}">${stage === "played" ? "Wear my cap" : "Resume quest"}</button>` : ""}`;
+    return;
+  }
+  if (firstRace) {
+    el.innerHTML = `<div class="eyebrow">YOUR FIRST RACE</div><h1>Meet you<br>at the grid.</h1><p>Your avatar. Seven game characters. Three laps around Palm Bay.</p><button class="primary" data-action="welcome-start">Play now →</button><p class="fine-print">Finish a round to unlock your lilac cap and explore the neighbourhood.</p><button class="welcome-later" data-open="settings">Sound & accessibility</button>`;
     return;
   }
   el.innerHTML = `<div class="eyebrow">WELCOME QUEST · ${stage === "new" ? "1" : stage === "cabinet" ? "2" : "3"} OF 3</div><h1>${stage === "played" ? "You did it!" : stage === "cabinet" ? "This way!" : "First win"}</h1><p>${stage === "played" ? "Lilac cap unlocked." : stage === "cabinet" ? "Finish any round of Noodle Run." : "Play 1 round. Win a lilac cap."}</p><ol class="welcome-steps" aria-label="Welcome quest progress"><li class="${stage !== "new" ? "done" : ""}">Find a cabinet</li><li class="${stage === "played" ? "done" : ""}">Finish a round</li><li class="${stage === "played" ? "done" : ""}">Unlock your cap</li></ol><button class="primary" data-action="${stage === "played" ? "welcome-wear" : "welcome-start"}">${stage === "played" ? "Wear it & meet Kopi →" : stage === "cabinet" ? "Take me there →" : "Play now →"}</button><button class="welcome-later" data-action="welcome-skip">Skip</button>`;

@@ -208,7 +208,7 @@ export async function ensureAccount(): Promise<Profile> {
     welcome();
   });
 }
-export async function openAccount() {
+export async function openAccount(saveRace = false) {
   const { host } = shell();
   try {
     const p = await api<Profile>("auth/me");
@@ -272,7 +272,8 @@ export async function openAccount() {
         });
       });
     };
-    render();
+    if (saveRace && !p.account) emailForm(host, "auth/link", render);
+    else render();
   } catch (error) {
     host.textContent = (error as Error).message;
   }

@@ -10,7 +10,7 @@ The game is live at **https://darecade.daniel-tianwen.workers.dev** on Workers F
 
 The welcome check, age/privacy consent, guest-to-email account linking, saved avatar and progression, input-replay score validation, posted dares, weekly medals, reports, data download and deletion are connected to the server. See [ACCOUNTS.md](ACCOUNTS.md) for setup, fairness rules and recovery, and [PRIVACY-REVIEW.md](PRIVACY-REVIEW.md) for the pre-launch review.
 
-The local server uses a **private local test outbox**; the hosted service uses Resend for live email. New verified progress starts fresh; previous browser saves are archived locally and legacy medal totals are preserved. Current checks: **57/57 Node tests and 3/3 Cloudflare runtime tests**, plus local browser-verified arcade, shared dare and account/privacy journeys and the live launch checks above.
+The local server uses a **private local test outbox**; the hosted service uses Resend for live email. New verified progress starts fresh; previous browser saves are archived locally and legacy medal totals are preserved. Current checks: **63/63 Node tests and 3/3 Cloudflare runtime tests**, plus local browser-verified arcade, shared dare and account/privacy journeys and the live launch checks above.
 
 ## Run it
 
@@ -50,7 +50,7 @@ The production site is emitted to `dist/`. `npm run preview` serves it at http:/
 
 - Original isometric neighbourhood: void-deck Arcade Row, Dare Plaza, Mama Shop, wardrobe booth, shared daily board, Pocket Garden, Kopi the cat, and dragon playground.
 - Click-to-walk routes around buildings, WASD/arrows, touch joystick, proximity interactions, orbit controls, zoom, and a clear player marker. Space jumps; E interacts with the nearby location. Explore provides accessible navigation to each destination.
-- Five games with keyboard and touch controls, pause/resume, saved bests and shared challenges. Noodle Run, Brick Bash, Hop Hop and Star Swarm have rounds up to 60 seconds. [Coast Rush](COAST-RUSH.md) is an original 3D kart time trial: two laps, a two-minute limit, your saved avatar driving, drift boosts, and fastest-time rankings.
+- Five games with keyboard and touch controls, pause/resume, saved bests and shared challenges. Noodle Run, Brick Bash, Hop Hop and Star Swarm have rounds up to 60 seconds. [Coast Rush](COAST-RUSH.md) is an original eight-kart street race: three laps, seven labelled game characters, your saved avatar driving, drift tiers, shields/turbos, shells and fastest-time rankings.
 - A third-person perspective follows your avatar with camera-relative walking, drag-to-orbit, wheel/pinch zoom and building collision checks. Switch back to the original bird’s-eye view at any time. Inspect a resident to follow their action and examine their outfit.
 - Five animated example residents jog, climb and slide, dance, sit on a bench and play a cabinet. Accessories, garden paths, flowers, bunting and moving pigeons add neighbourhood activity. The Blender playground has a stair flight, handrails and a slide landing matched to the animation route.
 - Choose an away activity, save the preference or step away immediately. Closing the page and browser disconnect events save the selected activity and its start time; reopening reconstructs its current phase. No away XP, coins, visits or game scores are awarded.
@@ -79,7 +79,7 @@ The production site is emitted to `dist/`. `npm run preview` serves it at http:/
 | Brick Bash             | A/D, left/right, drag, or on-screen left/right buttons             |
 | Hop Hop                | Space, W, up arrow, tap the game or the JUMP button                |
 | Star Swarm             | WASD/arrows, drag the ship or on-screen directions; automatic fire |
-| Coast Rush             | A/D or left/right to steer; S/down to brake; hold Space to drift and release to boost; on-screen buttons |
+| Coast Rush             | W/up to accelerate; A/D steer; S/down brake; Space drift; E item; matching touch buttons |
 | Pause a game           | P or Pause; losing focus pauses automatically                      |
 
 ## Scope and remaining product work
@@ -142,7 +142,7 @@ See `QA.md` for checked behaviours, screenshots, and limits. Mobile browser emul
 ## Daily medals and offline challenges
 
 - Everyone begins with zero shared game scores and zero medal points. Old browser-only bests are not imported into competition. Cosmetic XP is separate.
-- At midnight Singapore time, the top three ranks based on **positive scores completed that day** in each game earn +3 gold, +2 silver and +1 bronze. Equal scores receive equal ranks and points (for example, 1, 1, 3). A player can earn up to 12 points per day. A score submitted earlier that day can earn its award while the player is offline; an inactive day earns no new medals. Lifetime bests remain challenge targets. Lifetime medal totals remain saved. A separate weekly board resets on Monday at 00:00 SGT and retains last week’s standings.
+- At midnight Singapore time, the top three ranks based on **positive scores completed that day** in each game earn +3 gold, +2 silver and +1 bronze. Equal scores receive equal ranks and points (for example, 1, 1, 3). A player can earn up to 15 points per day. A score submitted earlier that day can earn its award while the player is offline; an inactive day earns no new medals. Lifetime bests remain challenge targets. Lifetime medal totals remain saved. A separate weekly board resets on Monday at 00:00 SGT and retains last week’s standings.
 - Awards use each closed day’s score snapshot, are recorded only once, and catch up after a server restart. No points are given merely for opening the board.
 - Each challenger has **three outgoing attempts per Singapore day**, against three different resting/offline neighbours across all games. Starting or abandoning uses the challenger's allowance. Incoming challenges are uncapped, so another player cannot exhaust your defender slots. Defenders never lose points. Regular arcade rounds remain unlimited. The allowance resets at midnight Singapore time.
 - Challenge targets snapshot the defender’s saved best on acceptance. A strictly higher score wins; a tie is not a win. Wins are recorded separately with no extra medal points. Challenger scores improve their verified personal best; only eligible scores matching today’s seed enter the daily ranked board. A reserved round expires after ten minutes.

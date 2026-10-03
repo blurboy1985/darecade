@@ -1,6 +1,8 @@
 import { CoastRace, RACE_TICKS } from "./racing.ts";
 import { HopRun, StarFlight } from "../src/action-games.ts";
 export const RULES_VERSION = 1;
+export const rulesVersion = (game: string) =>
+  game === "coast" ? 2 : RULES_VERSION;
 export const TICK_RATE = 60;
 export type Input = [number, number, number, number, number, number];
 export type Event = [number, ...Input];
@@ -53,7 +55,7 @@ export class Simulation {
     if (this.ended) return;
     const [dx, dy, turn, jump, px, py] = input;
     if (this.race) {
-      this.race.advance(dx, dy > 0, jump > 0);
+      this.race.advance(dx, dy, jump > 0, turn === 1);
       this.ticks = this.race.ticks;
       this.elapsed = this.ticks / TICK_RATE;
       this.score = this.race.score;
@@ -211,7 +213,7 @@ export class Simulation {
 export function replayRun(game: string, seed: number, replay: Replay) {
   if (
     !replay ||
-    replay.version !== RULES_VERSION ||
+    replay.version !== rulesVersion(game) ||
     !Number.isInteger(replay.ticks) ||
     replay.ticks < 1 ||
     replay.ticks > (game === "coast" ? RACE_TICKS : 3600) ||
@@ -252,5 +254,9 @@ export function replayRun(game: string, seed: number, replay: Replay) {
     sim.advance(input);
   }
   if (!sim.ended) throw Error("Finish the round before submitting.");
-  return { score: sim.score, ticks: sim.ticks };
+  return {
+    score: sim.score,
+    ticks: sim.ticks,
+    ...(sim.race ? { race: sim.race.result() } : {}),
+  };
 }

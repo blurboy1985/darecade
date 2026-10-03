@@ -10,10 +10,11 @@ import { animatePet } from "./pets";
 import { outfits, skins } from "./state";
 import {
   boostPads,
-  cones,
+  RIVALS,
+  itemCrates,
+  pickups,
   ROAD_HALF_WIDTH,
   TRACK_LENGTH,
-  RACE_DISTANCE,
   trackPoint,
   type CoastRace,
 } from "../shared/racing";
@@ -31,7 +32,13 @@ export class RaceView {
   private readonly wheels: T.Group[] = [];
   private readonly frontWheels: T.Group[] = [];
   private readonly wheel = new T.Group();
-  private readonly ghost = new T.Group();
+  private readonly rivals: { kart: T.Group; avatar: Avatar }[] = [];
+  private readonly trackItems: {
+    group: T.Group;
+    kind: string;
+    index: number;
+  }[] = [];
+  private readonly shield: T.Mesh;
   private readonly flame: T.Mesh;
   private readonly sea: T.Mesh;
   private readonly observer: ResizeObserver;
@@ -40,16 +47,9 @@ export class RaceView {
   private disposed = false;
   private readonly look: Look;
   private readonly reduced: boolean;
-  private readonly ghostSeconds: number;
-  constructor(
-    host: HTMLElement,
-    look: Look,
-    reduced: boolean,
-    ghostSeconds: number,
-  ) {
+  constructor(host: HTMLElement, look: Look, reduced: boolean) {
     this.look = look;
     this.reduced = reduced;
-    this.ghostSeconds = ghostSeconds;
     this.renderer = new T.WebGLRenderer({
       antialias: true,
       alpha: false,
@@ -177,8 +177,74 @@ export class RaceView {
     );
     this.flame.rotation.x = -Math.PI / 2;
     this.flame.visible = false;
-    this.scene.add(this.ghost);
-    this.buildKart(this.ghost, "#ffe9a0", true);
+    this.shield = this.mesh(
+      this.kart,
+      this.geo(new T.SphereGeometry(1.6, 16, 10)),
+      this.mat("#7ae9ed", 0.5),
+      0,
+      0.9,
+      0,
+    );
+    const shieldMaterial = this.shield.material as T.MeshStandardMaterial;
+    shieldMaterial.transparent = true;
+    shieldMaterial.opacity = 0.22;
+    shieldMaterial.depthWrite = false;
+    RIVALS.forEach((r, i) => {
+      const kart = new T.Group();
+      this.scene.add(kart);
+      this.buildKart(kart, r.color, true);
+      const look = {
+        ...this.look,
+        outfit: i % 6,
+        clothing: i % 8,
+        hair: i % 8,
+        pet: 0,
+        accessory: 0,
+        hat: 0,
+      };
+      const avatar = createAvatar(
+        kart,
+        0,
+        -0.15,
+        r.color,
+        skins[i % skins.length],
+        0,
+        look,
+      );
+      avatar.root.position.y = -0.14;
+      avatar.root.scale.setScalar(0.94);
+      const wheel = this.mesh(
+        kart,
+        this.geo(new T.TorusGeometry(0.25, 0.035, 6, 18)),
+        this.mat("#263c49"),
+        0,
+        0.95,
+        -0.04,
+      );
+      wheel.rotation.x = -0.55;
+      for (const [name, x] of [
+        ["Kart_grip_r", -0.22],
+        ["Kart_grip_l", 0.22],
+      ] as const) {
+        const grip = new T.Object3D();
+        grip.name = name;
+        grip.position.x = x;
+        wheel.add(grip);
+      }
+      this.label(
+        kart,
+        r.name + " · Game character",
+        0,
+        2.6,
+        -0.2,
+        4.2,
+        0.52,
+        "#ffffff",
+        "#163c4c",
+        Math.PI,
+      );
+      this.rivals.push({ kart, avatar });
+    });
     this.observer = new ResizeObserver(() => {
       const width = host.clientWidth,
         height = host.clientHeight;
@@ -391,20 +457,40 @@ export class RaceView {
         b.rotation.y = 0.65;
       }
     }
-    const cone = this.geo(new T.ConeGeometry(0.48, 1, 8));
-    for (const c of cones) {
-      const g = this.onTrack(c.distance, c.offset);
-      this.box(g, 0, 0.06, 0, 1, 0.12, 1, "#203d48");
-      this.mesh(g, cone, this.mat("#f98958"), 0, 0.6, 0);
-      this.mesh(
-        g,
-        this.geo(new T.CylinderGeometry(0.2, 0.3, 0.18, 8)),
-        this.mat("#fff3ce"),
-        0,
-        0.62,
-        0,
-      );
-    }
+    for (const [kind, objects] of [
+      ["crate", itemCrates],
+      ["pickup", pickups],
+    ] as const)
+      objects.forEach((object, index) => {
+        const group = this.onTrack(object.distance, object.offset);
+        if (kind === "crate") {
+          this.box(group, 0, 0.85, 0, 1, 1, 1, "#54d8c5");
+          this.box(group, 0, 0.85, 0, 1.04, 0.18, 1.04, "#fff5cb");
+          this.label(
+            group,
+            "SHIELD / TURBO",
+            0,
+            1.7,
+            0,
+            2.8,
+            0.35,
+            "#143d49",
+            "#c1fce8",
+            Math.PI,
+          );
+        } else {
+          const shell = this.mesh(
+            group,
+            this.geo(new T.OctahedronGeometry(0.38)),
+            this.mat("#ffe49b", 0.6),
+            0,
+            0.9,
+            0,
+          );
+          shell.scale.z = 0.4;
+        }
+        this.trackItems.push({ group, kind, index });
+      });
     for (let i = 0; i < 12; i++) {
       const g = this.onTrack(((i + 0.4) / 12) * TRACK_LENGTH, 7.1);
       this.box(g, 0, 1.3, 0, 0.15, 2.6, 0.15, "#735f52");
@@ -587,8 +673,8 @@ export class RaceView {
       },
     );
   }
-  private buildKart(parent: T.Group, color: string, ghost: boolean) {
-    const body = this.box(parent, 0, 0.38, 0.05, 1.3, 0.38, 1.85, color);
+  private buildKart(parent: T.Group, color: string, rival: boolean) {
+    this.box(parent, 0, 0.38, 0.05, 1.3, 0.38, 1.85, color);
     this.box(parent, 0, 0.42, 0.88, 1.5, 0.24, 0.45, color);
     this.box(parent, 0, 0.32, 1.2, 1.75, 0.15, 0.16, "#273c4a");
     this.box(parent, 0, 0.32, -1.07, 1.75, 0.15, 0.16, "#273c4a");
@@ -606,29 +692,13 @@ export class RaceView {
         tire.rotation.z = Math.PI / 2;
         const rim = this.mesh(w, rimGeo, this.mat("#dbe4da"), 0, 0, 0);
         rim.rotation.z = Math.PI / 2;
-        if (!ghost) {
+        if (!rival) {
           this.wheels.push(w);
           if (z > 0) this.frontWheels.push(w);
         }
       }
-    if (ghost) {
-      parent.traverse((o) => {
-        if (o instanceof T.Mesh) {
-          const m = new T.MeshStandardMaterial({
-            color: "#ffe9a0",
-            transparent: true,
-            opacity: 0.32,
-            depthWrite: false,
-            emissive: "#fed98a",
-            emissiveIntensity: 0.7,
-          });
-          this.materials.set("ghost" + o.uuid, m);
-          o.material = m;
-        }
-      });
-      body.scale.y = 0.55;
-    }
   }
+
   draw(
     race: CoastRace,
     time: number,
@@ -657,14 +727,19 @@ export class RaceView {
     }
     this.flame.visible = race.boost > 0;
     this.flame.scale.y = this.reduced ? 1 : 0.9 + Math.sin(time * 32) * 0.18;
-    const gd = Math.min(
-      RACE_DISTANCE,
-      (Math.max(0, race.ticks / 60) / this.ghostSeconds) * RACE_DISTANCE,
-    );
-    const gp = trackPoint(gd, 1.8);
-    this.ghost.position.set(gp.x, 0.17, gp.z);
-    this.ghost.rotation.y = gp.yaw;
-    this.ghost.visible = !ready && gd < RACE_DISTANCE;
+    this.shield.visible = race.shield > 0;
+    race.rivals.forEach((r, i) => {
+      const { kart, avatar } = this.rivals[i];
+      const at = trackPoint(r.distance, r.offset);
+      kart.position.set(at.x, 0.15, at.z);
+      kart.rotation.y = at.yaw;
+      animateDetails(avatar, this.reduced ? 0 : time, "drive", this.reduced);
+    });
+    this.trackItems.forEach(({ group, kind, index }) => {
+      group.visible = !race.collected.has(`${kind}:${race.lap - 1}:${index}`);
+      if (!this.reduced && kind === "pickup")
+        group.children[0].rotation.y = time * 1.5;
+    });
     const tangent = new T.Vector3(Math.sin(p.yaw), 0, Math.cos(p.yaw));
     const side = new T.Vector3(Math.cos(p.yaw), 0, -Math.sin(p.yaw));
     const targetPosition = this.kart.position.clone();
@@ -695,12 +770,14 @@ export class RaceView {
     if (this.disposed) return;
     this.disposed = true;
     this.observer.disconnect();
-    this.avatar.materials.forEach((m) => m.dispose());
-    disposeMagic(this.avatar.magic);
     const skeletons = new Set<T.Skeleton>();
-    this.avatar.model.traverse((o) => {
-      if (o instanceof T.SkinnedMesh) skeletons.add(o.skeleton);
-    });
+    for (const avatar of [this.avatar, ...this.rivals.map((r) => r.avatar)]) {
+      avatar.materials.forEach((m) => m.dispose());
+      disposeMagic(avatar.magic);
+      avatar.model.traverse((o) => {
+        if (o instanceof T.SkinnedMesh) skeletons.add(o.skeleton);
+      });
+    }
     skeletons.forEach((s) => s.dispose());
     this.geometries.forEach((g) => g.dispose());
     this.materials.forEach((m) => m.dispose());

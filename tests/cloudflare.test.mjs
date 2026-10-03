@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Miniflare, convertV4MiniflareOptions } from "miniflare";
-import { Simulation, RULES_VERSION } from "../shared/simulation.ts";
+import { trackCurve } from "../shared/racing.ts";
+import { Simulation, rulesVersion } from "../shared/simulation.ts";
 import { PRIVACY_VERSION } from "../server/community-core.mjs";
 
 const origin = "https://darecade.test";
@@ -70,6 +71,16 @@ function play(game, seed) {
     if (game === "hop" && sim.ticks % 60 === 0) input[3] = 1;
     if (game === "brick") input[4] = Math.round(sim.ball.x);
     if (game === "swarm") input[0] = Math.floor(sim.ticks / 120) % 2 ? 1 : -1;
+    if (game === "coast") {
+      const race = sim.race;
+      input[0] = Math.sign(
+        trackCurve(race.distance) * race.speed ** 2 * 0.1 -
+          race.offset * 2 -
+          race.lateralSpeed * 0.5,
+      );
+      input[1] = 1;
+      input[3] = Number(race.charge < 0.998);
+    }
     const stamp = JSON.stringify(input);
     if (stamp !== previous) {
       events.push([sim.ticks, ...input]);
@@ -79,7 +90,7 @@ function play(game, seed) {
   }
   return {
     score: sim.score,
-    replay: { version: RULES_VERSION, ticks: sim.ticks, events },
+    replay: { version: rulesVersion(game), ticks: sim.ticks, events },
   };
 }
 
@@ -187,6 +198,20 @@ test(
         );
         assert.equal(result.status, 200, JSON.stringify(result.data));
         assert.equal(result.data.verified, true);
+        if (game === "coast") {
+          assert.equal(result.data.race.finished, true);
+          assert.equal(result.data.race.newBest, true);
+          assert.equal(
+            result.data.profile.progress.coastRecord.timeTicks,
+            replay.replay.ticks,
+          );
+          assert.ok(result.data.race.pickups > 0);
+          assert.equal(
+            (await api("finish", { id: run.data.id, ...replay }, cookie)).data
+              .race.newBest,
+            true,
+          );
+        }
         assert.equal(result.data.ranked, true);
         assert.equal(
           (await api("finish", { id: run.data.id, ...replay }, cookie)).data
@@ -199,6 +224,8 @@ test(
       assert.equal(me.data.progress.xp, 135);
       const state = await api("state", undefined, cookie);
       assert.equal(state.data.boards.hop[0].rank, 1);
+      assert.equal(state.data.boards.coast.length, 1);
+      assert.equal(state.data.boards.coast[0].id, id);
       assert.equal(state.data.players[0].name, "Cloud Mochi");
       const publicPlayers = JSON.stringify(state.data.players);
       assert.ok(!publicPlayers.includes("example.test"));

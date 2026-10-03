@@ -1,5 +1,16 @@
 # Darecade verification — 3 October 2026
 
+## Coast Rush street race branch, 3 October 2026
+
+- Work is isolated on `codex/coast-rush-grand-prix`. Production has not been deployed from this branch. Player data, the KayKit model, appearance indices, privacy version and mail configuration are unchanged.
+- **63/63 Node tests and 3/3 Cloudflare integration tests passed.** TypeScript/Vite build and Cloudflare dry-run passed; the pre-existing large-main-bundle warning remains. The four other simulations retain version 1. Coast Rush uses version 2 and excludes old two-lap records from new-format competition while preserving historical data and earned medals.
+- Tested against `.browser/grand-prix-qa-data` on port 4196 with synthetic guest profiles. Age/consent led to a simple Play now invitation; it opened Coast Rush directly. Shop, hunt, camera tools and extra menus were hidden. Completing a race restored the neighbourhood menus and unlocked the lilac cap exactly once.
+- Completed desktop races in **55.13s**, then **46.52s**, both 1st/8 with 18 shells and server-accepted replays. New best appeared after each improvement. Another round opened a fresh countdown without reload. Save your avatar and this score opened the email form; no test email was sent. Seven rivals remained labelled Game character and did not create real player/board records.
+- Verified the stationary start without acceleration, three-second countdown, updating place/lap/time, eight-dot minimap, held touch GO, shield slot/use, wall stops, and frozen ticks while paused. Closing mid-race returned to the lobby. Result details included total time, best lap, shells and hit-stop duration.
+- Checked **320×568 and 390×844**: no document or modal horizontal overflow; steering, GO, brake, drift, item and pause remained available. Result replay is above the detailed ladder. CPU labels, saved avatar driving and original coastal scenery remained visible.
+- Reduce motion disabled the decorative WebGL backdrop and moving flourishes while racing continued. A reduced-motion race completed at **46.25s** and saved. The four other cabinets also completed server-verified browser rounds: Noodle Run 20, Brick Bash 75, Hop Hop 40, Star Swarm 570. No application console errors were observed.
+- Browser automation briefly lost its connection. Reconnecting to the same isolated Chromium session showed the completed, saved race; the game itself had continued. These are desktop browser and synthetic-control checks, not physical-iPhone performance or human-fun findings.
+
 ## Login email fix, 3 October 2026
 
 - Merged `claude/fix-login-email` without conflicts; retained all five-game tests and racing helpers. Current totals: **57/57 Node tests and 3/3 Cloudflare runtime tests**. TypeScript/Vite build passed with the existing bundle-size warning.
