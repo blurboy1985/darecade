@@ -102,6 +102,20 @@ test(
       assert.equal(localWorld.status, 200);
       const packet = await localWorld.json();
       assert.equal(packet.world, "world-1");
+      const directory = await fetch(origin + "/api/worlds", {
+        headers: { Cookie: cookie },
+      }).then((r) => r.json());
+      assert.deepEqual(directory.worlds, [
+        { id: "world-1", code: "W1", count: 1 },
+      ]);
+      assert.equal(
+        (await post("worlds/join", { world: "world-1" }, cookie)).status,
+        200,
+      );
+      assert.equal(
+        (await post("worlds/join", { world: "world-999" }, cookie)).status,
+        400,
+      );
       assert.ok(
         packet.d.some((row: number[]) => row[1] === 300 && row[2] === 400),
       );

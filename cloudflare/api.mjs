@@ -112,6 +112,10 @@ export async function handleApi(
       );
     if (method === "GET" && path === "/api/auth/me")
       return json(c.privateProfile(id));
+    if (method === "GET" && path === "/api/worlds")
+      return json(worlds.directory(id));
+    if (method === "POST" && path === "/api/worlds/join")
+      return json({ world: worlds.destination(id, data) });
     if (method === "POST" && path === "/api/auth/link") {
       rate("email", 6, 900000);
       return json(await c.requestLink(id, data.email));

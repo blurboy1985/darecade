@@ -34,7 +34,25 @@ export class WorldConnection {
   constructor(
     private position: () => Movement,
     private update: (players: SharedPlayer[]) => void,
+    private changed: (world: string) => void = () => {},
   ) {}
+  async join(world: string) {
+    if (world === this.world && !this.stopped) return;
+    const connection = crypto.randomUUID();
+    // Claim a place before closing the old transport. A full destination leaves us connected.
+    const packet = await api<Packet>(
+      `world/poll?world=${encodeURIComponent(world)}&connection=${connection}`,
+      this.position(),
+    );
+    this.stop(false);
+    this.connection = connection;
+    this.world = world;
+    this.failures = 0;
+    this.polling = false;
+    this.previous = "";
+    this.receive(packet);
+    this.start();
+  }
   start() {
     if (!this.stopped) return;
     this.stopped = false;
@@ -69,6 +87,7 @@ export class WorldConnection {
       this.socket = ws;
       this.handshake = setTimeout(() => ws.close(), 8000);
       ws.onmessage = (event) => {
+        if (this.socket !== ws || this.stopped) return;
         try {
           const packet = JSON.parse(event.data);
           clearTimeout(this.handshake);
@@ -121,19 +140,26 @@ export class WorldConnection {
   }
   private async poll() {
     if (this.stopped || !this.polling) return;
+    const connection = this.connection;
     try {
       const suffix =
         `?connection=${this.connection}` +
         (this.world ? `&world=${this.world}` : "");
-      this.receive(await api<Packet>(`world/poll${suffix}`, this.position()));
+      const packet = await api<Packet>(`world/poll${suffix}`, this.position());
+      if (this.stopped || connection !== this.connection) return;
+      this.receive(packet);
     } catch {
       /* State refresh handles expired sessions and offline notices. */
     }
-    if (!this.stopped) this.timer = setTimeout(() => void this.poll(), 2000);
+    if (!this.stopped && connection === this.connection)
+      this.timer = setTimeout(() => void this.poll(), 2000);
   }
   private receive(packet: Packet) {
     if (packet.t !== "sync" && packet.t !== "delta") return;
-    if (packet.world) this.world = packet.world;
+    if (packet.world) {
+      this.world = packet.world;
+      this.changed(this.world);
+    }
     if (packet.t === "sync") this.players.clear();
     for (const slot of packet.gone) this.players.delete(slot);
     for (const [slot, id, name, look] of packet.p)

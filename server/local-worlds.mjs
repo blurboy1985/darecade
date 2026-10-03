@@ -26,6 +26,48 @@ export class LocalWorlds {
       world.players.delete(id);
     }
   }
+  directory(id) {
+    const blocked = new Set(
+      this.store.db
+        .prepare(
+          "SELECT target id FROM blocks WHERE player=? UNION SELECT player id FROM blocks WHERE target=?",
+        )
+        .all(id, id)
+        .map((p) => p.id),
+    );
+    const neighbours = [];
+    const worlds = [];
+    for (const [name, world] of this.worlds) {
+      for (const p of [...world.players.values()])
+        if (
+          Date.now() - p.seen >= 15000 ||
+          this.store.db
+            .prepare("SELECT 1 FROM suspensions WHERE player=?")
+            .get(p.id)
+        )
+          world.players.delete(p.id);
+      worlds.push({
+        id: name,
+        code: "W" + name.slice(6),
+        count: world.players.size,
+      });
+      for (const p of world.players.values())
+        if (p.id !== id && !blocked.has(p.id))
+          neighbours.push({ id: p.id, name: p.name, world: name });
+    }
+    return { worlds, neighbours: neighbours.slice(0, 40) };
+  }
+  destination(id, { world, friend }) {
+    const directory = this.directory(id);
+    const name = friend
+      ? directory.neighbours.find((p) => p.id === friend)?.world
+      : world;
+    const room = directory.worlds.find((w) => w.id === name);
+    if (!room) throw Error("That neighbour or world is unavailable.");
+    if (room.count >= 30 && !this.worlds.get(name).players.has(id))
+      throw Error("This world is full. Try another world.");
+    return name;
+  }
   poll(id, name, data) {
     const db = this.store.db;
     for (const world of this.worlds.values())
@@ -77,6 +119,8 @@ export class LocalWorlds {
       error.status = 409;
       throw error;
     }
+    for (const [otherName, other] of this.worlds)
+      if (otherName !== name) other.players.delete(id);
     world.move(id, data);
     p.seen = Date.now();
     if (!p.saved || Date.now() - p.saved >= 30000) {

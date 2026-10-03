@@ -199,6 +199,8 @@ export class Neighbourhood extends DurableObject {
       files: this.files,
       rate,
       worlds: {
+        directory: (id) => this.worldDirectory(id),
+        destination: (id, data) => this.worldDestination(id, data),
         disconnect: async (id) => {
           const row = this.db
             .prepare("SELECT world FROM world_members WHERE player=?")
@@ -289,13 +291,75 @@ export class Neighbourhood extends DurableObject {
     if (existing) return existing.world;
     const available = this.db
       .prepare(
-        "SELECT name FROM worlds WHERE occupancy<25 AND (seen>? OR occupancy=0) ORDER BY occupancy DESC,name LIMIT 1",
+        "SELECT name FROM worlds WHERE occupancy<25 OR seen<=? ORDER BY CASE WHEN seen>? THEN occupancy ELSE 0 END DESC,CAST(substr(name,7) AS INTEGER) LIMIT 1",
       )
-      .get(Date.now() - 30000);
+      .get(Date.now() - 30000, Date.now() - 30000);
     if (available) return available.name;
     const name =
       "world-" + (this.db.prepare("SELECT COUNT(*) n FROM worlds").get().n + 1);
     this.db.prepare("INSERT INTO worlds(name) VALUES(?)").run(name);
+    return name;
+  }
+  worldDirectory(id) {
+    // Room counts are approximate; the destination World enforces its hard cap.
+    const cutoff = Date.now() - 30000;
+    const worlds = this.db
+      .prepare(
+        `SELECT name id,CASE WHEN seen>? THEN occupancy ELSE 0 END count
+      FROM worlds ORDER BY CAST(substr(name,7) AS INTEGER)`,
+      )
+      .all(cutoff);
+    const neighbours = this.db
+      .prepare(
+        `SELECT p.id,p.name,m.world FROM world_members m
+      JOIN worlds w ON w.name=m.world JOIN players p ON p.id=m.player
+      JOIN profiles f ON f.player=p.id WHERE w.seen>? AND p.id!=? AND f.consent=?
+      AND NOT EXISTS(SELECT 1 FROM suspensions WHERE player=p.id)
+      AND p.id NOT IN(SELECT target FROM blocks WHERE player=? UNION SELECT player FROM blocks WHERE target=?)
+      ORDER BY p.seen DESC,p.id LIMIT 40`,
+      )
+      .all(cutoff, id, PRIVACY_VERSION, id, id);
+    return {
+      worlds: worlds.map((w) => ({ ...w, code: "W" + w.id.slice(6) })),
+      neighbours,
+    };
+  }
+  worldDestination(id, { world, friend }) {
+    let name = world;
+    if (friend) {
+      // Use the same bilateral privacy filter without revealing a hidden player's room.
+      name = this.db
+        .prepare(
+          `SELECT m.world FROM world_members m JOIN worlds w ON w.name=m.world
+        JOIN profiles f ON f.player=m.player WHERE m.player=? AND w.seen>? AND f.consent=?
+        AND NOT EXISTS(SELECT 1 FROM suspensions WHERE player=m.player)
+        AND NOT EXISTS(SELECT 1 FROM blocks WHERE (player=? AND target=?) OR (player=? AND target=?))`,
+        )
+        .get(
+          friend,
+          Date.now() - 30000,
+          PRIVACY_VERSION,
+          id,
+          friend,
+          friend,
+          id,
+        )?.world;
+    }
+    if (typeof name !== "string" || !/^world-[1-9][0-9]{0,5}$/.test(name))
+      throw Error("That neighbour or world is unavailable.");
+    const row = this.db
+      .prepare("SELECT occupancy,seen FROM worlds WHERE name=?")
+      .get(name);
+    if (!row) throw Error("That world is unavailable.");
+    const current = this.db
+      .prepare("SELECT world FROM world_members WHERE player=?")
+      .get(id)?.world;
+    if (
+      current !== name &&
+      row.seen > Date.now() - 30000 &&
+      row.occupancy >= 30
+    )
+      throw Error("This world is full. Try another world.");
     return name;
   }
   worldRefresh(players) {
