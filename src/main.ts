@@ -13,6 +13,7 @@ import { playtestEnabled, playtestEvent, playtestSummary } from "./playtest";
 import "./style.css";
 import "./neighbourhood.css";
 import { api, type SharedState, type SharedPlayer, type Run } from "./social";
+import { WorldConnection } from "./world-connection";
 import {
   ensureAccount,
   openAccount,
@@ -92,6 +93,7 @@ let characterPreview: ReturnType<typeof createCharacterPreview> | null = null;
 let shared: SharedState | null = null;
 let profileReady = false;
 window.addEventListener("session-expired", () => {
+  worldConnection.stop();
   if (profileReady) {
     profileReady = false;
     location.reload();
@@ -149,9 +151,6 @@ let connected = false;
 let activeRun: Run | null = null;
 let gameGeneration = 0;
 let socialPanel = "";
-const connection = Array.from(crypto.getRandomValues(new Uint8Array(16)), (n) =>
-  n.toString(16).padStart(2, "0"),
-).join("");
 let syncing = false;
 let syncRequested = false;
 let sharedSignature = "";
@@ -1358,13 +1357,11 @@ window.addEventListener("pagehide", () => {
     save.awaySince = Date.now();
   }
   writeSave(save);
-  navigator.sendBeacon(
-    "/api/leave",
-    new Blob([JSON.stringify(presenceData())], { type: "application/json" }),
-  );
+  worldConnection.stop();
 });
 window.addEventListener("pageshow", (e) => {
   if (e.persisted) {
+    if (profileReady) worldConnection.start();
     world?.setAway(save.away);
     renderAway();
   }
@@ -1451,10 +1448,12 @@ const accountReady = ensureAccount().then((p) => {
   } catch {}
   Object.assign(save, p.progress);
   profileReady = true;
+  worldConnection.start();
   sentPreferences = JSON.stringify(
     Object.fromEntries(preferenceKeys.map((k) => [k, save[k]])),
   );
   renderStats();
+  renderWelcome();
   void syncSocial();
   return p;
 });
@@ -1502,6 +1501,7 @@ requestAnimationFrame(async () => {
       persist();
     }
     if (save.away) world.setAway(true);
+    applyWorldPlayers();
     renderCameraUI();
     renderAway();
     world.paused = modal.open;
@@ -1544,21 +1544,12 @@ function escapeText(value: string) {
 }
 function presenceData() {
   return {
-    connection,
     away: save.away,
     activity: save.awayActivity,
-    look: {
-      outfit: save.outfit,
-      skin: save.skin,
-      hat: save.hat,
-      clothing: save.clothing,
-      hair: save.hair,
-      pet: save.pet,
-      accessory: save.accessory,
-    },
     x: world?.player.root.position.x,
     z: world?.player.root.position.z,
     yaw: world?.player.root.rotation.y,
+    emote: world?.emote || "",
   };
 }
 async function syncSocial() {
@@ -1599,7 +1590,9 @@ async function syncSocial() {
     document.querySelector("#medal-points")!.textContent =
       `${me.points} MEDAL POINTS`;
     document.querySelector(".demo-tag")!.textContent = "SHARED NEIGHBOURHOOD";
-    world?.syncPlayers(shared.players, shared.me);
+    savedNeighbours = shared.players;
+    hiddenNeighbours.clear();
+    applyWorldPlayers();
     if (changed && modal.open && socialPanel === "board") renderSharedBoard();
     if (changed && modal.open && socialPanel === "dares") renderSharedDares();
     if (changed && modal.open && socialPanel === "neighbours")
@@ -1774,27 +1767,40 @@ function showPlayer(id: string) {
 }
 void syncSocial();
 window.setInterval(() => void syncSocial(), 30000);
-let presenceSyncing = false;
-async function syncPresence() {
-  if (!profileReady || presenceSyncing) return;
-  presenceSyncing = true;
-  try {
-    const { players } = await api<{ players: SharedPlayer[] }>(
-      "presence",
-      presenceData(),
-    );
-    if (!shared) return;
-    shared.players = players;
-    world?.syncPlayers(players, shared.me);
-    if (modal.open && socialPanel === "neighbours") renderSharedNeighbours();
-  } catch {
-    // The state refresh handles the connection notice and session expiry.
-  } finally {
-    presenceSyncing = false;
-  }
+let savedNeighbours: SharedPlayer[] = [];
+let liveNeighbours: SharedPlayer[] = [];
+const hiddenNeighbours = new Set<string>();
+function applyWorldPlayers() {
+  if (!shared) return;
+  const liveIds = new Set(liveNeighbours.map((p) => p.id));
+  const cards = new Map(savedNeighbours.map((p) => [p.id, p]));
+  shared.players = [
+    ...liveNeighbours.map((p) => ({
+      ...cards.get(p.id),
+      ...p,
+      best: cards.get(p.id)?.best || p.best,
+      points: cards.get(p.id)?.points || 0,
+      incoming: cards.get(p.id)?.incoming || 0,
+      outgoing: cards.get(p.id)?.outgoing || 0,
+      wins: cards.get(p.id)?.wins || 0,
+    })),
+    ...savedNeighbours.filter(
+      (p) =>
+        !liveIds.has(p.id) &&
+        !hiddenNeighbours.has(p.id) &&
+        p.status !== "online",
+    ),
+  ];
+  world?.syncPlayers(shared.players, shared.me, liveIds);
+  if (modal.open && socialPanel === "neighbours") renderSharedNeighbours();
 }
-void syncPresence();
-window.setInterval(() => void syncPresence(), 2000);
+const worldConnection = new WorldConnection(presenceData, (players) => {
+  const ids = new Set(players.map((p) => p.id));
+  for (const p of liveNeighbours)
+    if (!ids.has(p.id)) hiddenNeighbours.add(p.id);
+  liveNeighbours = players;
+  applyWorldPlayers();
+});
 
 function firstRacePending() {
   return save.rounds === 0;

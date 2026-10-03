@@ -2,9 +2,11 @@ import {
   createAvatar as avatar,
   applyLook,
   animateDetails,
+  disposeAvatar,
   type Avatar,
 } from "./character";
 import type { SharedPlayer } from "./social";
+import { MovementBuffer } from "./movement-buffer";
 import * as T from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
@@ -206,7 +208,14 @@ export class LobbyWorld {
   inspectedId = "";
   private sharedPlayers = new Map<
     string,
-    { data: SharedPlayer; avatar: Avatar; look: string }
+    {
+      data: SharedPlayer;
+      avatar: Avatar;
+      look: string;
+      buffer: MovementBuffer;
+      live: boolean;
+      simple: T.Group;
+    }
   >();
   neighbours: {
     id: string;
@@ -1083,7 +1092,36 @@ export class LobbyWorld {
   updateAvatar() {
     applyLook(this.player, this.save);
   }
-  syncPlayers(players: SharedPlayer[], me: string) {
+  syncPlayers(
+    players: SharedPlayer[],
+    me: string,
+    liveIds = new Set<string>(),
+  ) {
+    const ids = new Set(players.map((p) => p.id));
+    for (const [id, item] of this.sharedPlayers)
+      if (!ids.has(id)) {
+        disposeAvatar(item.avatar);
+        const disposeMesh = (object: T.Object3D) => {
+          if (object instanceof T.Mesh) {
+            object.geometry.dispose();
+            const materials = Array.isArray(object.material)
+              ? object.material
+              : [object.material];
+            for (const material of materials) {
+              if (material instanceof T.MeshBasicMaterial)
+                material.map?.dispose();
+              material.dispose();
+            }
+          }
+        };
+        item.simple.traverse(disposeMesh);
+        for (const child of item.avatar.root.children)
+          if (child.userData.playerLabel) disposeMesh(child);
+        this.targets = this.targets.filter(
+          (target) => target.id !== `player:${id}`,
+        );
+        this.sharedPlayers.delete(id);
+      }
     for (const p of players) {
       if (p.id === me) continue;
       const look = JSON.stringify(p.look);
@@ -1117,7 +1155,30 @@ export class LobbyWorld {
           24,
         );
         label.userData.playerLabel = true;
-        item = { data: p, avatar: a, look };
+        const simple = new T.Group();
+        const body = new T.Mesh(
+          new T.CylinderGeometry(0.24, 0.3, 0.9, 5),
+          new T.MeshBasicMaterial({
+            color: outfits[p.look.outfit] || outfits[0],
+          }),
+        );
+        body.position.y = 0.75;
+        const head = new T.Mesh(
+          new T.SphereGeometry(0.23, 6, 4),
+          new T.MeshBasicMaterial({ color: skins[p.look.skin] || skins[0] }),
+        );
+        head.position.y = 1.45;
+        simple.add(body, head);
+        simple.visible = false;
+        a.root.add(simple);
+        item = {
+          data: p,
+          avatar: a,
+          look,
+          buffer: new MovementBuffer(),
+          live: false,
+          simple,
+        };
         this.sharedPlayers.set(p.id, item);
       }
       if (item.data.name !== p.name) {
@@ -1135,6 +1196,8 @@ export class LobbyWorld {
         }
       }
       item.data = p;
+      item.live = liveIds.has(p.id);
+      if (item.live) item.buffer.push(p, performance.now());
     }
     this.renderer.domElement.dataset.sharedPlayers = String(
       this.sharedPlayers.size,
@@ -1818,21 +1881,41 @@ export class LobbyWorld {
         this.move(dt);
         this.animatePlayer();
       }
-      for (const { data: p, avatar: a } of this.sharedPlayers.values()) {
-        if (p.status !== "online") {
-          this.applyActivity(a, p.activity, (Date.now() - p.since) / 1000);
+      const remotes = [...this.sharedPlayers.values()].sort(
+        (a, b) =>
+          a.avatar.root.position.distanceToSquared(this.player.root.position) -
+          b.avatar.root.position.distanceToSquared(this.player.root.position),
+      );
+      for (const [index, item] of remotes.entries()) {
+        const { data: p, avatar: a } = item;
+        const detailed = !this.mobile || index < 15;
+        for (const child of a.root.children) {
+          if (child === item.simple || child.userData.playerLabel) continue;
+          if (!detailed && child.userData.worldVisible === undefined)
+            child.userData.worldVisible = child.visible;
+          if (detailed && child.userData.worldVisible !== undefined) {
+            child.visible = child.userData.worldVisible;
+            delete child.userData.worldVisible;
+          } else if (!detailed) child.visible = false;
+        }
+        item.simple.visible = !detailed;
+        if (a.pet) a.pet.root.visible = detailed;
+        if (!item.live || p.status !== "online") {
+          a.root.position.set(p.x, 0.1, p.z);
+          a.root.rotation.y = p.yaw;
         } else {
+          const position = item.buffer.sample(performance.now()) || p;
           const distance = Math.hypot(
-            p.x - a.root.position.x,
-            p.z - a.root.position.z,
+            position.x - a.root.position.x,
+            position.z - a.root.position.z,
           );
           a.root.position.lerp(
-            new T.Vector3(p.x, 0.1, p.z),
-            Math.min(1, dt * 8),
+            new T.Vector3(position.x, 0.1, position.z),
+            Math.min(1, dt * 25),
           );
-          a.root.rotation.y = p.yaw;
+          a.root.rotation.y = position.yaw;
           const gait =
-            distance > 0.1 && !this.reduced
+            distance > 0.005 && !this.reduced && detailed
               ? Math.sin(this.clock * 10) * 0.65
               : 0;
           a.legs[0].rotation.x = gait;
@@ -1946,11 +2029,19 @@ export class LobbyWorld {
         (p) => p.avatar === a,
       );
       const resident = this.neighbours.find((p) => p.avatar === a);
+      if (
+        remote &&
+        (!remote.live ||
+          remote.simple.visible ||
+          remote.data.status !== "online")
+      )
+        continue;
       const mode =
         a === this.player
           ? this.interactions.active?.spec.kind ||
             (this.save.away ? this.save.awayActivity : this.emote || "idle")
-          : (remote?.data.status !== "online"
+          : remote?.data.emote ||
+            (remote?.data.status !== "online"
               ? remote?.data.activity
               : undefined) ||
             resident?.activity ||

@@ -94,6 +94,21 @@ test(
       assert.match(setCookie, /HttpOnly/);
       assert.match(setCookie, /SameSite=Strict/);
       const cookie = setCookie.split(";")[0];
+      const localWorld = await post(
+        "world/poll",
+        { x: 3, z: 4, activity: "jog" },
+        cookie,
+      );
+      assert.equal(localWorld.status, 200);
+      const packet = await localWorld.json();
+      assert.equal(packet.world, "world-1");
+      assert.ok(
+        packet.d.some((row: number[]) => row[1] === 300 && row[2] === 400),
+      );
+      assert.equal(
+        (await post("world/leave?world=world-1", {}, cookie)).status,
+        200,
+      );
       const profile = await joined.json();
       assert.equal(profile.progress.xp, 0);
       const hacked = await post(

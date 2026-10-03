@@ -17,7 +17,7 @@ const fail = (message, status) => {
   e.status = status;
   throw e;
 };
-async function readBody(request, maximum) {
+export async function readBody(request, maximum) {
   if (!request.headers.get("content-type")?.startsWith("application/json"))
     fail("Send JSON data.", 415);
   const reader = request.body?.getReader();
@@ -50,7 +50,10 @@ async function readBody(request, maximum) {
   }
 }
 
-export async function handleApi(request, { community: c, store, files, rate }) {
+export async function handleApi(
+  request,
+  { community: c, store, files, rate, worlds },
+) {
   try {
     const url = new URL(request.url),
       path = url.pathname,
@@ -113,22 +116,31 @@ export async function handleApi(request, { community: c, store, files, rate }) {
       rate("email", 6, 900000);
       return json(await c.requestLink(id, data.email));
     }
-    if (method === "POST" && path === "/api/auth/logout")
+    if (method === "POST" && path === "/api/auth/logout") {
+      await worlds?.disconnect(id);
       return withCookie(c.logout(id, token), null);
+    }
     if (method === "GET" && path === "/api/privacy/export")
       return json(c.export(id));
     if (method === "POST" && path === "/api/privacy/delete") {
       if (data.confirm !== "DELETE") fail("Confirm account deletion.", 400);
+      await worlds?.disconnect(id);
       return withCookie(c.delete(id), null);
     }
-    if (method === "POST" && path === "/api/profile")
-      return json(c.patch(id, data));
+    if (method === "POST" && path === "/api/profile") {
+      const profile = c.patch(id, data);
+      await worlds?.refresh(id);
+      return json(profile);
+    }
     if (method === "POST" && path === "/api/progress")
       return json(c.progression(id, data.event, data.value));
     if (method === "POST" && path === "/api/dares")
       return json(c.postDare(id, data.run));
-    if (method === "POST" && path === "/api/report")
-      return json(c.report(id, data.target, data.reason));
+    if (method === "POST" && path === "/api/report") {
+      const result = c.report(id, data.target, data.reason);
+      await worlds?.refresh(id, data.target);
+      return json(result);
+    }
     if (method === "POST" && path === "/api/playtest") {
       if (
         !data.answers ||

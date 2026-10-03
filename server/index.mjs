@@ -4,6 +4,7 @@ import { mkdirSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve, extname, sep } from "node:path";
 import { Store } from "./store.mjs";
 import { Community } from "./community.mjs";
+import { LocalWorlds } from "./local-worlds.mjs";
 
 const dir = resolve(process.env.DARECADE_DATA || "data");
 mkdirSync(dir, { recursive: true });
@@ -27,6 +28,7 @@ const origins = new Set([
   `http://127.0.0.1:${process.env.PORT || 4173}`,
   ...(!production ? ["http://localhost:5173", "http://127.0.0.1:5173"] : []),
 ]);
+const worlds = new LocalWorlds(community);
 const limits = new Map();
 function rate(req, key, max, windowMs, player) {
   const bucket = `${player ? "player:" + player : "ip:" + req.socket.remoteAddress}:${key}`,
@@ -138,6 +140,15 @@ const handler = async (req, res) => {
         return;
       }
       const session = { id: player };
+      if (req.method === "POST" && url.pathname === "/api/world/poll") {
+        respond(worlds.poll(player, url.searchParams.get("world"), data));
+        return;
+      }
+      if (req.method === "POST" && url.pathname === "/api/world/leave") {
+        worlds.leave(player);
+        respond({ ok: true });
+        return;
+      }
       if (req.method === "GET" && url.pathname === "/api/auth/me") {
         respond(community.privateProfile(player));
         return;
@@ -148,6 +159,7 @@ const handler = async (req, res) => {
         return;
       }
       if (req.method === "POST" && url.pathname === "/api/auth/logout") {
+        worlds.leave(player);
         const result = community.logout(player, token);
         cookie(res, null);
         respond(result);
@@ -159,6 +171,7 @@ const handler = async (req, res) => {
       }
       if (req.method === "POST" && url.pathname === "/api/privacy/delete") {
         if (data.confirm !== "DELETE") throw Error("Confirm account deletion.");
+        worlds.leave(player);
         const result = community.delete(player);
         cookie(res, null);
         respond(result);
@@ -283,6 +296,10 @@ const handler = async (req, res) => {
 };
 const server = createServer(handler);
 const lanServer = process.env.LAN_HOST ? createServer(handler) : null;
+for (const preview of [server, lanServer])
+  preview?.on("upgrade", (_req, socket) =>
+    socket.end("HTTP/1.1 426 Upgrade Required\r\nConnection: close\r\n\r\n"),
+  );
 lanServer?.listen(Number(process.env.PORT || 4173), process.env.LAN_HOST, () =>
   console.log(
     `Phone playtest ready at http://${process.env.LAN_HOST}:${process.env.PORT || 4173}/?playtest=1`,
