@@ -2,7 +2,7 @@
 
 ## Move to playsimi.danielquek.com — prepared 5 October 2026, not deployed
 
-The code and configuration for the move are ready; **nothing below has been done on the live service yet.** The game stays at https://darecade.daniel-tianwen.workers.dev until these steps are completed in order. Deploying before step 2 is finished stops sign-in email.
+The code and configuration for the move are ready and the mail domain is set up (steps 2 and 3, less the sending key). **The Worker has not been deployed**, so the game stays at https://darecade.daniel-tianwen.workers.dev and still sends from the old domain. Deploying without the new sending key stops sign-in email.
 
 What the deployment changes:
 
@@ -14,8 +14,8 @@ What the deployment changes:
 Checklist:
 
 1. **Merge PR #20** (the rename) first; this change is stacked on it.
-2. **Resend:** add the domain `playsimi.danielquek.com` in the Tokyo region, add the DNS records it lists to the `danielquek.com` zone (DKIM TXT, and the `send` MX and TXT), and wait for Verified. The existing `RESEND_API_KEY` is restricted to `darecade.danielquek.com`, so create a sending key restricted to the new domain.
-3. **Cloudflare Email Routing:** enable routing for the `playsimi` subdomain and add the rule `hello@playsimi.danielquek.com` to the same verified destination. Keep the `hello@darecade.danielquek.com` rule so replies to earlier email still arrive.
+2. **Resend — domain done 5 October 2026, key still to do.** `playsimi.danielquek.com` was added in the Tokyo (`ap-northeast-1`) region with manual DNS setup, and Resend reported it Verified at 02:56. Three DNS-only records were added to the `danielquek.com` zone: TXT `resend._domainkey.playsimi` (DKIM), CNAME `rsend.playsimi` to `rsend-apne1.forge.rmta.net` and CNAME `send.playsimi` to `send.forge.rmta.net`; all three resolve on 1.1.1.1. Tracking is off. TLS is at Resend's default, Opportunistic; the old domain's record says Enforced, so set that if it should match. **Still to do, by the owner:** the existing `RESEND_API_KEY` is restricted to `darecade.danielquek.com`, so create a sending key restricted to the new domain.
+3. **Cloudflare Email Routing — done 5 October 2026.** The `playsimi` subdomain is enabled with locked DNS records; its three MX records and SPF TXT resolve on 1.1.1.1. The rule `hello@playsimi.danielquek.com` is active and forwards to the same verified destination as before. The `hello@darecade.danielquek.com` rule is kept so replies to earlier email still arrive, and catch-all remains disabled. Not yet verified: a real message arriving through the new rule.
 4. **Deploy:** `npm run cf:deploy`, then `npx wrangler secret put RESEND_API_KEY` with the new key. Wrangler creates the custom domain and its certificate. Between the deployment and the new key, sign-in email fails; do the two together.
 5. **Check:** `https://playsimi.danielquek.com/api/health` returns ready; a sign-in code arrives from the new sender; opening the old address in a browser with an existing guest lands on the new address as the same character.
 6. **Stripe:** change the webhook endpoint `we_1UMlTDA6Maf1zlslfAoUT1gA` to `https://playsimi.danielquek.com/api/payments/webhook`. Editing the address keeps its signing secret. Until then events sent to the old address are still accepted.
