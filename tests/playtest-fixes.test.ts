@@ -109,7 +109,7 @@ test("1. a locked account is given the real time its dares open, and they open t
       state.profile.account.eligibleAt,
       state.profile.account.created + DAY,
     );
-    const opens = /Your dares open Wed, 7 Oct, 10:00 SGT, 24 hours after/;
+    const opens = /Your challenges open Wed, 7 Oct, 10:00 SGT, 24 hours after/;
     assert.throws(
       () => s.community.begin(me.me.id, "noodle", host.me.id),
       opens,
@@ -119,7 +119,7 @@ test("1. a locked account is given the real time its dares open, and they open t
     const guest = s.community.join(consent);
     assert.throws(
       () => s.community.begin(guest.me.id, "noodle", host.me.id),
-      /Save with email to dare/,
+      /Save with email to challenge/,
     );
     s.tick(DAY);
     assert.equal(s.community.state(me.me.id).competitionReady, true);
@@ -135,14 +135,14 @@ test("1. the dare screen copy names the opening time and each reason a button is
   assert.equal(dareHoldCopy(true, { eligibleAt: opens }), "");
   assert.match(
     dareHoldCopy(false, { eligibleAt: opens }),
-    /^Your dares open Mon, 5 Oct, 14:30 SGT, 24 hours after your email was verified\./,
+    /^Your challenges open Mon, 5 Oct, 14:30 SGT, 24 hours after your email was verified\./,
   );
   assert.match(dareHoldCopy(false, null), /Save with email/);
   const open = { connected: true, left: 3 };
   assert.equal(dareBlock(open), "");
   assert.match(dareBlock({ ...open, connected: false }), /connection/);
-  assert.match(dareBlock({ ...open, left: 0 }), /No dares left today/);
-  assert.match(dareBlock({ ...open, own: true }), /your own dare/);
+  assert.match(dareBlock({ ...open, left: 0 }), /No challenges left today/);
+  assert.match(dareBlock({ ...open, own: true }), /your own challenge/);
   assert.match(dareBlock({ ...open, challenged: true }), /already challenged/);
   assert.match(dareBlock({ ...open, online: true }), /online now/);
   assert.match(dareBlock({ ...open, noScore: true }), /no saved score/);

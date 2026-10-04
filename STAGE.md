@@ -1,6 +1,6 @@
 # Open Stage
 
-The Open Stage fills the back of Dare Plaza, in the middle of the island, added on 4 October 2026. It is a low dance floor anyone can walk onto, with a lighting truss, speakers and its name behind. The plaza's DARE TO PLAY floor sign moved forward to make room, and Dare Plaza still opens the dares.
+The Open Stage fills the back of Simi Plaza, in the middle of the island, added on 4 October 2026. It is a low dance floor anyone can walk onto, with a lighting truss, speakers and its name behind. The plaza's PLAY SIMI? floor sign moved forward to make room, and Simi Plaza still opens the challenges.
 
 ## The show
 
@@ -19,7 +19,7 @@ The scene is drawn in three.js: the player's own avatar does a move for each lan
 
 A show earns 5 XP a star, up to 45 XP a day (Singapore time), and the best score is kept. The stage also counts as a place to discover (10 XP once).
 
-The browser reports the score and stars; the server does not replay the show. The rules in `src/state.ts` are shared with the server, which refuses malformed reports and any report less than 30 seconds after the last one, and applies the daily cap on its own clock. A modified client could claim three stars without playing, but gains only what an honest player can earn in three good shows a day. The stage has no board, medals or dares; if it ever gets one, it would need server replay like the cabinets.
+The browser reports the score and stars; the server does not replay the show. The rules in `src/state.ts` are shared with the server, which refuses malformed reports and any report less than 30 seconds after the last one, and applies the daily cap on its own clock. A modified client could claim three stars without playing, but gains only what an honest player can earn in three good shows a day. The stage has no board, medals or challenges; if it ever gets one, it would need server replay like the cabinets.
 
 ## Source
 

@@ -89,7 +89,7 @@ export class Payments {
         continue;
       products.push({
         id,
-        name: set?.name || "Support Darecade",
+        name: set?.name || "Support Play Simi",
         kind: set ? "set" : "donation",
         amount: value.amount,
         currency: "sgd",

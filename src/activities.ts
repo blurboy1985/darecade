@@ -29,7 +29,7 @@ function panel(host: HTMLElement, name: string) {
 
 export function mountFishing(host: HTMLElement, ctx: ActivityContext) {
   const { root } = panel(host, "fishing");
-  root.innerHTML = `<h2>Fishing Jetty</h2><p class="lead">One minute. Cast, hook the bite, then reel without snapping the line. Rare fish score more and fight harder.</p><div class="hoops-score"><span>BEST ROUND<b>${ctx.save.best.fishing}</b></span><span>SPECIES<b>${ctx.save.fish.length} / ${fishSpecies.length}</b></span></div><button class="primary" data-game="fishing">Play a round →</button><button class="secondary" data-open="dares">Dare a neighbour</button><h3>Your catches</h3><div class="fish-album">${fishSpecies
+  root.innerHTML = `<h2>Fishing Jetty</h2><p class="lead">One minute. Cast, hook the bite, then reel without snapping the line. Rare fish score more and fight harder.</p><div class="hoops-score"><span>BEST ROUND<b>${ctx.save.best.fishing}</b></span><span>SPECIES<b>${ctx.save.fish.length} / ${fishSpecies.length}</b></span></div><button class="primary" data-game="fishing">Play a round →</button><button class="secondary" data-open="dares">Challenge a neighbour</button><h3>Your catches</h3><div class="fish-album">${fishSpecies
     .map((f) =>
       ctx.save.fish.includes(f.id)
         ? `<span class="caught"><i>${f.icon}</i>${f.name}</span>`
@@ -42,7 +42,7 @@ export function mountFishing(host: HTMLElement, ctx: ActivityContext) {
 
 export function mountHoops(host: HTMLElement, ctx: ActivityContext) {
   const { root } = panel(host, "hoops");
-  root.innerHTML = `<h2>Hoops Court</h2><p class="lead">Ten shots, four seconds each. Stop the marker in the green; the bright centre is a swish. From the fourth shot the green slides.</p><div class="hoops-score"><span>BEST ROUND<b>${ctx.save.best.hoops}</b></span><span>MOST BASKETS<b>${ctx.save.hoopsBest} / ${HOOPS_SHOTS}</b></span></div><button class="primary" data-game="hoops">Play a round →</button><button class="secondary" data-open="dares">Dare a neighbour</button><p class="fine-print">+20 XP a round, +5 XP for each basket you beat your most by.</p>`;
+  root.innerHTML = `<h2>Hoops Court</h2><p class="lead">Ten shots, four seconds each. Stop the marker in the green; the bright centre is a swish. From the fourth shot the green slides.</p><div class="hoops-score"><span>BEST ROUND<b>${ctx.save.best.hoops}</b></span><span>MOST BASKETS<b>${ctx.save.hoopsBest} / ${HOOPS_SHOTS}</b></span></div><button class="primary" data-game="hoops">Play a round →</button><button class="secondary" data-open="dares">Challenge a neighbour</button><p class="fine-print">+20 XP a round, +5 XP for each basket you beat your most by.</p>`;
 }
 
 const clock = (ms: number) => {

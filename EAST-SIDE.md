@@ -1,6 +1,6 @@
 # East Side
 
-East Side is a second district east of the original island, added on 4 October 2026. It holds three facilities whose activities are not arcade cabinets. None of them has a daily board or medals. Fishing and hoops are short rounds that can be played as dares.
+East Side is a second district east of the original island, added on 4 October 2026. It holds three facilities whose activities are not arcade cabinets. None of them has a daily board or medals. Fishing and hoops are short rounds that can be played as challenges.
 
 ## Getting there
 
@@ -25,7 +25,7 @@ The first catch of each species still gives 10 XP, 60 in total. Everything goes 
 
 **Hoops Court.** Ten shots with a four-second shot clock each. A marker sweeps across a bar and the player stops it inside the green zone. The middle third of the green is a swish worth 3 points; the rest is worth 2. Baskets in a row add 1, 2, then 3 more. Each shot the marker is quicker and the green narrower, and from the fourth shot the green slides. Running out the clock counts as a miss. The most a round can score is 54. Beating the most baskets made in a round still earns 5 XP a basket, 50 in total.
 
-Both rounds give the usual 20 XP, show a personal best, and can be played as a dare from the neighbour list or posted from the result, like the cabinets. They do not have daily boards and never earn medals, so the 15-point daily maximum is unchanged.
+Both rounds give the usual 20 XP, show a personal best, and can be played as a challenge from the neighbour list or posted from the result, like the cabinets. They do not have daily boards and never earn medals, so the 15-point daily maximum is unchanged.
 
 The round is drawn in three.js: the ball's arc, the rim and net, sparks on a basket, a burning ball on a streak of three, and a shot-clock bar above the board; the pond, rod, line and float, splashes on a bite, the fish's shadow, and the fish leaping out when landed. Reduce motion drops the particles and bobbing. In the simple view, or if the graphics context is lost, the meters carry the round on their own.
 
@@ -50,7 +50,7 @@ Watering once per crop brings the harvest a quarter of the remaining time closer
 
 All rewards are cosmetic XP decided by the server; the rules live in `src/state.ts` and are shared with it. Crop timing uses the server clock.
 
-Fishing and hoops rounds are replayed by the server from the player's inputs (`shared/outdoor.ts`), exactly as the cabinets are, so scores, catches and baskets cannot be claimed without playing. Species and hoops-best XP are paid from the replay. The earlier `fish` and `hoops` progress events, which took the browser's word, are removed. Fish, surges and the green's position come from the round's seed; a dare is played on the defender's seed.
+Fishing and hoops rounds are replayed by the server from the player's inputs (`shared/outdoor.ts`), exactly as the cabinets are, so scores, catches and baskets cannot be claimed without playing. Species and hoops-best XP are paid from the replay. The earlier `fish` and `hoops` progress events, which took the browser's word, are removed. Fish, surges and the green's position come from the round's seed; a challenge is played on the defender's seed.
 
 ## Source
 

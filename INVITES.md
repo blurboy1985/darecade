@@ -1,6 +1,6 @@
 # Invite a friend
 
-Added on 4 October 2026. Every player has an invite link. When a friend who is new to Darecade follows it and finishes a first round, both players get 30 XP.
+Added on 4 October 2026. Every player has an invite link. When a friend who is new to Play Simi follows it and finishes a first round, both players get 30 XP.
 
 ## For the player
 

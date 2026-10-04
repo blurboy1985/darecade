@@ -1,4 +1,4 @@
-// Darecade sound: original background music and sound effects, synthesised
+// Play Simi sound: original background music and sound effects, synthesised
 // live with the Web Audio API. No audio files, samples or licences needed.
 //
 // Music has three moods that cross-fade: "day" (mellow lo-fi city-pop),

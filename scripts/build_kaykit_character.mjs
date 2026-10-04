@@ -59,7 +59,7 @@ for (const name of sources.slice(1)) {
   }
 }
 
-// Drop weapons and props from the Knight too, plus all 76 baked clips: Darecade
+// Drop weapons and props from the Knight too, plus all 76 baked clips: Play Simi
 // drives the rig procedurally and from its own Blender interaction scenes.
 baseScene.traverse((node) => {
   if (node.getMesh() && !keep.test(node.getName())) node.dispose();

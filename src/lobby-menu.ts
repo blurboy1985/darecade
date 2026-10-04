@@ -45,7 +45,11 @@ export const menuPages = {
     back: "phone-menu",
     actions: [
       { label: "Neighbours", target: "neighbours", icon: "smile" },
-      { label: "Dares & rankings", target: "competition-menu", icon: "trophy" },
+      {
+        label: "Challenges & ranks",
+        target: "competition-menu",
+        icon: "trophy",
+      },
       { label: "Worlds", target: "worlds", icon: "compass" },
     ],
   },
@@ -53,7 +57,7 @@ export const menuPages = {
     title: "Play together",
     back: "friends-menu",
     actions: [
-      { label: "Dares", target: "dares", icon: "game" },
+      { label: "Challenges", target: "dares", icon: "game" },
       { label: "Rankings", target: "board", icon: "trophy" },
       { label: "Emotes", target: "emotes", icon: "smile" },
     ],
@@ -91,7 +95,7 @@ const sgt = (time: number) =>
   });
 
 /**
- * Why dares are closed for this player, with the real opening time. Empty
+ * Why challenges are closed for this player, with the real opening time. Empty
  * once they are open. The 24-hour wait itself is set out in ACCOUNTS.md.
  */
 export function dareHoldCopy(
@@ -100,14 +104,14 @@ export function dareHoldCopy(
 ) {
   if (ready) return "";
   if (!account)
-    return "Dares need a saved account. Save with email; dares open 24 hours later. Regular rounds are open now.";
+    return "Challenges need a saved account. Save with email; challenges open 24 hours later. Regular rounds are open now.";
   if (!account.eligibleAt)
-    return "Dares open 24 hours after your email was verified. Regular rounds are open now.";
-  return `Your dares open ${sgt(account.eligibleAt)} SGT, 24 hours after your email was verified. Regular rounds are open now.`;
+    return "Challenges open 24 hours after your email was verified. Regular rounds are open now.";
+  return `Your challenges open ${sgt(account.eligibleAt)} SGT, 24 hours after your email was verified. Regular rounds are open now.`;
 }
 
 /**
- * The first reason a Play dare button cannot be used, or "" when it can. The
+ * The first reason a Play challenge button cannot be used, or "" when it can. The
  * 24-hour wait is explained by dareHoldCopy instead.
  */
 export function dareBlock(o: {
@@ -118,12 +122,12 @@ export function dareBlock(o: {
   challenged?: boolean;
   noScore?: boolean;
 }) {
-  if (!o.connected) return "Dares need a connection.";
-  if (o.own) return "This is your own dare.";
+  if (!o.connected) return "Challenges need a connection.";
+  if (o.own) return "This is your own challenge.";
   if (o.online)
-    return "They are online now. Dares are for resting or offline neighbours.";
+    return "They are online now. Challenges are for resting or offline neighbours.";
   if (o.challenged) return "You already challenged this neighbour today.";
-  if (o.left <= 0) return "No dares left today. Resets midnight SGT.";
+  if (o.left <= 0) return "No challenges left today. Resets midnight SGT.";
   if (o.noScore) return "This neighbour has no saved score to beat yet.";
   return "";
 }

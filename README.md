@@ -1,6 +1,8 @@
-# Darecade — meet you downstairs
+# Play Simi — meet you downstairs
 
-A working shared 3D neighbourhood with persistent accounts, saved avatars, server-validated arcade progression and shared dares, inspired by the supplied Darecade implementation plan. Original Singapore neighbourhood scenery, five playable arcade games, and a hand-built Blender dragon playground.
+Play Simi was called Darecade until 5 October 2026, and dares are now called challenges. The web address, mail domain, storage keys, Durable Object name, environment variables and code identifiers keep the old name so that saved accounts and progress carry over; see [PLAN.md](PLAN.md).
+
+A working shared 3D neighbourhood with persistent accounts, saved avatars, server-validated arcade progression and shared challenges, inspired by the supplied Darecade implementation plan. Original Singapore neighbourhood scenery, five playable arcade games, and a hand-built Blender dragon playground.
 
 ## Integrated release — 4 October 2026
 
@@ -18,9 +20,9 @@ The game is live at **https://darecade.daniel-tianwen.workers.dev** on Workers F
 
 ## Connected progression — 3 October 2026
 
-The welcome check, age/privacy consent, guest-to-email account linking, saved avatar and progression, input-replay score validation, posted dares, weekly medals, reports, data download and deletion are connected to the server. See [ACCOUNTS.md](ACCOUNTS.md) for setup, fairness rules and recovery, and [PRIVACY-REVIEW.md](PRIVACY-REVIEW.md) for the pre-launch review.
+The welcome check, age/privacy consent, guest-to-email account linking, saved avatar and progression, input-replay score validation, posted challenges, weekly medals, reports, data download and deletion are connected to the server. See [ACCOUNTS.md](ACCOUNTS.md) for setup, fairness rules and recovery, and [PRIVACY-REVIEW.md](PRIVACY-REVIEW.md) for the pre-launch review.
 
-The local server uses a **private local test outbox**; the hosted service uses Resend for live email. New verified progress starts fresh; previous browser saves are archived locally and legacy medal totals are preserved. The 3 October launch checks passed **65/65 Node tests and 3/3 Cloudflare runtime tests**, plus local browser-verified arcade, shared dare and account/privacy journeys and the live launch checks above.
+The local server uses a **private local test outbox**; the hosted service uses Resend for live email. New verified progress starts fresh; previous browser saves are archived locally and legacy medal totals are preserved. The 3 October launch checks passed **65/65 Node tests and 3/3 Cloudflare runtime tests**, plus local browser-verified arcade, shared challenge and account/privacy journeys and the live launch checks above.
 
 ## Invite a friend — 4 October 2026
 
@@ -28,17 +30,17 @@ Every player has an invite link. A new friend who follows it and finishes a firs
 
 ## Open Stage — 4 October 2026
 
-Dare Plaza, in the middle of the island, now has a stage. A forty-second rhythm show with the player's avatar dancing under the lights earns up to 45 XP a day. See [STAGE.md](STAGE.md).
+Simi Plaza, in the middle of the island, now has a stage. A forty-second rhythm show with the player's avatar dancing under the lights earns up to 45 XP a day. See [STAGE.md](STAGE.md).
 
 ## East Side — 4 October 2026
 
-A second district east of the island adds three facilities with non-arcade activities: a Fishing Jetty, a Hoops Court and Community Plots. Fishing and hoops are server-replayed rounds with three.js scenes that can be played as dares; they have no daily boards or medals. See [EAST-SIDE.md](EAST-SIDE.md).
+A second district east of the island adds three facilities with non-arcade activities: a Fishing Jetty, a Hoops Court and Community Plots. Fishing and hoops are server-replayed rounds with three.js scenes that can be played as challenges; they have no daily boards or medals. See [EAST-SIDE.md](EAST-SIDE.md).
 
 ## Run it
 
 ### Worlds and scaling
 
-Records keeps accounts, scores, medals, dares and moderation in the existing `Neighbourhood` Durable Object named `darecade-main-v1`. Shared results are cached for 30 seconds and refreshed on relevant events. The new SQLite `World` class uses the `WORLD` binding and additive `v2` migration; `v1` stays unchanged. Each world has hibernating WebSockets, compact movement updates up to 5 Hz, interpolation, and a two-second HTTP fallback. Empty rooms stop scheduling work and hibernate.
+Records keeps accounts, scores, medals, challenges and moderation in the existing `Neighbourhood` Durable Object named `darecade-main-v1`. Shared results are cached for 30 seconds and refreshed on relevant events. The new SQLite `World` class uses the `WORLD` binding and additive `v2` migration; `v1` stays unchanged. Each world has hibernating WebSockets, compact movement updates up to 5 Hz, interpolation, and a two-second HTTP fallback. Empty rooms stop scheduling work and hibernate.
 
 Your first visit auto-joins the fullest world below 25 players without adding a picker before the first game. The top bar shows your world and short room code. Choose Explore → Change world, enter a code such as W3, or use Join friend to visit a neighbour, up to a hard cap of 30. Accounts and results follow you between worlds. Blocks, suspensions and deletion apply across all worlds. Node preview uses HTTP polling for rooms.
 
@@ -80,7 +82,7 @@ The production site is emitted to `dist/`. `npm run preview` serves it at http:/
 
 ## What works
 
-- Original isometric neighbourhood: void-deck Arcade Row, Dare Plaza, Mama Shop, wardrobe booth, shared daily board, Pocket Garden, Kopi the cat, and dragon playground.
+- Original isometric neighbourhood: void-deck Arcade Row, Simi Plaza, Mama Shop, wardrobe booth, shared daily board, Pocket Garden, Kopi the cat, and dragon playground.
 - Click-to-walk routes around buildings, WASD/arrows, touch joystick, proximity interactions, orbit controls, zoom, and a clear player marker. Space jumps; E interacts with the nearby location. Explore provides accessible navigation to each destination.
 - Five games with keyboard and touch controls, pause/resume, saved bests and shared challenges. Noodle Run, Brick Bash, Hop Hop and Star Swarm have rounds up to 60 seconds. [Coast Rush](COAST-RUSH.md) is an original eight-kart street race: three laps of a winding route, seven labelled game characters, your saved avatar driving, drift tiers, five random crate items (shield, turbo, missile, storm, coconut), shells and fastest-time rankings.
 - A third-person perspective follows your avatar with camera-relative walking, drag-to-orbit, wheel/pinch zoom and building collision checks. Switch back to the original bird’s-eye view at any time. Inspect a resident to follow their action and examine their outfit.
@@ -187,7 +189,7 @@ See `QA.md` for checked behaviours, screenshots, and limits. Mobile browser emul
 - At midnight Singapore time, the top three ranks based on **positive scores completed that day** in each game earn +3 gold, +2 silver and +1 bronze. Equal scores receive equal ranks and points (for example, 1, 1, 3). A player can earn up to 15 points per day. A score submitted earlier that day can earn its award while the player is offline; an inactive day earns no new medals. Lifetime bests remain challenge targets. Lifetime medal totals remain saved. A separate weekly board resets on Monday at 00:00 SGT and retains last week’s standings.
 - Awards use each closed day’s score snapshot, are recorded only once, and catch up after a server restart. No points are given merely for opening the board.
 - Each challenger has **three outgoing attempts per Singapore day**, against three different resting/offline neighbours across all games. Starting or abandoning uses the challenger's allowance. Incoming challenges are uncapped, so another player cannot exhaust your defender slots. Defenders never lose points. Regular arcade rounds remain unlimited. The allowance resets at midnight Singapore time.
-- Challenge targets snapshot the defender’s saved best on acceptance. A strictly higher score wins; a tie is not a win. Wins are recorded separately with no extra medal points. Challenger scores improve their verified personal best; every verified round by an email account, dares included, enters the daily ranked board. A reserved round expires after ten minutes.
+- Challenge targets snapshot the defender’s saved best on acceptance. A strictly higher score wins; a tie is not a win. Wins are recorded separately with no extra medal points. Challenger scores improve their verified personal best; every verified round by an email account, challenges included, enters the daily ranked board. A reserved round expires after ten minutes.
 - A heartbeat preserves outfit, away activity and position. A closed page signals departure; a lost connection becomes offline after 15 seconds. Another active tab keeps that guest online. Away avatars stay available after restart.
 - `npm test` includes isolated in-memory database tests. Browser QA uses `.browser/social-data`, separate from the actual neighbourhood data. `PORT` and `DARECADE_DATA` environment variables allow an isolated QA server.
 

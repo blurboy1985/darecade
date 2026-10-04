@@ -268,7 +268,7 @@ function runtime(ready = true, paymentOptions = {}) {
         LAUNCH_READY: String(ready),
         PUBLIC_ORIGIN: origin,
         RESEND_API_KEY: "test-only-key",
-        MAIL_FROM: "Darecade <hello@example.test>",
+        MAIL_FROM: "Play Simi <hello@example.test>",
         PRIVACY_CONTACT: "privacy@example.test",
         STORAGE_NOTICE: "Synthetic Cloudflare runtime test.",
         ...paymentOptions.env,

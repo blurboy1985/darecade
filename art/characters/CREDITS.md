@@ -2,7 +2,7 @@
 
 ## Current avatars: KayKit Adventurers
 
-Darecade's player and neighbour avatars use the **KayKit Character Pack: Adventurers 1.0** by Kay Lousberg (www.kaylousberg.com), released under CC0 1.0 Universal:
+Play Simi's player and neighbour avatars use the **KayKit Character Pack: Adventurers 1.0** by Kay Lousberg (www.kaylousberg.com), released under CC0 1.0 Universal:
 https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0 (commit 672074b)
 https://creativecommons.org/publicdomain/zero/1.0/
 
@@ -13,7 +13,7 @@ The free pack's Knight, Barbarian, Mage, Rogue and hooded Rogue share one rig. `
 Runtime: `public/models/neighbour-kaykit.glb` (about 0.7 MB).
 Sources (not committed): place the five Character GLBs in `art/characters/kaykit/`, then run `node scripts/build_kaykit_character.mjs`.
 
-At runtime Darecade tints the skin swatch and the main outfit swatches of each texture, maps its own arm/leg/head controls onto the KayKit bones, and lifts the hips while seated so the existing Blender bench, swing and slide scenes still line up.
+At runtime Play Simi tints the skin swatch and the main outfit swatches of each texture, maps its own arm/leg/head controls onto the KayKit bones, and lifts the hips while seated so the existing Blender bench, swing and slide scenes still line up.
 
 ## Earlier character (retired)
 

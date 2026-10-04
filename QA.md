@@ -1,4 +1,4 @@
-# Darecade verification
+# Play Simi verification
 
 ## Coast Rush steady-motion follow-up, 4 October 2026
 

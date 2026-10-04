@@ -1,4 +1,4 @@
-# Darecade privacy review — pre-launch working record
+# Play Simi privacy review — pre-launch working record
 
 3 October 2026. This is an engineering review record, not a legal certification or approval to launch to children. The Cloudflare site is open with accounts and gameplay enabled after the operator configured the email secret. Its 13+ month/year gate and teen-readable consent implement the supplied plan's intended flow. Outstanding operational review items below are not implied complete by deployment.
 
@@ -10,7 +10,7 @@ The current [PDPC guidance on children's personal data in the digital environmen
 | Age band and consent version/time / eligibility record | Private, profile lifetime | Teen 13–17 or adult 18+. Verify notice comprehension with representative users before beta. |
 | Email / account access | Private, account lifetime | Ownership link, random tokens, hashes in DB, 15-minute one-use expiry. Local outbox for synthetic tests only. Confirm live provider terms, location, retention and sender domain. |
 | Nickname, avatar, activities, position / shared neighbourhood | Visible to signed-in neighbourhood participants, profile lifetime | Player-chosen nicknames are restricted to 2–20 letters/numbers/spaces/hyphens; contact-like strings are rejected. Real names cannot be reliably detected, so the UI asks for a nickname. Gender is not collected; every outfit and head option is available to everyone. Inappropriate-name reporting is available. Public reads require a consented session. Visibility is shared, not a private friends-only space. Explain this before consent. |
-| Scores, XP, medals, dares / progression and fairness | Shared game results; private account details excluded | Server replay validation and reward ledger; no paid score advantage. Dares close after 24 hours; posted history remains with the account. |
+| Scores, XP, medals, challenges / progression and fairness | Shared game results; private account details excluded | Server replay validation and reward ledger; no paid score advantage. Challenges close after 24 hours; posted history remains with the account. |
 | Recorded game inputs / result validation and review | Private, 30 days | Bounded payloads/ticks, ownership check, body-size limit, expiry, duplicate-result digest. Valid-input bots remain possible. |
 | Safety reports and block relationships / moderation | Private to operator and reporting player | Preset reasons; duplicate/rate controls; no automatic punishment. Operator CLI can suspend/restore/erase. Assign a named moderator and response procedure before launch. |
 | Optional phone feedback / usability testing | Operator only, profile lifetime | Explicit submission, included in export/deletion. Old prototype reports lack identity linkage; review separately before retaining or using in research. Avoid personal information in notes. |

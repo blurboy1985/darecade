@@ -28,7 +28,7 @@ test("the full privacy notice retains visibility, retention and withdrawal detai
   const notice = account.match(/export const privacyCopy = `([^`]+)`;/)?.[1];
   assert.ok(notice);
   for (const detail of [
-    "nickname, avatar, activity, scores and dares",
+    "nickname, avatar, activity, scores and challenges",
     "They cannot see your email or age band",
     "rather than your real name or contact details",
     "Inputs are deleted after 30 days",
@@ -47,7 +47,7 @@ test("initial consent keeps the short summary outside the expandable full notice
   const summary = account.match(/const privacySummary = `([^`]+)`;/)?.[1];
   assert.ok(summary);
   for (const detail of [
-    "nickname, avatar, activity, scores and dares",
+    "nickname, avatar, activity, scores and challenges",
     "not your real name or contact details",
     "We save your progress",
     "age band and optional email stay private",
@@ -107,7 +107,7 @@ test("account and privacy screens each offer at most three main actions", () => 
   assert.match(account, /required pattern="DELETE"/);
   assert.match(
     account,
-    /This permanently removes your account, avatar, progress, scores and dares/,
+    /This permanently removes your account, avatar, progress, scores and challenges/,
   );
   assert.match(account, /id="keep-account"/);
 });
@@ -168,7 +168,7 @@ try {
   check(!consent.elements.consent.checked && consent.elements.consent.required, 'explicit unchecked consent');
   check(buttons() <= 3, 'too many consent actions');
   check(document.querySelector('.privacy-summary').textContent.includes('age band and optional email stay private'), 'visible privacy summary');
-  check(document.querySelector('.privacy-summary').textContent.includes('nickname, avatar, activity, scores and dares'), 'visible public data summary');
+  check(document.querySelector('.privacy-summary').textContent.includes('nickname, avatar, activity, scores and challenges'), 'visible public data summary');
   consent.requestSubmit();
   check(!consent.checkValidity(), 'unchecked consent cannot submit');
   details.querySelector('summary').click();

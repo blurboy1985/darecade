@@ -29,7 +29,7 @@ export type Spot = {
 };
 export const spots: Spot[] = [
   { id: "arcade", name: "Arcade Row", x: -5, z: -9, approach: [-5, -5] },
-  { id: "dares", name: "Dare Plaza", x: 0, z: 1, approach: [0, 4] },
+  { id: "dares", name: "Simi Plaza", x: 0, z: 1, approach: [0, 4] },
   { id: "shop", name: "Mama Shop", x: 12, z: -7, approach: [12, -3] },
   { id: "wardrobe", name: "Wardrobe", x: 14, z: 3, approach: [11, 4] },
   { id: "board", name: "The Daily Board", x: -15, z: -3, approach: [-12, -1] },
@@ -46,7 +46,7 @@ export const spots: Spot[] = [
   { id: "hoops", name: "Hoops Court", x: 27, z: -11, approach: [27, -8] },
   { id: "plots", name: "Community Plots", x: 28, z: 3, approach: [24, 3] },
   { id: "fishing", name: "Fishing Jetty", x: 27, z: 11, approach: [27, 11] },
-  // The stage fills the back of Dare Plaza; the dare floor sign is in front.
+  // The stage fills the back of Simi Plaza; the floor sign is in front.
   { id: "stage", name: "Open Stage", x: 0, z: -0.2, approach: [0, -0.4] },
 ];
 const matCache = new Map<string, T.MeshStandardMaterial>();
@@ -767,7 +767,7 @@ export class LobbyWorld {
     this.buildStage();
     const floor = sign(
       this.root,
-      "DARE TO PLAY",
+      "PLAY SIMI?",
       0,
       0.3,
       3.75,
