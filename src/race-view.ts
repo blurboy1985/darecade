@@ -1,5 +1,6 @@
 import * as T from "three";
 import { KartWheel, KART_WHEEL_RADIUS } from "./kart-motion";
+import { RaceCameraFollow } from "./race-camera";
 import {
   animateDetails,
   createAvatar,
@@ -52,11 +53,18 @@ export class RaceView {
   private readonly sea: T.Mesh;
   private readonly observer: ResizeObserver;
   private readonly foam: T.InstancedMesh;
-  private cameraReady = false;
+  private readonly cameraFollow = new RaceCameraFollow();
+  private readonly nameLayer = document.createElement("div");
+  private readonly nameplates: { kart: T.Group; element: HTMLElement }[] = [];
   private disposed = false;
   private readonly look: Look;
   private readonly reduced: boolean;
-  constructor(host: HTMLElement, look: Look, reduced: boolean) {
+  constructor(
+    host: HTMLElement,
+    look: Look,
+    reduced: boolean,
+    playerName = "You",
+  ) {
     this.look = look;
     this.reduced = reduced;
     this.renderer = new T.WebGLRenderer({
@@ -64,7 +72,7 @@ export class RaceView {
       alpha: false,
       powerPreference: "high-performance",
     });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     this.renderer.outputColorSpace = T.SRGBColorSpace;
     this.renderer.toneMapping = T.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.2;
@@ -74,6 +82,9 @@ export class RaceView {
     );
     this.renderer.domElement.tabIndex = 0;
     host.append(this.renderer.domElement);
+    this.nameLayer.className = "race-nameplates";
+    this.nameLayer.setAttribute("aria-hidden", "true");
+    host.append(this.nameLayer);
     this.scene.background = new T.Color("#bcebf0");
     this.scene.fog = new T.Fog("#bcebf0", 145, 330);
     this.scene.add(new T.HemisphereLight("#f1fbff", "#659981", 2.6));
@@ -109,6 +120,7 @@ export class RaceView {
       },
     );
     this.scene.add(this.kart);
+    this.addNameplate(this.kart, playerName, true);
     this.wheels = this.buildKart(this.kart, outfits[look.outfit]);
     this.avatar = createAvatar(
       this.kart,
@@ -240,18 +252,7 @@ export class RaceView {
         grip.position.x = x;
         wheel.add(grip);
       }
-      this.label(
-        kart,
-        r.name + " · Game character",
-        0,
-        2.6,
-        -0.2,
-        4.2,
-        0.52,
-        "#ffffff",
-        "#163c4c",
-        Math.PI,
-      );
+      this.addNameplate(kart, r.name, false);
       // A storm cloud sits over a rival while it is slowed.
       const cloud = this.mesh(
         kart,
@@ -332,6 +333,61 @@ export class RaceView {
   private geo<G extends T.BufferGeometry>(g: G): G {
     this.geometries.add(g);
     return g;
+  }
+  private addNameplate(kart: T.Group, name: string, player: boolean) {
+    const element = document.createElement("span");
+    element.className = `race-nameplate${player ? " race-nameplate-player" : ""}`;
+    element.textContent = `${name} · ${player ? "You" : "CPU"}`;
+    this.nameLayer.append(element);
+    this.nameplates.push({ kart, element });
+  }
+  private drawNameplates() {
+    const width = this.nameLayer.clientWidth;
+    const height = this.nameLayer.clientHeight;
+    const occupied: { x: number; y: number; width: number }[] = [];
+    // Nearby racers get priority when labels overlap. Text stays at native
+    // screen resolution rather than becoming a small, slanted 3D texture.
+    const ordered = [...this.nameplates].sort(
+      (a, b) =>
+        a.kart.position.distanceToSquared(this.camera.position) -
+        b.kart.position.distanceToSquared(this.camera.position),
+    );
+    for (const { kart, element } of ordered) {
+      const projected = kart.position
+        .clone()
+        .add(new T.Vector3(0, 2.5, 0))
+        .project(this.camera);
+      const x = Math.round(((projected.x + 1) * width) / 2);
+      const y = Math.round(((1 - projected.y) * height) / 2);
+      element.hidden =
+        projected.z < -1 ||
+        projected.z > 1 ||
+        x < 0 ||
+        x > width ||
+        y < 85 ||
+        y > height - 45 ||
+        kart.position.distanceTo(this.camera.position) > 65;
+      if (element.hidden) continue;
+      const labelWidth = element.offsetWidth;
+      const left = Math.max(
+        0,
+        Math.min(width - labelWidth, x - labelWidth / 2),
+      );
+      if (
+        occupied.some(
+          (r) =>
+            Math.abs(r.y - y) < 26 &&
+            left < r.x + r.width + 6 &&
+            left + labelWidth + 6 > r.x,
+        )
+      ) {
+        element.hidden = true;
+        continue;
+      }
+      occupied.push({ x: left, y, width: labelWidth });
+      element.style.left = `${Math.round(left)}px`;
+      element.style.top = `${y}px`;
+    }
   }
   private mat(color: string, glow = 0) {
     const key = color + glow;
@@ -891,20 +947,20 @@ export class RaceView {
       .clone()
       .addScaledVector(tangent, 7.5 * (1 - swing));
     aim.y += 0.8 + swing * 0.1;
-    if (!this.cameraReady) {
-      this.camera.position.copy(targetPosition);
-      this.cameraReady = true;
-    } else
-      this.camera.position.lerp(
-        targetPosition,
-        this.reduced ? 1 : 1 - Math.exp(-dt * 9),
-      );
+    this.cameraFollow.update(
+      this.camera.position,
+      this.kart.position,
+      targetPosition,
+      dt,
+      this.reduced,
+    );
     this.camera.lookAt(aim);
     if (!this.reduced) {
       this.foam.position.x = Math.sin(time * 0.3) * 0.6;
       this.foam.position.z = Math.sin(time * 0.25) * 0.4;
     }
     this.renderer.render(this.scene, this.camera);
+    this.drawNameplates();
   }
   dispose() {
     if (this.disposed) return;
@@ -925,6 +981,7 @@ export class RaceView {
     this.renderer.dispose();
     this.renderer.forceContextLoss();
     this.renderer.domElement.remove();
+    this.nameLayer.remove();
   }
 }
 const TAU = Math.PI * 2;

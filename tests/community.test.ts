@@ -639,6 +639,15 @@ test("nickname and appearance edits validate before writing and never award rank
   try {
     const guest = s.community.join(consent);
     const id = guest.me.id;
+    assert.equal(s.community.privateProfile(id).progress.nameChosen, false);
+    assert.throws(
+      () => s.community.progression(id, "setup-complete"),
+      /nickname first/,
+    );
+    assert.equal(
+      s.community.patch(id, { nameChosen: true }).progress.nameChosen,
+      false,
+    );
     for (const name of [
       "<script>alert(1)</script>",
       "name@example.test",
@@ -649,6 +658,7 @@ test("nickname and appearance edits validate before writing and never award rank
     ]) {
       assert.throws(() => s.community.patch(id, { name, pet: 7 }));
       assert.equal(s.community.privateProfile(id).name, guest.me.name);
+      assert.equal(s.community.privateProfile(id).progress.nameChosen, false);
       assert.equal(s.community.privateProfile(id).progress.pet, 0);
     }
     const p = s.community.patch(id, {
@@ -662,6 +672,23 @@ test("nickname and appearance edits validate before writing and never award rank
       points: 999,
     });
     assert.equal(p.name, "Moon Mochi");
+    assert.equal(p.progress.nameChosen, true);
+    assert.equal(s.community.privateProfile(id).progress.nameChosen, true);
+    assert.throws(
+      () => s.community.progression(id, "setup-complete"),
+      /Finish a round/,
+    );
+    const progress = s.community.privateProfile(id).progress;
+    progress.rounds = 1;
+    progress.welcome = "played";
+    s.community.save(id, progress);
+    const completed = s.community.progression(id, "setup-complete");
+    assert.equal(completed.progress.welcome, "complete");
+    assert.equal(completed.progress.hat, progress.hat);
+    assert.equal(
+      s.community.progression(id, "setup-complete").progress.xp,
+      progress.xp,
+    );
     assert.equal(p.progress.xp, 0);
     assert.equal(Object.hasOwn(p.progress, "gender"), false);
     assert.equal(p.progress.hair, 7);

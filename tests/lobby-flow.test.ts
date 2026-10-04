@@ -54,12 +54,18 @@ for (const outcome of [
       hasAttribute: () => false,
     };
     const status = { textContent: "" };
-    const input = { value: "newname", focus: () => focusCalls++ };
+    const input = {
+      value: "newname",
+      reportValidity: () => true,
+      focus: () => focusCalls++,
+    };
     const body = {
       querySelector: (selector: string) =>
         selector === "#nickname" ? input : status,
     };
     const context = vm.createContext({
+      Error,
+      save: { nameChosen: false, rounds: 1, welcome: "complete" },
       gameGeneration: 1,
       modal: { open: true },
       body,

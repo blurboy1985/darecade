@@ -90,6 +90,7 @@ export class RacingGame {
       simple: boolean;
       target: number;
       best: number;
+      playerName?: string;
       soundOn: () => boolean;
       toggleSound: () => void;
     },
@@ -221,9 +222,9 @@ export class RacingGame {
       b.addEventListener("pointercancel", release, listener);
       b.addEventListener("lostpointercapture", release, listener);
     });
-    void this.load(look, options.simple);
+    void this.load(look, options.simple, options.playerName);
   }
-  private async load(look: Look, simple: boolean) {
+  private async load(look: Look, simple: boolean, playerName?: string) {
     try {
       if (!simple) {
         const [module] = await Promise.all([
@@ -231,7 +232,12 @@ export class RacingGame {
           loadCharacter(),
         ]);
         if (this.disposed) return;
-        this.view = new module.RaceView(this.host, look, this.reduced);
+        this.view = new module.RaceView(
+          this.host,
+          look,
+          this.reduced,
+          playerName,
+        );
         this.view.renderer.domElement.addEventListener(
           "webglcontextlost",
           this.contextLost,

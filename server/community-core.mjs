@@ -305,8 +305,10 @@ export class CommunityCore {
       )
         throw Error("Unlock this collection before equipping it.");
     for (const k of [...lookKeys, ...prefs]) p[k] = candidate[k];
-    if (name !== undefined)
+    if (name !== undefined) {
       this.db.prepare("UPDATE players SET name=? WHERE id=?").run(name, id);
+      p.nameChosen = true;
+    }
     this.save(id, p);
     const look = Object.fromEntries(lookKeys.map((k) => [k, p[k]]));
     this.db
@@ -397,6 +399,10 @@ export class CommunityCore {
       } else if (event === "harvest") {
         if (!harvestCrop(p, this.now()))
           throw Error("This crop is not ready yet.");
+      } else if (event === "setup-complete") {
+        if (!p.nameChosen || p.rounds < 1)
+          throw Error("Finish a round and choose your nickname first.");
+        p.welcome = "complete";
       } else if (event === "welcome-wear") {
         if (!p.unlockedHats.includes(2))
           throw Error("Finish a validated round first.");
@@ -885,7 +891,7 @@ export class CommunityCore {
       boards: Object.fromEntries(
         gameIds.map((game) => [
           game,
-          profile.account
+          profile.account || game === "coast"
             ? base.boards[game]
                 .filter((p) => allowed(p.id))
                 .slice(0, 50)

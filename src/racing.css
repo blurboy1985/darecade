@@ -101,6 +101,95 @@ dialog.game-modal.racing-modal {
   height: 100%;
   touch-action: none;
 }
+.race-nameplates {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.race-nameplate {
+  position: absolute;
+  padding: 4px 7px;
+  border: 1px solid #ffffffaa;
+  border-radius: 6px;
+  background: #163c4c;
+  color: #fff;
+  font:
+    700 12px/16px "DM Sans Variable",
+    sans-serif;
+  white-space: nowrap;
+}
+.race-nameplate-player {
+  background: #e1f7af;
+  color: #173b31;
+}
+.coast-game[data-status="ready"] .race-nameplates {
+  visibility: hidden;
+}
+.race-comparison {
+  text-align: left;
+  background: #102f43;
+  color: #fff;
+  padding: 16px;
+  border: 1px solid #ffffff55;
+  border-radius: 16px;
+  margin: 12px 0 20px;
+}
+.race-comparison h3 {
+  color: #fff;
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+.race-comparison h3 small {
+  display: block;
+  font:
+    500 11px/1.6 "DM Sans Variable",
+    sans-serif;
+  color: #c6e0e5;
+}
+.race-comparison-summary {
+  margin: 8px 0 12px;
+  line-height: 1.5;
+}
+.race-result-board {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0;
+  max-height: 280px;
+  overflow: auto;
+}
+.race-result-board li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 4px;
+  border-bottom: 1px solid #ffffff25;
+  font-size: 13px;
+}
+.race-result-board li > span:nth-child(2) {
+  overflow-wrap: anywhere;
+}
+.race-result-board strong {
+  font-variant-numeric: tabular-nums;
+}
+.race-result-board .is-you {
+  color: #d1f9a1;
+}
+.race-comparison .fine-print {
+  color: #c6e0e5 !important;
+  font-size: 11px !important;
+  line-height: 1.5;
+}
+.race-extra-details {
+  margin-top: 16px;
+  text-align: left;
+}
+.race-extra-details summary,
+.race-comparison summary {
+  cursor: pointer;
+  padding: 8px 0;
+}
 .race-hud {
   position: absolute;
   top: 15px;

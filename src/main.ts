@@ -40,6 +40,7 @@ import {
 import { LobbyWorld, spots } from "./world";
 import { ArcadeGame } from "./games";
 import { RacingGame } from "./racing-game";
+import { raceComparison } from "./race-results";
 import { mountFishing, mountHoops, mountPlots } from "./activities";
 import { mountStage } from "./stage-game";
 
@@ -536,11 +537,14 @@ function open(id: string) {
     const nickname =
       currentProfile?.name || shared?.self?.name || "New neighbour";
     const typed =
-      body.querySelector<HTMLInputElement>("#nickname")?.value ?? nickname;
+      body.querySelector<HTMLInputElement>("#nickname")?.value ??
+      (setupGuide && !save.nameChosen ? "" : nickname);
+    const moreLooksOpen =
+      body.querySelector<HTMLDetailsElement>(".setup-more")?.open ?? false;
     const medals = shared?.self?.points ?? 0;
     const shown = tryingLook?.look ?? save;
     const canEquip = tryingLook && wearable(shown, save, medals);
-    body.innerHTML = `<div class="wardrobe-layout"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${tryingLook ? "Trying on" : escapeText(nickname)}</strong><small>DRAG TO TURN</small><span class="look-caption">${tryingLook?.name ?? clothingNames[save.clothing]}</span><div class="try-actions" role="status">${tryingLook ? `<button class="primary" data-equip-look ${canEquip ? "" : "disabled"}>${canEquip ? "Equip look" : "Locked · preview only"}</button><button class="text-button" data-reset-look>Back to my look</button>` : "<span>Tap a card to try it on</span>"}</div></div><div class="wardrobe-controls">${setupGuide ? '<span class="eyebrow setup-step">STEP 1 OF 2 · NAME & LOOK</span>' : ""}<span class="eyebrow">YOUR COLLECTION</span><h2>My look</h2><div class="style-wallet"><strong>${tokenSummary(save)}</strong><small>1 token per 100 XP. Keep your XP & medals.</small></div><details class="look-identity" ${setupGuide ? "open" : ""}><summary>Name, colours & daily hats</summary><form id="nickname-form"><label class="field-label" for="nickname">NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" value="${escapeText(typed)}" minlength="2" maxlength="20" autocomplete="off" required><button class="secondary" type="submit">Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form><label class="field-label">OUTFIT COLOUR</label><div class="swatches">${outfits.map((c, i) => `<button data-outfit="${i}" style="--swatch:${c}" class="${save.outfit === i ? "active" : ""}" aria-label="${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][i]} outfit" aria-pressed="${save.outfit === i}"></button>`).join("")}</div><p class="fine-print">Legendary outfits use their own signature colours.</p><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">DAILY HATS</label><div class="hat-options">${["No hat", "Bucket", "Cap", "Sprout"].map((n, i) => `<button data-hat="${i}" ${save.unlockedHats.includes(i) ? "" : "disabled"} aria-pressed="${save.hat === i}">${n}${save.unlockedHats.includes(i) ? "" : " · locked"}</button>`).join("")}</div></details><div class="look-tabs" aria-label="Wardrobe sections">${(
+    body.innerHTML = `<div class="wardrobe-layout"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${tryingLook ? "Trying on" : escapeText(nickname)}</strong><small>DRAG TO TURN</small><span class="look-caption">${tryingLook?.name ?? clothingNames[save.clothing]}</span><div class="try-actions" role="status">${tryingLook ? `<button class="primary" data-equip-look ${canEquip ? "" : "disabled"}>${canEquip ? "Equip look" : "Locked · preview only"}</button><button class="text-button" data-reset-look>Back to my look</button>` : "<span>Tap a card to try it on</span>"}</div></div><div class="wardrobe-controls">${setupGuide ? '<span class="eyebrow setup-step">STEP 1 OF 2 · NAME & LOOK</span>' : ""}${setupGuide ? "<h2>Create your driver</h2>" : `<span class="eyebrow">YOUR COLLECTION</span><h2>My look</h2><div class="style-wallet"><strong>${tokenSummary(save)}</strong><small>1 token per 100 XP. Keep your XP & medals.</small></div>`}<details class="look-identity" ${setupGuide ? "open" : ""}><summary>Name, colours & daily hats</summary><form id="nickname-form"><label class="field-label" for="nickname">NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" value="${escapeText(typed)}" minlength="2" maxlength="20" autocomplete="off" placeholder="Choose your nickname" required><button class="secondary" type="submit">Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form><label class="field-label">OUTFIT COLOUR</label><div class="swatches">${outfits.map((c, i) => `<button data-outfit="${i}" style="--swatch:${c}" class="${save.outfit === i ? "active" : ""}" aria-label="${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][i]} outfit" aria-pressed="${save.outfit === i}"></button>`).join("")}</div><p class="fine-print">Legendary outfits use their own signature colours.</p><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">DAILY HATS</label><div class="hat-options">${["No hat", "Bucket", "Cap", "Sprout"].map((n, i) => `<button data-hat="${i}" ${save.unlockedHats.includes(i) ? "" : "disabled"} aria-pressed="${save.hat === i}">${n}${save.unlockedHats.includes(i) ? "" : " · locked"}</button>`).join("")}</div></details>${setupGuide ? `<details class="setup-more" ${moreLooksOpen ? "open" : ""}><summary>More looks & hairstyles</summary>` : ""}<div class="look-tabs" aria-label="Wardrobe sections">${(
       [
         ["clothing", "Outfits"],
         ["hair", "Head"],
@@ -566,7 +570,7 @@ function open(id: string) {
             .join(
               "",
             )}</div><p class="collection-note">${collectionDescription(wardrobeCollection, save, medals)}</p>`
-    }${wardrobeCards(wardrobeTab, wardrobeCollection, save, medals, tryingLook)}<p class="fine-print">Cosmetic only. No gameplay advantage. Earn sets through play or check optional purchase availability.</p>${setupGuide ? actionButton("setup-save", "Next: save my character →") + actionButton("setup-skip", "Maybe later", "text-button") : actionButton("done-look", "Done")}</div></div>`;
+    }${wardrobeCards(wardrobeTab, wardrobeCollection, save, medals, tryingLook)}<p class="fine-print">Cosmetic only. No gameplay advantage. Earn sets through play or check optional purchase availability.</p>${setupGuide ? "</details>" : ""}${setupGuide ? actionButton("setup-save", currentProfile?.account ? "Save & continue →" : "Next: save my character →") : actionButton("done-look", "Done")}</div></div>`;
     const preview = body.querySelector<HTMLElement>(".character-preview")!;
     if (!is2d) {
       try {
@@ -830,88 +834,91 @@ async function startGame(id: GameId, defender = "", dare = "") {
     const render = async () => {
       try {
         let result: Finished | null = null;
+        let today: SharedState | null = null;
         if (run) {
           const sent = pending ?? send();
           pending = null;
           result = await sent;
-          await syncSocial();
+          if (id === "coast") {
+            try {
+              today = await api<SharedState>("state");
+              shared = today;
+            } catch {
+              // A leaderboard outage must not hide an already saved race.
+            }
+          } else await syncSocial();
         }
         if (generation !== gameGeneration) return;
         const reward = !!result?.welcome;
         // A new guest's first result leads into making and saving a character.
-        const setup = reward && !currentProfile?.account;
+        const setup =
+          !!result &&
+          (reward || !save.nameChosen || save.welcome !== "complete");
         body.innerHTML =
-          '<div class="result-star">' +
-          icon(target ? "trophy" : "game") +
-          '</div><h2 class="result-score">' +
-          formatScore(id, score) +
-          "<small>" +
-          (id === "coast" ? "THREE-LAP TIME" : "GAME SCORE") +
-          "</small></h2>" +
-          (result?.race?.newBest
-            ? '<p class="new-best" role="status">✦ New best!</p>'
-            : "") +
-          raceSummary +
-          '<p class="lead">' +
-          (target
-            ? score > target
-              ? "Dare beaten!"
-              : score === target
-                ? "Draw!"
-                : "Target " + formatScore(id, target) + ". Try again!"
-            : "") +
-          "</p>" +
-          (reward
-            ? '<div class="welcome-reward"><span class="cap-badge">✦</span><span><strong>First round complete!</strong><span>Lilac cap unlocked · +35 bonus XP</span></span></div>'
-            : "") +
-          '<div class="button-row">' +
-          (setup
-            ? '<button class="primary" data-action="setup-look">Make it yours</button><button class="secondary" data-replay="' +
-              id +
-              '">Play again</button>'
-            : id !== "coast" && reward
-              ? '<button class="primary" data-action="welcome-wear">Wear my cap</button>'
-              : '<button class="primary" data-replay="' +
-                id +
-                '">Play again</button>') +
-          (id === "coast" && reward && !setup
-            ? '<button class="secondary" data-action="welcome-wear">Wear my lilac cap</button>'
-            : "") +
-          '<button class="secondary" data-action="close">Explore</button></div>' +
-          '<div class="note">' +
-          (result
-            ? "✓ Verified · " +
-              (result.ranked
-                ? id === "coast" && score === 0
-                  ? "No ranked time this round. Finish three laps to enter the board."
-                  : outdoor
-                    ? "East Side rounds are for dares and bests, not medals."
-                    : "in the running for tonight’s medals."
-                : outdoor
-                  ? "guest round. Save your progress to dare neighbours."
-                  : "guest round. Save your progress to enter the rankings.")
-            : "Offline · nothing saved.") +
-          "</div>" +
-          (result?.invite
-            ? `<p class="new-best" role="status">+${result.invite.xp} XP · you and the friend who invited you</p>`
-            : "") +
-          (run && !setup
-            ? '<details class="menu-details"><summary>Play with a friend</summary><button class="secondary" data-open="invite">Invite a friend</button></details>'
-            : "") +
-          (run && score > 0 && shared?.competitionReady && !reward
-            ? '<details class="menu-details"><summary>Share this round</summary><button class="secondary" data-post-dare="' +
-              run.id +
-              '">Post a dare</button></details>'
-            : "") +
-          (!currentProfile?.account && !setup
-            ? result?.race?.newBest
-              ? '<details class="menu-details"><summary>Save my progress</summary><button class="secondary" id="save-race-best">Save with email</button></details>'
-              : '<details class="menu-details"><summary>Save my progress</summary><button class="secondary" data-account>Save with email</button></details>'
-            : "");
-        if (id === "coast") {
-          const actions = body.querySelector(".button-row")!;
-          body.querySelector(".race-result-detail")!.before(actions);
-        }
+          id === "coast"
+            ? `<h2 class="result-score">${formatScore(id, score)}<small>YOUR THREE-LAP TIME</small></h2>${result?.race?.newBest ? '<p class="new-best">New personal best!</p>' : ""}${raceComparison(score, today, !!result?.ranked)}<div class="button-row"><button class="primary" data-action="setup-look">${setup ? "Create my name & look" : "Edit my name & look"}</button><button class="secondary" data-replay="coast">Race again</button></div><details class="race-extra-details"><summary>Race details & rewards</summary>${raceSummary}<p>${result ? `Verified round · +20 XP${reward ? " · Lilac cap unlocked · +35 bonus XP" : ""}` : "Offline · this round was not saved."}</p>${!currentProfile?.account ? '<button class="secondary" data-account>Save with email</button>' : ""}</details>`
+            : '<div class="result-star">' +
+              icon(target ? "trophy" : "game") +
+              '</div><h2 class="result-score">' +
+              formatScore(id, score) +
+              "<small>" +
+              "GAME SCORE" +
+              "</small></h2>" +
+              (result?.race?.newBest
+                ? '<p class="new-best" role="status">✦ New best!</p>'
+                : "") +
+              raceSummary +
+              '<p class="lead">' +
+              (target
+                ? score > target
+                  ? "Dare beaten!"
+                  : score === target
+                    ? "Draw!"
+                    : "Target " + formatScore(id, target) + ". Try again!"
+                : "") +
+              "</p>" +
+              (reward
+                ? '<div class="welcome-reward"><span class="cap-badge">✦</span><span><strong>First round complete!</strong><span>Lilac cap unlocked · +35 bonus XP</span></span></div>'
+                : "") +
+              '<div class="button-row">' +
+              (setup
+                ? '<button class="primary" data-action="setup-look">Make it yours</button><button class="secondary" data-replay="' +
+                  id +
+                  '">Play again</button>'
+                : reward
+                  ? '<button class="primary" data-action="welcome-wear">Wear my cap</button>'
+                  : '<button class="primary" data-replay="' +
+                    id +
+                    '">Play again</button>') +
+              '<button class="secondary" data-action="close">Explore</button></div>' +
+              '<div class="note">' +
+              (result
+                ? "✓ Verified · " +
+                  (result.ranked
+                    ? outdoor
+                      ? "East Side rounds are for dares and bests, not medals."
+                      : "in the running for tonight’s medals."
+                    : outdoor
+                      ? "guest round. Save your progress to dare neighbours."
+                      : "guest round. Save your progress to enter the rankings.")
+                : "Offline · nothing saved.") +
+              "</div>" +
+              (result?.invite
+                ? `<p class="new-best" role="status">+${result.invite.xp} XP · you and the friend who invited you</p>`
+                : "") +
+              (run && !setup
+                ? '<details class="menu-details"><summary>Play with a friend</summary><button class="secondary" data-open="invite">Invite a friend</button></details>'
+                : "") +
+              (run && score > 0 && shared?.competitionReady && !reward
+                ? '<details class="menu-details"><summary>Share this round</summary><button class="secondary" data-post-dare="' +
+                  run.id +
+                  '">Post a dare</button></details>'
+                : "") +
+              (!currentProfile?.account && !setup
+                ? result?.race?.newBest
+                  ? '<details class="menu-details"><summary>Save my progress</summary><button class="secondary" id="save-race-best">Save with email</button></details>'
+                  : '<details class="menu-details"><summary>Save my progress</summary><button class="secondary" data-account>Save with email</button></details>'
+                : "");
         body
           .querySelector("#save-race-best")
           ?.addEventListener("click", () => void openAccount({ create: true }));
@@ -932,12 +939,13 @@ async function startGame(id: GameId, defender = "", dare = "") {
           }
         }
         const standing = shared?.boards[id]?.find((p) => p.id === shared?.me);
-        body
-          .querySelector(".result-score")!
-          .insertAdjacentHTML(
-            "afterend",
-            `<div class="round-breakdown"><span>XP<strong>${result ? "+20" : "0"}</strong></span><span>${id === "coast" ? "Street place" : "Rank"}<strong>${id === "coast" && result?.race ? ordinal(result.race.place) + " / 8" : result?.ranked && standing ? "#" + standing.rank : result?.ranked ? "—" : "Guest"}</strong>${result?.ranked && standing && standing.rank <= 3 ? `<small>+${4 - standing.rank} medals at midnight</small>` : ""}</span></div>`,
-          );
+        if (id !== "coast")
+          body
+            .querySelector(".result-score")!
+            .insertAdjacentHTML(
+              "afterend",
+              `<div class="round-breakdown"><span>XP<strong>${result ? "+20" : "0"}</strong></span><span>Rank<strong>${result?.ranked && standing ? "#" + standing.rank : result?.ranked ? "—" : "Guest"}</strong>${result?.ranked && standing && standing.rank <= 3 ? `<small>+${4 - standing.rank} medals at midnight</small>` : ""}</span></div>`,
+            );
         beep(score > target ? "win" : "finish");
       } catch (error) {
         if (generation !== gameGeneration) return;
@@ -965,6 +973,7 @@ async function startGame(id: GameId, defender = "", dare = "") {
             reduced: save.reduced,
             simple: save.twoD,
             target,
+            playerName: currentProfile?.name ?? "You",
             best: shared?.self?.best.coast ?? save.best.coast,
             soundOn: () => save.sound,
             toggleSound,
@@ -1261,10 +1270,10 @@ document.addEventListener("click", (e) => {
       return;
     }
     if (a === "setup-look") {
-      progress("welcome-wear");
-      if (save.unlockedHats.includes(2)) save.hat = 2;
-      save.welcome = "complete";
-      persist();
+      if (save.welcome !== "complete" && save.unlockedHats.includes(2)) {
+        save.hat = 2;
+        persist();
+      }
       world?.updateAvatar();
       playtestEvent("cosmetic-worn");
       wardrobeTab = "clothing";
@@ -1272,45 +1281,57 @@ document.addEventListener("click", (e) => {
       open("wardrobe");
       return;
     }
-    if (a === "setup-skip") {
-      close();
-      return;
-    }
     if (a === "setup-save") {
       void (async () => {
         const generation = gameGeneration;
         const input = body.querySelector<HTMLInputElement>("#nickname");
-        const name = input?.value.trim();
-        // Save a name that was typed but not yet submitted.
-        if (name && name !== (currentProfile?.name || shared?.self?.name)) {
-          b.disabled = true;
-          try {
-            await profileQueue;
-            acceptProfile(await api<Profile>("profile", { name }));
-            void syncSocial();
-          } catch (error) {
-            if (generation !== gameGeneration || !modal.open) return;
-            body.querySelector("#nickname-status")!.textContent = (
-              error as Error
-            ).message;
-            input!.focus();
-            return;
-          } finally {
-            b.disabled = false;
-          }
+        if (!input || !input.reportValidity()) return;
+        const name = input.value.trim();
+        if (name.length < 2) {
+          body.querySelector("#nickname-status")!.textContent =
+            "Choose a nickname with at least 2 characters.";
+          input.focus();
+          return;
         }
-        if (generation !== gameGeneration || !modal.open) return;
-        void openAccount({
-          create: true,
-          guided: true,
-          onSkipped: close,
-          onSaved: () => {
-            close();
-            toast(
-              "Character saved to your email. Welcome to the neighbourhood!",
+        b.disabled = true;
+        try {
+          await profileQueue;
+          if (!save.nameChosen || name !== currentProfile?.name) {
+            acceptProfile(await api<Profile>("profile", { name }));
+          }
+          if (save.rounds > 0 && save.welcome !== "complete") {
+            acceptProfile(
+              await api<Profile>("progress", { event: "setup-complete" }),
             );
-          },
-        });
+          }
+          if (generation !== gameGeneration || !modal.open) return;
+          void syncSocial();
+          if (currentProfile?.account) {
+            close();
+            toast("Your name and look are saved.");
+            return;
+          }
+          void openAccount({
+            create: true,
+            guided: true,
+            onSkipped: close,
+            onSaved: () => {
+              close();
+              toast(
+                "Character saved to your email. Welcome to the neighbourhood!",
+              );
+            },
+          });
+        } catch (error) {
+          if (generation !== gameGeneration || !modal.open) return;
+          body.querySelector("#nickname-status")!.textContent =
+            error instanceof Error
+              ? error.message
+              : "Could not save your name. Try again.";
+          input.focus();
+        } finally {
+          b.disabled = false;
+        }
       })();
       return;
     }

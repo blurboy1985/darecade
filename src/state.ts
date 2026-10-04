@@ -61,6 +61,7 @@ export type Save = {
   away: boolean;
   welcome: "new" | "cabinet" | "played" | "complete";
   welcomeDismissed: boolean;
+  nameChosen: boolean;
   /** East Side: species caught, best of ten hoops, and the one garden plot. */
   fish: string[];
   hoopsBest: number;
@@ -134,6 +135,7 @@ export function fresh(): Save {
     claims: [],
     welcome: "new",
     welcomeDismissed: false,
+    nameChosen: false,
     fish: [],
     hoopsBest: 0,
     stageBest: 0,
@@ -154,6 +156,7 @@ export function normalise(raw: unknown, fallback: Save): Save {
     s.welcome = r.welcome!;
   if (typeof r.welcomeDismissed === "boolean")
     s.welcomeDismissed = r.welcomeDismissed;
+  if (typeof r.nameChosen === "boolean") s.nameChosen = r.nameChosen;
   if (r.cameraMode === "third") s.cameraMode = "third";
   if (r.awayActivity && Object.hasOwn(activities, r.awayActivity))
     s.awayActivity = r.awayActivity;

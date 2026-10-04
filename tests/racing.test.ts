@@ -235,6 +235,23 @@ test("verified race times drive daily medals, weekly totals and three distinct-n
     );
     assert.equal(state.boards.coast[0].id, people[0]);
     assert.equal(state.boards.coast.length, 4, "DNF cannot enter the board");
+    const guest = community.join(consent).me.id;
+    const guestState = community.state(guest);
+    assert.deepEqual(
+      guestState.boards.coast,
+      state.boards.coast,
+      "guests can compare against actual daily Coast Rush times before saving email",
+    );
+    assert.equal(guestState.boards.noodle.length, 0);
+    assert.equal(guestState.weekly.length, 0);
+    assert.ok(
+      !JSON.stringify(guestState.boards.coast).includes("@example.test"),
+    );
+    community.report(guest, people[0], "inappropriate-name");
+    assert.ok(
+      !community.state(guest).boards.coast.some((p) => p.id === people[0]),
+      "blocked racers remain hidden from guest timing comparisons",
+    );
     const dare = submit(people[4], "drift", people[3]);
     assert.equal(dare.result.won, true);
     assert.equal(
@@ -564,8 +581,13 @@ test("new bests and race records come from replay, retry safely, and never put r
     assert.equal(community.state(verified).boards.coast.length, 1);
     assert.equal(
       community.state(id).boards.coast.length,
-      0,
-      "real medal boards require email verification even through the API",
+      1,
+      "guests can read ranked Coast Rush times for comparison",
+    );
+    assert.equal(community.state(id).boards.coast[0].id, verified);
+    assert.ok(
+      !community.state(id).boards.coast.some((p) => p.id === id),
+      "viewing the board never enters the guest's own result",
     );
   } finally {
     store.close();
