@@ -266,6 +266,10 @@
 .choice-pager button {
   min-height: 44px;
 }
+/* The first and last page keep their layout without a button that does nothing. */
+.choice-pager button:disabled {
+  visibility: hidden;
+}
 .choice-pager span {
   white-space: nowrap;
   color: #526546;

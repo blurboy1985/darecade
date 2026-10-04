@@ -1092,6 +1092,42 @@ test(
         (await api("auth/login-code", { email: "not-an-email" })).status,
         400,
       );
+
+      // A second guest saving to that address is never moved to its account.
+      const other = await api("auth/join", {
+        month: 1,
+        year: 2000,
+        consent: true,
+        privacyVersion: PRIVACY_VERSION,
+      });
+      assert.equal(other.status, 200, JSON.stringify(other.data));
+      const sent = messages.length;
+      assert.equal(
+        (await api("auth/code", { email: "cloud@example.test" }, other.cookie))
+          .status,
+        200,
+      );
+      const verify = {
+        email: "cloud@example.test",
+        code: messages[sent].text.match(/code is (\d{6})/)[1],
+      };
+      const refused = await api("auth/verify", verify, other.cookie);
+      assert.equal(refused.status, 200, JSON.stringify(refused.data));
+      assert.deepEqual(Object.keys(refused.data), ["conflict"]);
+      assert.equal(refused.cookie, undefined, "the session is left alone");
+      assert.equal(
+        (await api("auth/me", undefined, other.cookie)).data.id,
+        other.data.id,
+      );
+      // Only the explicit choice signs in to the existing character.
+      const switched = await api(
+        "auth/verify",
+        { ...verify, switchAccount: true },
+        other.cookie,
+      );
+      assert.equal(switched.status, 200, JSON.stringify(switched.data));
+      assert.equal(switched.data.id, guest.data.id);
+      assert.ok(switched.cookie);
     } finally {
       await mf.dispose();
     }

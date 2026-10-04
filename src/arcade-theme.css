@@ -897,6 +897,37 @@ dialog.game-modal #modal-body:has(.result-score) > .secondary {
   }
 }
 
+/* Shown over the last frame when a round ends before the clock does. */
+.round-over {
+  position: absolute;
+  inset: auto 12px 12px;
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #0b1430e6;
+  color: #fff;
+  text-align: center;
+  pointer-events: none;
+}
+.round-over strong {
+  font-family: var(--chunk);
+  font-size: 20px;
+  color: #ffe27a;
+}
+.round-over span {
+  font-size: 15px;
+  line-height: 1.35;
+}
+.round-end-note {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fff3d6;
+  color: #5a3d0c;
+  font-size: 15px;
+  text-align: center;
+}
 /* ---------- Calm mode ---------- */
 .reduced .stat-pill.bump,
 .reduced .stat-pill.hurry,
