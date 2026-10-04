@@ -117,6 +117,27 @@ export const activityIds: readonly ActivityId[] = [
   "hoops",
 ];
 
+/** Says why a round stopped, so an early finish is never a mystery. */
+export function endReasonText(game: GameId, reason: string, seconds: number) {
+  const after = `after ${Math.max(1, Math.round(seconds))}s`;
+  if (game === "noodle") {
+    if (reason === "wall")
+      return `Your noodle hit the wall ${after}. Turn before the edge.`;
+    if (reason === "tail")
+      return `Your noodle bit its own tail ${after}. Leave yourself room to turn.`;
+    if (reason === "full") return "You filled the whole board!";
+  }
+  if (game === "hop") {
+    if (reason === "crate")
+      return `You ran into a crate ${after}. Jump a little earlier.`;
+    if (reason === "gap")
+      return `You fell into a gap ${after}. Jump before the edge.`;
+  }
+  if (reason === "lives") return `Out of lives ${after}.`;
+  if (reason === "cleared") return "Wall and Big Brick cleared!";
+  if (reason === "time") return "Time! You lasted the full 60 seconds.";
+  return "";
+}
 export function formatScore(game: GameId, score: number) {
   return game === "coast" ? raceScoreTime(score) : String(score);
 }

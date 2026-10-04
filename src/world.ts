@@ -10,7 +10,7 @@ import { MovementBuffer } from "./movement-buffer";
 import * as T from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { blocked, route, type Obstacle } from "./navigation";
+import { blocked, route, visitsOnWalk, type Obstacle } from "./navigation";
 import { outfits, skins, type Save } from "./state";
 import { gameIds, type ActivityId } from "./catalog";
 import { residents, activityPose } from "./neighbourhood";
@@ -1826,28 +1826,39 @@ export class LobbyWorld {
     else this.zoom = T.MathUtils.clamp(this.zoom + delta, 0.7, 3);
     this.updateCamera();
   }
+  /** Walks to a spot. False when there is no way to get there. */
   go(id: string) {
     this.cancelInteraction();
-    if (this.save.away) return;
+    if (this.save.away) return false;
     const spot = spots.find((s) => s.id === id);
-    if (spot) this.walkTo(spot.approach[0], spot.approach[1], id);
+    return !!spot && this.walkTo(spot.approach[0], spot.approach[1], id);
+  }
+  /** Landing on a spot the player chose counts as visiting it. */
+  private arrive(id: string) {
+    if (spots.some((s) => s.id === id)) this.onVisit(id);
+    this.onInteract(id);
   }
   private walkTo(x: number, z: number, pending = "") {
-    if (this.save.away || this.inspectedId) return;
+    if (this.save.away || this.inspectedId) return false;
     this.path = route(this.player.root.position, { x, z }, this.obstacles);
     this.pending = pending;
     if (this.path.length) {
       const end = this.path[this.path.length - 1];
       this.marker.position.set(end.x, 0.16, end.z);
       this.marker.visible = true;
-    } else if (
+      return true;
+    }
+    this.pending = "";
+    if (
       Math.hypot(
         this.player.root.position.x - x,
         this.player.root.position.z - z,
-      ) < 1.6 &&
-      pending
-    )
-      this.onInteract(pending);
+      ) < 1.6
+    ) {
+      if (pending) this.arrive(pending);
+      return true;
+    }
+    return false;
   }
   private pointerDown = (e: PointerEvent) => {
     if (this.paused || e.button !== 0) return;
@@ -2319,7 +2330,7 @@ export class LobbyWorld {
           if (this.pending) {
             const id = this.pending;
             this.pending = "";
-            this.onInteract(id);
+            this.arrive(id);
           }
         }
         return;
@@ -2348,7 +2359,7 @@ export class LobbyWorld {
     for (const s of spots)
       if (Math.hypot(p.x - s.approach[0], p.z - s.approach[1]) < 2.3) {
         near = s.id;
-        this.onVisit(s.id);
+        if (visitsOnWalk(s.id, this.pending, spots)) this.onVisit(s.id);
       }
     const nearby = interactionSpecs
       .map((s) => ({

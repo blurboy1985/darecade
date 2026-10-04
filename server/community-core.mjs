@@ -526,8 +526,13 @@ export class CommunityCore {
     }
     return { sent: true, delivery: this.mailMode };
   }
-  /** Checks an emailed code, then signs in or attaches the email to the guest. */
-  verifyCode(email, code) {
+  /**
+   * Checks an emailed code, then signs in or attaches the email to the guest.
+   * A guest saving a character to an address that already has an account is
+   * never moved to that account unasked: the reply names the conflict, the
+   * code stays valid, and switchAccount repeats the request as a sign-in.
+   */
+  verifyCode(email, code, { switchAccount = false } = {}) {
     email = this.normaliseEmail(email);
     if (typeof code !== "string" || !/^\d{6}$/.test(code))
       throw Error(BAD_CODE);
@@ -566,6 +571,14 @@ export class CommunityCore {
       const account = this.db
         .prepare("SELECT player FROM accounts WHERE email=?")
         .get(email);
+      if (account && link.candidate !== account.player && !switchAccount)
+        return {
+          conflict: {
+            name: this.db
+              .prepare("SELECT name FROM players WHERE id=?")
+              .get(account.player).name,
+          },
+        };
       const id = account?.player || link.candidate;
       if (this.db.prepare("SELECT 1 FROM suspensions WHERE player=?").get(id))
         throw Error(
@@ -605,6 +618,24 @@ export class CommunityCore {
       .get(id);
     return !!a && a.created + DAY <= this.now();
   }
+  /** Why this player cannot dare yet, with the real opening time. */
+  dareHold(id) {
+    const a = this.db
+      .prepare("SELECT created FROM accounts WHERE player=?")
+      .get(id);
+    if (!a)
+      return "Save with email to dare. Shared dares open 24 hours after account verification. Regular rounds are available now.";
+    const opens = new Date(a.created + DAY).toLocaleString("en-SG", {
+      timeZone: "Asia/Singapore",
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    return `Your dares open ${opens} SGT, 24 hours after account verification. Regular rounds are available now.`;
+  }
   // Every verified round by an email account is ranked; only dares wait 24h.
   rankedAccount(id) {
     return !!this.db.prepare("SELECT 1 FROM accounts WHERE player=?").get(id);
@@ -640,9 +671,10 @@ export class CommunityCore {
         this.db.prepare("SELECT 1 FROM suspensions WHERE player=?").get(target)
       )
         throw Error("This dare is unavailable.");
-      if (!this.eligibleAccount(id) || !this.eligibleAccount(target))
+      if (!this.eligibleAccount(id)) throw Error(this.dareHold(id));
+      if (!this.eligibleAccount(target))
         throw Error(
-          "Shared dares open 24 hours after account verification. Regular rounds are available now.",
+          "This neighbour’s dares are not open yet. Shared dares open 24 hours after account verification.",
         );
       if (
         this.db
@@ -781,8 +813,7 @@ export class CommunityCore {
     return saved;
   }
   postDare(id, runId) {
-    if (!this.eligibleAccount(id))
-      throw Error("Posting dares opens 24 hours after account verification.");
+    if (!this.eligibleAccount(id)) throw Error(this.dareHold(id));
     const saved = this.store.transaction(() => {
       const r = this.db
         .prepare(

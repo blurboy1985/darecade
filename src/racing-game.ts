@@ -23,6 +23,12 @@ import type { FxEvent } from "./arcade-fx";
 import type { RaceView } from "./race-view";
 import { RaceMotion } from "./race-motion";
 import { kartSteeringInput } from "./kart-motion";
+import {
+  IDLE_PAUSE_TICKS,
+  edgeAssist,
+  idleTicks,
+  latchThrottle,
+} from "./race-assist";
 import "./racing.css";
 
 const SHELLS = pickups.length * RACE_LAPS;
@@ -59,6 +65,13 @@ export class RacingGame {
   private status: "loading" | "ready" | "countdown" | "racing" | "finished" =
     "loading";
   private paused = false;
+  /** Touch throttle stays on after a tap on GO, until BRAKE. */
+  private cruise = false;
+  /** Ticks parked with no throttle; at the limit the clock stops. */
+  private idle = 0;
+  private idlePaused = false;
+  private assistSteer = 0;
+  private readonly assist: boolean;
   private disposed = false;
   private outroTime = 0;
   private outroDone = false;
@@ -92,6 +105,8 @@ export class RacingGame {
       simple: boolean;
       target: number;
       best: number;
+      /** Edge steering help, for a driver with no finished race yet. */
+      assist?: boolean;
       playerName?: string;
       soundOn: () => boolean;
       toggleSound: () => void;
@@ -99,6 +114,7 @@ export class RacingGame {
   ) {
     this.sim = new Simulation("coast", seed);
     this.reduced = options.reduced;
+    this.assist = !!options.assist;
     this.targetTicks =
       options.target > 0
         ? RACE_TICKS + 1 - options.target
@@ -120,11 +136,11 @@ export class RacingGame {
         <div class="race-speed"><b id="race-speed">0</b><span>KM/H</span></div>
         <div class="race-item"><span id="race-item-label">ITEM</span><b id="race-item">Empty</b><small id="race-pickups">🐚 0 / ${SHELLS}</small></div><div class="race-notice" role="status" aria-live="polite">Loading your driver…</div>
         <div class="race-finish" role="status" hidden></div>
-        <div class="race-cover"><span class="eyebrow">DARECADE / ISLAND CIRCUIT</span><h3>COAST<br><em>RUSH</em></h3><p>Your avatar. Seven rivals. Three laps.</p><button class="primary" id="start-game" disabled>Getting your kart ready…</button><button class="race-sound" data-race-sound></button><div class="race-instructions">${touch ? "<span>STEER<br><b>← →</b></span><span>DRIVE<br><b>Hold GO</b></span><span>DRIFT<br><b>Hold, then release</b></span>" : "<span>DRIVE<br><b>W A S D</b></span><span>DRIFT<br><b>Hold SPACE</b></span><span>ITEM<br><b>Tap E</b></span>"}</div><ul class="race-legend"><li><b>🎁 Crates</b>Each gives one of five items at random. ${use} to use it.</li><li class="race-items"><span><b>🛡 Shield</b>blocks hits for 3s</span><span><b>⚡ Turbo</b>2s speed burst</span><span><b>🚀 Missile</b>spins the kart in front</span><span><b>🌩 Storm</b>slows every kart ahead</span><span><b>🥥 Coconut</b>dropped behind you; spins a chaser</span></li><li><b>🐚 Shells</b>Bonus pickups, 12 a lap. They never change your time or medals.</li></ul><p class="race-tip">${touch ? "Hold DRIFT through a bend, then let go for a Mini, Super or Ultra turbo. DRIFT and ITEM keep you accelerating, so one thumb can slide between them and GO." : "Hold W to go. A/D steer, S brakes. Hold Space through a bend, then release for a Mini, Super or Ultra turbo."} At turbo speed the tight bends push you wide unless you drift. A hit costs a 0.75s stop.</p><small>Same kart for everyone · 2 minute limit<br>7 rivals are game characters, not real players.</small></div>
+        <div class="race-cover"><span class="eyebrow">DARECADE / ISLAND CIRCUIT</span><h3>COAST<br><em>RUSH</em></h3><p>Your avatar. Seven rivals. Three laps.</p><button class="primary" id="start-game" disabled>Getting your kart ready…</button><button class="race-sound" data-race-sound></button><div class="race-instructions">${touch ? "<span>STEER<br><b>← →</b></span><span>DRIVE<br><b>Tap GO</b></span><span>DRIFT<br><b>Hold, then release</b></span>" : "<span>DRIVE<br><b>W A S D</b></span><span>DRIFT<br><b>Hold SPACE</b></span><span>ITEM<br><b>Tap E</b></span>"}</div><ul class="race-legend"><li><b>🎁 Crates</b>Each gives one of five items at random. ${use} to use it.</li><li class="race-items"><span><b>🛡 Shield</b>blocks hits for 3s</span><span><b>⚡ Turbo</b>2s speed burst</span><span><b>🚀 Missile</b>spins the kart in front</span><span><b>🌩 Storm</b>slows every kart ahead</span><span><b>🥥 Coconut</b>dropped behind you; spins a chaser</span></li><li><b>🐚 Shells</b>Bonus pickups, 12 a lap. They never change your time or medals.</li></ul><p class="race-tip">${touch ? "Tap GO once and the kart keeps driving; BRAKE lets go. Hold DRIFT through a bend, then let go for a Mini, Super or Ultra turbo." : "Hold W to go. A/D steer, S brakes. Hold Space through a bend, then release for a Mini, Super or Ultra turbo."} At turbo speed the tight bends push you wide unless you drift. A hit costs a 0.75s stop.${options.assist ? " Until your first finish, the kart steers itself back from the road edge when you are not steering." : ""}</p><small>Same kart for everyone · 2 minute limit<br>7 rivals are game characters, not real players.</small></div>
       </div>
       <div class="race-charge"><label for="drift-charge">DRIFT TURBO <span id="drift-label">Hold ${touch ? "DRIFT" : "Space"} while moving</span></label><meter id="drift-charge" min="0" max="1" low=".333" optimum="1" value="0">0</meter></div>
-      <div class="race-touch" aria-label="Driving controls"><div class="race-steer"><button data-race-control="left" aria-label="Steer left">←</button><button data-race-control="right" aria-label="Steer right">→</button></div><div class="race-pedals"><button data-race-control="item">ITEM</button><button data-race-control="brake">BRAKE</button><button data-race-control="drift">DRIFT</button><button data-race-control="gas">GO</button></div></div>
-      <div class="race-footer"><span>${touch ? "Slide your thumb between GO, DRIFT and ITEM" : "Hold W or GO to drive · Hits cost a 0.75s stop"}</span><span><button class="text-button" data-race-sound></button><button class="text-button" id="pause-game" disabled>Pause</button></span></div>
+      <div class="race-touch" aria-label="Driving controls"><div class="race-steer"><button data-race-control="left" aria-label="Steer left">←</button><button data-race-control="right" aria-label="Steer right">→</button></div><div class="race-pedals"><button data-race-control="item">ITEM</button><button data-race-control="brake">BRAKE</button><button data-race-control="drift">DRIFT</button><button data-race-control="gas" aria-pressed="false">GO</button></div></div>
+      <div class="race-footer"><span>${touch ? "Tap GO to drive · BRAKE lets go" : "Hold W or tap GO to drive · Hits cost a 0.75s stop"}</span><span><button class="text-button" data-race-sound></button><button class="text-button" id="pause-game" disabled>Pause</button></span></div>
     </section>`;
     this.host = container.querySelector(".race-view")!;
     this.cover = container.querySelector(".race-cover")!;
@@ -184,16 +200,34 @@ export class RacingGame {
     this.buttons = Array.from(
       container.querySelectorAll<HTMLButtonElement>("[data-race-control]"),
     );
+    // A long press must drive the kart, never open the browser's menu.
+    this.stats.addEventListener(
+      "contextmenu",
+      (e) => e.preventDefault(),
+      listener,
+    );
     this.buttons.forEach((b) => {
+      const control = b.dataset.raceControl!;
       b.addEventListener(
         "pointerdown",
         (e) => {
           e.preventDefault();
-          if (this.paused || !["racing", "countdown"].includes(this.status))
-            return;
-          b.setPointerCapture(e.pointerId);
-          this.pointers.set(e.pointerId, b.dataset.raceControl!);
+          if (!this.press(control)) return;
+          this.pointers.set(e.pointerId, control);
+          try {
+            b.setPointerCapture(e.pointerId);
+          } catch {
+            // The control is already held; capture only follows a sliding thumb.
+          }
           this.showHeld();
+        },
+        listener,
+      );
+      // Keyboard, switch and assistive activation arrive as a click alone.
+      b.addEventListener(
+        "click",
+        () => {
+          if (this.press(control)) this.showHeld();
         },
         listener,
       );
@@ -212,6 +246,7 @@ export class RacingGame {
           )
             return;
           this.pointers.set(e.pointerId, over.dataset.raceControl!);
+          this.cruise = latchThrottle(this.cruise, over.dataset.raceControl!);
           this.showHeld();
         },
         listener,
@@ -225,6 +260,17 @@ export class RacingGame {
       b.addEventListener("lostpointercapture", release, listener);
     });
     void this.load(look, options.simple, options.playerName);
+  }
+  /**
+   * A control was pressed. Wakes a kart that paused itself, and latches or
+   * releases the throttle. False while the race is not taking input.
+   */
+  private press(control: string) {
+    if (this.idlePaused) this.togglePause();
+    if (this.paused || !["racing", "countdown"].includes(this.status))
+      return false;
+    this.cruise = latchThrottle(this.cruise, control);
+    return true;
   }
   private async load(look: Look, simple: boolean, playerName?: string) {
     try {
@@ -265,7 +311,7 @@ export class RacingGame {
     this.stats.classList.add("simple-race");
     this.host.replaceChildren();
     this.cover.querySelector(".race-tip")!.textContent = this.touch
-      ? "Simple view: coral is you; coloured dots are game characters. Hold GO, steer with the arrows, hold DRIFT in bends and tap ITEM."
+      ? "Simple view: coral is you; coloured dots are game characters. Tap GO, steer with the arrows, hold DRIFT in bends and tap ITEM."
       : "Simple view: coral is you; coloured dots are game characters. Hold W or GO, A/D steer, Space to drift, E for your item.";
   }
   private contextLost = (e: Event) => {
@@ -308,8 +354,11 @@ export class RacingGame {
       ].includes(key)
     ) {
       e.preventDefault();
-      if (!this.paused && ["racing", "countdown"].includes(this.status))
+      if (this.idlePaused && !e.repeat) this.togglePause();
+      if (!this.paused && ["racing", "countdown"].includes(this.status)) {
         this.keys.add(key);
+        if (key === "s" || key === "arrowdown") this.cruise = false;
+      }
     }
     if (key === "p" && !e.repeat) this.togglePause();
     if (key === "enter" && this.status === "finished" && this.outroTime > 1) {
@@ -327,9 +376,13 @@ export class RacingGame {
   }
   private showHeld() {
     const held = new Set(this.pointers.values());
-    this.buttons.forEach((b) =>
-      b.classList.toggle("held", held.has(b.dataset.raceControl!)),
-    );
+    if (this.cruise) held.add("gas");
+    this.buttons.forEach((b) => {
+      const on = held.has(b.dataset.raceControl!);
+      b.classList.toggle("held", on);
+      if (b.dataset.raceControl === "gas")
+        b.setAttribute("aria-pressed", String(on));
+    });
   }
   private onBlur = () => {
     if (!this.paused && ["racing", "countdown"].includes(this.status))
@@ -342,6 +395,8 @@ export class RacingGame {
   private togglePause() {
     if (!["racing", "countdown"].includes(this.status)) return;
     this.paused = !this.paused;
+    this.idlePaused = false;
+    this.idle = 0;
     this.clearInput();
     this.accumulator = 0;
     this.last = performance.now();
@@ -353,18 +408,34 @@ export class RacingGame {
     this.container.classList.toggle("is-paused", this.paused);
     this.onPause?.(this.paused);
   }
+  /** The kart sat parked: stop the clock rather than time the race out. */
+  private idlePause() {
+    this.togglePause();
+    this.idlePaused = true;
+    this.notice.textContent = `Clock stopped · ${this.touch ? "tap GO" : "hold W or tap GO"} to drive`;
+  }
   private controls(): Input {
     const touch = new Set(this.pointers.values());
+    let steer = kartSteeringInput(
+      touch.has("left") || this.keys.has("arrowleft") || this.keys.has("a"),
+      touch.has("right") || this.keys.has("arrowright") || this.keys.has("d"),
+    );
+    if (this.assist && this.status === "racing") {
+      this.assistSteer = edgeAssist(
+        this.sim.race!.offset,
+        steer,
+        this.assistSteer,
+      );
+      steer ||= this.assistSteer;
+    }
     return [
-      kartSteeringInput(
-        touch.has("left") || this.keys.has("arrowleft") || this.keys.has("a"),
-        touch.has("right") || this.keys.has("arrowright") || this.keys.has("d"),
-      ),
+      steer,
       touch.has("brake") || this.keys.has("arrowdown") || this.keys.has("s")
         ? -1
         : // DRIFT and ITEM hold the throttle so one thumb can do all three.
           Number(
-            touch.has("gas") ||
+            this.cruise ||
+              touch.has("gas") ||
               touch.has("drift") ||
               touch.has("item") ||
               this.keys.has("w") ||
@@ -426,6 +497,11 @@ export class RacingGame {
         this.sim.advance(input);
         this.cue(before, now);
         this.accumulator -= 1 / 60;
+        this.idle = idleTicks(this.idle, input[1], race.speed);
+        if (this.idle >= IDLE_PAUSE_TICKS && !this.sim.ended) {
+          this.idlePause();
+          break;
+        }
       }
       const message = this.sim.ended
         ? ""
@@ -438,9 +514,9 @@ export class RacingGame {
               : race.tier
                 ? `${race.tier} ready · release Drift!`
                 : race.speed < 1
-                  ? `Hold ${this.touch ? "GO" : "W"} to accelerate`
+                  ? `${this.touch ? "Tap GO" : "Hold W"} to accelerate`
                   : "";
-      if (this.notice.textContent !== message)
+      if (!this.paused && this.notice.textContent !== message)
         this.notice.textContent = message;
       if (this.sim.ended) this.end();
     } else if (this.status === "finished") {
@@ -514,6 +590,7 @@ export class RacingGame {
     const race = this.sim.race!;
     const result = race.result();
     this.status = "finished";
+    this.cruise = false;
     this.clearInput();
     audio.setTempo(1);
     this.container.querySelector<HTMLButtonElement>("#pause-game")!.disabled =
@@ -701,7 +778,7 @@ export class RacingGame {
         b.distance - a.distance ||
         Number(a.you) - Number(b.you),
     );
-    return `<div class="race-result-detail"><h3>${ordinal(result.place)} / 8${result.finished ? " · Finish!" : " · Time limit"}</h3><div><span>TOTAL TIME<b>${raceTime(result.timeTicks)}</b></span><span>BEST LAP<b>${result.bestLap ? raceTime(result.bestLap) : "—"}</b></span><span>SHELLS<b>${result.pickups} / ${SHELLS}</b></span><span>HIT STOPS<b>${raceTime(result.penaltyTicks)}</b></span></div><p>${result.finished ? "Three laps complete. Try a cleaner line or a longer drift." : `Hold ${this.touch ? "GO" : "W or GO"} to drive. Finish three laps to set a best time.`}</p><details><summary>Street ladder · seven game characters</summary><ol class="street-ladder">${ladder.map((r) => `<li class="${r.you ? "is-you" : ""}"><span>${r.name}</span><b>${Number.isFinite(r.time) ? raceTime(r.time) : "Racing"}</b></li>`).join("")}</ol></details><small>Game characters never enter medal boards. Verified players rank by fastest three-lap time.${this.targetTicks < 7200 ? ` Your time target: ${raceScoreTime(7201 - this.targetTicks)}.` : ""}</small></div>`;
+    return `<div class="race-result-detail"><h3>${ordinal(result.place)} / 8${result.finished ? " · Finish!" : " · Time limit"}</h3><div><span>TOTAL TIME<b>${raceTime(result.timeTicks)}</b></span><span>BEST LAP<b>${result.bestLap ? raceTime(result.bestLap) : "—"}</b></span><span>SHELLS<b>${result.pickups} / ${SHELLS}</b></span><span>HIT STOPS<b>${raceTime(result.penaltyTicks)}</b></span></div><p>${result.finished ? "Three laps complete. Try a cleaner line or a longer drift." : `${this.touch ? "Tap GO" : "Hold W or tap GO"} to drive, and steer through the bends. Finish three laps to set a best time.`}</p><details><summary>Street ladder · seven game characters</summary><ol class="street-ladder">${ladder.map((r) => `<li class="${r.you ? "is-you" : ""}"><span>${r.name}</span><b>${Number.isFinite(r.time) ? raceTime(r.time) : "Racing"}</b></li>`).join("")}</ol></details><small>Game characters never enter medal boards. Verified players rank by fastest three-lap time.${this.targetTicks < 7200 ? ` Your time target: ${raceScoreTime(7201 - this.targetTicks)}.` : ""}</small></div>`;
   }
 
   dispose() {

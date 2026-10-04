@@ -1,5 +1,6 @@
 import { api } from "./social";
 import type { Save } from "./state";
+import { dareHoldCopy } from "./lobby-menu";
 import "./account.css";
 export type Profile = {
   id: string;
@@ -94,6 +95,38 @@ function emailForm(host: HTMLElement, path: string, flow: EmailFlow) {
     }
   });
 }
+/**
+ * The email already belongs to another character. Saving must never swap the
+ * character being played, so the player chooses: keep this one and use a
+ * different email, or sign in to the other and leave this one behind.
+ */
+function conflictChoice(
+  host: HTMLElement,
+  path: string,
+  email: string,
+  code: string,
+  other: string,
+  flow: EmailFlow,
+) {
+  const mine = currentProfile?.name || "this character";
+  host.innerHTML = `<span class="eyebrow">EMAIL ALREADY IN USE</span><h2>Keep ${esc(mine)}?</h2><p><strong>${esc(email)}</strong> already has a saved character, <strong>${esc(other)}</strong>. One email keeps one character, so ${esc(mine)} was not changed and is not saved to it.</p><button class="primary" id="conflict-keep">Keep ${esc(mine)} · use another email</button><button class="secondary" id="conflict-switch">Switch to ${esc(other)}</button><p class="fine-print">Switching signs this browser in as ${esc(other)}. ${esc(mine)} stays an unsaved guest and can no longer be opened from here.</p><p role="status" id="account-status"></p>`;
+  host
+    .querySelector("#conflict-keep")!
+    .addEventListener("click", () => emailForm(host, path, flow));
+  const change = host.querySelector<HTMLButtonElement>("#conflict-switch")!;
+  change.addEventListener("click", async () => {
+    change.disabled = true;
+    try {
+      await api<Profile>("auth/verify", { email, code, switchAccount: true });
+      // Everything on screen belongs to the guest; load the other character whole.
+      clearLocalProfile();
+      location.reload();
+    } catch (error) {
+      status(host, (error as Error).message);
+      change.disabled = false;
+    }
+  });
+}
 /** The code is typed into this same dialog; no link, no second window. */
 function codeForm(
   host: HTMLElement,
@@ -151,7 +184,14 @@ function codeForm(
     e.preventDefault();
     confirm.disabled = true;
     try {
-      const p = await api<Profile>("auth/verify", { email, code: input.value });
+      const p = await api<Profile | { conflict: { name: string } }>(
+        "auth/verify",
+        { email, code: input.value },
+      );
+      if ("conflict" in p) {
+        conflictChoice(host, path, email, input.value, p.conflict.name, flow);
+        return;
+      }
       acceptProfile(p);
       window.dispatchEvent(new Event("account-session"));
       flow.done(p);
@@ -269,7 +309,7 @@ export async function openAccount(
         },
       });
     const render = () => {
-      host.innerHTML = `<span class="eyebrow">ACCOUNT & PRIVACY</span><h2>Your account</h2><p>${p.account ? `Signed in as <strong>${esc(p.account.email)}</strong>. Your avatar and progress follow this account.` : "Playing without email. Add one to use your character and progress on another device."}</p><p>${p.account && p.account.eligibleAt > Date.now() ? "Every round you finish is ranked. Shared dares open 24 hours after your account was verified." : "Three outgoing dares per day. No points lost when another player wins."}</p>${!p.account ? '<button class="primary" id="save-account">Save with email →</button>' : ""}<div class="account-actions"><button class="secondary" id="read-privacy">Privacy &amp; data</button><button class="secondary" id="logout">Sign out</button></div><p role="status"></p>`;
+      host.innerHTML = `<span class="eyebrow">ACCOUNT & PRIVACY</span><h2>Your account</h2><p>${p.account ? `Signed in as <strong>${esc(p.account.email)}</strong>. Your avatar and progress follow this account.` : "Playing without email. Add one to use your character and progress on another device."}</p><p>${p.account && p.account.eligibleAt > Date.now() ? `Every round you finish is ranked. ${dareHoldCopy(false, p.account)}` : "Three outgoing dares per day. No points lost when another player wins."}</p>${!p.account ? '<button class="primary" id="save-account">Save with email →</button>' : ""}<div class="account-actions"><button class="secondary" id="read-privacy">Privacy &amp; data</button><button class="secondary" id="logout">Sign out</button></div><p role="status"></p>`;
       host
         .querySelector("#save-account")
         ?.addEventListener("click", () => create(render));

@@ -158,3 +158,94 @@ test("native menu selectors restore focus after their own redraw", () => {
     assert.deepEqual(focused, [`#${id}`]);
   }
 });
+
+// The remaining tests cover bugs from the 4 October 2026 playtest.
+function click(
+  dataset: Record<string, string>,
+  extra: Record<string, unknown>,
+) {
+  const toasts: string[] = [];
+  const context = vm.createContext({
+    toast: (message: string) => toasts.push(message),
+    event: {
+      target: {
+        closest: () => ({
+          disabled: false,
+          dataset,
+          hasAttribute: () => false,
+        }),
+      },
+    },
+    ...extra,
+  });
+  vm.runInContext(`${compiled}\nhandle(event);`, context);
+  return { toasts, context };
+}
+
+test("Explore announces the place the player chose, or says the walk cannot start", () => {
+  const spots = [
+    { id: "garden", name: "Pocket Garden" },
+    { id: "playground", name: "Dragon Playground" },
+  ];
+  const explore = (go: boolean, away = false, arrived = false) => {
+    const walked: string[] = [];
+    const modal = { open: false };
+    const { toasts } = click(
+      { action: "go-destination" },
+      {
+        spots,
+        is2d: false,
+        save: { away },
+        modal,
+        body: { querySelector: () => ({ value: "garden" }) },
+        close: () => {},
+        world: {
+          go: (id: string) => {
+            walked.push(id);
+            modal.open = arrived;
+            return go;
+          },
+        },
+      },
+    );
+    return { toasts, walked };
+  };
+  const walk = explore(true);
+  assert.deepEqual(walk.walked, ["garden"]);
+  assert.deepEqual(walk.toasts, ["Heading to Pocket Garden."]);
+  // Already there: the place opens and needs no second announcement.
+  assert.deepEqual(explore(true, false, true).toasts, []);
+  assert.match(explore(false).toasts[0], /No clear path to Pocket Garden/);
+  const away = explore(true, true);
+  assert.deepEqual(away.walked, []);
+  assert.match(away.toasts[0], /You’re away/);
+});
+
+test("a claim click always answers: rewarded, already claimed, or not finished", () => {
+  const missions = [{ id: "eastside", total: 2, xp: 30 }];
+  const claim = (progress: number, claims: string[]) => {
+    const save = { claims, xp: 0 };
+    const sent: unknown[] = [];
+    const { toasts } = click(
+      { claim: "eastside" },
+      {
+        missions,
+        save,
+        missionProgress: () => progress,
+        progress: (...event: unknown[]) => sent.push(event),
+        persist: () => {},
+        open: () => {},
+      },
+    );
+    return { toasts, save, sent };
+  };
+  const done = claim(2, []);
+  assert.deepEqual(done.save, { claims: ["eastside"], xp: 30 });
+  assert.deepEqual(done.sent, [["claim", "eastside"]]);
+  assert.match(done.toasts[0], /\+30 XP/);
+  const again = claim(2, ["eastside"]);
+  assert.deepEqual(again.toasts, ["Already claimed."]);
+  assert.equal(again.save.xp, 0);
+  assert.deepEqual(again.sent, []);
+  assert.deepEqual(claim(1, []).toasts, ["Not finished yet. Keep going!"]);
+});

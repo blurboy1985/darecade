@@ -13,6 +13,17 @@ export function blocked(x: number, z: number, obstacles: Obstacle[]) {
     )
   );
 }
+/**
+ * Whether passing a spot counts as visiting it. On a walk to a chosen spot
+ * only that spot does, so the places on the way are not announced instead.
+ */
+export function visitsOnWalk(
+  spot: string,
+  pending: string,
+  spots: readonly { id: string }[],
+) {
+  return pending === spot || !spots.some((s) => s.id === pending);
+}
 export function route(
   start: { x: number; z: number },
   end: { x: number; z: number },

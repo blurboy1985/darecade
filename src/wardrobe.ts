@@ -98,6 +98,23 @@ export function wardrobeCards(
     })
     .join("")}</div>`;
 }
+export const hatNames = [
+  "No hat",
+  "The Kopitiam Bucket",
+  "Lilac Daydream cap",
+  "Just a Little Sprout",
+];
+/** Daily-gift and reward hats the player owns, shown with the rest of the headwear. */
+export function hatShelf(p: { hat: number; unlockedHats: number[] }) {
+  const owned = hatNames
+    .map((name, index) => ({ name, index }))
+    .filter(({ index }) => !index || p.unlockedHats.includes(index));
+  return `<section class="hat-shelf" aria-label="Your hats"><h3>Your hats</h3>${
+    owned.length > 1
+      ? `<div class="hat-options">${owned.map(({ name, index }) => `<button data-hat="${index}" aria-pressed="${p.hat === index}">${name}${p.hat === index && index ? " · wearing" : ""}</button>`).join("")}</div><p class="collection-note">Hats sit on top of any hairstyle. Trying a hairstyle below takes the hat off.</p>`
+      : '<p class="collection-note">No hats yet. Pick a free one at the Mama Shop each day, or finish a round for the Lilac cap.</p>'
+  }</section>`;
+}
 export function collectionDescription(
   collection: Collection,
   p: WardrobeProgress,

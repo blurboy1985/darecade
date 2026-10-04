@@ -108,7 +108,11 @@ export async function handleApi(
     }
     if (method === "POST" && path === "/api/auth/verify") {
       rate("verify", 12, 900000);
-      const signed = c.verifyCode(data.email, data.code);
+      const signed = c.verifyCode(data.email, data.code, {
+        switchAccount: data.switchAccount === true,
+      });
+      // No session changes until the player chooses which character to keep.
+      if (signed.conflict) return json({ conflict: signed.conflict });
       return withCookie(signed.me, signed.token);
     }
     if (method === "POST" && path === "/api/auth/login-code") {

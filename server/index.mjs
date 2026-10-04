@@ -137,7 +137,14 @@ const handler = async (req, res) => {
       }
       if (req.method === "POST" && url.pathname === "/api/auth/verify") {
         rate(req, "verify", 12, 900000);
-        const signed = community.verifyCode(data.email, data.code);
+        const signed = community.verifyCode(data.email, data.code, {
+          switchAccount: data.switchAccount === true,
+        });
+        // No session changes until the player chooses which character to keep.
+        if (signed.conflict) {
+          respond({ conflict: signed.conflict });
+          return;
+        }
         cookie(res, signed.token);
         respond(signed.me);
         return;
