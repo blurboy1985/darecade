@@ -1,0 +1,185 @@
+/* Hoops Court and Fishing Jetty rounds. */
+.outdoor-game {
+  outline: none;
+}
+.outdoor-game #run-state {
+  white-space: nowrap;
+}
+.outdoor-screen {
+  position: relative;
+  height: min(52vh, 420px);
+  min-height: 230px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: linear-gradient(#f6c98f, #d98a54);
+  box-shadow: 0 6px 0 #172e3815;
+  touch-action: none;
+  user-select: none;
+}
+.outdoor-game[data-game="fishing"] .outdoor-screen {
+  background: linear-gradient(#bfeaf0, #2aa7b0 55%, #1d7f8a);
+}
+.outdoor-view,
+.outdoor-view canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.outdoor-status {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 12px;
+  min-height: 1.4em;
+  font-weight: 800;
+  font-size: 15px;
+  text-align: center;
+  color: #fffaf0;
+  text-shadow: 0 2px 0 #172e38aa;
+  pointer-events: none;
+}
+.outdoor-meter {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
+  pointer-events: none;
+}
+.shot-meter {
+  height: 40px;
+  border-radius: 20px;
+  background: #24343fe6;
+  overflow: hidden;
+  box-shadow: 0 0 0 3px #fff7d7;
+}
+.shot-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: #7fd66f;
+}
+/* The swish band is the middle third of the green. */
+.shot-zone i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 33%;
+  width: 34%;
+  background: #ffe27a;
+}
+.shot-marker {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  width: 8px;
+  margin-left: -4px;
+  border-radius: 4px;
+  background: #fff7d7;
+  box-shadow: 0 0 0 2px #24343f;
+}
+.outdoor-game[data-flight="true"] .shot-meter {
+  opacity: 0.45;
+}
+.outdoor-game[data-hurry="true"] .time-pill {
+  background: #ff7a5c;
+  color: #2b1612;
+}
+.reel-meter {
+  display: grid;
+  gap: 6px;
+}
+.reel-meter span {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #fffaf0;
+  text-shadow: 0 1px 0 #172e38aa;
+}
+.reel-meter i {
+  height: 14px;
+  border-radius: 7px;
+  background: #172e38cc;
+  overflow: hidden;
+  box-shadow: 0 0 0 2px #fff7d7;
+}
+.reel-meter b {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: #8ff0c8;
+}
+#reel-tension {
+  background: linear-gradient(90deg, #ffe27a, #ff5a4a);
+}
+.outdoor-game:not([data-state="reeling"]) .reel-meter {
+  opacity: 0.35;
+}
+.outdoor-game[data-surging="true"][data-state="reeling"] .reel-meter i {
+  box-shadow: 0 0 0 2px #ff7a5c;
+}
+.outdoor-action {
+  display: block;
+  width: 100%;
+  min-height: 64px;
+  margin-top: 12px;
+  border: 0;
+  border-radius: 16px;
+  background: #c3e99a;
+  color: #2e483d;
+  font:
+    800 18px "Space Grotesk",
+    sans-serif;
+  letter-spacing: 1px;
+  box-shadow: 0 5px 0 #7ea664;
+  touch-action: none;
+  user-select: none;
+}
+.outdoor-action.held {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 #7ea664;
+}
+.outdoor-action:disabled {
+  opacity: 0.5;
+}
+.outdoor-game[data-surging="true"][data-state="reeling"] .outdoor-action {
+  background: #ff9a7c;
+  box-shadow: 0 5px 0 #b8553f;
+}
+.outdoor-game[data-state="bite"] .outdoor-action {
+  background: #ffe27a;
+  box-shadow: 0 5px 0 #c59a2e;
+}
+.outdoor-game[data-status="ready"] .outdoor-action,
+.outdoor-game[data-status="ready"] .outdoor-meter {
+  visibility: hidden;
+}
+.outdoor-game .game-cover {
+  z-index: 2;
+}
+.outdoor-game .game-cover p {
+  max-width: 380px;
+}
+/* Without the 3D scene the meters sit in the middle of a plain backdrop. */
+.simple-outdoor .outdoor-meter {
+  bottom: 50%;
+  transform: translateY(50%);
+}
+.outdoor-summary {
+  margin: 4px 0 0;
+  font-weight: 700;
+}
+@media (max-height: 620px) {
+  .outdoor-screen {
+    height: 44vh;
+    min-height: 170px;
+  }
+  .outdoor-action {
+    min-height: 50px;
+  }
+}

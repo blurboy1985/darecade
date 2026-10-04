@@ -67,6 +67,8 @@ test("malformed saves recover without invalid avatar parts or duplicate collecti
     hop: 0,
     swarm: 0,
     coast: 0,
+    hoops: 0,
+    fishing: 0,
   });
   assert.equal(s.sound, true);
   assert.deepEqual(normalise(null, f), f);

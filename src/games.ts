@@ -1,4 +1,4 @@
-import type { GameId } from "./state";
+import type { CabinetId } from "./catalog";
 import { games } from "./catalog";
 import type { Sfx } from "./audio";
 import type { FxEvent } from "./arcade-fx";
@@ -29,7 +29,7 @@ export class ArcadeGame extends Simulation {
   onTime: ((secondsLeft: number) => void) | null = null;
   onPause: ((paused: boolean) => void) | null = null;
   constructor(
-    id: Exclude<GameId, "coast">,
+    id: Exclude<CabinetId, "coast">,
     public container: HTMLElement,
     public finish: (score: number, replay: Replay) => void,
     public sound: (name: Sfx) => void,

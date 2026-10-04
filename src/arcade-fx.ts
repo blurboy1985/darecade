@@ -36,6 +36,22 @@ const themes: Record<
     shapes: string[];
   }
 > = {
+  hoops: {
+    sky: "#2b1d35",
+    fog: "#59365c",
+    grid: "#ffa45c",
+    sunTop: "#ffe08a",
+    sunBottom: "#ff7a4d",
+    shapes: ["#ffa45c", "#ffe08a", "#7fd6c2", "#f58fb0"],
+  },
+  fishing: {
+    sky: "#0b2a3c",
+    fog: "#17506a",
+    grid: "#7fe3e0",
+    sunTop: "#d8fff1",
+    sunBottom: "#59c8d8",
+    shapes: ["#7fe3e0", "#d8fff1", "#ffd67a", "#8fd18f"],
+  },
   coast: {
     sky: "#082c3b",
     fog: "#155064",

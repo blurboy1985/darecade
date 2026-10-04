@@ -1,5 +1,16 @@
 # Darecade verification — 3 October 2026
 
+## Hoops and Fishing rounds, 4 October 2026
+
+See [East Side](EAST-SIDE.md) for the behaviour. Not deployed.
+
+- **135 Node tests passed, none failed, and the two browser checks that need `DARECADE_TEST_CHROMIUM` were skipped; 7/7 Cloudflare integration tests passed.** TypeScript and the Vite build passed with the existing large-bundle warning. The 3D scene is a separate 9.6 kB chunk loaded when a round opens.
+- New tests cover replay determinism for both rounds, sharp play outscoring loose play, the shot clock, the narrowing and sliding green, hooking early and late, a snapped line, verified album and hoops XP, dares on the defender's seed, removal of the unverified progress events, and no medal boards.
+- **Fishing lag.** Each catch used to send a progress event, and every profile reply rebuilt the 3D avatar. A round now sends nothing until it ends, and the avatar is rebuilt only when a look field changes. In the browser a full fishing round ran 8,638 frames with none over 50 ms.
+- Tested in an isolated local Chromium on port 4194 with a synthetic guest and scripted Space-key input. Hoops: 49, then 50 after the difficulty tune, both 10 of 10 and server-verified. Fishing: 200 from two koi, a catfish and a tilapia, server-verified. The court, ball arc, net, sparks and streak flame, and the pond, rod, float, ripples, fish shadow and leaping fish were seen on screen. No page errors.
+- **390×844**: no horizontal overflow and no modal scrolling in a hoops round.
+- **Not verified:** how hard either round is for a person, since the scripted player reacts within a frame; a dare between two real accounts in the browser (covered by the server test only); the simple view; touch input and performance on a physical phone; fishing at phone size.
+
 ## Concise onboarding and menus, 4 October 2026
 
 The world has Play, Explore and Menu. Nearby interaction, Stop and I’m back replace a main action rather than adding another. Player inspection hides the dock. Desktop and phone use the same three-action structure.

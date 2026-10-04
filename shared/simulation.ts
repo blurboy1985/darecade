@@ -1,5 +1,6 @@
 import { CoastRace, RACE_TICKS } from "./racing.ts";
 import { HopRun, StarFlight } from "../src/action-games.ts";
+import { FishingRound, HoopsRound } from "./outdoor.ts";
 export const RULES_VERSION = 1;
 /** 3: winding route and five seeded items. 2: three laps on the old loop. */
 export const COAST_RULES_VERSION = 3;
@@ -32,13 +33,30 @@ export class Simulation {
 
   race: CoastRace | null;
   action: HopRun | StarFlight | null;
+  outdoor: HoopsRound | FishingRound | null;
   id: string;
   constructor(id: string, seed = 314159) {
-    if (!["noodle", "brick", "hop", "swarm", "coast"].includes(id))
+    if (
+      ![
+        "noodle",
+        "brick",
+        "hop",
+        "swarm",
+        "coast",
+        "hoops",
+        "fishing",
+      ].includes(id)
+    )
       throw Error("Invalid game.");
     this.id = id;
     this.seed = seed >>> 0;
     this.race = id === "coast" ? new CoastRace(this.seed) : null;
+    this.outdoor =
+      id === "hoops"
+        ? new HoopsRound(this.seed)
+        : id === "fishing"
+          ? new FishingRound(this.seed)
+          : null;
     this.action =
       id === "hop" ? new HopRun() : id === "swarm" ? new StarFlight() : null;
     if (this.action instanceof StarFlight) this.action.seed = this.seed;
@@ -62,6 +80,15 @@ export class Simulation {
       this.elapsed = this.ticks / TICK_RATE;
       this.score = this.race.score;
       this.ended = this.race.ended;
+      return;
+    }
+    if (this.outdoor) {
+      // One control: press to shoot, cast and hook; hold to reel.
+      this.outdoor.advance(jump > 0);
+      this.ticks = this.outdoor.ticks;
+      this.elapsed = this.ticks / TICK_RATE;
+      this.score = this.outdoor.score;
+      this.ended = this.outdoor.ended || this.ticks >= 3600;
       return;
     }
     this.axis = this.id === "brick" && px >= 0 ? 0 : dx;
@@ -260,5 +287,6 @@ export function replayRun(game: string, seed: number, replay: Replay) {
     score: sim.score,
     ticks: sim.ticks,
     ...(sim.race ? { race: sim.race.result() } : {}),
+    ...(sim.outdoor ? { outdoor: sim.outdoor.result() } : {}),
   };
 }
