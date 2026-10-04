@@ -51,7 +51,6 @@ import {
   type ActivityId,
 } from "./catalog";
 import { residents } from "./neighbourhood";
-import { interactionSpecs } from "./interactions";
 import {
   readSave,
   completeWelcomeRound,
@@ -67,6 +66,13 @@ import {
 } from "./state";
 import "./arcade-theme.css";
 import "./wardrobe.css";
+import "./lobby-ui.css";
+import {
+  menuPages,
+  isMenuPage,
+  firstVisitCopy,
+  pageChoices,
+} from "./lobby-menu";
 
 const icons: Record<string, string> = {
   game: '<rect x="3" y="7" width="18" height="13" rx="4"/><path d="M7 13h5m-2.5-2.5v5M16 12h.01M18 15h.01M9 7V4h6"/>',
@@ -98,11 +104,18 @@ let game: ArcadeGame | RacingGame | null = null;
 let wardrobeTab: WardrobeTab = "clothing";
 let wardrobeCollection: Collection = "starter";
 let tryingLook: TryOn = null;
+let gamePage = 0;
+let outdoorPage = 0;
+let emotePage = 0;
+let questPage = 0;
 // True while a new player is led from their first result through naming and
 // dressing their character, on the way to saving it.
 let setupGuide = false;
 let boardTab = "week";
 let boardGame: GameId = "noodle";
+const challengeGameByPlayer = new Map<string, GameId>();
+let neighbourRosterSignature = "";
+let dareView: "home" | "open" | "neighbour" | "post" = "home";
 let disposeCelebration: (() => void) | null = null;
 let arcadeFx: ArcadeFx | null = null;
 function disposeArcadeFx() {
@@ -184,18 +197,13 @@ let activeMinutes = 0;
 const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
   <div id="world"></div><div class="vignette" aria-hidden="true"></div>
-  <header class="topbar"><a class="brand" href="#" aria-label="Darecade home"><span class="brand-mark">d<span>★</span></span><span>DARECADE<span class="brand-caption">MEET YOU DOWNSTAIRS.</span></span></a><div class="location-pill"><span class="status-dot"></span>THE NEIGHBOURHOOD<span class="divider"></span><span id="sgt-clock">SGT</span></div><button class="world-pill" data-open="worlds" aria-label="Worlds"><span id="current-world">Joining…</span></button><div class="top-actions"><span class="demo-tag">LOCAL PREVIEW</span><button class="coin-pill" data-open="quests" aria-label="View pixel coin hunt"><span class="pixel-coin">✦</span><b id="coin-count">0 / 5</b></button><button class="icon-button" id="sound-toggle" aria-label="Turn sound on">${icon("mute")}</button><button class="icon-button" data-open="settings" aria-label="Settings">${icon("settings")}</button></div></header>
-  <main class="hud"><section class="welcome-panel"><div class="eyebrow"><span class="tiny-spark">✦</span> MEET YOU DOWNSTAIRS</div><h1>Good times.<br>Great company.</h1><button class="primary" data-open="arcade">Play ${icon("arrow")}</button></section>
-  <button class="quest-card" data-open="quests" aria-label="Open pixel coin hunt"><span class="quest-icon">${icon("compass")}</span><span class="quest-copy"><span class="eyebrow">SIDE QUEST</span><strong>Pixel hunt</strong><span>Find 5 coins</span><span class="quest-progress" id="coin-dots">○ ○ ○ ○ ○</span></span><span class="card-arrow">↗</span></button>
-  <div class="right-rail"><button class="gift-teaser" data-open="shop" aria-label="Choose your daily gift at the Mama Shop"><span class="gift-illustration">${icon("gift")}<i>✦</i></span><span class="eyebrow" id="gift-eyebrow">DAILY GIFT</span><strong id="gift-title">Free gift</strong><span id="gift-caption">At the Mama Shop</span><span class="gift-link">Open ${icon("arrow")}</span></button><button class="map-card" data-open="map" aria-label="Open neighbourhood map"><div class="mini-map" aria-hidden="true"><i class="map-building m1"></i><i class="map-building m2"></i><i class="map-building m3"></i><i class="map-tree t1"></i><i class="map-tree t2"></i><i class="map-you"></i><span>N ↑</span></div><span>${icon("pin")} The neighbourhood <b>↗</b></span></button></div>
-  <div class="scene-label label-arcade"><button data-walk="arcade">${icon("game")} Arcade Row <span>5 games</span></button></div>
-  <div class="world-controls"><button id="rotate-left" aria-label="Rotate view left">↶</button><button id="reset-view" aria-label="Reset view">${icon("compass")}</button><button id="rotate-right" aria-label="Rotate view right">↷</button><span></span><button id="zoom-out" aria-label="Zoom out">−</button><button id="zoom-in" aria-label="Zoom in">+</button></div>
-  <button id="interaction" class="interaction" hidden><kbd>E</kbd><span></span>${icon("arrow")}</button>
-  <div class="move-hint"><kbd>W</kbd><span><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><p>walk <i>·</i> click to move</p></div>
+  <header class="topbar"><a class="brand" href="#" aria-label="Darecade home"><span class="brand-mark">d<span>★</span></span><span>DARECADE</span></a><div class="location-pill"><span class="status-dot"></span><span id="current-world">Joining…</span><span class="divider"></span><span id="sgt-clock">SGT</span></div><span class="demo-tag" role="status">Connecting…</span></header>
+  <main class="hud"><section class="welcome-panel" aria-label="Welcome"></section>
+  <div class="move-hint"><kbd>W</kbd><span><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><p>Move <i>·</i> tap to walk</p></div>
   <div id="joystick" class="joystick" role="group" aria-label="Drag to walk"><span></span></div>
   <div id="fallback" class="fallback" hidden></div>
   </main>
-  <footer class="bottom-bar"><button class="profile" data-open="wardrobe"><span class="avatar-icon" id="avatar-icon"><i></i></span><span><strong id="player-name">New neighbour</strong><small id="medal-points">0 MEDAL POINTS</small><span id="level-label">LEVEL 1 · NEW KID ON THE BLOCK</span><span class="xp-track"><i id="xp-fill"></i></span></span><span class="profile-edit">✎</span></button><nav class="dock" aria-label="Lobby activities"><button data-open="arcade">${icon("game")}<span>Play</span></button><button class="selected" data-open="map">${icon("compass")}<span>Explore</span></button><button data-open="wardrobe">${icon("shirt")}<span>My look</span></button></nav><div class="footer-note"><span><span id="quality-note">3D LOBBY</span></span></div></footer>
+  <footer class="bottom-bar"><div class="profile"><span class="avatar-icon" id="avatar-icon"><i></i></span><span><strong id="player-name">New neighbour</strong><small id="medal-points">0 MEDALS</small><span id="level-label">LEVEL 1</span><span class="xp-track"><i id="xp-fill"></i></span></span></div><nav class="dock lobby-dock" aria-label="Main actions"><button class="selected" data-open="arcade" data-main-action>${icon("game")}<span>Play</span></button><button data-open="map" data-main-action>${icon("compass")}<span>Explore</span></button><button id="interaction" data-main-action hidden>${icon("pin")}<span></span></button><button class="phone-more" data-open="phone-menu" data-main-action>${icon("settings")}<span>Menu</span></button></nav><span class="footer-note" id="quality-note">3D WORLD</span></footer>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <dialog id="modal"><div class="modal-top"><span class="eyebrow" id="modal-kicker">THE NEIGHBOURHOOD</span><button id="close-modal" class="close-button" aria-label="Close panel">×</button></div><div id="modal-body"></div></dialog>
   <div id="loading"><span class="brand-mark">d<span>★</span></span><h2>See you downstairs.</h2><p>Loading…</p><span class="loading-line"></span></div>
@@ -204,19 +212,7 @@ document
   .querySelector(".hud")!
   .insertAdjacentHTML(
     "beforeend",
-    `<div class="neighbour-tools"><button id="camera-toggle" aria-label="Switch camera perspective">${icon("camera")}<span>Third person</span><kbd>V</kbd></button><button data-open="neighbours">${icon("smile")}<span>Neighbours</span></button><button data-open="away">${icon("leaf")}<span>Step away</span></button></div><aside id="inspector" class="inspector" aria-label="Neighbour inspection" hidden></aside><div id="away-banner" class="away-banner" hidden><span></span><button data-action="return-lobby">I’m back →</button></div><div id="camera-hint" class="camera-hint" hidden>Drag to look · scroll / pinch to zoom · WASD to walk</div>`,
-  );
-document
-  .querySelector(".dock")!
-  .insertAdjacentHTML(
-    "beforeend",
-    `<button class="phone-more" data-open="phone-menu">${icon("settings")}<span>More</span></button>`,
-  );
-document
-  .querySelector(".hud")!
-  .insertAdjacentHTML(
-    "beforeend",
-    '<aside id="phone-next" class="phone-next" hidden></aside>',
+    `<aside id="inspector" class="inspector" aria-label="Neighbour inspection" hidden></aside><div id="away-banner" class="away-banner" hidden><span></span><button data-action="return-lobby">I’m back</button></div><div id="camera-hint" class="camera-hint" hidden></div>`,
   );
 const modal = document.querySelector<HTMLDialogElement>("#modal")!;
 const body = document.querySelector<HTMLDivElement>("#modal-body")!;
@@ -274,38 +270,16 @@ function updateMusic() {
 let shownLevel = 0;
 function renderStats() {
   audio.configure(save.sound, save.music);
-  document.querySelector("#coin-count")!.textContent =
-    `${save.coins.length} / 5`;
-  document.querySelector("#coin-dots")!.innerHTML = Array.from(
-    { length: 5 },
-    (_, i) => `<i class="${i < save.coins.length ? "found" : ""}">✦</i>`,
-  ).join("");
   const level = 1 + Math.floor(save.xp / 100);
   if (shownLevel && level > shownLevel) beep("levelup");
   shownLevel = level;
   document.querySelector("#level-label")!.textContent =
-    `LEVEL ${1 + Math.floor(save.xp / 100)} · ${save.xp >= 200 ? "NEIGHBOURHOOD REGULAR" : "NEW KID ON THE BLOCK"}`;
+    `LEVEL ${1 + Math.floor(save.xp / 100)}`;
   (document.querySelector("#xp-fill") as HTMLElement).style.width =
     `${save.xp % 100}%`;
   (document.querySelector("#avatar-icon") as HTMLElement).style.setProperty(
     "--outfit",
     outfits[save.outfit],
-  );
-  const claimed = save.giftDay === singaporeDay();
-  document.querySelector("#gift-title")!.textContent = claimed
-    ? "Collected!"
-    : "Free gift";
-  document.querySelector("#gift-caption")!.textContent = claimed
-    ? "In your wardrobe"
-    : "At the Mama Shop";
-  document.querySelector("#gift-eyebrow")!.textContent = claimed
-    ? "DAILY GIFT ✓"
-    : "DAILY GIFT";
-  const sound = document.querySelector("#sound-toggle")!;
-  sound.innerHTML = icon(save.sound ? "sound" : "mute");
-  sound.setAttribute(
-    "aria-label",
-    save.sound ? "Turn sound off" : "Turn sound on",
   );
   document.documentElement.classList.toggle("reduced", save.reduced);
 }
@@ -355,7 +329,7 @@ function openShell(kicker: string, keepPreview = false) {
   dismissInspector();
   game?.dispose();
   game = null;
-  lastFocus = document.activeElement as HTMLElement;
+  if (!modal.open) lastFocus = document.activeElement as HTMLElement;
   document.querySelector("#modal-kicker")!.textContent = kicker;
   modal.className = "";
   if (!modal.open) {
@@ -385,10 +359,21 @@ function close() {
     world.paused = firstRacePending();
     world.keys.clear();
   }
-  lastFocus?.focus({ preventScroll: true });
+  const returnFocus = lastFocus?.isConnected
+    ? lastFocus
+    : document.querySelector<HTMLElement>(
+        firstRacePending()
+          ? `${is2d ? "#fallback-welcome" : ".welcome-panel"} [data-action="welcome-start"]`
+          : '.lobby-dock [data-open="phone-menu"]',
+      );
+  returnFocus?.focus({ preventScroll: true });
 }
 function actionButton(action: string, label: string, klass = "primary") {
   return `<button class="${klass}" data-action="${action}">${label}</button>`;
+}
+function pager(page: number, total: number, target: string) {
+  if (total < 2) return "";
+  return `<nav class="choice-pager" aria-label="${target} pages"><button class="secondary" data-page="${target}" data-page-index="${page - 1}" ${page === 0 ? "disabled" : ""}>← Back</button><span aria-live="polite">${page + 1} / ${total}</span><button class="secondary" data-page="${target}" data-page-index="${page + 1}" ${page === total - 1 ? "disabled" : ""}>Next →</button></nav>`;
 }
 function cards() {
   const art = {
@@ -400,14 +385,24 @@ function cards() {
       '<span class="star-ship">▲</span><span class="star-enemy">▼</span><i>✦ · ✧ · ✦</i>',
     coast: "<span>🏎</span><b>PALM BAY</b><i>05</i>",
   };
-  return `<div class="game-grid four-games">${gameIds.map((id) => `<button class="game-card ${id}" data-game="${id}"><div class="game-art ${id}-art">${art[id]}</div><span class="eyebrow">${games[id].genre}</span><h3>${games[id].name}</h3><p>${games[id].description}</p><div><span>${id === "coast" ? "3 laps" : "60s"} · BEST ${formatScore(id, shared?.self.best[id] ?? 0)}</span>${icon("arrow")}</div></button>`).join("")}</div>`;
+  const choices = pageChoices(gameIds, gamePage);
+  return `<div class="game-grid compact-games">${choices.items.map((id) => `<button class="game-card ${id}" data-game="${id}"><div class="game-art ${id}-art">${art[id]}</div><span class="eyebrow">${games[id].genre}</span><h3>${games[id].name}</h3><div><span>${id === "coast" ? "3 laps" : "60s"} · BEST ${formatScore(id, shared?.self.best[id] ?? 0)}</span>${icon("arrow")}</div></button>`).join("")}</div>${pager(choices.page, choices.total, "games")}`;
 }
 function open(id: string) {
-  if (id !== "wardrobe") {
-    setupGuide = false;
-    tryingLook = null;
-  }
-  if (firstRacePending() && !["settings", "support"].includes(id)) {
+  if (id !== "wardrobe") { setupGuide = false; tryingLook = null; }
+  if (
+    firstRacePending() &&
+    ![
+      "settings",
+      "support",
+      "preferences",
+      "controls",
+      "safety-menu",
+      "neighbours",
+      "away",
+    ].includes(id) &&
+    !id.startsWith("player:")
+  ) {
     void startGame("coast");
     return;
   }
@@ -432,7 +427,15 @@ function open(id: string) {
     return;
   }
   if (id.startsWith("dare")) {
-    openDares();
+    openDares(
+      id === "dares-open"
+        ? "open"
+        : id === "dares-neighbour"
+          ? "neighbour"
+          : id === "dares-post"
+            ? "post"
+            : "home",
+    );
     return;
   }
   if (id === "bell") {
@@ -494,42 +497,9 @@ function open(id: string) {
   } else if (id === "worlds") {
     socialPanel = "worlds";
     void worldPicker.open();
-  } else if (id === "phone-menu") {
-    body.innerHTML = `<h2>More to discover</h2><p class="lead">Your rewards, neighbours and settings.</p>${[
-      [
-        "Rewards & progress",
-        [
-          ["board", "Rankings & medals"],
-          ["quests", "Quests & coin hunt"],
-          ["shop", "Daily gift"],
-          ["support", "Support & purchases"],
-          ["album", "Sticker album"],
-        ],
-      ],
-      [
-        "Play together",
-        [
-          ["dares", "Dares"],
-          ["neighbours", "Neighbours"],
-          ["worlds", "Worlds & friends"],
-          ["emotes", "Say hello"],
-        ],
-      ],
-      [
-        "Around the neighbourhood",
-        [
-          ["surroundings", "Outdoor activities"],
-          ["away", "Step away"],
-        ],
-      ],
-    ]
-      .map(
-        ([title, links]) =>
-          `<section class="menu-section"><h3>${title}</h3><div class="phone-menu-grid">${(links as string[][]).map(([key, label]) => `<button class="secondary" data-open="${key}">${label}</button>`).join("")}</div></section>`,
-      )
-      .join(
-        "",
-      )}<section class="menu-section"><h3>Preferences</h3><div class="phone-menu-grid"><button class="secondary" data-open="settings">Sound, camera & settings</button><button class="secondary" data-account>Account & privacy</button></div></section>${playtestEnabled ? '<button class="secondary" data-action="phone-test">Phone test feedback</button>' : ""}`;
+  } else if (isMenuPage(id)) {
+    const page = menuPages[id];
+    body.innerHTML = `${page.back ? (firstRacePending() && id === "settings" ? '<button class="text-button menu-back" data-action="close">← Back</button>' : `<button class="text-button menu-back" data-open="${page.back}">← Back</button>`) : ""}<h2>${page.title}</h2><div class="simple-menu" aria-label="${page.title}">${page.actions.map((action) => `<button class="menu-choice" ${action.target === "account" ? "data-account" : `data-open="${action.target}"`} data-main-action>${icon(action.icon)}<span>${action.label}</span>${icon("arrow")}</button>`).join("")}</div>`;
   } else if (id === "arcade") {
     body.innerHTML = `<h2>Pick a game!</h2>${cards()}<p class="fine-print">Top 3 daily scores win medals at midnight.</p>`;
   } else if (id === "shop") {
@@ -610,14 +580,17 @@ function open(id: string) {
       }
     };
   } else if (id === "map") {
-    body.innerHTML = `<h2>Explore</h2><div class="zone-grid">${spots.map((s, i) => `<button data-walk="${s.id}"><span class="zone-number">${String(i + 1).padStart(2, "0")}</span>${icon(["game", "trophy", "gift", "shirt", "trophy", "leaf", "cat", "star", "trophy", "leaf", "compass"][i])}<strong>${s.name}</strong><span>${save.visited.includes(s.id) ? "✓ FOUND" : "GO →"}</span></button>`).join("")}</div><div class="note">${is2d ? "2D lobby · all games and rewards work." : "WASD · click to walk · E interact · Space jump"}</div>`;
+    body.innerHTML = `<h2>Explore</h2><label class="field-label" for="destination">Choose a spot</label><select class="destination-select" id="destination">${spots.map((spot) => `<option value="${spot.id}">${spot.name}</option>`).join("")}</select><div class="simple-menu"><button class="menu-choice" data-action="go-destination" data-main-action>${icon("pin")}<span>Go there</span>${icon("arrow")}</button><button class="menu-choice" data-open="surroundings" data-main-action>${icon("star")}<span>Play outside</span>${icon("arrow")}</button><button class="menu-choice" data-open="worlds" data-main-action>${icon("compass")}<span>Change world</span>${icon("arrow")}</button></div>`;
   } else if (id === "quests") {
-    body.innerHTML = `<h2>Quests</h2><div class="hunt-panel"><span class="big-coin">✦</span><div><h3>Pixel hunt</h3><p>Find 5 coins → Sprout hat + 50 XP</p><strong>${save.coins.length} / 5</strong></div></div>${is2d ? '<p class="fine-print">Needs 3D. Or grab a free Sprout hat at the Mama Shop.</p>' : ""}<div class="mission-list">${missions
+    const choices = pageChoices(missions, questPage);
+    body.innerHTML = `<h2>Quests</h2><div class="hunt-panel"><span class="big-coin">✦</span><div><h3>Pixel hunt</h3><p>Find 5 coins → Sprout hat + 50 XP</p><strong>${save.coins.length} / 5</strong></div></div>${is2d ? '<p class="fine-print">Needs 3D. Or grab a free Sprout hat at the Mama Shop.</p>' : ""}<div class="mission-list">${choices.items
       .map((m) => {
         const progress = missionProgress(save, m.id);
         return `<div><span class="mission-check ${progress >= m.total ? "complete" : ""}">${progress >= m.total ? "✓" : icon("star")}</span><span><strong>${m.name}</strong><small>${m.detail} · ${progress}/${m.total}</small></span><button data-claim="${m.id}" ${progress < m.total || save.claims.includes(m.id) ? "disabled" : ""}>${save.claims.includes(m.id) ? "CLAIMED" : `+${m.xp} XP`}</button></div>`;
       })
-      .join("")}</div><p class="fine-print">Coins move every Monday (SGT).</p>`;
+      .join(
+        "",
+      )}</div>${pager(choices.page, choices.total, "quests")}<p class="fine-print">Coins move every Monday (SGT).</p>`;
   } else if (id === "album") {
     const stickers = [
       [
@@ -640,35 +613,39 @@ function open(id: string) {
     socialPanel = "board";
     renderSharedBoard();
   } else if (id === "emotes") {
-    body.innerHTML = `<h2>Emotes</h2><div class="emote-grid">${[
-      ["wave", "👋", "Hello, neighbour"],
-      ["cheer", "🙌", "Big cheer"],
-      ["dance", "🪩", "Tiny dance party"],
-      ["jump", "⚡", "Jump for joy"],
-      ["victory", "✌", "Nailed it"],
-      ["think", "💭", "Deep thoughts"],
-    ]
+    const choices = pageChoices(
+      [
+        ["wave", "👋", "Hello, neighbour"],
+        ["cheer", "🙌", "Big cheer"],
+        ["dance", "🪩", "Tiny dance party"],
+        ["jump", "⚡", "Jump for joy"],
+        ["victory", "✌", "Nailed it"],
+        ["think", "💭", "Deep thoughts"],
+      ],
+      emotePage,
+    );
+    body.innerHTML = `<h2>Emotes</h2><div class="emote-grid">${choices.items
       .map(
         ([id, e, n]) =>
           `<button data-emote="${id}"><span>${e}</span><strong>${n}</strong></button>`,
       )
-      .join("")}</div>`;
+      .join("")}</div>${pager(choices.page, choices.total, "emotes")}`;
   } else if (id === "neighbours") {
     socialPanel = "neighbours";
     renderSharedNeighbours();
   } else if (id === "away") {
-    body.innerHTML = `<h2>Step away</h2><p class="lead">What should your avatar do while you’re gone?</p><div class="activity-list" role="group" aria-label="Away activity">${Object.entries(
+    body.innerHTML = `<h2>Step away</h2><label class="field-label" for="away-activity">While you’re gone</label><select class="destination-select" id="away-activity">${Object.entries(
       activities,
     )
       .map(
-        ([id, a]) =>
-          `<button data-away="${id}" aria-pressed="${save.awayActivity === id}" class="${save.awayActivity === id ? "chosen" : ""}"><span>${a.icon}</span><span><strong>${a.name}</strong><small>${a.description}</small></span><b>${save.awayActivity === id ? "✓" : "○"}</b></button>`,
+        ([key, activity]) =>
+          `<option value="${key}" ${key === save.awayActivity ? "selected" : ""}>${activity.name}</option>`,
       )
       .join(
         "",
-      )}</div><div class="button-row">${actionButton("start-away", "Save & step away →")}${actionButton("save-away", "Save preference", "secondary")}</div><p class="fine-print">Away time earns no XP. Others can dare your best score; you never lose points.</p>`;
-  } else if (id === "settings") {
-    body.innerHTML = `<button class="secondary" data-account>Account & privacy →</button><h2>Settings</h2><div class="phone-menu-grid"><button class="secondary" data-action="phone-camera">Switch camera view</button><button class="secondary" data-action="phone-reset">Reset camera</button></div><label class="settings-row"><span><strong>Sound effects</strong><small>Blips and sparkles</small></span><input id="setting-sound" type="checkbox" ${save.sound ? "checked" : ""}></label><label class="settings-row"><span><strong>Background music</strong><small>Lo-fi, pads and chiptune</small></span><input id="setting-music" type="checkbox" ${save.music ? "checked" : ""} ${save.sound ? "" : "disabled"}></label><label class="settings-row"><span><strong>Reduce motion</strong><small>Calmer effects</small></span><input id="setting-reduced" type="checkbox" ${save.reduced ? "checked" : ""}></label><label class="settings-row"><span><strong>Time of day</strong><small>SGT or pick a mood</small></span><select id="setting-light">${[
+      )}</select><div class="button-row">${actionButton("start-away", "Step away")}${actionButton("save-away", "Save choice", "secondary")}</div><p class="fine-print">Away time earns no XP.</p>`;
+  } else if (id === "preferences") {
+    body.innerHTML = `<button class="text-button menu-back" data-open="settings">← Back</button><h2>Preferences</h2><label class="settings-row"><span><strong>Sound effects</strong><small>Blips and sparkles</small></span><input id="setting-sound" type="checkbox" ${save.sound ? "checked" : ""}></label><label class="settings-row"><span><strong>Background music</strong><small>Lo-fi, pads and chiptune</small></span><input id="setting-music" type="checkbox" ${save.music ? "checked" : ""} ${save.sound ? "" : "disabled"}></label><label class="settings-row"><span><strong>Reduce motion</strong><small>Calmer effects</small></span><input id="setting-reduced" type="checkbox" ${save.reduced ? "checked" : ""}></label><label class="settings-row"><span><strong>Time of day</strong><small>SGT or pick a mood</small></span><select id="setting-light">${[
       ["auto", "Follow SGT"],
       ["day", "Daylight"],
       ["dusk", "Golden hour"],
@@ -680,33 +657,32 @@ function open(id: string) {
       )
       .join(
         "",
-      )}</select></label><div class="settings-row"><span><strong>Lightweight lobby</strong><small>No 3D world</small></span>${actionButton("2d", is2d ? "Return to 3D" : "Use 2D", "secondary")}</div><div class="note">Progress saves to the server. Keep cookies to keep your guest profile. Data, sign-in and deletion live in Account & privacy. Style tokens come from play. Optional purchases and donations live in Support & purchases.</div>`;
+      )}</select></label><div class="settings-row"><span><strong>Lightweight lobby</strong><small>No 3D world</small></span>${actionButton("2d", is2d ? "Return to 3D" : "Use 2D", "secondary")}</div>${playtestEnabled ? '<details class="menu-details"><summary>Phone test</summary><button class="secondary" data-action="phone-test">Give feedback</button></details>' : ""}`;
+  } else if (id === "controls") {
+    body.innerHTML = `<button class="text-button menu-back" data-open="settings">← Back</button><h2>Camera & controls</h2><p>WASD or tap to walk. E to interact. Space to jump.</p><label class="settings-row"><span>View</span><select id="setting-camera"><option value="third" ${save.cameraMode === "third" ? "selected" : ""}>Third person</option><option value="isometric" ${save.cameraMode === "isometric" ? "selected" : ""}>Bird’s-eye</option></select></label><label class="settings-row"><span>Zoom</span><input id="setting-zoom" type="range" min="0" max="100" value="50" data-previous="50" aria-label="Camera zoom"></label><div class="camera-buttons"><button class="secondary" data-action="rotate-left" aria-label="Rotate view left">↶</button><button class="secondary" data-action="reset-view">Reset view</button><button class="secondary" data-action="rotate-right" aria-label="Rotate view right">↷</button></div>`;
   } else if (id === "surroundings") {
-    body.innerHTML = `<h2>Play outside</h2><div class="outdoor-grid">${[
-      "dragon",
-      "swing",
-      "bench3",
-      "pet",
-      "bell",
-      "cabinet-noodle",
-      "cabinet-coast",
-    ]
-      .map((key, i) => {
-        const s = interactionSpecs.find((s) => s.id === key)!;
-        return `<button data-environment="${key}"><span>${["🐉", "✦", "📖", "🐈", "🔔", "🕹", "🏎"][i]}</span><strong>${s.title}</strong><small>${["Climb & slide", "Swing high", "Read a book", "Pet Kopi", "Ring ding!", "Play a round", "Race your avatar"][i]}</small><b>GO →</b></button>`;
-      })
-      .join("")}</div><h3>East Side</h3><div class="outdoor-grid">${[
-      ["fishing", "🎣", "Fishing Jetty", "Wait for a bite"],
-      ["hoops", "🏀", "Hoops Court", "Ten free throws"],
-      ["plots", "🌱", "Community Plots", "Plant & come back"],
-    ]
-      .map(
-        ([key, emoji, title, hint]) =>
-          `<button data-walk="${key}"><span>${emoji}</span><strong>${title}</strong><small>${hint}</small><b>GO →</b></button>`,
-      )
-      .join(
-        "",
-      )}</div><div class="note">${is2d ? "Needs the 3D lobby (Settings)." : "Tap a prop or press E nearby · Esc to stop"}</div>`;
+    const options = [
+      { id: "dragon", label: "Dragon slide", emoji: "🐉", walk: false },
+      { id: "swing", label: "Swings", emoji: "✦", walk: false },
+      { id: "pet", label: "Pet Kopi", emoji: "🐈", walk: false },
+      { id: "fishing", label: "Fishing", emoji: "🎣", walk: true },
+      { id: "hoops", label: "Hoops", emoji: "🏀", walk: true },
+      { id: "plots", label: "Garden plots", emoji: "🌱", walk: true },
+      { id: "bench3", label: "Sit & read", emoji: "📖", walk: false },
+      { id: "bell", label: "Ring the bell", emoji: "🔔", walk: false },
+      { id: "cabinet-noodle", label: "Noodle Run", emoji: "🕹", walk: false },
+      { id: "cabinet-coast", label: "Palm Bay", emoji: "🏎", walk: false },
+    ];
+    const choices = pageChoices(
+      is2d
+        ? [
+            ...options.filter((choice) => choice.walk),
+            ...options.filter((choice) => !choice.walk),
+          ]
+        : options,
+      outdoorPage,
+    );
+    body.innerHTML = `<h2>Play outside</h2><div class="outdoor-grid">${choices.items.map((choice) => `<button ${choice.walk ? "data-walk" : "data-environment"}="${choice.id}" ${is2d && !choice.walk ? "disabled" : ""}><span>${choice.emoji}</span><strong>${choice.label}</strong></button>`).join("")}</div>${pager(choices.page, choices.total, "outside")}${is2d ? '<p class="fine-print">Some activities need 3D. Fishing, hoops and plots work here.</p>' : ""}`;
   } else if (id === "garden") {
     body.innerHTML = `<div class="garden-portrait">${icon("leaf")}</div><h2>Pocket Garden</h2><p class="lead">Nothing to chase. Just breathe.</p><button class="primary" data-environment="bench0">Sit & read →</button>`;
   } else if (id === "playground") {
@@ -717,7 +693,8 @@ function open(id: string) {
     body.innerHTML = `<h2>Take a breather.</h2><p class="lead">30 minutes in. Stretch, sip some water.</p><div class="note">Your progress is saved.</div>${actionButton("close", "Back when I’m ready")}`;
   }
 }
-function openDares() {
+function openDares(view: typeof dareView = "home") {
+  dareView = view;
   openShell("DARE PLAZA");
   socialPanel = "dares";
   renderSharedDares();
@@ -855,21 +832,18 @@ async function startGame(id: GameId, defender = "", dare = "") {
             : "") +
           '<div class="button-row">' +
           (setup
-            ? '<button class="primary" data-action="setup-look">Name & customise your character →</button><button class="secondary" data-replay="' +
+            ? '<button class="primary" data-action="setup-look">Make it yours</button><button class="secondary" data-replay="' +
               id +
-              '">Another round</button>'
+              '">Play again</button>'
             : id !== "coast" && reward
-              ? '<button class="primary" data-action="welcome-wear">Wear my cap & meet Kopi →</button>'
+              ? '<button class="primary" data-action="welcome-wear">Wear my cap</button>'
               : '<button class="primary" data-replay="' +
                 id +
-                '">Another round</button>') +
+                '">Play again</button>') +
           (id === "coast" && reward && !setup
             ? '<button class="secondary" data-action="welcome-wear">Wear my lilac cap</button>'
             : "") +
-          (currentProfile?.account
-            ? '<button class="secondary" data-open="board">Rankings</button>'
-            : "") +
-          "</div>" +
+          '<button class="secondary" data-action="close">Explore</button></div>' +
           '<div class="note">' +
           (result
             ? "✓ Verified · " +
@@ -880,15 +854,15 @@ async function startGame(id: GameId, defender = "", dare = "") {
                 : "guest round. Save your progress to enter the rankings.")
             : "Offline · nothing saved.") +
           "</div>" +
-          (run && score > 0 && shared?.competitionReady
-            ? '<button class="secondary" data-post-dare="' +
+          (run && score > 0 && shared?.competitionReady && !reward
+            ? '<details class="menu-details"><summary>Share this round</summary><button class="secondary" data-post-dare="' +
               run.id +
-              '">Post as 24h dare →</button>'
+              '">Post a dare</button></details>'
             : "") +
           (!currentProfile?.account && !setup
             ? result?.race?.newBest
-              ? '<button class="secondary" id="save-race-best">Save your avatar and this score</button>'
-              : '<button class="secondary" data-account>Save my progress →</button>'
+              ? '<details class="menu-details"><summary>Save my progress</summary><button class="secondary" id="save-race-best">Save with email</button></details>'
+              : '<details class="menu-details"><summary>Save my progress</summary><button class="secondary" data-account>Save with email</button></details>'
             : "");
         if (id === "coast") {
           const actions = body.querySelector(".button-row")!;
@@ -1056,6 +1030,26 @@ document.addEventListener("click", (e) => {
   if (b.dataset.boardGame) {
     boardGame = b.dataset.boardGame as GameId;
     renderSharedBoard();
+    return;
+  }
+  if (b.dataset.page) {
+    const page = Number(b.dataset.pageIndex);
+    if (b.dataset.page === "games") {
+      gamePage = page;
+      open("arcade");
+    }
+    if (b.dataset.page === "outside") {
+      outdoorPage = page;
+      open("surroundings");
+    }
+    if (b.dataset.page === "quests") {
+      questPage = page;
+      open("quests");
+    }
+    if (b.dataset.page === "emotes") {
+      emotePage = page;
+      open("emotes");
+    }
     return;
   }
   if (b.dataset.account !== undefined) {
@@ -1231,6 +1225,7 @@ document.addEventListener("click", (e) => {
     }
     if (a === "setup-save") {
       void (async () => {
+        const generation = gameGeneration;
         const input = body.querySelector<HTMLInputElement>("#nickname");
         const name = input?.value.trim();
         // Save a name that was typed but not yet submitted.
@@ -1241,6 +1236,7 @@ document.addEventListener("click", (e) => {
             acceptProfile(await api<Profile>("profile", { name }));
             void syncSocial();
           } catch (error) {
+            if (generation !== gameGeneration || !modal.open) return;
             body.querySelector("#nickname-status")!.textContent = (
               error as Error
             ).message;
@@ -1250,9 +1246,11 @@ document.addEventListener("click", (e) => {
             b.disabled = false;
           }
         }
+        if (generation !== gameGeneration || !modal.open) return;
         void openAccount({
           create: true,
           guided: true,
+          onSkipped: close,
           onSaved: () => {
             close();
             toast(
@@ -1276,13 +1274,42 @@ document.addEventListener("click", (e) => {
       else startOutdoor("pet");
       return;
     }
-    if (a === "phone-camera" || a === "phone-reset") {
+    if (a === "visit-neighbour" || a === "report-neighbour") {
+      const selected =
+        body.querySelector<HTMLSelectElement>("#neighbour-choice")!.value;
+      if (selected.startsWith("player:")) {
+        if (a === "report-neighbour") reportPlayer(selected.slice(7));
+        else showPlayer(selected.slice(7));
+      } else if (a === "visit-neighbour") showResident(selected.slice(9));
+      return;
+    }
+    if (a === "go-destination") {
+      const id = body.querySelector<HTMLSelectElement>("#destination")!.value;
       close();
-      document
-        .querySelector<HTMLButtonElement>(
-          a === "phone-camera" ? "#camera-toggle" : "#reset-view",
-        )!
-        .click();
+      if (is2d) {
+        visit(id);
+        open(id);
+      } else world?.go(id);
+      return;
+    }
+    if (
+      [
+        "rotate-left",
+        "rotate-right",
+        "reset-view",
+        "zoom-in",
+        "zoom-out",
+      ].includes(a)
+    ) {
+      if (a === "rotate-left") world?.rotate(-0.2);
+      if (a === "rotate-right") world?.rotate(0.2);
+      if (a === "zoom-in") world?.setZoom(0.15);
+      if (a === "zoom-out") world?.setZoom(-0.15);
+      if (a === "reset-view") {
+        dismissInspector();
+        world?.resetView();
+      }
+      renderCameraUI();
       return;
     }
     if (a === "phone-test") {
@@ -1371,6 +1398,88 @@ modal.addEventListener("click", (e) => {
 });
 document.addEventListener("change", (e) => {
   const el = e.target as HTMLInputElement;
+  if (el.id === "setting-zoom") {
+    world?.setZoom((Number(el.value) - Number(el.dataset.previous || 50)) / 20);
+    el.dataset.previous = el.value;
+    return;
+  }
+
+  for (const key of [
+    "outfit",
+    "skin",
+    "hat",
+    "clothing",
+    "hair",
+    "pet",
+    "accessory",
+  ] as const) {
+    if (el.dataset.lookKey === key) {
+      save[key] = Number(el.value);
+      beep(
+        key === "pet" && save.pet
+          ? petSound(save.pet)
+          : key === "accessory" && save.accessory
+            ? "sparkle"
+            : "equip",
+      );
+      persist();
+      world?.updateAvatar();
+      const scroll = modal.scrollTop;
+      open("wardrobe");
+      modal.scrollTop = scroll;
+      body
+        .querySelector<HTMLSelectElement>(`[data-look-key="${key}"]`)
+        ?.focus();
+      return;
+    }
+  }
+  if (el.id === "neighbour-choice") {
+    body.querySelector<HTMLButtonElement>(
+      '[data-action="report-neighbour"]',
+    )!.disabled = !el.value.startsWith("player:");
+    return;
+  }
+  if (el.id === "dare-choice") {
+    renderSharedDares();
+    body.querySelector<HTMLSelectElement>("#dare-choice")?.focus();
+    return;
+  }
+  if (el.dataset.challengePicker) {
+    const button = document.querySelector<HTMLButtonElement>(
+      `[data-defender="${el.dataset.challengePicker}"]`,
+    );
+    if (button && gameIds.includes(el.value as GameId)) {
+      challengeGameByPlayer.set(el.dataset.challengePicker, el.value as GameId);
+      button.dataset.challenge = el.value;
+    }
+    return;
+  }
+  if (el.id === "board-period" && ["week", "daily"].includes(el.value)) {
+    boardTab = el.value;
+    renderSharedBoard();
+    body.querySelector<HTMLSelectElement>("#board-period")?.focus();
+    return;
+  }
+  if (el.id === "board-game" && gameIds.includes(el.value as GameId)) {
+    boardGame = el.value as GameId;
+    renderSharedBoard();
+    body.querySelector<HTMLSelectElement>("#board-game")?.focus();
+    return;
+  }
+  if (el.id === "away-activity" && Object.hasOwn(activities, el.value)) {
+    save.awayActivity = el.value as ActivityId;
+  }
+  if (
+    ![
+      "away-activity",
+      "setting-sound",
+      "setting-reduced",
+      "setting-music",
+      "setting-camera",
+      "setting-light",
+    ].includes(el.id)
+  )
+    return;
   if (el.id === "setting-sound") {
     save.sound = el.checked;
     document
@@ -1390,6 +1499,14 @@ document.addEventListener("change", (e) => {
     audio.unlock();
     beep("click");
   }
+  if (
+    el.id === "setting-camera" &&
+    (el.value === "third" || el.value === "isometric")
+  ) {
+    save.cameraMode = el.value;
+    world?.setCameraMode(el.value);
+    renderCameraUI();
+  }
   if (el.id === "setting-light") {
     save.light = el.value;
     world?.setLighting(el.value);
@@ -1404,24 +1521,6 @@ function toggleSound() {
   audio.unlock();
   beep("click");
 }
-document.querySelector("#sound-toggle")!.addEventListener("click", toggleSound);
-document
-  .querySelector("#rotate-left")!
-  .addEventListener("click", () => world?.rotate(-0.2));
-document
-  .querySelector("#rotate-right")!
-  .addEventListener("click", () => world?.rotate(0.2));
-document.querySelector("#reset-view")!.addEventListener("click", () => {
-  dismissInspector();
-  world?.resetView();
-  renderCameraUI();
-});
-document
-  .querySelector("#zoom-in")!
-  .addEventListener("click", () => world?.setZoom(0.15));
-document
-  .querySelector("#zoom-out")!
-  .addEventListener("click", () => world?.setZoom(-0.15));
 document
   .querySelector("#interaction")!
   .addEventListener("click", () => open(nearId));
@@ -1437,14 +1536,6 @@ function renderCameraUI() {
     ? world.cameraMode === "third"
     : save.cameraMode === "third";
   document.body.classList.toggle("third-person", third && !is2d);
-  const button = document.querySelector("#camera-toggle")!;
-  button.querySelector("span")!.textContent = third
-    ? "Bird’s-eye view"
-    : "Third person";
-  button.setAttribute(
-    "aria-label",
-    third ? "Switch to bird’s-eye view" : "Switch to third-person view",
-  );
   (document.querySelector("#camera-hint") as HTMLElement).hidden =
     !third || is2d;
   document.querySelector("#camera-hint")!.textContent = world?.inspectedId
@@ -1453,12 +1544,6 @@ function renderCameraUI() {
       ? "Drag to look · scroll / pinch to zoom · Esc to stop"
       : "Drag to look · scroll / pinch to zoom · WASD to walk";
 }
-document
-  .querySelector(".neighbour-tools")!
-  .insertAdjacentHTML(
-    "beforeend",
-    `<button data-open="surroundings">${icon("star")}<span>Play outside</span></button>`,
-  );
 document
   .querySelector(".hud")!
   .insertAdjacentHTML(
@@ -1588,12 +1673,6 @@ function enterAway() {
     "Your avatar is staying downstairs. Neighbours can challenge your saved scores.",
   );
 }
-document.querySelector("#camera-toggle")!.addEventListener("click", () => {
-  dismissInspector();
-  world?.setCameraMode(world.cameraMode === "third" ? "isometric" : "third");
-  renderCameraUI();
-  persist();
-});
 window.addEventListener("camera-change", () => {
   dismissInspector();
   renderCameraUI();
@@ -1636,7 +1715,7 @@ function enable2D() {
   document.body.classList.add("mode-2d");
   const el = document.querySelector<HTMLDivElement>("#fallback")!;
   el.hidden = false;
-  el.innerHTML = `<span class="eyebrow">THE LIGHTWEIGHT NEIGHBOURHOOD</span><h1>Come on in.<br>Make yourself at home.</h1><p>Same good times. A lighter way to play.</p><section id="fallback-welcome"></section><div class="fallback-zones">${spots.map((s, i) => `<button data-walk="${s.id}">${icon(["game", "trophy", "gift", "shirt", "trophy", "leaf", "cat", "star", "trophy", "leaf", "compass"][i])}<strong>${s.name}</strong><span>COME ON OVER →</span></button>`).join("")}</div>`;
+  el.innerHTML = `<span class="eyebrow">2D WORLD</span><h1>Meet you downstairs.</h1><p>Pick Play, Explore or Menu below.</p><section id="fallback-welcome"></section>`;
   document.querySelector("#quality-note")!.textContent = "2D LOBBY";
   renderWelcome();
 }
@@ -1762,6 +1841,7 @@ requestAnimationFrame(async () => {
         nearId = id;
         const b = document.querySelector<HTMLButtonElement>("#interaction")!;
         b.hidden = !id;
+        document.body.classList.toggle("has-nearby", !!id);
         b.querySelector("span")!.textContent = name;
       },
       fallback: () => {
@@ -1895,19 +1975,33 @@ function serverNote() {
     ? ""
     : '<div class="note">Offline · rankings may be stale, dares need a connection.</div>';
 }
-function playerRows() {
-  return (
-    shared?.players
-      .filter((p) => p.id !== shared!.me)
-      .map(
-        (p) =>
-          `<button data-player="${p.id}"><span class="resident-swatch" style="background:${outfits[p.look.outfit]}">${activities[p.activity].icon}</span><span><strong>${escapeText(p.name)}</strong><small>${p.status.toUpperCase()} · ${p.points} medals</small></span><b>VISIT ↗</b></button>`,
-      )
-      .join("") || '<div class="note">You’re the first one here!</div>'
-  );
-}
 function renderSharedNeighbours() {
-  body.innerHTML = `<h2>Neighbours</h2><button class="secondary" data-open="worlds">Worlds & join friend →</button>${serverNote()}<div class="resident-list">${playerRows()}</div><h3>Around the block</h3><div class="resident-list">${residents.map((r) => `<button data-resident="${r.id}"><span class="resident-swatch" style="background:${outfits[r.outfit]}">${activities[r.activity].icon}</span><span><strong>${r.name}</strong><small>${activities[r.activity].name}</small></span><b>VISIT ↗</b></button>`).join("")}</div>`;
+  const selected =
+    body.querySelector<HTMLSelectElement>("#neighbour-choice")?.value;
+  const players =
+    shared?.players.filter((player) => player.id !== shared?.me) || [];
+  const signature = JSON.stringify([
+    connected,
+    players.map((player) => [player.id, player.name, player.status]),
+  ]);
+  if (
+    body.querySelector("#neighbour-choice") &&
+    signature === neighbourRosterSignature
+  )
+    return;
+  const keepFocus = document.activeElement?.id === "neighbour-choice";
+  neighbourRosterSignature = signature;
+  body.innerHTML = `<h2>Neighbours</h2>${serverNote()}<label class="field-label" for="neighbour-choice">Choose a neighbour</label><select class="destination-select" id="neighbour-choice">${players.length ? `<optgroup label="Players">${players.map((player) => `<option value="player:${player.id}">${escapeText(player.name)} · ${player.status}</option>`).join("")}</optgroup>` : ""}<optgroup label="Around the block">${residents.map((resident) => `<option value="resident:${resident.id}">${resident.name}</option>`).join("")}</optgroup></select><div class="simple-menu"><button class="menu-choice" data-action="visit-neighbour">Visit</button><button class="menu-choice" data-open="worlds">Worlds</button><button class="menu-choice" data-action="report-neighbour">Report or hide</button></div>`;
+  const picker = body.querySelector<HTMLSelectElement>("#neighbour-choice")!;
+  if (
+    selected &&
+    Array.from(picker.options).some((option) => option.value === selected)
+  )
+    picker.value = selected;
+  body.querySelector<HTMLButtonElement>(
+    '[data-action="report-neighbour"]',
+  )!.disabled = !picker.value.startsWith("player:");
+  if (keepFocus) picker.focus();
 }
 function renderSharedBoard() {
   modal.classList.toggle(
@@ -1935,7 +2029,7 @@ function renderSharedBoard() {
         : "GAME SCORE";
   const rank = boardTab === "week" ? ownWeek?.rank : ownDay?.rank;
   const podium = list.filter((p) => p.rank <= 3);
-  body.innerHTML = `<span class="eyebrow">LEAGUE</span><h2>Rankings</h2>${serverNote()}<section class="your-standing"><div><span>YOUR ${boardTab === "week" ? "WEEKLY" : "DAILY"} RANK</span><strong>${rank ? "#" + rank : "—"}</strong><small>${rank ? "Nice!" : "Finish a round to join the board"}</small></div><div class="standing-stats"><span><b>${ownWeek?.points || 0}</b>This week</span><span><b>${pending ? "+" + pending : "0"}</b>Pending tonight</span><span><b>${me?.points || 0}</b>Lifetime</span></div></section><div class="look-tabs board-tabs"><button data-board-tab="week" class="${boardTab === "week" ? "active" : ""}" aria-pressed="${boardTab === "week"}">Weekly medals</button><button data-board-tab="daily" class="${boardTab === "daily" ? "active" : ""}" aria-pressed="${boardTab === "daily"}">Today’s game scores</button></div>${boardTab === "daily" ? `<div class="game-filters">${gameIds.map((g) => `<button class="secondary ${g === boardGame ? "chosen" : ""}" data-board-game="${g}" aria-pressed="${g === boardGame}">${games[g].name}</button>`).join("")}</div><p class="fine-print">${games[boardGame].name}${boardGame === "coast" ? " · Fastest three-lap time wins" : ""} · Your best today: <b>${formatScore(boardGame, ownDay?.score || 0)}</b> · Medals are pending until 00:00 SGT.</p>` : `<p class="fine-print">Week of ${shared?.week || "Monday"} · resets Monday 00:00 SGT</p>`}<div class="podium-cards">${podium.length ? podium.map((p) => `<article class="podium-card medal-${p.rank} ${p.id === shared?.me ? "is-you" : ""}"><span class="podium-medal">${["🥇", "🥈", "🥉"][p.rank - 1]}</span><small>RANK ${p.rank}${p.id === shared?.me ? " · YOU" : ""}</small><h3>${escapeText(p.name)}</h3><strong>${p.value}</strong><small>${unit}${boardTab === "daily" ? ` · +${4 - p.rank} PENDING` : ""}</small></article>`).join("") : `<div class="board-empty"><span>✦</span><h3>${boardTab === "week" ? "Nothing yet!" : "Be the first!"}</h3><p>${boardTab === "week" ? "Top 3 daily scores win medals at midnight." : "Finish a round to claim #1."}</p><button class="primary" data-game="${boardGame}">Play ${games[boardGame].name} →</button></div>`}</div>${list.length ? `<div class="leaderboard">${list.map((p) => `<div class="${p.id === shared?.me ? "you-row" : ""}"><b>#${p.rank}</b><span>${escapeText(p.name)}${p.id === shared?.me ? " · You" : ""}</span><strong>${p.value}<small>${unit}</small></strong></div>`).join("")}</div>` : ""}${boardTab === "daily" && ownDay && board[0] ? `<div class="score-target"><label>${boardGame === "coast" ? "Your time / today’s fastest" : "Your score compared with today’s leader"} <b>${formatScore(boardGame, ownDay.score)} / ${formatScore(boardGame, board[0].score)}</b></label><progress value="${ownDay.score}" max="${Math.max(1, board[0].score)}"></progress></div>` : ""}${boardTab === "daily" ? `<button class="primary" data-game="${boardGame}">Play ${games[boardGame].name} →</button>` : ""}<details class="scoring-guide"><summary>How scores become medals</summary><div class="medal-rule"><span>🥇<b>+3</b>Gold</span><span>🥈<b>+2</b>Silver</span><span>🥉<b>+1</b>Bronze</span></div><p>1. Play any of the five daily games. Your best positive score counts. Coast Rush ranks fastest three-lap times.</p><p>2. At midnight Singapore time, each game awards its top three ranks. Up to 15 medal points a day.</p><p>3. Daily medals build your weekly total. The weekly board resets Monday; lifetime medals stay.</p><p class="fine-print">Ties share a rank (1, 1, 3). Pending medals can change before midnight. Cosmetic XP levels up your avatar and never affects ranks. Dares record wins separately.</p></details><details class="scoring-guide"><summary>Last week’s champions</summary><div class="leaderboard">${(shared?.lastWeek || []).map((p) => `<div><b>#${p.rank}</b><span>${escapeText(p.name)}</span><strong>${p.points}<small>MEDAL PTS</small></strong></div>`).join("") || "<p>No completed week yet.</p>"}</div></details>${!shared?.competitionReady ? '<button class="secondary" data-account>Account & dares →</button>' : ""}`;
+  body.innerHTML = `<span class="eyebrow">LEAGUE</span><h2>Rankings</h2>${serverNote()}<section class="your-standing"><div><span>YOUR ${boardTab === "week" ? "WEEKLY" : "DAILY"} RANK</span><strong>${rank ? "#" + rank : "—"}</strong><small>${rank ? "Nice!" : "Finish a round to join the board"}</small></div><div class="standing-stats"><span><b>${ownWeek?.points || 0}</b>This week</span><span><b>${pending ? "+" + pending : "0"}</b>Pending tonight</span><span><b>${me?.points || 0}</b>Lifetime</span></div></section><label class="field-label" for="board-period">Show</label><select class="destination-select" id="board-period"><option value="week" ${boardTab === "week" ? "selected" : ""}>Weekly medals</option><option value="daily" ${boardTab === "daily" ? "selected" : ""}>Today’s scores</option></select>${boardTab === "daily" ? `<label class="field-label" for="board-game">Game</label><select class="destination-select" id="board-game">${gameIds.map((g) => `<option value="${g}" ${g === boardGame ? "selected" : ""}>${games[g].name}</option>`).join("")}</select><p class="fine-print">${games[boardGame].name}${boardGame === "coast" ? " · Fastest three-lap time wins" : ""} · Your best today: <b>${formatScore(boardGame, ownDay?.score || 0)}</b> · Medals are pending until 00:00 SGT.</p>` : `<p class="fine-print">Week of ${shared?.week || "Monday"} · resets Monday 00:00 SGT</p>`}<div class="podium-cards">${podium.length ? podium.map((p) => `<article class="podium-card medal-${p.rank} ${p.id === shared?.me ? "is-you" : ""}"><span class="podium-medal">${["🥇", "🥈", "🥉"][p.rank - 1]}</span><small>RANK ${p.rank}${p.id === shared?.me ? " · YOU" : ""}</small><h3>${escapeText(p.name)}</h3><strong>${p.value}</strong><small>${unit}${boardTab === "daily" ? ` · +${4 - p.rank} PENDING` : ""}</small></article>`).join("") : `<div class="board-empty"><span>✦</span><h3>${boardTab === "week" ? "Nothing yet!" : "Be the first!"}</h3><p>${boardTab === "week" ? "Top 3 daily scores win medals at midnight." : "Finish a round to claim #1."}</p><button class="primary" data-game="${boardGame}">Play ${games[boardGame].name} →</button></div>`}</div>${list.length ? `<div class="leaderboard">${list.map((p) => `<div class="${p.id === shared?.me ? "you-row" : ""}"><b>#${p.rank}</b><span>${escapeText(p.name)}${p.id === shared?.me ? " · You" : ""}</span><strong>${p.value}<small>${unit}</small></strong></div>`).join("")}</div>` : ""}${boardTab === "daily" && ownDay && board[0] ? `<div class="score-target"><label>${boardGame === "coast" ? "Your time / today’s fastest" : "Your score compared with today’s leader"} <b>${formatScore(boardGame, ownDay.score)} / ${formatScore(boardGame, board[0].score)}</b></label><progress value="${ownDay.score}" max="${Math.max(1, board[0].score)}"></progress></div>` : ""}${boardTab === "daily" && podium.length ? `<button class="primary" data-game="${boardGame}">Play ${games[boardGame].name}</button>` : ""}<details class="scoring-guide"><summary>How scores become medals</summary><div class="medal-rule"><span>🥇<b>+3</b>Gold</span><span>🥈<b>+2</b>Silver</span><span>🥉<b>+1</b>Bronze</span></div><p>1. Play any of the five daily games. Your best positive score counts. Coast Rush ranks fastest three-lap times.</p><p>2. At midnight Singapore time, each game awards its top three ranks. Up to 15 medal points a day.</p><p>3. Daily medals build your weekly total. The weekly board resets Monday; lifetime medals stay.</p><p class="fine-print">Ties share a rank (1, 1, 3). Pending medals can change before midnight. Cosmetic XP levels up your avatar and never affects ranks. Dares record wins separately.</p></details><details class="scoring-guide"><summary>Last week’s champions</summary><div class="leaderboard">${(shared?.lastWeek || []).map((p) => `<div><b>#${p.rank}</b><span>${escapeText(p.name)}</span><strong>${p.points}<small>MEDAL PTS</small></strong></div>`).join("") || "<p>No completed week yet.</p>"}</div></details>${!shared?.competitionReady ? '<button class="secondary" data-account>Account & dares →</button>' : ""}`;
 }
 function challengeButtons(p: SharedPlayer) {
   const eligible =
@@ -1945,80 +2039,44 @@ function challengeButtons(p: SharedPlayer) {
     (shared?.self?.outgoing || 0) < 3 &&
     !shared?.challenged.includes(p.id) &&
     p.id !== shared?.me;
-  const own = shared?.self;
-  const match = (g: GameId) =>
-    !own?.best[g]
-      ? "Set your first best"
-      : Math.abs(p.best[g] - own.best[g]) / Math.max(p.best[g], own.best[g]) <=
-          0.25
-        ? "Close match"
-        : p.best[g] > own.best[g]
-          ? "Stretch goal"
-          : "Sharpen your score";
-  return `<div class="challenge-games">${gameIds.map((g) => `<button class="secondary" data-challenge="${g}" data-defender="${p.id}" ${!eligible || p.best[g] === 0 ? "disabled" : ""}><span>${games[g].name}<small>${match(g)}</small></span><b>${p.best[g] ? `Beat ${formatScore(g, p.best[g])} →` : "No score yet"}</b></button>`).join("")}</div>`;
+  const previous = challengeGameByPlayer.get(p.id);
+  const selected =
+    previous && p.best[previous] > 0
+      ? previous
+      : gameIds.find((game) => p.best[game] > 0);
+  return `<label class="field-label" for="challenge-game-${p.id}">Game</label><select class="destination-select" id="challenge-game-${p.id}" data-challenge-picker="${p.id}">${gameIds.map((game) => `<option value="${game}" ${selected === game ? "selected" : ""} ${!p.best[game] ? "disabled" : ""}>${games[game].name} · ${p.best[game] ? formatScore(game, p.best[game]) : "No score"}</option>`).join("")}</select><button class="primary" data-challenge="${selected || gameIds[0]}" data-defender="${p.id}" ${!eligible || !selected ? "disabled" : ""}>Play dare</button>`;
 }
 function renderSharedDares() {
-  const candidates =
-    shared?.players.filter(
-      (p) => p.id !== shared!.me && p.status !== "online",
-    ) || [];
-  body.innerHTML = `<span class="eyebrow">DARE PLAZA</span><h2>Dares</h2><p class="lead">Beat a resting neighbour’s best.</p>${serverNote()}<div class="note">You have ${Math.max(0, 3 - (shared?.self?.outgoing || 0))}/3 dares left today · one per neighbour · starting uses it · resets midnight SGT</div><div class="offline-dares">${candidates.map((p) => `<section class="ranking-card"><button class="neighbour-heading" data-player="${p.id}">${activities[p.activity].icon} ${escapeText(p.name)} ↗</button><p>${p.status.toUpperCase()} · ${activities[p.activity].name}<br><b>${shared?.challenged.includes(p.id) ? "Already challenged today" : "Ready for a friendly dare"}</b></p>${challengeButtons(p)}</section>`).join("") || '<div class="note">No resting opponents yet. Set a score, then choose “Step away” so a neighbour can challenge you.</div>'}</div><h3>Your recent challenges</h3><div class="challenge-history">${shared?.history.map((r) => `<div><strong>${escapeText(r.challenger)} → ${escapeText(r.defender)}</strong><span>${games[r.game].name} · ${r.status === "finished" ? `${formatScore(r.game, r.score || 0)} vs ${formatScore(r.game, r.targetScore)} · ${r.score! > r.targetScore ? "CHALLENGER WON" : r.score === r.targetScore ? "TIED" : "DEFENDER HELD"}` : r.status === "started" ? "IN PROGRESS" : "ATTEMPT ENDED"}</span></div>`).join("") || "<p>No challenges yet. There’s no rush.</p>"}</div><button class="secondary" data-open="board">See the daily rankings →</button>`;
-  const published = (shared?.dares || [])
-    .map(
-      (d) =>
-        '<section class="ranking-card"><h3>' +
-        escapeText(d.name) +
-        "</h3><p>" +
-        games[d.game].name +
-        " · beat <b>" +
-        formatScore(d.game, d.score) +
-        "</b></p><small>Closes " +
-        new Date(d.expires).toLocaleString("en-SG", {
-          timeZone: "Asia/Singapore",
-          day: "numeric",
-          month: "short",
-          hour: "2-digit",
-          minute: "2-digit",
-        }) +
-        ' SGT</small><button class="primary" data-dare="' +
-        d.id +
-        '" data-game-id="' +
-        d.game +
-        '" ' +
-        (!shared?.competitionReady ||
-        d.host === shared?.me ||
-        shared?.challenged.includes(d.host)
-          ? "disabled"
-          : "") +
-        ">Play dare →</button></section>",
-    )
-    .join("");
-  body.insertAdjacentHTML(
-    "afterbegin",
-    '<h2>Open dares</h2><p>Same level for everyone · 24h · losing costs nothing.</p><div class="ranking-grid">' +
-      (published || "<p>No open dares yet.</p>") +
-      '</div><details><summary>Post one of my saved rounds</summary><div class="account-actions">' +
-      (shared?.recentRuns || [])
-        .filter((r) => r.score > 0)
-        .map(
-          (r) =>
-            '<button class="secondary" data-post-dare="' +
-            r.id +
-            '" ' +
-            (!shared?.competitionReady ? "disabled" : "") +
-            ">" +
-            games[r.game].name +
-            " · " +
-            formatScore(r.game, r.score) +
-            " →</button>",
-        )
-        .join("") +
-      '</div></details><p class="fine-print">' +
-      (!shared?.competitionReady
-        ? "Dares open 24h after you verify an email. Regular rounds work now."
-        : "One dare per neighbour per day.") +
-      "</p>",
-  );
+  const previous = body.querySelector<HTMLSelectElement>("#dare-choice")?.value;
+  const back =
+    '<button class="text-button menu-back" data-open="dares">← Back</button>';
+  const eligibility = !shared?.competitionReady
+    ? '<p class="fine-print">Dares open 24h after saving with email.</p>'
+    : "";
+  const rule = `<p class="fine-print">${Math.max(0, 3 - (shared?.self?.outgoing || 0))}/3 left today. Starting uses a dare. Resets midnight SGT.</p>`;
+  if (dareView === "home") {
+    body.innerHTML = `<h2>Dares</h2>${serverNote()}<div class="simple-menu"><button class="menu-choice" data-open="dares-open">Open dares</button><button class="menu-choice" data-open="dares-neighbour">Challenge a neighbour</button><button class="menu-choice" data-open="dares-post">Post a dare</button></div>${eligibility}<details class="menu-details"><summary>Recent challenges</summary><div class="challenge-history">${shared?.history.map((r) => `<div><strong>${escapeText(r.challenger)} → ${escapeText(r.defender)}</strong><span>${games[r.game].name} · ${r.status === "finished" ? `${formatScore(r.game, r.score || 0)} vs ${formatScore(r.game, r.targetScore)} · ${r.score! > r.targetScore ? "WON" : r.score === r.targetScore ? "TIED" : "HELD"}` : r.status === "started" ? "IN PROGRESS" : "ENDED"}</span></div>`).join("") || "<p>No challenges yet.</p>"}</div></details>`;
+    return;
+  }
+  if (dareView === "neighbour") {
+    const players =
+      shared?.players.filter(
+        (player) => player.id !== shared?.me && player.status !== "online",
+      ) || [];
+    const selected =
+      players.find((player) => player.id === previous) || players[0];
+    body.innerHTML = `${back}<h2>Challenge a neighbour</h2>${serverNote()}${players.length ? `<label class="field-label" for="dare-choice">Neighbour</label><select class="destination-select" id="dare-choice">${players.map((player) => `<option value="${player.id}" ${player.id === selected?.id ? "selected" : ""}>${escapeText(player.name)}</option>`).join("")}</select>` : "<p>No resting neighbours yet.</p>"}${selected ? challengeButtons(selected) : ""}${rule}${eligibility}`;
+    return;
+  }
+  if (dareView === "open") {
+    const dares = shared?.dares || [];
+    const selected = dares.find((dare) => dare.id === previous) || dares[0];
+    body.innerHTML = `${back}<h2>Open dares</h2>${serverNote()}${selected ? `<label class="field-label" for="dare-choice">Choose a dare</label><select class="destination-select" id="dare-choice">${dares.map((dare) => `<option value="${dare.id}" ${dare.id === selected.id ? "selected" : ""}>${escapeText(dare.name)} · ${games[dare.game].name}</option>`).join("")}</select><p>Beat ${formatScore(selected.game, selected.score)} · ends ${new Date(selected.expires).toLocaleString("en-SG", { timeZone: "Asia/Singapore", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} SGT</p><button class="primary" data-dare="${selected.id}" data-game-id="${selected.game}" ${!shared?.competitionReady || selected.host === shared?.me || shared?.challenged.includes(selected.host) ? "disabled" : ""}>Play dare</button>` : "<p>No open dares yet.</p>"}${rule}${eligibility}`;
+    return;
+  }
+  const runs = (shared?.recentRuns || []).filter((run) => run.score > 0);
+  const selected = runs.find((run) => run.id === previous) || runs[0];
+  body.innerHTML = `${back}<h2>Post a dare</h2>${serverNote()}${selected ? `<label class="field-label" for="dare-choice">Saved round</label><select class="destination-select" id="dare-choice">${runs.map((run) => `<option value="${run.id}" ${run.id === selected.id ? "selected" : ""}>${games[run.game].name} · ${formatScore(run.game, run.score)}</option>`).join("")}</select><p>Neighbours can try to beat this for 24 hours.</p><button class="primary" data-post-dare="${selected.id}" ${!shared?.competitionReady ? "disabled" : ""}>Post dare</button>` : "<p>Finish a round first.</p>"}${eligibility}`;
 }
 function renderPlayerInspector(id: string) {
   const p = shared?.players.find((p) => p.id === id);
@@ -2029,7 +2087,10 @@ function renderPlayerInspector(id: string) {
 function showPlayer(id: string) {
   if (!shared?.players.some((p) => p.id === id)) return;
   if (is2d) {
-    openDares();
+    const player = shared?.players.find((p) => p.id === id);
+    if (!player) return;
+    openShell("NEIGHBOUR");
+    body.innerHTML = `<h2>${escapeText(player.name)}</h2><p>${activities[player.activity].name}</p><div class="simple-menu"><button class="secondary" data-open="dares">Dares</button><button class="secondary" data-join-friend="${player.id}">Join their world</button><button class="secondary" data-report="${player.id}">Report or hide</button></div>`;
     return;
   }
   if (modal.open) close();
@@ -2108,40 +2169,16 @@ function renderWelcome() {
   const firstRace = firstRacePending();
   document.body.classList.toggle("first-race", firstRace);
   if (world && firstRace) world.paused = true;
+  document.body.classList.toggle("welcome-active", firstRace);
   document.body.classList.toggle("welcome-played", save.welcome === "played");
-  const next = document.querySelector<HTMLElement>("#phone-next");
-  if (next) {
-    next.hidden = !["played", "complete"].includes(save.welcome);
-    next.innerHTML =
-      save.welcome === "played"
-        ? '<span>YOUR CAP IS READY</span><button data-action="welcome-wear">Wear it & meet Kopi →</button>'
-        : !save.cat
-          ? '<span>NEXT UP</span><button data-walk="cat">Say hello to Kopi →</button>'
-          : '<span>TRY SOMETHING NEW</span><button data-game="hop">Play Hop Hop →</button>';
-  }
-
+  const invitation = `<div class="eyebrow">${firstVisitCopy.kicker}</div><h1>${firstVisitCopy.title}</h1><p>${firstVisitCopy.detail}</p><button class="primary" data-action="welcome-start" data-main-action>Play now ${icon("arrow")}</button><div class="welcome-options"><button class="text-button" data-open="settings">Settings</button><button class="text-button" data-account>Account & privacy</button></div>`;
+  const el = document.querySelector<HTMLElement>(".welcome-panel")!;
+  el.hidden = !firstRace;
+  el.innerHTML = firstRace ? invitation : "";
   const fallback = document.querySelector("#fallback-welcome");
-  if (fallback)
-    fallback.innerHTML =
-      save.welcome === "complete" && !firstRace
-        ? ""
-        : `<div class="note"><strong>First win</strong><p>Play 1 round → lilac cap + 35 XP.</p><button class="primary" data-action="${save.welcome === "played" ? "welcome-wear" : "welcome-resume"}">${save.welcome === "played" ? "Wear my cap & meet Kopi" : "Play now"} →</button>${firstRace ? '<button class="text-button" data-open="settings">Sound & accessibility</button>' : ""}</div>`;
-  const el = document.querySelector<HTMLElement>(".welcome-panel");
-  if (!el) return;
-  const active =
-    firstRace || (save.welcome !== "complete" && !save.welcomeDismissed);
-  document.body.classList.toggle("welcome-active", active);
-  const stage = save.welcome;
-  if (!active) {
-    el.innerHTML = `<div class="eyebrow">MEET YOU DOWNSTAIRS</div><h1>Good times.<br>Great company.</h1><button class="primary" data-open="arcade">Play →</button>${stage !== "complete" ? `<button class="welcome-later" data-action="${stage === "played" ? "welcome-wear" : "welcome-resume"}">${stage === "played" ? "Wear my cap" : "Resume quest"}</button>` : ""}`;
-    return;
-  }
-  if (firstRace) {
-    el.innerHTML = `<div class="eyebrow">YOUR FIRST RACE</div><h1>Meet you<br>at the grid.</h1><p>Your avatar. Seven game characters. Three laps around Palm Bay.</p><button class="primary" data-action="welcome-start">Play now →</button><p class="fine-print">Finish a round to unlock your lilac cap and explore the neighbourhood.</p><button class="welcome-later" data-open="settings">Sound & accessibility</button>`;
-    return;
-  }
-  el.innerHTML = `<div class="eyebrow">WELCOME QUEST · ${stage === "new" ? "1" : stage === "cabinet" ? "2" : "3"} OF 3</div><h1>${stage === "played" ? "You did it!" : stage === "cabinet" ? "This way!" : "First win"}</h1><p>${stage === "played" ? "Lilac cap unlocked." : stage === "cabinet" ? "Finish any round of Noodle Run." : "Play 1 round. Win a lilac cap."}</p><ol class="welcome-steps" aria-label="Welcome quest progress"><li class="${stage !== "new" ? "done" : ""}">Find a cabinet</li><li class="${stage === "played" ? "done" : ""}">Finish a round</li><li class="${stage === "played" ? "done" : ""}">Unlock your cap</li></ol><button class="primary" data-action="${stage === "played" ? "welcome-wear" : "welcome-start"}">${stage === "played" ? "Wear it & meet Kopi →" : stage === "cabinet" ? "Take me there →" : "Play now →"}</button><button class="welcome-later" data-action="welcome-skip">Skip</button>`;
+  if (fallback) fallback.innerHTML = firstRace ? invitation : "";
 }
+
 renderWelcome();
 
 function openPhoneTest() {
@@ -2167,7 +2204,7 @@ function openPhoneTest() {
       "After the first round, the next step was…",
       ["Obvious", "I had to look for it", "I didn’t know what to do"],
     ],
-    ["replay", "Did you want another round?", ["Yes", "Maybe later", "No"]],
+    ["replay", "Did you want another round?", ["Yes", "Keep playing", "No"]],
   ];
   body.innerHTML = `<h2>How did it feel?</h2><p class="lead">Explore for about two minutes first. There are no right answers.</p><form id="phone-report"><label class="phone-field">Phone and browser<input name="device" required maxlength="100" value="${/iPhone/.test(navigator.userAgent) ? "iPhone · Safari" : ""}" placeholder="e.g. iPhone 17 · Safari"></label>${questions.map(([id, label, choices]) => `<label class="phone-field">${label}<select name="${id}" required><option value="">Choose an answer</option>${(choices as string[]).map((c) => `<option>${c}</option>`).join("")}</select></label>`).join("")}<label class="phone-field">Anything confusing or frustrating?<textarea name="notes" maxlength="1200" rows="3" placeholder="What happened, and where?"></textarea></label><p class="fine-print">Saves your answers, browser details, frame-rate samples and quest timings on this computer when you tap Save.</p><button class="primary" type="submit">Save phone test →</button><div id="phone-report-status" role="status"></div></form>`;
   body.querySelector("form")!.addEventListener("submit", (e) => {
@@ -2194,14 +2231,6 @@ async function savePhoneTest() {
       "Couldn’t save the report. Check your Wi-Fi connection and try again.";
   }
 }
-if (playtestEnabled)
-  document
-    .querySelector(".hud")!
-    .insertAdjacentHTML(
-      "beforeend",
-      '<button class="phone-test-button" data-action="phone-test">Phone test · feedback</button>',
-    );
-
 // Sound: browsers only start audio after a gesture, so unlock on the first
 // tap or key. Music follows the time of day and switches to chiptune in games.
 startTune();

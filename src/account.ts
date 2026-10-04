@@ -46,6 +46,7 @@ export function acceptProfile(p: Profile) {
   window.dispatchEvent(new CustomEvent("account-profile", { detail: p }));
 }
 export const privacyCopy = `<h2>Your play. Your privacy.</h2><p>We save your avatar, progress, scores, chosen nickname and age band. If you create an account, we also keep your email so you can sign in on another device. We do not keep your birth month or year.</p><p>Other players can see your nickname, avatar, activity, scores and dares. They cannot see your email or age band. Choose a nickname rather than your real name or contact details. There is no chat, photo upload or advertising tracker.</p><p>We check recorded game inputs before saving scores. Inputs are deleted after 30 days; scores stay with your profile. Sign-in codes expire after 15 minutes. Inactive profiles are deleted after 12 months. Optional phone-test feedback is saved only when you send it and is included in your data download and deletion.</p><p>You can download your data or withdraw consent and delete your profile under Account & privacy. Deleting removes your avatar, scores, dares and access. It cannot be undone.</p><p>This local test stores data on the arcade operator's computer. Email delivery, when enabled, uses a transactional email provider. Optional purchases and donations use Stripe hosted checkout when enabled. We store order references, amounts, payment status and purchased sets, never card details. Deleting your profile removes its link to order records; payment records may remain with Stripe and in our order ledger for payment support. No marketing emails are sent.</p><p>If anything is unclear, stop here and ask a trusted adult or the arcade operator. You do not need to agree to continue reading this notice.</p>`;
+const privacySummary = `<ul class="privacy-summary"><li>Other players see your nickname, avatar, activity, scores and dares. Use a nickname, not your real name or contact details.</li><li>We save your progress. Your age band and optional email stay private.</li><li>Download your data or delete your profile in Account &amp; privacy.</li></ul><p class="fine-print">Not sure? Ask a trusted adult or the arcade operator.</p>`;
 function privacyNotice() {
   return (
     privacyCopy.replace(
@@ -75,8 +76,8 @@ const status = (host: HTMLElement, text: string) =>
 function emailForm(host: HTMLElement, path: string, flow: EmailFlow) {
   const signIn = path === "auth/login-code";
   host.innerHTML = signIn
-    ? `<span class="eyebrow">WELCOME BACK</span><h2>Sign in with email.</h2><p>Enter the email you saved your account with. We’ll email a 6-digit code to type in here; there is no password.</p><form id="email-form"><label>Email<input name="email" type="email" autocomplete="email" maxlength="254" required></label><button class="primary">Email my code →</button><p role="status" id="account-status"></p></form><p class="fine-print">Only played as a guest? Your progress is in the browser you played on. Open Darecade there and choose Account & privacy → Create my account first.</p><button class="secondary" id="account-back">Back</button>`
-    : `<span class="eyebrow">${flow.guided ? "STEP 2 OF 2 · SAVE YOUR CHARACTER" : "KEEP YOUR PLACE"}</span><h2>One email. Your neighbourhood.</h2><p>${flow.guided ? "Save your character, name and scores to an email so they are still here next time, on any device." : "Use the same email to return on another device."} We’ll email a 6-digit code to type in here; there is no password and nothing else to open.</p><form id="email-form"><label>Email<input name="email" type="email" autocomplete="email" maxlength="254" required></label><button class="primary">Email my code →</button><p role="status" id="account-status"></p></form><button class="secondary" id="account-back">${flow.guided ? "Maybe later" : "Back"}</button>`;
+    ? `<span class="eyebrow">WELCOME BACK</span><h2>Sign in</h2><p>Enter your email. We'll send a 6-digit code. No password.</p><form id="email-form"><label>Email<input name="email" type="email" autocomplete="email" maxlength="254" required></label><button class="primary">Send code →</button><p role="status" id="account-status"></p></form><button class="secondary" id="account-back">Back</button><details class="account-details"><summary>Played without email?</summary><p>Open Darecade in the browser you used. Choose Account &amp; privacy → Save with email first.</p></details>`
+    : `<span class="eyebrow">${flow.guided ? "STEP 2 OF 2 · OPTIONAL" : "OPTIONAL"}</span><h2>Save with email?</h2><p>Keep your character and scores on any device. We'll send a 6-digit code. No password.</p><form id="email-form"><label>Email<input name="email" type="email" autocomplete="email" maxlength="254" required></label><button class="primary">Send code →</button><p role="status" id="account-status"></p></form><button class="secondary" id="account-back">${flow.guided ? "Skip for now" : "Back"}</button><p class="fine-print">You can keep playing without an email.</p>`;
   host.querySelector("#account-back")!.addEventListener("click", flow.back);
   host.querySelector("form")!.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -102,11 +103,11 @@ function codeForm(
 ) {
   const sent =
     config.mailMode === "outbox"
-      ? "Local testing: the code was saved to the operator’s private test outbox, not emailed. Ask the operator for it."
+      ? "Test mode: ask the operator for your code. No email was sent."
       : path === "auth/login-code"
         ? `If an account uses <strong>${esc(email)}</strong>, we emailed it a code. Check spam too.`
         : `We emailed a code to <strong>${esc(email)}</strong>. Check spam too.`;
-  host.innerHTML = `<span class="eyebrow">CHECK YOUR EMAIL</span><h2>Enter your 6-digit code.</h2><p>${sent} It lasts 15 minutes. Keep this window open.</p><form id="code-form"><label>Code<input class="code-input" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000" aria-describedby="account-status" required></label><button class="primary">Confirm →</button><p role="status" id="account-status"></p></form><button class="secondary" id="code-resend" disabled></button><button class="secondary" id="account-back">Use a different email</button>`;
+  host.innerHTML = `<span class="eyebrow">CHECK YOUR EMAIL</span><h2>Enter your code</h2><p>${sent} Expires in 15 minutes.</p><form id="code-form"><label>6-digit code<input class="code-input" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000" aria-describedby="account-status" required></label><button class="primary">${path === "auth/login-code" ? "Sign in" : "Save character"} →</button><p role="status" id="account-status"></p></form><button class="secondary" id="code-resend" disabled></button><button class="secondary" id="account-back">Back to email</button>`;
   const form = host.querySelector("form")!;
   const input = form.querySelector("input")!;
   const confirm = form.querySelector("button")!;
@@ -173,7 +174,7 @@ export async function ensureAccount(): Promise<Profile> {
   return new Promise((resolve) => {
     const { d, host } = shell(false);
     const welcome = () => {
-      host.innerHTML = `<span class="eyebrow">WELCOME DOWNSTAIRS</span><h2>A little about you.</h2><p>Choose your birth month and year. We use them for the welcome check, then discard them.</p><form id="age-form"><div class="age-fields"><label>Birth month<select name="month" required><option value="">Choose month</option>${["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].map((m, i) => `<option value="${i + 1}">${m}</option>`).join("")}</select></label><label>Birth year<input name="year" inputmode="numeric" type="number" min="1900" max="${new Date(config.now).getUTCFullYear()}" placeholder="Year" required></label></div><button class="primary">Continue →</button><p role="status"></p></form><button class="secondary" id="existing-account">I already have an account</button>`;
+      host.innerHTML = `<span class="eyebrow">BEFORE YOU PLAY</span><h2>When were you born?</h2><p>We check your birth month and year, then discard them.</p><form id="age-form"><div class="age-fields"><label>Birth month<select name="month" required><option value="">Choose month</option>${["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].map((m, i) => `<option value="${i + 1}">${m}</option>`).join("")}</select></label><label>Birth year<input name="year" inputmode="numeric" type="number" min="1900" max="${new Date(config.now).getUTCFullYear()}" placeholder="Year" required></label></div><button class="primary">Continue →</button><p role="status"></p></form><button class="secondary" id="existing-account">I have an account</button>`;
       host.querySelector("#existing-account")!.addEventListener("click", () =>
         emailForm(host, "auth/login-code", {
           back: welcome,
@@ -193,7 +194,7 @@ export async function ensureAccount(): Promise<Profile> {
         button.disabled = true;
         try {
           await api("auth/check", { month, year });
-          host.innerHTML = `${privacyNotice()}<form id="consent-form"><label class="consent-choice"><input type="checkbox" name="consent" required> I understand how my information is used and agree to this.</label><button class="primary">Agree & enter the neighbourhood →</button><p role="status"></p></form><button class="secondary" id="decline">I don’t agree</button>`;
+          host.innerHTML = `<span class="eyebrow">BEFORE YOU JOIN</span><h2>Your play. Your privacy.</h2>${privacySummary}<details class="account-details privacy-details"><summary>Full privacy notice · storage &amp; retention</summary>${privacyNotice()}</details><form id="consent-form"><label class="consent-choice"><input type="checkbox" name="consent" required> I understand how my information is used and agree.</label><button class="primary">Agree & play →</button><p role="status"></p></form><button class="secondary" id="decline">I don’t agree</button>`;
           host.querySelector("#decline")!.addEventListener("click", () => {
             month = 0;
             year = 0;
@@ -240,13 +241,15 @@ export async function ensureAccount(): Promise<Profile> {
 /**
  * create opens the email step directly for a guest. guided marks it as the
  * second step of the first-race setup. onSaved runs once the guest's
- * character has been saved to an email.
+ * character has been saved to an email. onSkipped runs when the player skips
+ * the guided email step.
  */
 export async function openAccount(
   options: {
     create?: boolean;
     guided?: boolean;
     onSaved?: (profile: Profile) => void;
+    onSkipped?: () => void;
   } = {},
 ) {
   const { d, host } = shell();
@@ -266,21 +269,22 @@ export async function openAccount(
         },
       });
     const render = () => {
-      host.innerHTML = `<span class="eyebrow">ACCOUNT & PRIVACY</span><h2>Your place, saved.</h2><p>${p.account ? `Signed in as <strong>${esc(p.account.email)}</strong>. Your avatar and progress follow this account.` : "You are playing as a guest. Create an email account to keep your avatar and progress across devices."}</p><p>${p.account && p.account.eligibleAt > Date.now() ? "Every round you finish is ranked. Shared dares open 24 hours after your account was verified." : "Three outgoing dares per day. No points lost when another player wins."}</p>${!p.account ? '<button class="primary" id="save-account">Create my account →</button>' : ""}<div class="account-actions"><button class="secondary" id="read-privacy">Read privacy notice</button><button class="secondary" id="export-data">Download my data</button><button class="secondary" id="logout">Sign out</button><button class="secondary" id="delete-data">Withdraw consent & delete</button></div><p role="status"></p>`;
+      host.innerHTML = `<span class="eyebrow">ACCOUNT & PRIVACY</span><h2>Your account</h2><p>${p.account ? `Signed in as <strong>${esc(p.account.email)}</strong>. Your avatar and progress follow this account.` : "Playing without email. Add one to use your character and progress on another device."}</p><p>${p.account && p.account.eligibleAt > Date.now() ? "Every round you finish is ranked. Shared dares open 24 hours after your account was verified." : "Three outgoing dares per day. No points lost when another player wins."}</p>${!p.account ? '<button class="primary" id="save-account">Save with email →</button>' : ""}<div class="account-actions"><button class="secondary" id="read-privacy">Privacy &amp; data</button><button class="secondary" id="logout">Sign out</button></div><p role="status"></p>`;
       host
         .querySelector("#save-account")
         ?.addEventListener("click", () => create(render));
-      host.querySelector("#read-privacy")!.addEventListener("click", () => {
-        host.innerHTML =
-          privacyNotice() +
-          '<button class="primary" id="privacy-back">Back to account</button>';
-        host.querySelector("button")!.addEventListener("click", render);
-      });
+      host
+        .querySelector("#read-privacy")!
+        .addEventListener("click", renderPrivacy);
       host.querySelector("#logout")!.addEventListener("click", async () => {
         await api("auth/logout", {});
         clearLocalProfile();
         location.reload();
       });
+    };
+    const renderPrivacy = () => {
+      host.innerHTML = `<span class="eyebrow">ACCOUNT & PRIVACY</span><h2>Privacy &amp; data</h2>${privacySummary}<details class="account-details privacy-details"><summary>Full privacy notice · storage &amp; retention</summary>${privacyNotice()}</details><div class="account-actions"><button class="secondary" id="export-data">Download my data</button><button class="secondary" id="delete-data">Withdraw consent &amp; delete</button></div><button class="secondary" id="privacy-back">Back to account</button><p role="status"></p>`;
+      host.querySelector("#privacy-back")!.addEventListener("click", render);
       host
         .querySelector("#export-data")!
         .addEventListener("click", async () => {
@@ -305,7 +309,9 @@ export async function openAccount(
       host.querySelector("#delete-data")!.addEventListener("click", () => {
         host.innerHTML =
           '<h2>Leave no avatar behind.</h2><p>This permanently removes your account, avatar, progress, scores and dares. You will be signed out on every device.</p><form><label>Type DELETE to confirm<input name="confirm" required pattern="DELETE" autocomplete="off"></label><button class="primary">Delete my profile</button><p role="status"></p></form><button class="secondary" id="keep-account">Keep my account</button>';
-        host.querySelector("#keep-account")!.addEventListener("click", render);
+        host
+          .querySelector("#keep-account")!
+          .addEventListener("click", renderPrivacy);
         host.querySelector("form")!.addEventListener("submit", async (e) => {
           e.preventDefault();
           try {
@@ -325,7 +331,14 @@ export async function openAccount(
       });
     };
     if (options.create && !p.account)
-      create(options.guided ? () => d.close() : render);
+      create(
+        options.guided
+          ? () => {
+              d.close();
+              options.onSkipped?.();
+            }
+          : render,
+      );
     else render();
   } catch (error) {
     host.textContent = (error as Error).message;

@@ -22,7 +22,7 @@ A second district east of the island adds three facilities with non-arcade activ
 
 Records keeps accounts, scores, medals, dares and moderation in the existing `Neighbourhood` Durable Object named `darecade-main-v1`. Shared results are cached for 30 seconds and refreshed on relevant events. The new SQLite `World` class uses the `WORLD` binding and additive `v2` migration; `v1` stays unchanged. Each world has hibernating WebSockets, compact movement updates up to 5 Hz, interpolation, and a two-second HTTP fallback. Empty rooms stop scheduling work and hibernate.
 
-Your first visit auto-joins the fullest world below 25 players without adding a picker before the first game. The top bar shows your world and short room code. Open Worlds, enter a code such as W3, or use Join friend to visit a neighbour, up to a hard cap of 30. Accounts and results follow you between worlds. Blocks, suspensions and deletion apply across all worlds. Node preview uses HTTP polling for rooms.
+Your first visit auto-joins the fullest world below 25 players without adding a picker before the first game. The top bar shows your world and short room code. Choose Explore → Change world, enter a code such as W3, or use Join friend to visit a neighbour, up to a hard cap of 30. Accounts and results follow you between worlds. Blocks, suspensions and deletion apply across all worlds. Node preview uses HTTP polling for rooms.
 
 Capacity is about 25 players per world. The original Free-plan estimate of roughly 100 player-hours/day is an optimistic light-use target, not a guarantee. Twenty incoming WebSocket messages bill as one request, while SQL reads, writes, HTTP/RPC calls and active duration have separate quotas. The 150-player load run with 20,000 stored runs exceeded the SQL budget when extrapolated to 100 player-hours; that target is not supported by this workload on Free. Workers Paid starts at US$5/month with possible overages; upgrading is the owner's decision. [HOSTING.md](HOSTING.md#capacity-and-cost) explains the architecture, migration, current pricing sources and quota limits.
 
@@ -30,15 +30,15 @@ Run `npm run load:test` after building to test 150 synthetic players for five mi
 
 ### First-round welcome quest
 
-The first Play opens Coast Rush after the age and consent checks. A world is assigned automatically in the background, with no room picker before the first game. Completing a first round at any score unlocks the Lilac cap and grants +35 bonus cosmetic XP once, alongside the normal +20 round XP. “Wear my cap & meet Kopi” equips it and guides the player to the cat. “Another round” remains available. Skipping, interrupted walks and reloads retain progress. The 2D fallback offers the same reward. The reward is issued once per server profile after a verified round; existing preview saves are archived during the server-progression migration.
+The first Play opens Coast Rush after the age and consent checks. A world is assigned automatically in the background, with no room picker before the first game. Completing a first round at any score unlocks the Lilac cap and grants +35 bonus cosmetic XP once, alongside the normal +20 round XP. “Make it yours” opens the optional character setup. “Play again” and “Explore” remain available. Skipping, interrupted walks and reloads retain progress. The 2D fallback offers the same reward. The reward is issued once per server profile after a verified round; existing preview saves are archived during the server-progression migration.
 
 ### Real-phone playtest
 
 The current phone link is `http://192.168.1.109:4173/?playtest=1&revision=look12`, for an iPhone on the same home network. The server keeps its localhost listener and additionally binds this explicit LAN address when `LAN_HOST` is set. No public tunnel or internet hosting is created. The LAN address can change after reconnecting the computer. Keep the server running during the test.
 
-Explore for roughly two minutes, then tap **More → Phone test · feedback** on the phone. Only an explicit Save sends the report. It includes device/browser details, movement/readability/performance observations, clarity of the next step, desire for another round, optional notes, quest timings and sampled world FPS. Reports save in `data/playtests/`, outside the public files. Desktop synthetic reports use isolated QA storage and are never physical-device or human-fun evidence. Replay desire is self-reported; replay clicks are recorded independently.
+Explore for roughly two minutes, then tap **Menu → Settings → Preferences → Phone test** on the phone. Only an explicit Save sends the report. It includes device/browser details, movement/readability/performance observations, clarity of the next step, desire for another round, optional notes, quest timings and sampled world FPS. Reports save in `data/playtests/`, outside the public files. Desktop synthetic reports use isolated QA storage and are never physical-device or human-fun evidence. Replay desire is self-reported; replay clicks are recorded independently.
 
-The first physical iPhone test found easy movement and smooth rendering but crowded controls, small text and an unclear next action. The revised phone HUD uses Explore, Arcade and More, with secondary actions inside More. First-round results place the next action above score details. See QA.md for the measured findings and remaining device-test limits.
+The first physical iPhone test found easy movement and smooth rendering but crowded controls, small text and an unclear next action. The current HUD uses Play, Explore and Menu on desktop and phone. Menu groups have three choices; games, outdoor activities, emotes and quests show up to three choices per page. First-round results place the next action above score details. See QA.md for the measured findings and remaining device-test limits.
 
 A successful local HTTP check does not establish phone reachability. Windows denied adding a firewall rule during setup; existing Node inbound allow rules were present and left unchanged. Wi-Fi isolation or firewall settings may still affect the phone connection.
 
@@ -75,6 +75,16 @@ The production site is emitted to `dist/`. `npm run preview` serves it at http:/
 - Day, golden-hour and night lighting, plus an option to follow Singapore time. Sound is synthesized locally, enabled for new profiles after a browser gesture, and can be muted; existing sound preferences are preserved. Reduced decorative motion, a 30-active-minute break reminder, and a functional 2D lobby when WebGL fails or is disabled in Settings.
 - Local persistence with malformed-save recovery. Fonts and art are served locally. The background world stops rendering while an activity panel is open.
 
+## Short onboarding and three-action menus
+
+Play, Explore and Menu are the only persistent world actions. A nearby interaction replaces Explore while available. Stop and I’m back replace the third world action during an activity or away state. Player inspection hides the dock and offers three actions plus Close.
+
+Menu pages have at most three main action buttons. Larger game, activity, emote and quest lists use three-item pages. Wardrobe choices, rankings filters, neighbours and world destinations use labelled native form inputs. Back, Close, pagination are navigation controls; text fields, dropdowns and checkboxes are form inputs. These do not count as additional main actions. Game movement controls remain available during play.
+
+The age check and explicit consent are unchanged. The first privacy screen has a short summary and an expandable full notice. Email saving stays optional; Skip for now returns straight to the world. Account data export, consent withdrawal, deletion and player reporting remain available.
+
+The changes have automated structural and request-flow coverage. New browser-only tests can run with `DARECADE_TEST_CHROMIUM=/path/to/chromium npm test`. They are skipped by default. Visual phone and desktop verification is still required; the current test environment cannot launch Chromium or reach the local preview from its browser.
+
 ## Controls
 
 | Action                 | Control                                                            |
@@ -83,10 +93,10 @@ The production site is emitted to `dist/`. `npm run preview` serves it at http:/
 | Walk to a destination  | Explore → choose a spot                                            |
 | Nearby interaction     | E or the on-screen location button                                 |
 | Jump                   | Space                                                              |
-| Change the view        | Bottom-right rotate, compass reset, and zoom buttons               |
-| Third-person view      | V or the camera button; drag to orbit; scroll/pinch to zoom        |
-| Inspect an outfit      | Neighbours → a resident, or click one in the world; Esc returns    |
-| Away activity          | Step away → choose an activity → Save & step away                  |
+| Change the view        | Menu → Settings → Camera & controls               |
+| Third-person view      | V or Camera & controls; drag to orbit; scroll/pinch to zoom        |
+| Inspect an outfit      | Menu → Friends → Neighbours, or click one in the world; Esc returns    |
+| Away activity          | Menu → Settings → Account & safety → Step away                  |
 | Play with surroundings | Play outside, click a prop, or press E at its nearby prompt        |
 | Stop an interaction    | Stop, Escape, or a movement key; the player returns to the path    |
 | Noodle Run             | Arrows/WASD, swipe, or on-screen direction buttons                 |
@@ -204,3 +214,4 @@ My Look has a server-saved nickname (2–20 letters/numbers/spaces/hyphens), eig
 Seven companions include a bunny, fox, small dragon and owl; seven magic choices include a moon halo, crystal crown, rainbow ribbon and bubbles. A lightweight Three.js star burst celebrates completed rounds, releases its GPU resources, and respects reduced motion and 2D mode. The three decorative podium mannequins have been removed from the central plaza; actual shared players remain.
 
 Rankings have separate weekly and daily views, tied-rank podium cards and a personal summary showing awarded weekly medals, pending midnight medals and lifetime medals. Round results distinguish game score, cosmetic XP and daily rank. Existing server scoring and Singapore reset rules are unchanged. Nicknames are public; email, link and phone-like strings are rejected, and inappropriate-name reporting uses the existing private report/hide flow. Free-form names still require operator moderation before a public launch.
+
