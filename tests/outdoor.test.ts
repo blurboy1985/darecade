@@ -256,8 +256,6 @@ test("outdoor rounds can be dared, pay album and hoops XP from the replay, and n
     assert.deepEqual(Object.keys(state.boards).sort(), [...gameIds].sort());
     // A neighbour's best becomes the target, on the same seed.
     for (const [i, game] of outdoorIds.entries()) {
-      // One finished round opens the daily dare.
-      submit(guests[i], game, "idle");
       const dare = submit(guests[i], game, "idle", host);
       assert.equal(
         dare.session.seed,
