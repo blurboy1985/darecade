@@ -897,10 +897,6 @@ dialog.game-modal #modal-body:has(.result-score) > .secondary {
   }
 }
 
-/* ---------- Calm mode ---------- */
-.reduced .stat-pill.bump,
-.reduced .stat-pill.hurry,
-.reduced .game-cover .primary,
 /* Shown over the last frame when a round ends before the clock does. */
 .round-over {
   position: absolute;
@@ -932,6 +928,10 @@ dialog.game-modal #modal-body:has(.result-score) > .secondary {
   font-size: 15px;
   text-align: center;
 }
+/* ---------- Calm mode ---------- */
+.reduced .stat-pill.bump,
+.reduced .stat-pill.hurry,
+.reduced .game-cover .primary,
 .reduced .go-splash,
 .reduced .game-pops .pop,
 .reduced .game-card,
