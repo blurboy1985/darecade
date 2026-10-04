@@ -21,6 +21,7 @@ import { loadCharacter, type Look } from "./character";
 import { audio, type Sfx, type Theme } from "./audio";
 import type { FxEvent } from "./arcade-fx";
 import type { RaceView } from "./race-view";
+import { RaceMotion } from "./race-motion";
 import { kartSteeringInput } from "./kart-motion";
 import "./racing.css";
 
@@ -46,6 +47,7 @@ export class RacingGame {
   private lastPop = 0;
   private readonly sim: Simulation;
   private view: RaceView | null = null;
+  private readonly motion = new RaceMotion();
   private readonly events: Replay["events"] = [];
   private readonly keys = new Set<string>();
   private readonly pointers = new Map<number, string>();
@@ -420,6 +422,7 @@ export class RacingGame {
           tier: race.tier,
           knocks: race.knocks,
         };
+        this.motion.capture(race);
         this.sim.advance(input);
         this.cue(before, now);
         this.accumulator -= 1 / 60;
@@ -499,6 +502,10 @@ export class RacingGame {
       this.status === "ready",
       dt,
       finished ? this.outroTime : -1,
+      this.motion.sample(
+        race,
+        !this.paused && this.status === "racing" ? this.accumulator * 60 : 1,
+      ),
     );
     this.drawMap();
   };

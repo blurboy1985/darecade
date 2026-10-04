@@ -1,6 +1,7 @@
 import * as T from "three";
 import { KartWheel, KART_WHEEL_RADIUS } from "./kart-motion";
 import { RaceCameraFollow } from "./race-camera";
+import { raceTrackPose, type RaceMotion } from "./race-motion";
 import {
   animateDetails,
   createAvatar,
@@ -858,36 +859,31 @@ export class RaceView {
     ready: boolean,
     dt: number,
     outro = -1,
+    motion?: ReturnType<RaceMotion["sample"]>,
   ) {
     if (this.disposed) return;
     // After the flag the kart rolls to a stop. This is display only: the
     // simulation, and so the recorded time, stopped at the line.
     const roll = Math.min(Math.max(outro, 0), 2.5);
-    const distance = race.distance + race.speed * (roll - (roll * roll) / 5);
-    const p = trackPoint(distance, race.offset);
+    const distance =
+      (motion?.distance ?? race.distance) +
+      race.speed * (roll - (roll * roll) / 5);
+    const p = raceTrackPose(distance, motion?.offset ?? race.offset);
     this.kart.position.set(p.x, 0.15, p.z);
-    this.kart.rotation.set(
-      0,
-      p.yaw + (race.drifting ? steer * 0.22 : race.lateralSpeed * 0.018),
-      this.reduced ? 0 : -steer * 0.035,
-    );
+    // Keep the chassis level. Steering and drift must not rock the whole view.
+    this.kart.rotation.set(0, p.yaw, 0);
     this.wheel.rotation.z = -steer * 0.4;
     this.wheels.forEach((w) => w.pose(distance, steer));
-    animateDetails(this.avatar, time, "drive", this.reduced);
+    animateDetails(this.avatar, time, "drive", true);
     if (this.avatar.pet) {
       this.avatar.pet.root.position.set(1.12, 0.5, -0.18);
       this.avatar.pet.root.rotation.y = 0;
-      animatePet(this.avatar.pet, this.reduced ? 0 : time, false);
+      animatePet(this.avatar.pet, 0, false);
     }
     this.flame.visible = race.boost > 0;
-    this.flame.scale.y = this.reduced ? 1 : 0.9 + Math.sin(time * 32) * 0.18;
-    // The bubble blinks through its last second so its end is not a surprise.
-    this.shield.visible =
-      race.shield > 0 &&
-      (this.reduced || race.shield > 0.8 || Math.sin(time * 34) > -0.2);
-    this.shield.scale.setScalar(
-      this.reduced ? 1 : 1 + Math.sin(time * 9) * 0.04,
-    );
+    this.flame.scale.y = 1;
+    this.shield.visible = race.shield > 0;
+    this.shield.scale.setScalar(1);
     race.rivals.forEach((r, i) => {
       const { kart, avatar, wheels } = this.rivals[i];
       // Finishers roll on and park beyond the line instead of stacking on it.
@@ -897,19 +893,19 @@ export class RaceView {
       const park = 42 + i * 6;
       const along = r.finishTick
         ? RACE_DISTANCE + park * (1 - Math.exp((-since * r.pace) / park))
-        : r.distance + r.speed * Math.max(outro, 0);
-      const at = trackPoint(
+        : (motion?.rivals[i].distance ?? r.distance) +
+          r.speed * Math.max(outro, 0);
+      const at = raceTrackPose(
         along,
-        r.offset + Math.sign(r.offset) * 1.4 * (1 - Math.exp(-since)),
+        (motion?.rivals[i].offset ?? r.offset) +
+          Math.sign(r.offset) * 1.4 * (1 - Math.exp(-since)),
       );
       kart.position.set(at.x, 0.15, at.z);
-      // A knocked kart spins twice on the spot; reduced motion shows it sideways.
-      kart.rotation.y =
-        at.yaw +
-        (r.stun ? (this.reduced ? Math.PI / 2 : (r.stun / 90) * TAU * 2) : 0);
+      // Hits still stop the racer, without a repeated spinning animation.
+      kart.rotation.set(0, at.yaw, 0);
       this.rivals[i].cloud.visible = r.slow > 0 && !r.finishTick;
       wheels.forEach((w) => w.pose(along, 0));
-      animateDetails(avatar, this.reduced ? 0 : time, "drive", this.reduced);
+      animateDetails(avatar, time, "drive", true);
     });
     this.missiles.forEach((mesh, i) => {
       const m = race.missiles[i];
