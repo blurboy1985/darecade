@@ -64,6 +64,17 @@ See [ACCOUNTS.md](ACCOUNTS.md) for the rules. Sign-in links are replaced by type
 - Signed out, then signed back in from the welcome screen with a fresh code (email typed in different case): the same character returned. No page errors.
 - **Not verified:** real delivery through Resend, including how the code email looks in an inbox and whether phones offer the code from the keyboard; a physical phone.
 
+## Coast Rush winding route and five items, 4 October 2026
+
+See [Coast Rush](COAST-RUSH.md) for the behaviour. This changes the race simulation: Coast Rush is now rules version 3 and old-loop bests are archived. Not deployed.
+
+- **135 Node tests passed, none failed, and the two browser checks that need `DARECADE_TEST_CHROMIUM` were skipped; 7/7 Cloudflare integration tests passed.** TypeScript and the Vite build passed with the existing large-bundle warning.
+- Route measured from the simulation: 577 units a lap (the old loop was shorter), tightest bend about 15 units radius, sections at least 30 units apart, bends in both directions. Scripted drivers: holding a drift at turbo speed clears the hairpin, the same line without a drift hits the wall.
+- Tested in an isolated local Chromium against `.browser/route-qa-data` on port 4195 with a synthetic guest and scripted keyboard input. Three races finished and were server-verified: **1:03.22, 1st/8** (drifting throughout), **1:16.83, 1st/8** (no drift) and **1:23.43, 2nd/8** (late start, no drift). The third used twelve items, including five missiles, and spun rivals seven times. Missile, storm clouds, coconut and spin-outs were seen on screen. No page errors.
+- **390×844**: no horizontal overflow. The race cover is 35 px taller than its panel with the longer legend, so its small print scrolls; Race! stays visible.
+- **Not verified:** whether the route is fun or the difficulty is right for a person, since all driving was scripted; 320×568 and landscape layouts; the simple (no WebGL) view; how the reused effects sound; a physical phone.
+- Balance note: rivals keep their old paces and do not use items, so a player who drifts leads early and then draws only shield, turbo or coconut.
+
 ## Coast Rush items, touch, sound and finish, 4 October 2026
 
 See [Coast Rush](COAST-RUSH.md) for the behaviour. The race simulation was not changed.

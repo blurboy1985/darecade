@@ -1,8 +1,10 @@
 import { CoastRace, RACE_TICKS } from "./racing.ts";
 import { HopRun, StarFlight } from "../src/action-games.ts";
 export const RULES_VERSION = 1;
+/** 3: winding route and five seeded items. 2: three laps on the old loop. */
+export const COAST_RULES_VERSION = 3;
 export const rulesVersion = (game: string) =>
-  game === "coast" ? 2 : RULES_VERSION;
+  game === "coast" ? COAST_RULES_VERSION : RULES_VERSION;
 export const TICK_RATE = 60;
 export type Input = [number, number, number, number, number, number];
 export type Event = [number, ...Input];
@@ -35,8 +37,8 @@ export class Simulation {
     if (!["noodle", "brick", "hop", "swarm", "coast"].includes(id))
       throw Error("Invalid game.");
     this.id = id;
-    this.race = id === "coast" ? new CoastRace() : null;
     this.seed = seed >>> 0;
+    this.race = id === "coast" ? new CoastRace(this.seed) : null;
     this.action =
       id === "hop" ? new HopRun() : id === "swarm" ? new StarFlight() : null;
     if (this.action instanceof StarFlight) this.action.seed = this.seed;

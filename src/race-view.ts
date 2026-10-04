@@ -17,6 +17,7 @@ import {
   RACE_DISTANCE,
   ROAD_HALF_WIDTH,
   TRACK_LENGTH,
+  trackClearance,
   trackPoint,
   type CoastRace,
 } from "../shared/racing";
@@ -37,7 +38,10 @@ export class RaceView {
     kart: T.Group;
     avatar: Avatar;
     wheels: KartWheel[];
+    cloud: T.Mesh;
   }[] = [];
+  private readonly missiles: T.Group[] = [];
+  private readonly coconuts: T.Mesh[] = [];
   private readonly trackItems: {
     group: T.Group;
     kind: string;
@@ -248,8 +252,73 @@ export class RaceView {
         "#163c4c",
         Math.PI,
       );
-      this.rivals.push({ kart, avatar, wheels });
+      // A storm cloud sits over a rival while it is slowed.
+      const cloud = this.mesh(
+        kart,
+        this.geo(new T.SphereGeometry(1, 10, 6)),
+        this.mat("#56677a"),
+        0,
+        3.7,
+        0,
+      );
+      cloud.scale.set(1.5, 0.55, 1.2);
+      cloud.visible = false;
+      const bolt = this.mesh(
+        cloud,
+        this.geo(new T.ConeGeometry(0.16, 1.1, 4)),
+        this.mat("#ffe27a", 1.6),
+        0,
+        -1.3,
+        0,
+      );
+      bolt.rotation.x = Math.PI;
+      this.rivals.push({ kart, avatar, wheels, cloud });
     });
+    for (let i = 0; i < 3; i++) {
+      const missile = new T.Group();
+      const body = this.mesh(
+        missile,
+        this.geo(new T.CylinderGeometry(0.2, 0.2, 1.1, 8)),
+        this.mat("#f4f1e4"),
+        0,
+        0,
+        0,
+      );
+      body.rotation.x = Math.PI / 2;
+      const nose = this.mesh(
+        missile,
+        this.geo(new T.ConeGeometry(0.22, 0.5, 8)),
+        this.mat("#f0624d", 0.5),
+        0,
+        0,
+        0.8,
+      );
+      nose.rotation.x = Math.PI / 2;
+      const trail = this.mesh(
+        missile,
+        this.geo(new T.ConeGeometry(0.17, 0.9, 6)),
+        this.mat("#ffd36b", 1.8),
+        0,
+        0,
+        -1,
+      );
+      trail.rotation.x = -Math.PI / 2;
+      missile.visible = false;
+      this.scene.add(missile);
+      this.missiles.push(missile);
+    }
+    for (let i = 0; i < 4; i++) {
+      const coconut = this.mesh(
+        this.scene,
+        this.geo(new T.SphereGeometry(0.5, 10, 8)),
+        this.mat("#6e4a2c"),
+        0,
+        0.62,
+        0,
+      );
+      coconut.visible = false;
+      this.coconuts.push(coconut);
+    }
     this.observer = new ResizeObserver(() => {
       const width = host.clientWidth,
         height = host.clientHeight;
@@ -471,18 +540,20 @@ export class RaceView {
         if (kind === "crate") {
           this.box(group, 0, 0.85, 0, 1, 1, 1, "#54d8c5");
           this.box(group, 0, 0.85, 0, 1.04, 0.18, 1.04, "#fff5cb");
-          this.label(
-            group,
-            "SHIELD / TURBO",
-            0,
-            1.7,
-            0,
-            2.8,
-            0.35,
-            "#143d49",
-            "#c1fce8",
-            Math.PI,
-          );
+          // One sign per row of three crates.
+          if (!object.offset)
+            this.label(
+              group,
+              "? RANDOM ITEM ?",
+              0,
+              1.9,
+              0,
+              3.6,
+              0.45,
+              "#143d49",
+              "#c1fce8",
+              Math.PI,
+            );
         } else {
           const shell = this.mesh(
             group,
@@ -552,15 +623,18 @@ export class RaceView {
     m.rotation.y = yaw;
   }
   private buildIsland() {
-    const vertices: number[] = [];
-    for (let i = 0; i < 180; i++) {
-      const a = trackPoint((i / 180) * TRACK_LENGTH, -11),
-        b = trackPoint(((i + 1) / 180) * TRACK_LENGTH, -11);
-      vertices.push(0, 0, 0, a.x, 0, a.z, b.x, 0, b.z);
-    }
-    const ground = this.geo(new T.BufferGeometry());
-    ground.setAttribute("position", new T.Float32BufferAttribute(vertices, 3));
-    ground.computeVertexNormals();
+    // The route winds, so the lawn is the triangulated inside edge of the sand.
+    const ground = this.geo(
+      new T.ShapeGeometry(
+        new T.Shape(
+          Array.from({ length: 240 }, (_, i) => {
+            const p = trackPoint((i / 240) * TRACK_LENGTH, -11);
+            return new T.Vector2(p.x, p.z);
+          }),
+        ),
+      ),
+    );
+    ground.rotateX(Math.PI / 2);
     const grass = this.mat("#85af65");
     grass.side = T.DoubleSide;
     this.mesh(this.scene, ground, grass, 0, 0, 0);
@@ -571,17 +645,25 @@ export class RaceView {
       o.scale.set(1.2 + (i % 3), 1 + (i % 2), 1.5);
       o.rotation.y = i * 0.8;
     });
-    for (let i = 0; i < 5; i++) {
+    // Hills fill the widest gaps between sections, clear of the houses.
+    [
+      [61, -12],
+      [58, 6],
+      [-52, -12],
+      [-50, 6],
+      [-55, -22],
+    ].forEach(([x, z], i) => {
+      const room = trackClearance(x, z) - 20;
       const mountain = this.mesh(
         this.scene,
         rock,
         this.mat(i % 2 ? "#7f9474" : "#8c9a78"),
-        -28 + i * 12,
-        4,
-        -5,
+        x,
+        2,
+        z,
       );
-      mountain.scale.set(16, 9 + (i % 3) * 4, 13);
-    }
+      mountain.scale.set(room, room * (0.7 + (i % 3) * 0.15), room * 0.85);
+    });
     for (let i = 0; i < 7; i++) {
       const g = this.onTrack((0.14 + i * 0.037) * TRACK_LENGTH, -18);
       this.box(
@@ -605,11 +687,12 @@ export class RaceView {
       roof.rotation.y = Math.PI / 4;
       this.box(g, 0, 1, 1.67, 1.1, 2, 0.06, "#405762");
     }
-    // Jetty and lighthouse give the back straight a recognisable landmark.
-    const pier = this.onTrack(TRACK_LENGTH * 0.72, 11);
+    // Jetty and lighthouse mark the harbour inside the hairpin.
+    const pier = this.onTrack(TRACK_LENGTH * 0.335, 11);
+    pier.rotation.y += Math.PI / 2;
     for (let i = 0; i < 7; i++)
       this.box(pier, 0, -0.1, i * 1.1, 5, 0.25, 1, "#b88761");
-    const lighthouse = this.onTrack(TRACK_LENGTH * 0.7, 20);
+    const lighthouse = this.onTrack(TRACK_LENGTH * 0.335, 24);
     this.mesh(
       lighthouse,
       this.geo(new T.CylinderGeometry(1.2, 1.8, 9, 12)),
@@ -764,9 +847,28 @@ export class RaceView {
         r.offset + Math.sign(r.offset) * 1.4 * (1 - Math.exp(-since)),
       );
       kart.position.set(at.x, 0.15, at.z);
-      kart.rotation.y = at.yaw;
+      // A knocked kart spins twice on the spot; reduced motion shows it sideways.
+      kart.rotation.y =
+        at.yaw +
+        (r.stun ? (this.reduced ? Math.PI / 2 : (r.stun / 90) * TAU * 2) : 0);
+      this.rivals[i].cloud.visible = r.slow > 0 && !r.finishTick;
       wheels.forEach((w) => w.pose(along, 0));
       animateDetails(avatar, this.reduced ? 0 : time, "drive", this.reduced);
+    });
+    this.missiles.forEach((mesh, i) => {
+      const m = race.missiles[i];
+      mesh.visible = !!m && outro < 0;
+      if (!m) return;
+      const at = trackPoint(m.distance, m.offset);
+      mesh.position.set(at.x, 1, at.z);
+      mesh.rotation.y = at.yaw;
+    });
+    this.coconuts.forEach((mesh, i) => {
+      const c = race.coconuts[i];
+      mesh.visible = !!c;
+      if (!c) return;
+      const at = trackPoint(c.distance, c.offset);
+      mesh.position.set(at.x, 0.62, at.z);
     });
     this.trackItems.forEach(({ group, kind, index }) => {
       group.visible = !race.collected.has(`${kind}:${race.lap - 1}:${index}`);
