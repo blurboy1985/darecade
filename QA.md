@@ -1,5 +1,16 @@
 # Darecade verification
 
+## Coast Rush clarity and post-race setup, 4 October 2026
+
+- All 171 Node tests passed, including the opt-in Chromium account and menu tests. Eight Cloudflare integration tests, TypeScript/build, deployment dry-run and `git diff --check` passed.
+- The chase camera now carries kart translation before easing its orbit. Tests cover acceleration through turbo speed at mixed 30/120 Hz frame intervals and reduced-motion behavior. Nameplates use screen-space text, remain upright, and hide overlapping/distant labels. Real browser screenshots cover desktop acceleration and a 320px turbo run at 110 km/h.
+- Completed real local browser races with server-validated inputs. The verified-email run finished in 1:03.72; the result showed 0.12s behind two tied 1:03.60 leaders and daily rank #3. These are isolated synthetic local fixtures, not production leaderboard entries. Guest board access and blocked-player filtering are covered by the replay-backed server tests.
+- Inspected results at 320px, 390px and desktop. No horizontal overflow in the modal or comparison card. The initial card shows the run time, daily comparison, top three plus the player's row, and name/look action. Remaining leaderboard rows and race rewards/splits are collapsed.
+- At 320px, an empty nickname could not advance to email. Typed `Coral Comet` survived a Sky outfit change. Name, outfit, chosen-name marker and completed setup persisted. The optional second email step rejected a wrong code and accepted the correct local-outbox code, preserving the same profile after session rotation. No real email was sent by this QA.
+- Optional wardrobe collections are collapsed during setup. Existing signed-in players finish customization without an unnecessary email prompt. Existing guest rounds remain outside ranked results.
+- Production served the expected `index-qoU7Lmhv.js` build. A disposable guest completed a verified 1:03.60 race, saved its name and outfit, completed setup, and passed duplicate-reward protection. The test guest was deleted and its session returned 401. No production email or ranked test entry was created.
+- Physical-phone GPU performance and real inbox delivery were not retested in this change.
+
 ## Integrated production release — 4 October 2026
 
 PRs #11–16 are integrated with grouped wardrobe previews, ten S$1.99 premium

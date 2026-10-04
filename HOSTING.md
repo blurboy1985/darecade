@@ -1,5 +1,14 @@
 # Cloudflare hosting
 
+## Coast Rush clarity and post-race setup, 4 October 2026
+
+Deployed code commit `f7abbf7805094a284209f0ea157cb3a3e326f1f4` as Worker version **`c9e77b3e-44b3-4b3f-8195-d1d81e251a1c`**. Production HTML and the expected `index-qoU7Lmhv.js` asset returned 200. The browser reached the age/privacy onboarding screen. All 171 Node tests, eight Cloudflare integration tests, build and deployment dry-run passed.
+
+The release stabilizes the chase camera during acceleration, renders upright screen-space racer names, and puts the player's time and today's SGT leaderboard before name/look setup. Guest Coast Rush comparisons can read ranked times while retaining blocked-player filtering. Guests still need email verification and a subsequent ranked race to enter the board. Optional details and extended wardrobe choices are collapsed.
+
+Live verification succeeded at approximately **18:15 SGT**: a disposable guest completed a server-verified **1:03.60** Coast Rush replay after the full real duration, with duplicate-reward protection. Mandatory name selection, outfit persistence and setup completion passed. The guest did not enter the ranked board; its profile was deleted and session revocation returned 401. Today's live board was empty during this check; populated/tied comparisons were verified against isolated local fixtures. No production email was sent. Physical-phone performance and fresh real-inbox delivery remain unverified. Existing Worker bindings, migrations, billing, payment configuration and secrets were preserved.
+
+
 ## Remaining PR deployment, 4 October 2026
 
 Redeployed main `646b81a` first as version `093907e0-d0f1-4a97-8dc1-ee8da794fd7b`. Then merged PR #8 (ready-screen controls, `1760a6d`), #9 (Records quota efficiency, `cdf5605`) and #6 (East Side activities, `098ab66`). Deployed combined main **`098ab664cf6da6f6371839483661c69be5139fe9`** as Worker version **`97e9c742-97cf-4c8b-a658-bcd7f7f69695`**. No open PRs remained at verification. All billing settings, secrets, Durable Object identities and migrations, ranked physics and rules versions were preserved.
