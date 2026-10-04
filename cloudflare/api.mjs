@@ -138,6 +138,9 @@ export async function handleApi(
     }
     if (method === "POST" && path === "/api/progress")
       return json(c.progression(id, data.event, data.value));
+    if (method === "POST" && path === "/api/invite") return json(c.invite(id));
+    if (method === "POST" && path === "/api/invite/accept")
+      return json(c.acceptInvite(id, data.code));
     if (method === "POST" && path === "/api/dares")
       return json(c.postDare(id, data.run));
     if (method === "POST" && path === "/api/report") {

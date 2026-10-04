@@ -1,39 +1,38 @@
-# Coast Rush review: items, mobile, sound, finish
+# Invite a friend
 
-Branch `scale/records`, edited in place. The unrelated uncommitted server/social work is left alone.
+Branch `invite-friends`, from `origin/main`. Separate from PRs #11 to #15.
 
 ## Task
 
-Review Coast Rush; explain shells and shields in the game itself; improve phone play; add race music and sound effects; give the race a proper ending.
+Give players a reason and a way to invite friends, and to buy things in the game.
 
 ## Findings
 
-- **Shells**: 12 per lap, 36 per race. Counted on the result only. No speed, currency or medal effect. The game never says so, and collecting one gives no sound or visual feedback.
-- **Shield**: a crate item. Using it blocks wall and kart hits (each a 0.75s stop) for 3 seconds. Crates alternate shield and turbo. Collecting or using one has no feedback beyond a small text label.
-- **Mobile**: drifting needs GO and DRIFT held together, so two right-hand fingers. Buttons are 54×48. The cover shows keyboard keys (W A S D, Space, E) on phones.
-- **Sound**: sound is off by default with no control inside the race. The race has no music of its own, no engine, and no sound for shells, crates, shield, laps or position changes.
-- **Ending**: the frame the line is crossed, the race view is replaced by "Checking score…". Finished rivals also stack on the start line.
+- **Purchases are already in progress elsewhere.** The main working folder holds uncommitted Stripe checkout work for cosmetic sets (`PAYMENTS.md`, `server/payments.mjs`, `src/wardrobe.ts`). Nothing purchasable exists on `origin/main`, and the privacy notice there says no purchases are enabled. Purchase prompts built here would have nothing to point at and would collide with that work, so they wait for it to land.
+- **Friends exist only as neighbours.** A player can join a friend's world from the Worlds window, but there is no way to bring someone new in.
+- Players are 13 and over, including teens. Invitations must not collect anyone's contact details, and rewards must not be farmable into something worth money.
 
-## Constraint
+## Design
 
-`shared/racing.ts` is replayed by the server and versioned (rules v2). It is not changed, so times, bests, medals and replays are unaffected. All work is presentation and input.
+- Every player has an invite link, `/?invite=CODE`. Sharing uses the device's share sheet or copy; the game never asks for a friend's email or number.
+- A new player who arrives by a link is tied to the inviter once they have agreed to the privacy notice.
+- When the new player finishes their first verified round, both get 30 XP. The inviter is paid for at most five friends, 150 XP in all. Later invites still work but pay the inviter nothing.
+- Only a brand-new profile can accept, once, and never its own link.
+- The inviter sees counts, never names. The newcomer sees the inviter's nickname, which neighbours already see.
+- Entry points: the Neighbours window, and the result card after a round.
 
 ## Steps
 
-1. `src/audio.ts`: race music mood, tempo control, engine/skid/wind loop, new effects.
-2. `src/race-view.ts`: finish camera, coasting past the line, rivals parking beyond it, shield pulse and expiry blink.
-3. `src/racing-game.ts`: item legend, touch wording, thumb sliding, DRIFT/ITEM keep throttle, pickup and position cues, final-lap moment, finish sequence, sound button.
-4. `src/racing.css`: thumb-sized controls, item states, finish overlay.
-5. `src/main.ts`: submit the result while the finish sequence plays; race music; shared sound toggle.
-6. Docs: `COAST-RUSH.md`, `QA.md`.
+1. `server/community-core.mjs`: tables, `invite`, `acceptInvite`, payout in `finish`, cleanup in `delete`, export. Routes in `server/index.mjs` and `cloudflare/api.mjs`.
+2. `src/invite.ts` and `src/main.ts`: link capture, accept, the Invite window, entry points.
+3. `tests/invite.test.ts`; `INVITES.md`, `README.md`, `QA.md`.
 
 ## Verify
 
-- `npm test` and `npm run build` pass.
-- Browser at 390×844, 320×568 and 844×390: no overflow, controls reachable, a full race reaches the finish sequence and a server-verified result.
-- Not verifiable here: real-phone touch feel and how the audio sounds to a person.
+- `npm test`, `npm run build`, `npm run test:cloudflare`.
+- Browser: copy a link as one guest, open it as a second guest, finish a round, see both rewards.
 
-## Decisions left for Daniel
+## Decisions for Daniel
 
-- Sound default: decided 4 October 2026, on by default for new players. A sound button is also on the race cover.
-- Whether shells should ever affect anything is a rules change (version bump); not done.
+- Purchase prompts: which catalogue and checkout they point at, once the payments work is merged.
+- Whether the privacy notice should mention invite links. No new personal data is collected, so the version is not bumped here.
