@@ -80,7 +80,7 @@ test("first visit and 2D retain privacy and player reporting routes", () => {
     source,
     /firstRacePending\(\) &&[\s\S]*?"settings"[\s\S]*?"neighbours"/,
   );
-  const invitation = source.match(/const invitation =[\s\S]*?;\n/)?.[0] || "";
+  const invitation = source.match(/const invitation =[\s\S]*?;\r?\n/)?.[0] || "";
   assert.match(invitation, /data-account>Account & privacy/);
   const playerPanel = source.slice(
     source.indexOf("function showPlayer("),

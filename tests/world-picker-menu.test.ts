@@ -349,15 +349,15 @@ try {
 `;
     const server = createServer((request, response) => {
       if (request.url === "/world-picker.js") {
-        response.setHeader("Content-Type", "text/javascript");
+        response.setHeader("Content-Type", "text/javascript; charset=utf-8");
         response.end(compiled);
       } else if (request.url === "/social") {
-        response.setHeader("Content-Type", "text/javascript");
+        response.setHeader("Content-Type", "text/javascript; charset=utf-8");
         response.end(
           "export const api = (path, destination) => window.testApi(path, destination);",
         );
       } else if (request.url === "/") {
-        response.setHeader("Content-Type", "text/html");
+        response.setHeader("Content-Type", "text/html; charset=utf-8");
         response.end(
           `<html><body><main id="worlds"></main><script type="module">${script}</script></body></html>`,
         );

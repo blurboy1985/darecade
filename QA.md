@@ -10,13 +10,17 @@ The age check, consent version, complete privacy notice, reporting and deletion 
 
 Verified against the final local diff:
 
-- `npm test`: 131 passed, 2 browser-only tests skipped
+- `npm test` with `DARECADE_TEST_CHROMIUM` set to the installed Chrome executable: 133 passed, none skipped
 - `npm run build`: TypeScript and production bundle passed
 - `npm run test:cloudflare`: deployment dry-run and 7 integration tests passed using local test storage
 - `git diff --check`: passed
 - New structural/controller checks exercise populated and empty menu views, pagination, native selection request ownership, stale setup responses, repeated clicks, selected-game retention and movement-only updates
 
-Browser and screenshot verification is blocked in this environment. Chromium cannot create its process socket, the cloud browser cannot reach the local preview, and the supported preview service is unavailable. No new screenshots are claimed. The source-render tests do not establish layout, touch, focus or real-browser correctness. Run `DARECADE_TEST_CHROMIUM=/path/to/chromium npm test` in a supported local environment and check desktop, 320px/390px phone portrait, phone landscape and 2D before release. The existing large-bundle warning remains.
+The local Windows review fixed a CRLF-sensitive source test and declared UTF-8 in both browser test fixtures. The two opt-in Chromium tests now exercise consent, optional email saving, world joins, disabled destinations and stale requests.
+
+Against the actual bundled Worker/World in disposable local storage, browser checks covered the age/consent flow, expandable full privacy notice, first-race entry, ready-screen controls remaining hidden, Menu/Settings/Preferences, switching to 2D, Explore/Worlds and game pagination. Later navigation used a fixture-marked first-round completion; this was not a human-completed race. DOM measurements showed no horizontal overflow in the sampled panels at 320x700, 390x843, 843x390 and the restored 1908x1348 desktop viewport. Screenshot capture timed out, so no new visual captures or full visual review are claimed. Physical-phone touch, Safari, haptics and performance remain unverified. The existing large-bundle warning remains.
+
+The 1,000-player / 20,000-run regression benchmark measured cached personal state at 1.14 ms p95 (1.18 ms maximum), with full rebuilds at 33.12-40.39 ms. Index-free snapshot plus personal state remained at 28 queries. No new load test was run for this UI change.
 
 No production accounts, scores, age submissions, deployment or billing changes were made for this pass.
 

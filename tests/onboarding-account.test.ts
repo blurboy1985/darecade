@@ -229,7 +229,7 @@ try {
     const server = createServer(async (request, response) => {
       const path = request.url ?? "/";
       if (path === "/account.js" || path === "/social") {
-        response.setHeader("Content-Type", "text/javascript");
+        response.setHeader("Content-Type", "text/javascript; charset=utf-8");
         response.end(
           compile(
             path === "/account.js"
@@ -240,7 +240,7 @@ try {
         return;
       }
       if (path === "/") {
-        response.setHeader("Content-Type", "text/html");
+        response.setHeader("Content-Type", "text/html; charset=utf-8");
         response.end(
           `<html><body><script type="module">${script}</script></body></html>`,
         );
