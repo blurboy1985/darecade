@@ -69,8 +69,28 @@ export const activities = {
     icon: "🕹",
     description: "Have a go at your favourite cabinet.",
   },
+  fish: {
+    name: "Fish off the jetty",
+    icon: "🎣",
+    description: "Watch the float and wait for a bite.",
+  },
+  hoops: {
+    name: "Shoot some hoops",
+    icon: "🏀",
+    description: "A few free throws at the East Side court.",
+  },
 } as const;
 export type ActivityId = keyof typeof activities;
+/** Stable wire positions: append new activities so existing indices never change. */
+export const activityIds: readonly ActivityId[] = [
+  "jog",
+  "dragon",
+  "dance",
+  "rest",
+  "arcade",
+  "fish",
+  "hoops",
+];
 
 export function formatScore(game: GameId, score: number) {
   return game === "coast" ? raceScoreTime(score) : String(score);

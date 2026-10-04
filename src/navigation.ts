@@ -1,8 +1,11 @@
 export type Obstacle = { x: number; z: number; w: number; d: number };
+/** The walkable island. East Side extends it past the original east edge. */
+export const BOUNDS = { west: -19, east: 33, depth: 14 };
 export function blocked(x: number, z: number, obstacles: Obstacle[]) {
   return (
-    Math.abs(x) > 19 ||
-    Math.abs(z) > 14 ||
+    x < BOUNDS.west ||
+    x > BOUNDS.east ||
+    Math.abs(z) > BOUNDS.depth ||
     obstacles.some(
       (o) =>
         Math.abs(x - o.x) < o.w / 2 + 0.36 &&
@@ -23,7 +26,8 @@ export function route(
   const key = (x: number, z: number) => `${x},${z}`;
   const queue = [[sx, sz]];
   const prev = new Map<string, number[] | null>([[key(sx, sz), null]]);
-  for (let i = 0; i < queue.length && i < 1300; i++) {
+  // Enough steps to search every cell of the island.
+  for (let i = 0; i < queue.length && i < 2200; i++) {
     const [x, z] = queue[i];
     if (x === ex && z === ez) {
       const path = [];

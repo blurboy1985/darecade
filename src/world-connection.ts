@@ -1,5 +1,5 @@
 import { api, type SharedPlayer } from "./social";
-import type { ActivityId } from "./catalog";
+import { activityIds, type ActivityId } from "./catalog";
 
 type Movement = {
   x?: number;
@@ -17,7 +17,6 @@ type Packet = {
   d: number[][];
   gone: number[];
 };
-const activities: ActivityId[] = ["jog", "dragon", "dance", "rest", "arcade"];
 
 export class WorldConnection {
   private socket?: WebSocket;
@@ -194,7 +193,7 @@ export class WorldConnection {
           x: x / 100,
           z: z / 100,
           yaw: yaw / 100,
-          activity: activities[activity] || "rest",
+          activity: activityIds[activity] || "rest",
           status: away ? "resting" : "online",
           emote:
             ["", "wave", "cheer", "dance", "jump", "victory", "think"][emote] ||

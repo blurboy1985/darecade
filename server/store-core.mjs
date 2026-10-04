@@ -1,3 +1,4 @@
+import { clampMovement } from "./world-core.mjs";
 import { appearanceLimits } from "../src/appearance.ts";
 import { randomUUID, randomBytes, createHash } from "node:crypto";
 
@@ -149,12 +150,9 @@ export class StoreCore {
     )
       throw Error("Invalid connection");
     const p = this.db.prepare("SELECT * FROM players WHERE id=?").get(id);
-    const was = this.status(id),
-      activity = ["jog", "dragon", "dance", "rest", "arcade"].includes(
-        data.activity,
-      )
-        ? data.activity
-        : p.activity;
+    const was = this.status(id);
+    const movement = clampMovement(data, p);
+    const activity = movement.activity;
     const look = JSON.parse(p.look);
     for (const [key, max] of [
       ["outfit", 5],
@@ -171,10 +169,6 @@ export class StoreCore {
         data.look[key] <= max
       )
         look[key] = data.look[key];
-    const num = (v, f) =>
-      typeof v === "number" && Number.isFinite(v)
-        ? Math.max(-25, Math.min(25, v))
-        : f;
     this.db
       .prepare("INSERT OR REPLACE INTO presence VALUES(?,?,?,?)")
       .run(
@@ -196,9 +190,9 @@ export class StoreCore {
         JSON.stringify(look),
         activity,
         since,
-        num(data.x, p.x),
-        num(data.z, p.z),
-        num(data.yaw, p.yaw),
+        movement.x,
+        movement.z,
+        movement.yaw,
         this.now(),
         id,
       );

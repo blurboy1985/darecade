@@ -98,7 +98,7 @@ test("walking routes stay within the island and go around buildings", () => {
     previous = p;
   }
   assert.deepEqual(route(start, { x: 0, z: 0 }, obstacles), []);
-  assert.deepEqual(route(start, { x: 22, z: 0 }, obstacles), []);
+  assert.deepEqual(route(start, { x: 36, z: 0 }, obstacles), []);
 });
 test("all five hunt coins can be reached around the actual structural footprints", () => {
   const obstacles = [

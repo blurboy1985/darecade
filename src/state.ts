@@ -57,6 +57,13 @@ export type Save = {
   away: boolean;
   welcome: "new" | "cabinet" | "played" | "complete";
   welcomeDismissed: boolean;
+  /** East Side: species caught, best of ten hoops, and the one garden plot. */
+  fish: string[];
+  hoopsBest: number;
+  plotCrop: string;
+  plotPlanted: number;
+  plotWatered: boolean;
+  harvests: number;
 };
 export function singaporeDay(date = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -107,6 +114,12 @@ export function fresh(): Save {
     claims: [],
     welcome: "new",
     welcomeDismissed: false,
+    fish: [],
+    hoopsBest: 0,
+    plotCrop: "",
+    plotPlanted: 0,
+    plotWatered: false,
+    harvests: 0,
   };
 }
 export function normalise(raw: unknown, fallback: Save): Save {
@@ -158,6 +171,21 @@ export function normalise(raw: unknown, fallback: Save): Save {
         50,
       );
   if (["auto", "day", "dusk", "night"].includes(r.light!)) s.light = r.light!;
+  if (Array.isArray(r.fish))
+    s.fish = fishSpecies.map((f) => f.id).filter((id) => r.fish!.includes(id));
+  if (Number.isInteger(r.hoopsBest))
+    s.hoopsBest = Math.max(0, Math.min(HOOPS_SHOTS, r.hoopsBest!));
+  if (Number.isInteger(r.harvests) && r.harvests! >= 0)
+    s.harvests = Math.min(r.harvests!, 1e6);
+  if (
+    crops.some((c) => c.id === r.plotCrop) &&
+    Number.isFinite(r.plotPlanted) &&
+    r.plotPlanted! > 0
+  ) {
+    s.plotCrop = r.plotCrop!;
+    s.plotPlanted = Math.floor(r.plotPlanted!);
+    s.plotWatered = r.plotWatered === true;
+  }
   if (typeof r.giftDay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.giftDay))
     s.giftDay = r.giftDay;
   if (r.week === fallback.week && Array.isArray(r.coins))
@@ -238,6 +266,79 @@ export function claimGift(s: Save, choice: number, day = singaporeDay()) {
   if (!s.unlockedHats.includes(s.hat)) s.unlockedHats.push(s.hat);
   return true;
 }
+// ---------------------------------------------------------------- East Side
+// These rules run on the server as well as in the browser. Rewards are small,
+// cosmetic and bounded, and never touch medals or the arcade boards.
+export const fishSpecies = [
+  { id: "guppy", name: "Longkang guppy", icon: "🐟", weight: 30 },
+  { id: "tilapia", name: "Pond tilapia", icon: "🐠", weight: 26 },
+  { id: "catfish", name: "Whiskered catfish", icon: "🐡", weight: 18 },
+  { id: "prawn", name: "River prawn", icon: "🦐", weight: 14 },
+  { id: "terrapin", name: "Sunbathing terrapin", icon: "🐢", weight: 6 },
+  { id: "koi", name: "Golden koi", icon: "✨", weight: 6 },
+] as const;
+export const FISH_XP = 10;
+/** Returns true for a species caught for the first time, null for an unknown id. */
+export function catchFish(s: Save, id: unknown) {
+  if (!fishSpecies.some((f) => f.id === id)) return null;
+  if (s.fish.includes(id as string)) return false;
+  s.fish.push(id as string);
+  s.xp += FISH_XP;
+  return true;
+}
+export const HOOPS_SHOTS = 10;
+export const HOOPS_XP = 5;
+/** Records a round of ten shots. Only a new best earns XP. Returns the XP, or null if invalid. */
+export function scoreHoops(s: Save, made: unknown) {
+  if (
+    !Number.isInteger(made) ||
+    (made as number) < 0 ||
+    (made as number) > HOOPS_SHOTS
+  )
+    return null;
+  const gain = Math.max(0, (made as number) - s.hoopsBest) * HOOPS_XP;
+  s.hoopsBest = Math.max(s.hoopsBest, made as number);
+  s.xp += gain;
+  return gain;
+}
+export const crops = [
+  { id: "chilli", name: "Chilli padi", icon: "🌶", hours: 1, xp: 10 },
+  { id: "pandan", name: "Pandan", icon: "🌿", hours: 3, xp: 15 },
+  { id: "sunflower", name: "Sunflower", icon: "🌻", hours: 8, xp: 25 },
+] as const;
+const HOUR = 3600000;
+const planted = (s: Save) => crops.find((c) => c.id === s.plotCrop);
+/** The time the growing crop can be harvested, or 0 with an empty plot. */
+export function cropReadyAt(s: Save) {
+  const crop = planted(s);
+  return crop ? s.plotPlanted + crop.hours * HOUR : 0;
+}
+export function plantCrop(s: Save, id: unknown, now: number) {
+  if (s.plotCrop || !crops.some((c) => c.id === id)) return false;
+  s.plotCrop = id as string;
+  s.plotPlanted = now;
+  s.plotWatered = false;
+  return true;
+}
+/** Once per crop, watering brings the harvest a quarter of the remaining time closer. */
+export function waterCrop(s: Save, now: number) {
+  const ready = cropReadyAt(s);
+  if (!ready || s.plotWatered || now >= ready) return false;
+  s.plotPlanted -= Math.floor((ready - now) / 4);
+  s.plotWatered = true;
+  return true;
+}
+/** Crops never wilt: a ready crop waits until it is picked. Returns the crop, or null. */
+export function harvestCrop(s: Save, now: number) {
+  const crop = planted(s);
+  if (!crop || now < cropReadyAt(s)) return null;
+  s.plotCrop = "";
+  s.plotPlanted = 0;
+  s.plotWatered = false;
+  s.harvests++;
+  s.xp += crop.xp;
+  return crop;
+}
 export const missions = [
   {
     id: "explore",
@@ -260,11 +361,25 @@ export const missions = [
     total: 1,
     xp: 35,
   },
+  {
+    id: "eastside",
+    name: "A breath of fresh air",
+    detail: "Try 2 East Side activities",
+    total: 2,
+    xp: 30,
+  },
 ];
 export function missionProgress(s: Save, id: string) {
   return id === "explore"
     ? Math.min(4, s.visited.length)
     : id === "cat"
       ? Number(s.cat)
-      : Math.min(1, s.rounds);
+      : id === "eastside"
+        ? Math.min(
+            2,
+            Number(s.fish.length > 0) +
+              Number(s.hoopsBest > 0) +
+              Number(s.harvests > 0 || !!s.plotCrop),
+          )
+        : Math.min(1, s.rounds);
 }

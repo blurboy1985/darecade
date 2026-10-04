@@ -12,6 +12,10 @@ The welcome check, age/privacy consent, guest-to-email account linking, saved av
 
 The local server uses a **private local test outbox**; the hosted service uses Resend for live email. New verified progress starts fresh; previous browser saves are archived locally and legacy medal totals are preserved. The 3 October launch checks passed **65/65 Node tests and 3/3 Cloudflare runtime tests**, plus local browser-verified arcade, shared dare and account/privacy journeys and the live launch checks above.
 
+## East Side — 4 October 2026
+
+A second district east of the island adds three facilities with non-arcade activities: a Fishing Jetty, a Hoops Court and Community Plots. See [EAST-SIDE.md](EAST-SIDE.md).
+
 ## Run it
 
 ### Worlds and scaling

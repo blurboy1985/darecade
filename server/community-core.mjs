@@ -5,6 +5,11 @@ import {
   normalise,
   claimGift,
   completeWelcomeRound,
+  catchFish,
+  scoreHoops,
+  plantCrop,
+  waterCrop,
+  harvestCrop,
   missions,
   missionProgress,
   singaporeWeek,
@@ -287,6 +292,9 @@ export class CommunityCore {
             "garden",
             "cat",
             "playground",
+            "fishing",
+            "hoops",
+            "plots",
           ].includes(value)
         )
           throw Error("Unknown place.");
@@ -324,6 +332,19 @@ export class CommunityCore {
           throw Error("This mission is not ready to claim.");
         p.claims.push(value);
         p.xp += m.xp;
+      } else if (event === "fish") {
+        if (catchFish(p, value) === null) throw Error("Unknown catch.");
+      } else if (event === "hoops") {
+        if (scoreHoops(p, value) === null) throw Error("Unknown score.");
+      } else if (event === "plant") {
+        if (!plantCrop(p, value, this.now()))
+          throw Error("This plot is already growing something.");
+      } else if (event === "water") {
+        if (!waterCrop(p, this.now()))
+          throw Error("There is nothing to water right now.");
+      } else if (event === "harvest") {
+        if (!harvestCrop(p, this.now()))
+          throw Error("This crop is not ready yet.");
       } else if (event === "welcome-wear") {
         if (!p.unlockedHats.includes(2))
           throw Error("Finish a validated round first.");

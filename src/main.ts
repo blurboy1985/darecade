@@ -26,6 +26,7 @@ import {
 import { LobbyWorld, spots } from "./world";
 import { ArcadeGame } from "./games";
 import { RacingGame } from "./racing-game";
+import { mountFishing, mountHoops, mountPlots } from "./activities";
 import { ordinal, type RaceResult } from "../shared/racing";
 import type { Replay } from "../shared/simulation";
 import {
@@ -446,9 +447,28 @@ function open(id: string) {
         ? "MAMA SHOP"
         : id === "wardrobe"
           ? "MY LOOK"
-          : "DARECADE",
+          : ["fishing", "hoops", "plots"].includes(id)
+            ? "EAST SIDE"
+            : "DARECADE",
     id === "wardrobe" && !is2d,
   );
+  if (id === "fishing" || id === "hoops" || id === "plots") {
+    const mount = {
+      fishing: mountFishing,
+      hoops: mountHoops,
+      plots: mountPlots,
+    };
+    mount[id](body, {
+      save,
+      sound: beep,
+      // The save is refreshed from the server's reply before this resolves.
+      report: (event, value) => {
+        progress(event, value);
+        return profileQueue;
+      },
+    });
+    return;
+  }
   if (id === "worlds") {
     socialPanel = "worlds";
     void worldPicker.open();
@@ -538,7 +558,7 @@ function open(id: string) {
       }
     };
   } else if (id === "map") {
-    body.innerHTML = `<h2>Explore</h2><div class="zone-grid">${spots.map((s, i) => `<button data-walk="${s.id}"><span class="zone-number">0${i + 1}</span>${icon(["game", "trophy", "gift", "shirt", "trophy", "leaf", "cat", "star"][i])}<strong>${s.name}</strong><span>${save.visited.includes(s.id) ? "✓ FOUND" : "GO →"}</span></button>`).join("")}</div><div class="note">${is2d ? "2D lobby · all games and rewards work." : "WASD · click to walk · E interact · Space jump"}</div>`;
+    body.innerHTML = `<h2>Explore</h2><div class="zone-grid">${spots.map((s, i) => `<button data-walk="${s.id}"><span class="zone-number">${String(i + 1).padStart(2, "0")}</span>${icon(["game", "trophy", "gift", "shirt", "trophy", "leaf", "cat", "star", "trophy", "leaf", "compass"][i])}<strong>${s.name}</strong><span>${save.visited.includes(s.id) ? "✓ FOUND" : "GO →"}</span></button>`).join("")}</div><div class="note">${is2d ? "2D lobby · all games and rewards work." : "WASD · click to walk · E interact · Space jump"}</div>`;
   } else if (id === "quests") {
     body.innerHTML = `<h2>Quests</h2><div class="hunt-panel"><span class="big-coin">✦</span><div><h3>Pixel hunt</h3><p>Find 5 coins → Sprout hat + 50 XP</p><strong>${save.coins.length} / 5</strong></div></div>${is2d ? '<p class="fine-print">Needs 3D. Or grab a free Sprout hat at the Mama Shop.</p>' : ""}<div class="mission-list">${missions
       .map((m) => {
@@ -559,8 +579,11 @@ function open(id: string) {
       ["Block explorer", save.visited.length >= 4, "Visit 4 spots", "pin"],
       ["Golden hour", save.coins.length === 5, "Find 5 pixel coins", "star"],
       ["Goodie two shoes", !!save.giftDay, "Choose a daily gift", "gift"],
+      ["Gone fishing", save.fish.length > 0, "Catch a fish", "compass"],
+      ["Nothing but net", save.hoopsBest >= 5, "Make 5 of 10 hoops", "trophy"],
+      ["Green fingers", save.harvests > 0, "Harvest a crop", "leaf"],
     ];
-    body.innerHTML = `<h2>Sticker album</h2><div class="sticker-grid">${stickers.map(([n, unlocked, task, ic]) => `<div class="sticker ${unlocked ? "unlocked" : ""}"><span>${icon(String(ic))}</span><strong>${n}</strong><small>${unlocked ? "✓ GOT IT" : task}</small></div>`).join("")}</div><p class="fine-print">${stickers.filter((s) => s[1]).length} / 6 collected</p>`;
+    body.innerHTML = `<h2>Sticker album</h2><div class="sticker-grid">${stickers.map(([n, unlocked, task, ic]) => `<div class="sticker ${unlocked ? "unlocked" : ""}"><span>${icon(String(ic))}</span><strong>${n}</strong><small>${unlocked ? "✓ GOT IT" : task}</small></div>`).join("")}</div><p class="fine-print">${stickers.filter((s) => s[1]).length} / ${stickers.length} collected</p>`;
   } else if (id === "board") {
     socialPanel = "board";
     renderSharedBoard();
@@ -620,6 +643,15 @@ function open(id: string) {
         const s = interactionSpecs.find((s) => s.id === key)!;
         return `<button data-environment="${key}"><span>${["🐉", "✦", "📖", "🐈", "🔔", "🕹", "🏎"][i]}</span><strong>${s.title}</strong><small>${["Climb & slide", "Swing high", "Read a book", "Pet Kopi", "Ring ding!", "Play a round", "Race your avatar"][i]}</small><b>GO →</b></button>`;
       })
+      .join("")}</div><h3>East Side</h3><div class="outdoor-grid">${[
+      ["fishing", "🎣", "Fishing Jetty", "Wait for a bite"],
+      ["hoops", "🏀", "Hoops Court", "Ten free throws"],
+      ["plots", "🌱", "Community Plots", "Plant & come back"],
+    ]
+      .map(
+        ([key, emoji, title, hint]) =>
+          `<button data-walk="${key}"><span>${emoji}</span><strong>${title}</strong><small>${hint}</small><b>GO →</b></button>`,
+      )
       .join(
         "",
       )}</div><div class="note">${is2d ? "Needs the 3D lobby (Settings)." : "Tap a prop or press E nearby · Esc to stop"}</div>`;
@@ -1481,7 +1513,7 @@ function enable2D() {
   document.body.classList.add("mode-2d");
   const el = document.querySelector<HTMLDivElement>("#fallback")!;
   el.hidden = false;
-  el.innerHTML = `<span class="eyebrow">THE LIGHTWEIGHT NEIGHBOURHOOD</span><h1>Come on in.<br>Make yourself at home.</h1><p>Same good times. A lighter way to play.</p><section id="fallback-welcome"></section><div class="fallback-zones">${spots.map((s, i) => `<button data-walk="${s.id}">${icon(["game", "trophy", "gift", "shirt", "trophy", "leaf", "cat", "star"][i])}<strong>${s.name}</strong><span>COME ON OVER →</span></button>`).join("")}</div>`;
+  el.innerHTML = `<span class="eyebrow">THE LIGHTWEIGHT NEIGHBOURHOOD</span><h1>Come on in.<br>Make yourself at home.</h1><p>Same good times. A lighter way to play.</p><section id="fallback-welcome"></section><div class="fallback-zones">${spots.map((s, i) => `<button data-walk="${s.id}">${icon(["game", "trophy", "gift", "shirt", "trophy", "leaf", "cat", "star", "trophy", "leaf", "compass"][i])}<strong>${s.name}</strong><span>COME ON OVER →</span></button>`).join("")}</div>`;
   document.querySelector("#quality-note")!.textContent = "2D LOBBY";
   renderWelcome();
 }

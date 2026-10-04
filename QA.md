@@ -1,5 +1,25 @@
 # Darecade verification — 3 October 2026
 
+## Remaining PR integration, 4 October 2026
+
+- PR #8 hides Coast Rush controls on its ready screen; verified hidden while ready and visible during the countdown at 390px. PR #9 reduces repeated Records writes and grouped leaderboard reads; 94 Node tests and seven Cloudflare tests passed before its merge.
+- Integrated PR #6 with current main. Kept the World picker and East Side panels, widened the shared World/Records movement clamp to the new east boundary, and appended fishing/hoops to stable activity wire indices. Regression tests cover positions and activities in encoded snapshots, stored checkpoints and real Miniflare sockets. Physics and rules versions are unchanged.
+- **103/103 Node tests and 7/7 Cloudflare tests passed**, including TypeScript, production build and deployment dry-run. A local disposable quota probe (2 players, 20 registered profiles, 200 runs, 3 iterations) recorded **659 rows read, 25 rows written, zero errors**, with counters stable across eviction. Full five-minute before/after evidence for #9 remains in QUOTA.md; no production load was run.
+- Local Chromium with the actual bundled Worker/World at 390px and 320px: walked east to the fishing jetty, caught a new tilapia, switched to the 2D lobby, planted and watered chilli (45 minutes remaining), completed ten UI-driven hoops shots (10/10, +50 XP), and opened Worlds through a pointer click. The server profile retained the catch, hoop best, crop and watered flag. No horizontal overflow in the activity panels and no page errors. Corrected Explore's tenth/eleventh location labels.
+- Remaining checks: physical-phone performance and real touch/haptics; human assessment of sound and activity feel; real delivery of the new email-code format.
+## East Side district and activities, 4 October 2026
+
+See [EAST-SIDE.md](EAST-SIDE.md) for the rules.
+
+- **80/80 Node tests and 5/5 Cloudflare integration tests passed**; TypeScript, the Vite build and the Cloudflare dry-run passed. Eight new tests cover the fish, hoops and crop rules, tampered and pre-existing saves, the mission, server-side rewards on the server clock, the wider walkable bounds and the new away poses.
+- Tested in an isolated local Chromium against `.browser/east-qa-data` on port 4199 with a synthetic guest who had finished a first race. Explore listed eleven places. Walking to Hoops Court, Fishing Jetty (onto the jetty itself) and Community Plots each opened the right panel on arrival, and the desktop camera followed east.
+- **Hoops:** a scripted ten-shot round scored 7; the panel showed New best · +35 XP and the server profile held `hoopsBest` 7.
+- **Fishing:** five casts gave two new species (+10 XP each) and two repeats; reeling early showed the too-soon message. The server profile held both species.
+- **Plots:** planting chilli showed Ready in 1h 0m; watering changed it to 45 min and disabled the button. With the QA database backdated by two hours, the reloaded panel offered the harvest; the server gave +10 XP, counted one harvest and freed the plot.
+- The three new stickers showed as earned (6 / 9 collected), and the East Side mission showed 2/2. Fish off the jetty and Shoot some hoops appeared as away activities; stepping away placed the avatar on the jetty.
+- At 390×844 the fishing panel had no horizontal overflow and a 240×55 action button. No page errors throughout.
+- **Not verified:** whether the activities are fun to a person; frame rate of the larger scene on a physical phone; the 2D lobby panels (they use the same code path as other places but were not opened in this run); hoops and fishing by real touch.
+
 ## Combined scaling, Coast Rush and email-code integration, 4 October 2026
 
 - Merged PR C (#7), then Coast Rush presentation (#3), preserving the World picker and both QA histories. Resolved the account/world route conflict in #5 by retaining the directory routes and new code endpoints.

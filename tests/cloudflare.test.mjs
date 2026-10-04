@@ -411,8 +411,18 @@ test(
       const slot = a.packets[0].p[0][0];
       assert.ok(
         bp.some((p) =>
-          p.d.some((d) => d[0] === slot && d[1] === 2500 && d[2] === -2500),
+          p.d.some((d) => d[0] === slot && d[1] === 3300 && d[2] === -2500),
         ),
+      );
+      a.ws.send(
+        JSON.stringify({ x: 27.4, z: 11, activity: "fish", away: true }),
+      );
+      await sleep(260);
+      assert.ok(
+        bp.some((p) =>
+          p.d.some((d) => d[0] === slot && d[1] === 2740 && d[4] === 5),
+        ),
+        "East Side fishing reaches another socket without clipping or losing its activity",
       );
       const before = bp.length;
       assert.equal(
