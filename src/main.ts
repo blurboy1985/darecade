@@ -1,3 +1,17 @@
+import { mountPayments } from "./payments";
+import {
+  wardrobeCards,
+  collectionDescription,
+  collectionLabels,
+  tokenSummary,
+  itemLook,
+  itemName,
+  wearable,
+  type WardrobeTab,
+  type Collection,
+  type TryOn,
+} from "./wardrobe";
+import { legendarySets } from "./collections";
 import { audio, petSound, type Sfx } from "./audio";
 import { celebrate } from "./celebration";
 import { createArcadeFx, type ArcadeFx } from "./arcade-fx";
@@ -52,6 +66,7 @@ import {
   type GameId,
 } from "./state";
 import "./arcade-theme.css";
+import "./wardrobe.css";
 
 const icons: Record<string, string> = {
   game: '<rect x="3" y="7" width="18" height="13" rx="4"/><path d="M7 13h5m-2.5-2.5v5M16 12h.01M18 15h.01M9 7V4h6"/>',
@@ -80,7 +95,9 @@ function icon(name: string) {
 const save = readSave();
 let world: LobbyWorld | null = null;
 let game: ArcadeGame | RacingGame | null = null;
-let wardrobeTab = "style";
+let wardrobeTab: WardrobeTab = "clothing";
+let wardrobeCollection: Collection = "starter";
+let tryingLook: TryOn = null;
 // True while a new player is led from their first result through naming and
 // dressing their character, on the way to saving it.
 let setupGuide = false;
@@ -178,7 +195,7 @@ app.innerHTML = `
   <div id="joystick" class="joystick" role="group" aria-label="Drag to walk"><span></span></div>
   <div id="fallback" class="fallback" hidden></div>
   </main>
-  <footer class="bottom-bar"><button class="profile" data-open="wardrobe"><span class="avatar-icon" id="avatar-icon"><i></i></span><span><strong id="player-name">New neighbour</strong><small id="medal-points">0 MEDAL POINTS</small><span id="level-label">LEVEL 1 · NEW KID ON THE BLOCK</span><span class="xp-track"><i id="xp-fill"></i></span></span><span class="profile-edit">✎</span></button><nav class="dock" aria-label="Lobby activities"><button class="selected" data-open="map">${icon("compass")}<span>Explore</span></button><button data-open="arcade">${icon("game")}<span>Arcade</span></button><button data-open="dares">${icon("trophy")}<span>Dares</span></button><span class="dock-divider"></span><button data-open="wardrobe">${icon("shirt")}<span>My look</span></button><button data-open="emotes">${icon("smile")}<span>Emotes</span></button><button data-open="album">${icon("book")}<span>My album</span></button></nav><div class="footer-note"><span><span id="quality-note">3D LOBBY</span></span></div></footer>
+  <footer class="bottom-bar"><button class="profile" data-open="wardrobe"><span class="avatar-icon" id="avatar-icon"><i></i></span><span><strong id="player-name">New neighbour</strong><small id="medal-points">0 MEDAL POINTS</small><span id="level-label">LEVEL 1 · NEW KID ON THE BLOCK</span><span class="xp-track"><i id="xp-fill"></i></span></span><span class="profile-edit">✎</span></button><nav class="dock" aria-label="Lobby activities"><button data-open="arcade">${icon("game")}<span>Play</span></button><button class="selected" data-open="map">${icon("compass")}<span>Explore</span></button><button data-open="wardrobe">${icon("shirt")}<span>My look</span></button></nav><div class="footer-note"><span><span id="quality-note">3D LOBBY</span></span></div></footer>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <dialog id="modal"><div class="modal-top"><span class="eyebrow" id="modal-kicker">THE NEIGHBOURHOOD</span><button id="close-modal" class="close-button" aria-label="Close panel">×</button></div><div id="modal-body"></div></dialog>
   <div id="loading"><span class="brand-mark">d<span>★</span></span><h2>See you downstairs.</h2><p>Loading…</p><span class="loading-line"></span></div>
@@ -386,8 +403,11 @@ function cards() {
   return `<div class="game-grid four-games">${gameIds.map((id) => `<button class="game-card ${id}" data-game="${id}"><div class="game-art ${id}-art">${art[id]}</div><span class="eyebrow">${games[id].genre}</span><h3>${games[id].name}</h3><p>${games[id].description}</p><div><span>${id === "coast" ? "3 laps" : "60s"} · BEST ${formatScore(id, shared?.self.best[id] ?? 0)}</span>${icon("arrow")}</div></button>`).join("")}</div>`;
 }
 function open(id: string) {
-  if (id !== "wardrobe") setupGuide = false;
-  if (firstRacePending() && id !== "settings") {
+  if (id !== "wardrobe") {
+    setupGuide = false;
+    tryingLook = null;
+  }
+  if (firstRacePending() && !["settings", "support"].includes(id)) {
     void startGame("coast");
     return;
   }
@@ -469,70 +489,102 @@ function open(id: string) {
     });
     return;
   }
-  if (id === "worlds") {
+  if (id === "support") {
+    void mountPayments(body);
+  } else if (id === "worlds") {
     socialPanel = "worlds";
     void worldPicker.open();
   } else if (id === "phone-menu") {
-    body.innerHTML = `<h2>More</h2><div class="phone-menu-grid">${[
-      ["board", "Rankings & medals"],
-      ["dares", "Challenge a neighbour"],
-      ["neighbours", "Meet the neighbours"],
-      ["worlds", "Worlds & join friend"],
-      ["wardrobe", "Change my look"],
-      ["surroundings", "Play outside"],
-      ["away", "Step away"],
-      ["shop", "Free daily gift"],
-      ["quests", "Pixel coin hunt"],
-      ["emotes", "Say hello"],
-      ["album", "My sticker album"],
-      ["settings", "Sound & settings"],
+    body.innerHTML = `<h2>More to discover</h2><p class="lead">Your rewards, neighbours and settings.</p>${[
+      [
+        "Rewards & progress",
+        [
+          ["board", "Rankings & medals"],
+          ["quests", "Quests & coin hunt"],
+          ["shop", "Daily gift"],
+          ["support", "Support & purchases"],
+          ["album", "Sticker album"],
+        ],
+      ],
+      [
+        "Play together",
+        [
+          ["dares", "Dares"],
+          ["neighbours", "Neighbours"],
+          ["worlds", "Worlds & friends"],
+          ["emotes", "Say hello"],
+        ],
+      ],
+      [
+        "Around the neighbourhood",
+        [
+          ["surroundings", "Outdoor activities"],
+          ["away", "Step away"],
+        ],
+      ],
     ]
       .map(
-        ([key, label]) =>
-          `<button class="secondary" data-open="${key}">${label}</button>`,
+        ([title, links]) =>
+          `<section class="menu-section"><h3>${title}</h3><div class="phone-menu-grid">${(links as string[][]).map(([key, label]) => `<button class="secondary" data-open="${key}">${label}</button>`).join("")}</div></section>`,
       )
       .join(
         "",
-      )}<button class="secondary" data-account>Account & privacy</button><button class="secondary" data-action="phone-camera">Camera view ↻</button><button class="secondary" data-action="phone-reset">Reset camera ↺</button>${playtestEnabled ? '<button class="primary" data-action="phone-test">Phone test · feedback</button>' : ""}</div><p class="fine-print">Drag to look · pinch to zoom</p>`;
+      )}<section class="menu-section"><h3>Preferences</h3><div class="phone-menu-grid"><button class="secondary" data-open="settings">Sound, camera & settings</button><button class="secondary" data-account>Account & privacy</button></div></section>${playtestEnabled ? '<button class="secondary" data-action="phone-test">Phone test feedback</button>' : ""}`;
   } else if (id === "arcade") {
     body.innerHTML = `<h2>Pick a game!</h2>${cards()}<p class="fine-print">Top 3 daily scores win medals at midnight.</p>`;
   } else if (id === "shop") {
     const taken = save.giftDay === singaporeDay();
     body.innerHTML = `<h2>${taken ? "Good choice!" : "Pick a free hat"}</h2><p class="lead">${taken ? "It’s in your wardrobe." : "Yours to keep."}</p><div class="gift-grid">${["The Kopitiam Bucket", "Lilac Daydream", "Just a Little Sprout"].map((n, i) => `<button class="gift-option ${taken && save.gift === i ? "chosen" : ""}" data-gift="${i}" ${taken ? "disabled" : ""}><span class="hat-art hat-${i}">${["▰", "◒", "♧"][i]}</span><strong>${n}</strong><span>${taken ? (save.gift === i ? "YOURS TO KEEP" : "ANOTHER DAY") : "FREE · CHOOSE ME"}</span></button>`).join("")}</div><div class="note">${icon("leaf")} New pick daily (SGT). No streak to lose.</div>${taken ? actionButton("wardrobe", "Wear it →") : ""}`;
   } else if (id === "wardrobe") {
-    const choices = (
-      key: "clothing" | "hair" | "pet" | "accessory",
-      names: string[],
-    ) =>
-      `<div class="look-options">${names.map((name, i) => `<button class="secondary ${save[key] === i ? "chosen" : ""}" data-${key}="${i}" aria-pressed="${save[key] === i}">${name}</button>`).join("")}</div>`;
     const nickname =
       currentProfile?.name || shared?.self?.name || "New neighbour";
-    // Choosing a look redraws this panel; keep a name that is still being typed.
     const typed =
       body.querySelector<HTMLInputElement>("#nickname")?.value ?? nickname;
-    body.innerHTML = `<div class="wardrobe-layout"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${escapeText(nickname)}</strong><small>DRAG TO TURN</small><span class="look-caption">${clothingNames[save.clothing]} · ${hairNames[save.hair]}</span></div><div class="wardrobe-controls">${setupGuide ? '<span class="eyebrow setup-step">STEP 1 OF 2 · NAME & LOOK</span>' : ""}<h2>Make it you.</h2><details class="look-identity" ${innerWidth > 600 || setupGuide ? "open" : ""}><summary>Your nickname</summary><form id="nickname-form"><label class="field-label" for="nickname">YOUR NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" value="${escapeText(typed)}" minlength="2" maxlength="20" autocomplete="off" required><button class="secondary" type="submit">Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form></details><div class="look-tabs" aria-label="Wardrobe sections">${[
-      ["style", "Outfits"],
-      ["hair", "Head"],
-      ["pets", "Pets"],
-      ["magic", "Magic"],
-    ]
+    const medals = shared?.self?.points ?? 0;
+    const shown = tryingLook?.look ?? save;
+    const canEquip = tryingLook && wearable(shown, save, medals);
+    body.innerHTML = `<div class="wardrobe-layout"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${tryingLook ? "Trying on" : escapeText(nickname)}</strong><small>DRAG TO TURN</small><span class="look-caption">${tryingLook?.name ?? clothingNames[save.clothing]}</span><div class="try-actions" role="status">${tryingLook ? `<button class="primary" data-equip-look ${canEquip ? "" : "disabled"}>${canEquip ? "Equip look" : "Locked · preview only"}</button><button class="text-button" data-reset-look>Back to my look</button>` : "<span>Tap a card to try it on</span>"}</div></div><div class="wardrobe-controls">${setupGuide ? '<span class="eyebrow setup-step">STEP 1 OF 2 · NAME & LOOK</span>' : ""}<span class="eyebrow">YOUR COLLECTION</span><h2>My look</h2><div class="style-wallet"><strong>${tokenSummary(save)}</strong><small>1 token per 100 XP. Keep your XP & medals.</small></div><details class="look-identity" ${setupGuide ? "open" : ""}><summary>Name, colours & daily hats</summary><form id="nickname-form"><label class="field-label" for="nickname">NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" value="${escapeText(typed)}" minlength="2" maxlength="20" autocomplete="off" required><button class="secondary" type="submit">Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form><label class="field-label">OUTFIT COLOUR</label><div class="swatches">${outfits.map((c, i) => `<button data-outfit="${i}" style="--swatch:${c}" class="${save.outfit === i ? "active" : ""}" aria-label="${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][i]} outfit" aria-pressed="${save.outfit === i}"></button>`).join("")}</div><p class="fine-print">Legendary outfits use their own signature colours.</p><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">DAILY HATS</label><div class="hat-options">${["No hat", "Bucket", "Cap", "Sprout"].map((n, i) => `<button data-hat="${i}" ${save.unlockedHats.includes(i) ? "" : "disabled"} aria-pressed="${save.hat === i}">${n}${save.unlockedHats.includes(i) ? "" : " · locked"}</button>`).join("")}</div></details><div class="look-tabs" aria-label="Wardrobe sections">${(
+      [
+        ["clothing", "Outfits"],
+        ["hair", "Head"],
+        ["pet", "Pets"],
+        ["accessory", "Magic"],
+        ["sets", "Sets"],
+      ] satisfies [WardrobeTab, string][]
+    )
       .map(
         ([key, label]) =>
           `<button class="${wardrobeTab === key ? "active" : ""}" data-look-tab="${key}" aria-pressed="${wardrobeTab === key}">${label}</button>`,
       )
-      .join(
-        "",
-      )}</div><section class="character-options">${wardrobeTab === "style" ? `<h3>Outfits</h3>${choices("clothing", clothingNames)}<label class="field-label">OUTFIT COLOUR</label><div class="swatches">${outfits.map((c, i) => `<button data-outfit="${i}" style="--swatch:${c}" class="${save.outfit === i ? "active" : ""}" aria-label="${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][i]} outfit" aria-pressed="${save.outfit === i}"></button>`).join("")}</div><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">TOP IT OFF</label><div class="hat-options">${["No hat", "Bucket", "Cap", "Sprout"].map((n, i) => `<button data-hat="${i}" ${save.unlockedHats.includes(i) ? "" : "disabled"} class="${save.hat === i ? "active" : ""}" aria-pressed="${save.hat === i}">${n}${save.unlockedHats.includes(i) ? "" : " · locked"}</button>`).join("")}</div>` : wardrobeTab === "hair" ? `<h3>Heads & hats</h3>${choices("hair", hairNames)}` : wardrobeTab === "pets" ? `<h3>Pets</h3>${choices("pet", petNames)}` : `<h3>Magic</h3>${choices("accessory", accessoryNames)}`}</section><p class="fine-print">All looks are free and cosmetic.</p>${setupGuide ? actionButton("setup-save", "Next: save my character →") + actionButton("setup-skip", "Maybe later", "text-button") : actionButton("done-look", "Done →")}</div></div>`;
+      .join("")}</div>${
+      wardrobeTab === "sets"
+        ? '<h3>Legendary sets</h3><p class="collection-note">10 hero & anime-inspired sets. Exchange tokens after earning medals or completing rounds.</p>'
+        : `<div class="collection-tabs" aria-label="Collections">${Object.entries(
+            collectionLabels,
+          )
+            .map(
+              ([key, label]) =>
+                `<button data-collection="${key}" aria-pressed="${wardrobeCollection === key}" class="${wardrobeCollection === key ? "active" : ""}">${label}</button>`,
+            )
+            .join(
+              "",
+            )}</div><p class="collection-note">${collectionDescription(wardrobeCollection, save, medals)}</p>`
+    }${wardrobeCards(wardrobeTab, wardrobeCollection, save, medals, tryingLook)}<p class="fine-print">Cosmetic only. No gameplay advantage. Earn sets through play or check optional purchase availability.</p>${setupGuide ? actionButton("setup-save", "Next: save my character →") + actionButton("setup-skip", "Maybe later", "text-button") : actionButton("done-look", "Done")}</div></div>`;
     const preview = body.querySelector<HTMLElement>(".character-preview")!;
     if (!is2d) {
       try {
-        if (characterPreview) characterPreview.mount(preview, save);
-        else characterPreview = createCharacterPreview(preview, save);
+        if (characterPreview)
+          characterPreview.mount(preview, { ...shown, reduced: save.reduced });
+        else
+          characterPreview = createCharacterPreview(preview, {
+            ...shown,
+            reduced: save.reduced,
+          });
       } catch {
         preview.textContent = "Your look will appear in the neighbourhood.";
       }
     } else
-      preview.innerHTML = `<span class="look-2d" style="background:${outfits[save.outfit]}">${icon("shirt")}</span><p>You can still change your look here.</p>${actionButton("2d", "Return to 3D", "secondary")}`;
+      preview.innerHTML = `<img class="look-2d-image" src="${tryingLook?.image ?? `/wardrobe/clothing-${save.clothing}.png`}" alt="${tryingLook?.name ?? clothingNames[save.clothing]}">${actionButton("2d", "Return to 3D", "secondary")}`;
     body.querySelector<HTMLFormElement>("#nickname-form")!.onsubmit = async (
       e,
     ) => {
@@ -616,7 +668,7 @@ function open(id: string) {
         "",
       )}</div><div class="button-row">${actionButton("start-away", "Save & step away →")}${actionButton("save-away", "Save preference", "secondary")}</div><p class="fine-print">Away time earns no XP. Others can dare your best score; you never lose points.</p>`;
   } else if (id === "settings") {
-    body.innerHTML = `<button class="secondary" data-account>Account & privacy →</button><h2>Settings</h2><label class="settings-row"><span><strong>Sound effects</strong><small>Blips and sparkles</small></span><input id="setting-sound" type="checkbox" ${save.sound ? "checked" : ""}></label><label class="settings-row"><span><strong>Background music</strong><small>Lo-fi, pads and chiptune</small></span><input id="setting-music" type="checkbox" ${save.music ? "checked" : ""} ${save.sound ? "" : "disabled"}></label><label class="settings-row"><span><strong>Reduce motion</strong><small>Calmer effects</small></span><input id="setting-reduced" type="checkbox" ${save.reduced ? "checked" : ""}></label><label class="settings-row"><span><strong>Time of day</strong><small>SGT or pick a mood</small></span><select id="setting-light">${[
+    body.innerHTML = `<button class="secondary" data-account>Account & privacy →</button><h2>Settings</h2><div class="phone-menu-grid"><button class="secondary" data-action="phone-camera">Switch camera view</button><button class="secondary" data-action="phone-reset">Reset camera</button></div><label class="settings-row"><span><strong>Sound effects</strong><small>Blips and sparkles</small></span><input id="setting-sound" type="checkbox" ${save.sound ? "checked" : ""}></label><label class="settings-row"><span><strong>Background music</strong><small>Lo-fi, pads and chiptune</small></span><input id="setting-music" type="checkbox" ${save.music ? "checked" : ""} ${save.sound ? "" : "disabled"}></label><label class="settings-row"><span><strong>Reduce motion</strong><small>Calmer effects</small></span><input id="setting-reduced" type="checkbox" ${save.reduced ? "checked" : ""}></label><label class="settings-row"><span><strong>Time of day</strong><small>SGT or pick a mood</small></span><select id="setting-light">${[
       ["auto", "Follow SGT"],
       ["day", "Daylight"],
       ["dusk", "Golden hour"],
@@ -628,7 +680,7 @@ function open(id: string) {
       )
       .join(
         "",
-      )}</select></label><div class="settings-row"><span><strong>Lightweight lobby</strong><small>No 3D world</small></span>${actionButton("2d", is2d ? "Return to 3D" : "Use 2D", "secondary")}</div><div class="note">Progress saves to the server. Keep cookies to keep your guest profile. Data, sign-in and deletion live in Account & privacy. No chat, no purchases.</div>`;
+      )}</select></label><div class="settings-row"><span><strong>Lightweight lobby</strong><small>No 3D world</small></span>${actionButton("2d", is2d ? "Return to 3D" : "Use 2D", "secondary")}</div><div class="note">Progress saves to the server. Keep cookies to keep your guest profile. Data, sign-in and deletion live in Account & privacy. Style tokens come from play. Optional purchases and donations live in Support & purchases.</div>`;
   } else if (id === "surroundings") {
     body.innerHTML = `<h2>Play outside</h2><div class="outdoor-grid">${[
       "dragon",
@@ -922,8 +974,78 @@ document.addEventListener("click", (e) => {
     return;
   }
   if (b.dataset.lookTab) {
-    wardrobeTab = b.dataset.lookTab;
+    if (
+      !["clothing", "hair", "pet", "accessory", "sets"].includes(
+        b.dataset.lookTab,
+      )
+    )
+      return;
+    wardrobeTab = b.dataset.lookTab as WardrobeTab;
     open("wardrobe");
+    return;
+  }
+  if (
+    b.dataset.collection &&
+    Object.hasOwn(collectionLabels, b.dataset.collection)
+  ) {
+    wardrobeCollection = b.dataset.collection as Collection;
+    open("wardrobe");
+    return;
+  }
+  if (b.dataset.trySlot && b.dataset.tryIndex !== undefined) {
+    const slot = b.dataset.trySlot as WardrobeTab;
+    const index = Number(b.dataset.tryIndex);
+    tryingLook = {
+      look: itemLook(slot, index, save),
+      name: itemName(slot, index),
+      image: `/wardrobe/${slot}-${index}.png`,
+    };
+    const scroll = modal.scrollTop;
+    open("wardrobe");
+    modal.scrollTop = scroll;
+    body
+      .querySelector<HTMLButtonElement>(
+        `[data-try-slot="${slot}"][data-try-index="${index}"]`,
+      )
+      ?.focus({ preventScroll: true });
+    return;
+  }
+  if (b.hasAttribute("data-reset-look")) {
+    tryingLook = null;
+    open("wardrobe");
+    return;
+  }
+  if (b.hasAttribute("data-equip-look") && tryingLook) {
+    if (!wearable(tryingLook.look, save, shared?.self?.points ?? 0)) return;
+    Object.assign(save, tryingLook.look);
+    tryingLook = null;
+    persist();
+    world?.updateAvatar();
+    beep("equip");
+    open("wardrobe");
+    return;
+  }
+  if (b.dataset.buySet) {
+    open("support");
+    void mountPayments(body, b.dataset.buySet);
+    return;
+  }
+  if (b.dataset.redeemSet) {
+    const set = legendarySets.find((set) => set.id === b.dataset.redeemSet);
+    if (!set || !profileReady) {
+      toast("Connect to save and exchange your tokens.");
+      return;
+    }
+    b.disabled = true;
+    void profileMutation("progress", {
+      event: "redeem-style",
+      value: set.id,
+    }).then(() => {
+      if (save.wardrobeUnlocked.includes(set.id))
+        toast(`${set.name} unlocked. All four pieces are yours!`);
+      if (modal.open && body.querySelector(".wardrobe-layout"))
+        open("wardrobe");
+    });
     return;
   }
   if (b.dataset.boardTab) {
@@ -1030,6 +1152,7 @@ document.addEventListener("click", (e) => {
     "accessory",
   ] as const)
     if (b.dataset[key] !== undefined) {
+      tryingLook = null;
       save[key] = Number(b.dataset[key]);
       beep(
         key === "pet"
@@ -1097,7 +1220,7 @@ document.addEventListener("click", (e) => {
       persist();
       world?.updateAvatar();
       playtestEvent("cosmetic-worn");
-      wardrobeTab = "style";
+      wardrobeTab = "clothing";
       setupGuide = true;
       open("wardrobe");
       return;
@@ -1608,6 +1731,18 @@ window.addEventListener("account-session", () => {
   void syncSocial();
 });
 window.addEventListener("account-refresh", () => void syncSocial());
+function showPaymentReturn() {
+  const paymentReturn = new URL(location.href);
+  if (paymentReturn.searchParams.has("payment")) {
+    const session = paymentReturn.searchParams.get("session_id") || "";
+    const cancelled = paymentReturn.searchParams.get("payment") === "cancelled";
+    paymentReturn.searchParams.delete("payment");
+    paymentReturn.searchParams.delete("session_id");
+    history.replaceState(null, "", paymentReturn);
+    open("support");
+    void mountPayments(body, "", session, cancelled);
+  }
+}
 requestAnimationFrame(async () => {
   try {
     await accountReady;
@@ -1615,6 +1750,7 @@ requestAnimationFrame(async () => {
       enable2D();
       renderAway();
       document.querySelector("#loading")!.remove();
+      showPaymentReturn();
       return;
     }
     await loadCharacter();
@@ -1672,6 +1808,7 @@ requestAnimationFrame(async () => {
     enable2D();
   }
   document.querySelector("#loading")!.remove();
+  showPaymentReturn();
 });
 function escapeText(value: string) {
   return value.replace(

@@ -1,3 +1,4 @@
+import { legendarySets } from "./collections.ts";
 // Shared by the renderer and server validation; indices remain stable for saved looks.
 // Each list keeps its first eight entries in their original order so saved
 // looks keep their meaning; later entries are additions.
@@ -26,6 +27,7 @@ export const clothingNames = [
   "Forest druid",
   "Squire",
   "Scout",
+  ...legendarySets.map((set) => set.outfit),
 ];
 export const hairNames = [
   "Auburn locks",
@@ -56,6 +58,7 @@ export const hairNames = [
   "Pirate bandana",
   "Straw hat",
   "Big bow",
+  ...legendarySets.map((set) => set.head),
 ];
 export const petNames = [
   "No companion",
@@ -84,6 +87,7 @@ export const petNames = [
   "Boo the ghost",
   "Mer the merlion cub",
   "Glow the jellyfish",
+  ...legendarySets.map((set) => set.pet),
 ];
 export const accessoryNames = [
   "Keep it simple",
@@ -113,6 +117,7 @@ export const accessoryNames = [
   "Rainbow comet",
   "Moonbeam",
   "Forest spirits",
+  ...legendarySets.map((set) => set.magic),
 ];
 export const appearanceLimits = {
   clothing: clothingNames.length,

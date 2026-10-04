@@ -94,6 +94,31 @@ test(
       assert.match(setCookie, /HttpOnly/);
       assert.match(setCookie, /SameSite=Strict/);
       const cookie = setCookie.split(";")[0];
+      const paymentsConfig = await fetch(origin + "/api/payments/config", {
+        headers: { Cookie: cookie },
+      }).then((r) => r.json());
+      assert.equal(paymentsConfig.enabled, false);
+      assert.equal(
+        (await post("payments/checkout", { product: "solar" }, cookie)).status,
+        503,
+      );
+      assert.equal(
+        (await post("payments/webhook", { type: "checkout.session.completed" }))
+          .status,
+        503,
+      );
+      assert.equal(
+        (
+          await post(
+            "payments/checkout",
+            { product: "solar" },
+            cookie,
+            "https://unrelated.example",
+          )
+        ).status,
+        403,
+      );
+
       const localWorld = await post(
         "world/poll",
         { x: 3, z: 4, activity: "jog" },

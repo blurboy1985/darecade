@@ -1,0 +1,160 @@
+import { api } from "./social";
+import {
+  acceptProfile,
+  currentProfile,
+  openAccount,
+  type Profile,
+} from "./account";
+import { legendarySets, ownsSet } from "./collections";
+
+type Product = {
+  id: string;
+  name: string;
+  kind: "set" | "donation";
+  amount: number;
+  currency: "sgd";
+};
+type PaymentConfig = {
+  enabled: boolean;
+  testMode: boolean;
+  products: Product[];
+};
+type Order = {
+  id: string;
+  product: string;
+  kind: string;
+  amount: number;
+  currency: string;
+  status: string;
+  created: number;
+};
+const money = (amount: number) =>
+  new Intl.NumberFormat("en-SG", { style: "currency", currency: "SGD" }).format(
+    amount / 100,
+  );
+const text = (s: string) =>
+  s.replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ] ?? c,
+  );
+const productName = (id: string) =>
+  legendarySets.find((s) => s.id === id)?.name ?? "Donation to Darecade";
+
+export async function mountPayments(
+  host: HTMLElement,
+  selectedSet = "",
+  session = "",
+  cancelled = false,
+) {
+  host.innerHTML =
+    '<section class="payment-panel"><h2>Support Darecade</h2><p role="status">Loading payment options…</p></section>';
+  const panel = host.querySelector<HTMLElement>(".payment-panel")!;
+  let message = cancelled
+    ? "Checkout was cancelled. No new look has been granted."
+    : "";
+  try {
+    if (session) {
+      const result = await api<{
+        status: string;
+        kind: string;
+        product: string;
+      }>("payments/status", { session });
+      acceptProfile(await api<Profile>("auth/me"));
+      message =
+        result.status === "paid"
+          ? result.kind === "set"
+            ? `${productName(result.product)} is yours. Find all four pieces in My look.`
+            : "Thank you for supporting Darecade! Your donation is confirmed."
+          : `Payment status: ${result.status}. Refresh to check again. Sets unlock only after payment is confirmed.`;
+    }
+    const [config, orders] = await Promise.all([
+      api<PaymentConfig>("payments/config"),
+      api<Order[]>("payments/history"),
+    ]);
+    if (!panel.isConnected) return;
+    const selected = legendarySets.find((s) => s.id === selectedSet);
+    const donations = config.products.filter((p) => p.kind === "donation");
+    const purchase = (p: Product | undefined, id: string) => {
+      const owned = currentProfile && ownsSet(currentProfile.progress, id);
+      if (owned) return '<span class="item-state">Already owned</span>';
+      if (!config.enabled || !p)
+        return '<button class="secondary" disabled>Payments coming soon</button>';
+      return `<button class="primary" data-checkout="${text(p.id)}" ${currentProfile?.account ? "" : "disabled"}>${p.kind === "donation" ? "Donate" : "Buy set"} · ${money(p.amount)}</button>`;
+    };
+    panel.innerHTML = `<span class="eyebrow">OPTIONAL SUPPORT</span><h2>${selected ? text(selected.name) : "Support Darecade"}</h2><p class="lead">Help keep the neighbourhood growing.</p><p class="payment-status" role="status">${text(message)}</p>${!config.enabled ? '<div class="note">Payments are not open yet. Prices will appear when checkout is ready. You can still earn every Legendary set by playing.</div>' : config.testMode ? '<div class="note">Test checkout. No real payments.</div>' : ""}${!currentProfile?.account ? '<p>Save your account with email to keep purchases across devices.</p><button class="secondary" data-payment-account>Save my account</button>' : ""}<section><h3>Premium looks</h3><p>One payment unlocks the complete outfit, headwear, pet and magic. No medal requirement or token deduction. All looks are cosmetic.</p><div class="payment-products">${(selected
+      ? [selected]
+      : legendarySets
+    )
+      .map(
+        (s) =>
+          `<article class="payment-product"><img src="/wardrobe/sets-${legendarySets.indexOf(s)}.png" alt="${text(s.name)}" width="100" height="92" loading="lazy"><div><strong>${text(s.name)}</strong><small>All four pieces · yours to mix & match</small>${purchase(
+            config.products.find((p) => p.id === s.id),
+            s.id,
+          )}</div></article>`,
+      )
+      .join(
+        "",
+      )}</div></section><section><h3>Make a donation</h3><p>A one-time contribution to the game. Donations do not grant items, tokens or leaderboard benefits.</p><div class="payment-donations">${donations.length ? donations.map((p) => purchase(p, p.id)).join("") : '<button class="secondary" disabled>Donations coming soon</button>'}</div></section><p class="fine-print">${config.enabled ? "Stripe handles card details on its hosted checkout. The next step shows your total before you pay. No subscriptions." : "No payment details are collected while checkout is unavailable."}</p><details><summary>Payment history</summary>${orders.length ? orders.map((o) => `<div class="payment-order"><span>${text(productName(o.product))}<small>${new Date(o.created).toLocaleDateString("en-SG", { timeZone: "Asia/Singapore" })} · ${text(o.status)}</small></span><strong>${money(o.amount)}</strong></div>`).join("") : "<p>No payments yet.</p>"}</details><div class="payment-links"><button class="secondary" data-payment-refresh>Refresh payment status</button><button class="secondary" data-open="wardrobe">Back to My look</button></div>`;
+    if (!selected) {
+      const premium = panel
+        .querySelector(".payment-products")
+        ?.closest("section");
+      const donation = panel
+        .querySelector(".payment-donations")
+        ?.closest("section");
+      if (premium && donation) premium.before(donation);
+    }
+    panel
+      .querySelector("[data-payment-account]")
+      ?.addEventListener("click", () => void openAccount({ create: true }));
+    panel
+      .querySelector("[data-payment-refresh]")
+      ?.addEventListener(
+        "click",
+        () => void mountPayments(host, selectedSet, session),
+      );
+    panel
+      .querySelectorAll<HTMLButtonElement>("[data-checkout]")
+      .forEach((button) =>
+        button.addEventListener("click", async () => {
+          panel
+            .querySelectorAll<HTMLButtonElement>("[data-checkout]")
+            .forEach((b) => (b.disabled = true));
+          const status = panel.querySelector<HTMLElement>(".payment-status")!;
+          status.textContent = "Opening secure checkout…";
+          try {
+            const result = await api<{ url: string }>("payments/checkout", {
+              product: button.dataset.checkout,
+            });
+            const url = new URL(result.url);
+            if (
+              url.protocol !== "https:" ||
+              url.hostname !== "checkout.stripe.com"
+            )
+              throw Error("Checkout address is unavailable.");
+            location.assign(url.href);
+          } catch (error) {
+            status.textContent =
+              error instanceof Error
+                ? error.message
+                : "Checkout is unavailable. Please try again.";
+            panel
+              .querySelectorAll<HTMLButtonElement>("[data-checkout]")
+              .forEach((b) => (b.disabled = false));
+          }
+        }),
+      );
+  } catch (error) {
+    if (!panel.isConnected) return;
+    panel.innerHTML = `<h2>Payments</h2><p role="status">${text(error instanceof Error ? error.message : "Unable to load payments.")}</p><button class="secondary" data-retry-payment>Try again</button><button class="secondary" data-open="wardrobe">Back to My look</button>`;
+    panel
+      .querySelector("[data-retry-payment]")
+      ?.addEventListener(
+        "click",
+        () => void mountPayments(host, selectedSet, session, cancelled),
+      );
+  }
+}

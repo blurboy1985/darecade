@@ -1,0 +1,338 @@
+/* Collection browsing stays compact and usable with keyboard or touch. */
+.payment-products {
+  display: grid;
+  gap: 12px;
+}
+.payment-product {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #d8d3c9;
+  border-radius: 14px;
+  align-items: center;
+}
+.payment-product img {
+  width: 100px;
+  height: 92px;
+  object-fit: contain;
+  background: #ece5f5;
+  border-radius: 10px;
+}
+.payment-product > div {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+.payment-panel section {
+  margin: 24px 0;
+}
+.payment-panel small {
+  display: block;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.payment-donations,
+.payment-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0;
+}
+.payment-order {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #d8d3c9;
+}
+.payment-panel .primary,
+.payment-panel .secondary {
+  white-space: normal;
+}
+@media (max-width: 400px) {
+  .payment-product {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .payment-product img {
+    align-self: center;
+  }
+}
+.dock > button.phone-more {
+  display: flex;
+}
+dialog:has(.wardrobe-layout) {
+  width: min(1040px, 96vw);
+  max-width: 96vw;
+  max-height: 94dvh;
+}
+.wardrobe-controls h2 {
+  font-size: 30px;
+  margin: 0 0 8px;
+}
+.wardrobe-controls {
+  display: flex;
+  flex-direction: column;
+}
+.wardrobe-controls .look-identity {
+  order: 2;
+  margin: 14px 0;
+}
+.wardrobe-controls > .fine-print,
+.wardrobe-controls > .primary,
+.wardrobe-controls > .text-button {
+  order: 3;
+}
+.wardrobe-controls .look-tabs {
+  margin: 8px 0;
+}
+.wardrobe-controls .look-tabs button {
+  font-size: 12px !important;
+}
+.look-2d-image {
+  display: block;
+  width: 100%;
+  height: 80%;
+  object-fit: contain;
+}
+.wardrobe-controls .style-wallet {
+  margin: 0;
+}
+.wardrobe-controls .collection-note {
+  margin: 6px 0 10px;
+}
+.menu-section {
+  margin: 22px 0;
+}
+.menu-section h3 {
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+.style-wallet {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px 14px;
+  border: 1px solid #d9d0fa;
+  border-radius: 14px;
+  background: #f0ebfc;
+  margin-bottom: 10px;
+}
+.style-wallet small,
+.collection-note {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.collection-note {
+  min-height: 40px;
+  margin: 12px 0;
+}
+.collection-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+.collection-tabs button {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid #dbdacd;
+  border-radius: 20px;
+  background: #fffdf7;
+  font-size: 12px;
+}
+.collection-tabs button.active {
+  background: #30394a;
+  color: white;
+  border-color: #30394a;
+}
+.collection-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.collection-card {
+  overflow: hidden;
+  border: 1px solid #dedcce;
+  border-radius: 15px;
+  background: #fffdf7;
+  min-width: 0;
+}
+.collection-card.is-previewing {
+  border-color: #7660b3;
+  box-shadow: 0 0 0 2px #7660b3;
+}
+.try-item {
+  width: 100%;
+  padding: 0 0 12px;
+  display: flex;
+  align-items: stretch;
+  flex-direction: column;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+.try-item strong {
+  padding: 5px 10px 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.try-item small {
+  padding: 4px 10px 0;
+  font-size: 10px;
+  line-height: 1.4;
+}
+.item-art {
+  width: 100%;
+  display: block;
+  aspect-ratio: 240 / 220;
+  background:
+    radial-gradient(ellipse at 50% 45%, #fff9, transparent 70%),
+    color-mix(in srgb, var(--collection-color) 22%, #e6e9e0);
+}
+.item-art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  font-size: 11px;
+}
+.item-state {
+  align-self: flex-start;
+  margin: 8px 10px 0;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #59516b;
+}
+.set-requirement {
+  padding: 0 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 12px;
+}
+.set-requirement small {
+  font-size: 10px;
+  line-height: 1.5;
+}
+.set-requirement .secondary {
+  width: 100%;
+  white-space: normal;
+  font-size: 11px;
+  padding: 10px 6px;
+}
+.wardrobe-layout .avatar-preview {
+  height: auto;
+  align-self: start;
+  padding-bottom: 14px;
+  position: sticky;
+  top: 0;
+}
+.try-actions {
+  width: 100%;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: center;
+  font-size: 12px;
+}
+.try-actions .primary {
+  width: 100%;
+  font-size: 12px;
+  padding: 10px;
+  min-height: 44px;
+}
+.try-actions .text-button {
+  min-height: 36px;
+  font-size: 12px;
+}
+.wardrobe-layout .avatar-preview .look-caption {
+  display: block;
+  font-size: 11px;
+  padding: 4px 10px;
+}
+.collection-card button:focus-visible,
+.collection-tabs button:focus-visible {
+  outline: 3px solid #66549c;
+  outline-offset: -3px;
+}
+@media (max-width: 760px) {
+  .dock > button[data-open="wardrobe"] {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+  }
+  .dock > button {
+    min-width: 0 !important;
+  }
+  .dock {
+    gap: 3px;
+  }
+  .collection-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .wardrobe-controls > .eyebrow {
+    display: none;
+  }
+  .wardrobe-controls h2 {
+    font-size: 26px;
+  }
+  .wardrobe-controls .look-tabs button {
+    font-size: 11px !important;
+    padding: 6px 2px;
+  }
+  .wardrobe-layout .try-actions .primary {
+    margin: 0;
+    font-size: 12px !important;
+    padding: 8px;
+    min-height: 44px;
+  }
+  .wardrobe-layout .try-actions .text-button {
+    font-size: 11px;
+  }
+  .wardrobe-layout .avatar-preview {
+    min-height: 0;
+    height: auto;
+    position: relative;
+    top: auto;
+    display: grid;
+    grid-template-columns: 42% 1fr;
+    align-items: center;
+    padding: 4px;
+  }
+  .wardrobe-layout .character-preview {
+    grid-row: 1 / 5;
+    height: 170px;
+  }
+  .wardrobe-layout .avatar-preview > strong,
+  .wardrobe-layout .avatar-preview > small,
+  .wardrobe-layout .avatar-preview > .look-caption {
+    grid-column: 2;
+  }
+  .wardrobe-layout .avatar-preview > small {
+    display: none;
+  }
+  .try-actions {
+    grid-column: 2;
+    padding: 4px;
+  }
+  .wardrobe-layout {
+    gap: 14px;
+  }
+  .collection-tabs {
+    gap: 4px;
+  }
+  .collection-tabs button {
+    font-size: 10px;
+    padding: 7px 9px;
+  }
+  .look-tabs button {
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+}

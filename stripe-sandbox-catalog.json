@@ -1,0 +1,12 @@
+{
+  "solar": { "priceId": "price_1UMktMPB58tsspFGwRBPKgf2", "amount": 199 },
+  "moon": { "priceId": "price_1UMktqPB58tsspFGCJ9dWo7a", "amount": 199 },
+  "storm": { "priceId": "price_1UMkuAPB58tsspFGDIq9NnVw", "amount": 199 },
+  "sakura": { "priceId": "price_1UMkuHPB58tsspFGPfJJYRbM", "amount": 199 },
+  "nova": { "priceId": "price_1UMkuMPB58tsspFG1WZmzYFu", "amount": 199 },
+  "abyss": { "priceId": "price_1UMkuRPB58tsspFGIQIM5BLM", "amount": 199 },
+  "tide": { "priceId": "price_1UMkukPB58tsspFG8fIHhyKD", "amount": 199 },
+  "phoenix": { "priceId": "price_1UMkupPB58tsspFGDPLACnub", "amount": 199 },
+  "frost": { "priceId": "price_1UMkuuPB58tsspFGDCGLoEXV", "amount": 199 },
+  "galaxy": { "priceId": "price_1UMkv0PB58tsspFGwfD7PjON", "amount": 199 }
+}

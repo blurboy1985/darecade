@@ -154,6 +154,14 @@ export class StoreCore {
     const movement = clampMovement(data, p);
     const activity = movement.activity;
     const look = JSON.parse(p.look);
+    // Profiles equip through CommunityCore.patch, which checks ownership.
+    const hasProfile =
+      this.db
+        .prepare(
+          "SELECT 1 FROM sqlite_master WHERE type='table' AND name='profiles'",
+        )
+        .get() &&
+      this.db.prepare("SELECT 1 FROM profiles WHERE player=?").get(id);
     for (const [key, max] of [
       ["outfit", 5],
       ["skin", 7],
@@ -164,6 +172,7 @@ export class StoreCore {
       ]),
     ])
       if (
+        !hasProfile &&
         Number.isInteger(data.look?.[key]) &&
         data.look[key] >= 0 &&
         data.look[key] <= max

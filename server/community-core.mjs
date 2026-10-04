@@ -1,3 +1,10 @@
+import {
+  ownsSet,
+  canWear,
+  canRedeem,
+  legendarySets,
+  setStarts,
+} from "../src/collections.ts";
 import { randomBytes, randomInt, randomUUID, createHash } from "node:crypto";
 import { day, gameIds } from "./store-core.mjs";
 import {
@@ -90,7 +97,10 @@ export class CommunityCore {
     this.privacyContact = privacyContact;
     this.storageNotice = storageNotice;
     this.db
-      .exec(`CREATE TABLE IF NOT EXISTS profiles(player TEXT PRIMARY KEY REFERENCES players(id),age_band TEXT NOT NULL,consent TEXT NOT NULL,consented INTEGER NOT NULL,progress TEXT NOT NULL,last_active INTEGER NOT NULL);
+      .exec(`CREATE TABLE IF NOT EXISTS payment_orders(id TEXT PRIMARY KEY,player TEXT,product TEXT NOT NULL,kind TEXT NOT NULL,price_id TEXT NOT NULL,amount INTEGER NOT NULL,currency TEXT NOT NULL,status TEXT NOT NULL,created INTEGER NOT NULL,session TEXT UNIQUE,intent TEXT);
+  CREATE INDEX IF NOT EXISTS payment_player ON payment_orders(player,status);
+  CREATE INDEX IF NOT EXISTS payment_intent ON payment_orders(intent);
+  CREATE TABLE IF NOT EXISTS profiles(player TEXT PRIMARY KEY REFERENCES players(id),age_band TEXT NOT NULL,consent TEXT NOT NULL,consented INTEGER NOT NULL,progress TEXT NOT NULL,last_active INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS accounts(player TEXT PRIMARY KEY REFERENCES players(id),email TEXT UNIQUE NOT NULL,created INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,player TEXT REFERENCES players(id),expires INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS magic_links(token TEXT PRIMARY KEY,email TEXT NOT NULL,candidate TEXT REFERENCES players(id),expires INTEGER NOT NULL);
@@ -207,6 +217,17 @@ export class CommunityCore {
         this.db.prepare("SELECT look FROM players WHERE id=?").get(id).look,
       );
       Object.assign(save, normalise({ ...save, ...look }, save));
+      // Legacy looks predate Legendary ownership; never import an unowned set.
+      for (const [slot, start] of Object.entries(setStarts))
+        if (save[slot] >= start) save[slot] = 0;
+      this.db
+        .prepare("UPDATE players SET look=? WHERE id=?")
+        .run(
+          JSON.stringify(
+            Object.fromEntries(lookKeys.map((key) => [key, save[key]])),
+          ),
+          id,
+        );
       this.db
         .prepare("INSERT INTO profiles VALUES(?,?,?,?,?,?)")
         .run(
@@ -265,6 +286,15 @@ export class CommunityCore {
     const candidate = normalise({ ...p, ...allowed }, fresh());
     if (!p.unlockedHats.includes(candidate.hat))
       throw Error("Unlock this hat before wearing it.");
+    const medals = this.db
+      .prepare("SELECT COALESCE(SUM(points),0) n FROM medals WHERE player=?")
+      .get(id).n;
+    for (const slot of Object.keys(setStarts))
+      if (
+        candidate[slot] !== p[slot] &&
+        !canWear(slot, candidate[slot], p, medals)
+      )
+        throw Error("Unlock this collection before equipping it.");
     for (const k of [...lookKeys, ...prefs]) p[k] = candidate[k];
     if (name !== undefined)
       this.db.prepare("UPDATE players SET name=? WHERE id=?").run(name, id);
@@ -278,7 +308,20 @@ export class CommunityCore {
   progression(id, event, value) {
     return this.store.transaction(() => {
       const p = this.privateProfile(id).progress;
-      if (event === "gift") {
+      if (event === "redeem-style") {
+        const set = legendarySets.find((s) => s.id === value);
+        if (!set) throw Error("Unknown style set.");
+        if (ownsSet(p, set.id)) return this.privateProfile(id);
+        const medals = this.db
+          .prepare(
+            "SELECT COALESCE(SUM(points),0) n FROM medals WHERE player=?",
+          )
+          .get(id).n;
+        if (!canRedeem(set, p, medals))
+          throw Error("Earn the tokens and medal or round requirement first.");
+        p.wardrobeUnlocked.push(set.id);
+        p.wardrobeSpent += set.cost;
+      } else if (event === "gift") {
         if (!claimGift(p, value, day(this.now())))
           throw Error("This daily gift is already claimed or unavailable.");
       } else if (event === "visit") {
@@ -905,6 +948,11 @@ export class CommunityCore {
   export(id) {
     return {
       exportedAt: new Date(this.now()).toISOString(),
+      payments: this.db
+        .prepare(
+          "SELECT id,product,kind,amount,currency,status,created FROM payment_orders WHERE player=?",
+        )
+        .all(id),
       profile: this.privateProfile(id),
       player: this.db
         .prepare("SELECT id,name,look,activity,created FROM players WHERE id=?")
@@ -928,6 +976,9 @@ export class CommunityCore {
   }
   delete(id) {
     const saved = this.store.transaction(() => {
+      this.db
+        .prepare("UPDATE payment_orders SET player=NULL WHERE player=?")
+        .run(id);
       this.db
         .prepare("DELETE FROM blocks WHERE player=? OR target=?")
         .run(id, id);

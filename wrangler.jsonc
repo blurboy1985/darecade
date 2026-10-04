@@ -26,6 +26,8 @@
   "observability": { "enabled": false },
   "vars": {
     "LAUNCH_READY": "true",
+    "PAYMENTS_ENABLED": "true",
+    "STRIPE_CATALOG": "{\"solar\":{\"priceId\":\"price_1UMlFmA6Maf1zlsl1PcuQpTA\",\"amount\":199},\"moon\":{\"priceId\":\"price_1UMlFmA6Maf1zlslc4rYTn1o\",\"amount\":199},\"storm\":{\"priceId\":\"price_1UMlFmA6Maf1zlslgI9oWHdR\",\"amount\":199},\"sakura\":{\"priceId\":\"price_1UMlFmA6Maf1zlslmdknzfTu\",\"amount\":199},\"nova\":{\"priceId\":\"price_1UMlFnA6Maf1zlslcfrXCWp7\",\"amount\":199},\"abyss\":{\"priceId\":\"price_1UMlFqA6Maf1zlslrd3euwFN\",\"amount\":199},\"tide\":{\"priceId\":\"price_1UMlFoA6Maf1zlslxiyNwWNs\",\"amount\":199},\"phoenix\":{\"priceId\":\"price_1UMlFmA6Maf1zlslvGdU7ssA\",\"amount\":199},\"frost\":{\"priceId\":\"price_1UMlFmA6Maf1zlslpLQeviev\",\"amount\":199},\"galaxy\":{\"priceId\":\"price_1UMlFmA6Maf1zlslB64jFLC0\",\"amount\":199},\"donation-2\":{\"priceId\":\"price_1UMlawA6Maf1zlslqyOvyv9k\",\"amount\":200},\"donation-5\":{\"priceId\":\"price_1UMlbSA6Maf1zlsljHO1d4NZ\",\"amount\":500},\"donation-10\":{\"priceId\":\"price_1UMlbpA6Maf1zlsljWfHzGOD\",\"amount\":1000},\"donation-50\":{\"priceId\":\"price_1UMlcCA6Maf1zlslILMzs4ST\",\"amount\":5000}}",
     "PUBLIC_ORIGIN": "https://darecade.daniel-tianwen.workers.dev",
     "MAIL_FROM": "Darecade <hello@darecade.danielquek.com>",
     "PRIVACY_CONTACT": "hello@darecade.danielquek.com",

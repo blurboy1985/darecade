@@ -1,3 +1,4 @@
+import { legendarySets, setStarts } from "./collections.ts";
 // Companion pets. Every pet is built from simple primitives so they share the
 // soft, toy-like look of the neighbourhood. Index 0 means "no companion".
 import * as T from "three";
@@ -226,6 +227,99 @@ export function makePet(parent: T.Object3D, kind: number): Pet {
   };
   const b = body;
   if (quads[kind]) quad(pet, quads[kind]);
+  const special = legendarySets[kind - setStarts.pet];
+  if (special) {
+    const i = kind - setStarts.pet;
+    if ([4, 6, 9].includes(i)) {
+      pet.motion = "float";
+      ball(
+        b,
+        [0, 0.5, 0],
+        i === 6 ? [0.32, 0.09, 0.25] : [0.19, 0.2, 0.19],
+        special.color,
+        { glow: 0.4 },
+      );
+      face(b, 0.53, 0.18);
+      for (const side of [-1, 1]) {
+        const wing = node(b, [side * 0.2, 0.5, 0]);
+        part(
+          wing,
+          i === 4 ? "box" : "oct",
+          [side * 0.15, 0, 0],
+          [0.24, 0.05, 0.15],
+          special.accent,
+          { glow: 0.5 },
+        );
+        wing.userData.side = side;
+        pet.wings.push(wing);
+      }
+      for (let n = 0; n < 5; n++)
+        part(
+          b,
+          "oct",
+          [Math.sin(n * 1.25) * 0.24, 0.6 + Math.cos(n * 1.25) * 0.24, 0],
+          [0.07, 0.12, 0.07],
+          special.accent,
+          { glow: 0.7 },
+        );
+    } else if (i === 7) {
+      bird(pet, special.color, special.accent, "#fff3b0", special.accent, 0.5);
+      pet.motion = "float";
+    } else {
+      quad(pet, {
+        color: special.color,
+        muzzle: special.accent,
+        ear: i === 1 ? [0.07, 0.3, 0.07] : [0.09, 0.12, 0.08],
+        earColor: special.accent,
+        tail: "fluffy",
+      });
+      pet.motion = i === 1 ? "hop" : "walk";
+      if (i === 3)
+        for (let n = 0; n < 8; n++) {
+          const a = (n - 3.5) * 0.3;
+          part(
+            pet.tail,
+            "cone",
+            [Math.sin(a) * 0.25, 0.15, -0.15],
+            [0.07, 0.5, 0.07],
+            n % 2 ? special.color : special.accent,
+            { rot: [-0.8, 0, -a] },
+          );
+        }
+      if (i === 0)
+        for (let n = 0; n < 10; n++)
+          ball(
+            b,
+            [
+              Math.sin(n * 0.628) * 0.23,
+              0.52 + Math.cos(n * 0.628) * 0.23,
+              0.2,
+            ],
+            [0.09, 0.1, 0.08],
+            special.accent,
+          );
+      if ([2, 5, 8].includes(i))
+        for (const side of [-1, 1])
+          part(
+            b,
+            "cone",
+            [side * 0.15, 0.82, 0.13],
+            [0.07, 0.3, 0.07],
+            special.accent,
+            { rot: [0, 0, -side * 0.4], glow: 0.4 },
+          );
+      if (i === 5)
+        for (const side of [-1, 1])
+          part(
+            b,
+            "oct",
+            [side * 0.3, 0.45, -0.05],
+            [0.3, 0.05, 0.2],
+            special.accent,
+            { glow: 0.5 },
+          );
+    }
+  }
   switch (kind) {
     case 3: {
       ball(b, [0, 0.5, 0], [0.23, 0.2, 0.25], "#ddedeb");

@@ -1,3 +1,4 @@
+import { paymentBody } from "../server/payments.mjs";
 import { randomUUID } from "node:crypto";
 
 const security = {
@@ -52,7 +53,7 @@ export async function readBody(request, maximum) {
 
 export async function handleApi(
   request,
-  { community: c, store, files, rate, worlds },
+  { community: c, store, files, rate, worlds, payments },
 ) {
   try {
     const url = new URL(request.url),
@@ -60,6 +61,15 @@ export async function handleApi(
       method = request.method;
     if (!["GET", "POST"].includes(method))
       return json({ error: "Method not allowed." }, 405);
+    if (method === "POST" && path === "/api/payments/webhook") {
+      rate("payment-webhook", 180, 60000);
+      return json(
+        await payments.webhook(
+          await paymentBody(request.body),
+          request.headers.get("stripe-signature"),
+        ),
+      );
+    }
     if (
       request.headers.get("origin") &&
       request.headers.get("origin") !== c.origin
@@ -110,6 +120,18 @@ export async function handleApi(
         { error: "Please complete the welcome check or sign in." },
         401,
       );
+    if (method === "GET" && path === "/api/payments/config")
+      return json(payments.config());
+    if (method === "GET" && path === "/api/payments/history")
+      return json(payments.history(id));
+    if (method === "POST" && path === "/api/payments/checkout") {
+      rate("checkout", 6, 60000, id);
+      return json(await payments.checkout(id, data.product));
+    }
+    if (method === "POST" && path === "/api/payments/status") {
+      rate("payment-status", 12, 60000, id);
+      return json(await payments.reconcile(data.session, id));
+    }
     if (method === "GET" && path === "/api/auth/me")
       return json(c.privateProfile(id));
     if (method === "GET" && path === "/api/worlds")

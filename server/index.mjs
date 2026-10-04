@@ -1,3 +1,4 @@
+import { Payments, paymentBody } from "./payments.mjs";
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import { mkdirSync, existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -23,6 +24,7 @@ const community = new Community(store, {
   privacyContact: process.env.PRIVACY_CONTACT || "",
   storageNotice: process.env.STORAGE_NOTICE || undefined,
 });
+const payments = new Payments(community, process.env);
 const origins = new Set([
   origin,
   `http://127.0.0.1:${process.env.PORT || 4173}`,
@@ -72,6 +74,16 @@ const handler = async (req, res) => {
     const url = new URL(req.url, "http://localhost");
     if (url.pathname.startsWith("/api/")) {
       res.setHeader("Cache-Control", "no-store");
+      if (url.pathname === "/api/payments/webhook" && req.method === "POST") {
+        rate(req, "payment-webhook", 180, 60000);
+        const result = await payments.webhook(
+          await paymentBody(req),
+          req.headers["stripe-signature"],
+        );
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(result));
+        return;
+      }
       if (req.headers.origin && !origins.has(req.headers.origin)) {
         res.writeHead(403);
         res.end();
@@ -137,6 +149,24 @@ const handler = async (req, res) => {
             error: "Please complete the welcome check or sign in.",
           }),
         );
+        return;
+      }
+      if (req.method === "GET" && url.pathname === "/api/payments/config") {
+        respond(payments.config());
+        return;
+      }
+      if (req.method === "GET" && url.pathname === "/api/payments/history") {
+        respond(payments.history(player));
+        return;
+      }
+      if (req.method === "POST" && url.pathname === "/api/payments/checkout") {
+        rate(req, "checkout", 6, 60000, player);
+        respond(await payments.checkout(player, data.product));
+        return;
+      }
+      if (req.method === "POST" && url.pathname === "/api/payments/status") {
+        rate(req, "payment-status", 12, 60000, player);
+        respond(await payments.reconcile(data.session, player));
         return;
       }
       const session = { id: player };

@@ -1,3 +1,4 @@
+import { legendarySets } from "./collections.ts";
 import { appearanceLimits } from "./appearance.ts";
 export const outfits = [
   "#bbec66",
@@ -35,6 +36,9 @@ export type Save = {
   hat: number;
   unlockedHats: number[];
   xp: number;
+  wardrobeSpent: number;
+  wardrobeUnlocked: string[];
+  wardrobePurchased: string[];
   coins: string[];
   week: string;
   giftDay: string;
@@ -90,6 +94,9 @@ export function fresh(): Save {
     hat: 0,
     unlockedHats: [0],
     xp: 0,
+    wardrobeSpent: 0,
+    wardrobeUnlocked: [],
+    wardrobePurchased: [],
     coins: [],
     week: singaporeWeek(),
     giftDay: "",
@@ -159,6 +166,24 @@ export function normalise(raw: unknown, fallback: Save): Save {
         }[key]
     )
       s[key] = r[key]!;
+  s.wardrobePurchased = legendarySets
+    .filter(
+      (set) =>
+        Array.isArray(r.wardrobePurchased) &&
+        r.wardrobePurchased.includes(set.id),
+    )
+    .map((set) => set.id);
+  s.wardrobeUnlocked = legendarySets
+    .filter(
+      (set) =>
+        Array.isArray(r.wardrobeUnlocked) &&
+        r.wardrobeUnlocked.includes(set.id),
+    )
+    .map((set) => set.id);
+  s.wardrobeSpent = s.wardrobeUnlocked.reduce(
+    (sum, id) => sum + legendarySets.find((set) => set.id === id)!.cost,
+    0,
+  );
   for (const key of ["xp", "rounds"] as const)
     if (Number.isFinite(r[key]) && r[key]! >= 0)
       s[key] = Math.floor(Math.min(r[key]!, 1e8));

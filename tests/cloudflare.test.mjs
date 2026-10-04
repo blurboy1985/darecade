@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Miniflare, convertV4MiniflareOptions } from "miniflare";
@@ -6,6 +7,150 @@ import { Simulation, rulesVersion } from "../shared/simulation.ts";
 import { PRIVACY_VERSION } from "../server/community-core.mjs";
 
 const origin = "https://darecade.test";
+
+test(
+  "Cloudflare checkout and raw signed webhooks persist paid looks and reject forged callbacks",
+  { timeout: 30000 },
+  async () => {
+    let session;
+    const secret = "whsec_cloudflarefixture";
+    const { mf, api } = runtime(true, {
+      env: {
+        PAYMENTS_ENABLED: "true",
+        STRIPE_SECRET_KEY: "sk_test_fixture",
+        STRIPE_WEBHOOK_SECRET: secret,
+        STRIPE_CATALOG: JSON.stringify({
+          solar: { priceId: "price_solar", amount: 490 },
+        }),
+      },
+      request: async (request) => {
+        if (request.url.includes("/prices/"))
+          return Response.json({
+            active: true,
+            type: "one_time",
+            currency: "sgd",
+            unit_amount: 490,
+            livemode: false,
+          });
+        if (request.method === "POST") {
+          const form = new URLSearchParams(await request.text());
+          session = {
+            id: "cs_test_cloudflare",
+            url: "https://checkout.stripe.com/c/pay/cs_test_cloudflare",
+            client_reference_id: form.get("client_reference_id"),
+            metadata: { order: form.get("metadata[order]") },
+            mode: "payment",
+            status: "complete",
+            payment_status: "paid",
+            currency: "sgd",
+            amount_total: 490,
+            livemode: false,
+            line_items: {
+              has_more: false,
+              data: [{ quantity: 1, price: { id: "price_solar" } }],
+            },
+            payment_intent: {
+              id: "pi_fixture",
+              latest_charge: { refunded: false, disputed: false },
+            },
+          };
+        }
+        return Response.json(session);
+      },
+    });
+    try {
+      const user = await api("auth/join", {
+        month: 1,
+        year: 2000,
+        consent: true,
+        privacyVersion: PRIVACY_VERSION,
+      });
+      assert.equal(
+        (await api("payments/checkout", { product: "solar" }, user.cookie))
+          .status,
+        403,
+      );
+      const sql = await mf.unsafeGetDurableObjectStorage(
+        "darecade-test",
+        "Neighbourhood",
+        { name: "darecade-main-v1" },
+      );
+      await sql.exec(
+        "INSERT INTO accounts VALUES(?,?,?)",
+        user.data.id,
+        "payment@example.test",
+        Date.now(),
+      );
+      assert.equal(
+        (await api("payments/config", undefined, user.cookie)).data.enabled,
+        true,
+      );
+      const checkout = await api(
+        "payments/checkout",
+        { product: "solar", amount: 1 },
+        user.cookie,
+      );
+      assert.equal(checkout.status, 200, JSON.stringify(checkout.data));
+      assert.equal(checkout.data.url, session.url);
+      const raw = JSON.stringify({
+        id: "evt_fixture",
+        type: "checkout.session.completed",
+        livemode: false,
+        data: { object: { id: session.id } },
+      });
+      const t = Math.floor(Date.now() / 1000);
+      const signature = `t=${t},v1=${createHmac("sha256", secret).update(`${t}.${raw}`).digest("hex")}`;
+      const send = (sig) =>
+        mf.dispatchFetch(origin + "/api/payments/webhook", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Stripe-Signature": sig,
+          },
+          body: raw,
+        });
+      assert.equal((await send("forged")).status, 400);
+      assert.deepEqual(
+        (await api("auth/me", undefined, user.cookie)).data.progress
+          .wardrobePurchased,
+        [],
+      );
+      assert.equal((await send(signature)).status, 200);
+      assert.equal((await send(signature)).status, 200);
+      assert.deepEqual(
+        (await api("auth/me", undefined, user.cookie)).data.progress
+          .wardrobePurchased,
+        ["solar"],
+      );
+      assert.equal(
+        (await api("payments/history", undefined, user.cookie)).data.length,
+        1,
+      );
+      assert.equal(
+        (
+          await api(
+            "profile",
+            { clothing: 24, hair: 28, pet: 26, accessory: 27 },
+            user.cookie,
+          )
+        ).status,
+        200,
+      );
+      session.payment_intent.latest_charge.refunded = true;
+      assert.equal(
+        (await api("payments/status", { session: session.id }, user.cookie))
+          .data.status,
+        "refunded",
+      );
+      assert.equal(
+        (await api("auth/me", undefined, user.cookie)).data.progress.clothing,
+        0,
+      );
+    } finally {
+      await mf.dispose();
+    }
+  },
+);
 
 test(
   "occupancy reports only write changed away flags and keep room freshness",
@@ -105,7 +250,7 @@ test(
   },
 );
 
-function runtime(ready = true) {
+function runtime(ready = true, paymentOptions = {}) {
   const messages = [];
   const mf = new Miniflare(
     convertV4MiniflareOptions({
@@ -126,9 +271,15 @@ function runtime(ready = true) {
         MAIL_FROM: "Darecade <hello@example.test>",
         PRIVACY_CONTACT: "privacy@example.test",
         STORAGE_NOTICE: "Synthetic Cloudflare runtime test.",
+        ...paymentOptions.env,
       },
       serviceBindings: { ASSETS: () => new Response("asset fixture") },
       outboundService: async (request) => {
+        if (
+          request.url.startsWith("https://api.stripe.com/") &&
+          paymentOptions.request
+        )
+          return paymentOptions.request(request);
         assert.equal(request.url, "https://api.resend.com/emails");
         messages.push(await request.json());
         return Response.json({ id: "synthetic-mail" });

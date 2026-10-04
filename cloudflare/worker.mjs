@@ -1,3 +1,4 @@
+import { Payments } from "../server/payments.mjs";
 import { DurableObject } from "cloudflare:workers";
 import { createHash, randomBytes } from "node:crypto";
 import { StoreCore } from "../server/store-core.mjs";
@@ -133,6 +134,7 @@ export class Neighbourhood extends DurableObject {
       CREATE TABLE IF NOT EXISTS worlds(name TEXT PRIMARY KEY,occupancy INTEGER NOT NULL DEFAULT 0,seen INTEGER NOT NULL DEFAULT 0);
       CREATE TABLE IF NOT EXISTS world_members(player TEXT PRIMARY KEY,world TEXT NOT NULL,away INTEGER NOT NULL DEFAULT 0);
       CREATE INDEX IF NOT EXISTS world_members_world ON world_members(world);`);
+    this.payments = new Payments(this.community, env);
     this.store.liveStatus = (id) => {
       const member = this.db
         .prepare(
@@ -195,6 +197,7 @@ export class Neighbourhood extends DurableObject {
     };
     return handleApi(request, {
       community: this.community,
+      payments: this.payments,
       store: this.store,
       files: this.files,
       rate,

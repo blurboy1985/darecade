@@ -1,3 +1,5 @@
+import { legendarySets, setStarts } from "./collections.ts";
+import { legendaryHead, legendaryBody } from "./legendary.ts";
 import * as T from "three";
 import { clone as cloneSkeleton } from "three/addons/utils/SkeletonUtils.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -34,6 +36,7 @@ export type Avatar = {
   spine: T.Object3D;
   hat: T.Group;
   extras: T.Group;
+  costume: T.Group;
   pet: Pet | null;
   magic: Magic | null;
   look: Look;
@@ -90,6 +93,18 @@ const bodySets: [Who, Who, Who | null][] = [
   ["Mage", "Rogue", "Rogue"],
   ["Knight", "Mage", null],
   ["Barbarian", "Rogue", null],
+];
+const legendaryBodies: [Who, Who, Who | null][] = [
+  ["Knight", "Knight", "Knight"],
+  ["Mage", "Mage", "Mage"],
+  ["Knight", "Rogue", "Barbarian"],
+  ["Mage", "Rogue", "Mage"],
+  ["Knight", "Knight", null],
+  ["Knight", "Knight", "Knight"],
+  ["Mage", "Mage", "Rogue"],
+  ["Barbarian", "Knight", "Barbarian"],
+  ["Knight", "Mage", "Mage"],
+  ["Rogue", "Mage", "Rogue"],
 ];
 // [head mesh, KayKit headwear, procedural gear]. Order matches hairNames.
 const headSets: [string, string | null, Gear | null][] = [
@@ -289,6 +304,7 @@ export function createAvatar(
     spine: node("Spine"),
     hat: new T.Group(),
     extras: new T.Group(),
+    costume: new T.Group(),
     pet: null,
     magic: null,
     look: {
@@ -303,7 +319,7 @@ export function createAvatar(
     moving: false,
     rig,
   };
-  root.add(a.hat, a.extras);
+  root.add(a.hat, a.extras, a.costume);
   root.userData.avatar = a;
   applyLook(a, a.look, color, skin);
   poseSkin(a, "idle");
@@ -316,6 +332,8 @@ export function applyLook(
   skin = skins[look.skin],
 ) {
   const previous = a.look;
+  const special = legendarySets[(look.clothing ?? 0) - setStarts.clothing];
+  if (special) color = special.color;
   a.look = { clothing: 0, hair: 0, pet: 0, accessory: 0, ...look };
   for (const m of a.materials.values())
     if (m.userData.source) {
@@ -327,8 +345,14 @@ export function applyLook(
         m.needsUpdate = true;
       }
     }
-  const [top, legs, cape] = bodySets[a.look.clothing! % bodySets.length];
-  const [head, wear, gear] = headSets[a.look.hair! % headSets.length];
+  const [top, legs, cape] = special
+    ? legendaryBodies[a.look.clothing! - setStarts.clothing]
+    : bodySets[a.look.clothing! % bodySets.length];
+  const headIndex =
+    a.look.hair! >= setStarts.hair
+      ? (a.look.hair! - setStarts.hair) % 4
+      : a.look.hair!;
+  const [head, wear, gear] = headSets[headIndex % headSets.length];
   a.model.traverse((o) => {
     if (!(o instanceof T.Mesh)) return;
     const [who, part] = [
@@ -342,6 +366,9 @@ export function applyLook(
       o.visible = o.name === wear && !look.hat;
     else if (o.name.includes("Head")) o.visible = o.name === head;
   });
+  a.costume.clear();
+  if (special)
+    legendaryBody(a.costume, (look.clothing ?? 0) - setStarts.clothing);
   a.hat.clear();
   if (look.hat === 1) {
     ellipsoid(a.hat, [0, 1.83, 0], [0.24, 0.12, 0.22], "#e7a769");
@@ -372,7 +399,9 @@ export function applyLook(
     part.scale.y *= 1.25;
   }
   // Wardrobe headgear sits under an earned hat's slot: the earned hat wins.
-  if (gear && !look.hat) buildHeadgear(a.hat, gear);
+  if ((look.hair ?? 0) >= setStarts.hair && !look.hat)
+    legendaryHead(a.hat, (look.hair ?? 0) - setStarts.hair);
+  else if (gear && !look.hat) buildHeadgear(a.hat, gear);
   if (previous.accessory !== a.look.accessory || !a.magic) {
     disposeMagic(a.magic);
     a.magic = buildMagic(a.extras, a.look.accessory!);
@@ -588,6 +617,7 @@ function poseSkin(a: Avatar, mode: string) {
   a.hat.position.y += a.model.position.y;
   a.hat.position.x += a.model.position.x;
   a.hat.position.z += a.model.position.z;
+  a.costume.position.copy(a.model.position);
   a.extras.position.x = a.model.position.x;
   a.extras.position.y = a.model.position.y;
   a.extras.position.z = a.model.position.z;
@@ -723,7 +753,8 @@ export function createCharacterPreview(
   );
   const distance = Math.max(
     4.6,
-    (look.pet ? 1.15 : 0.72) / (camera.aspect * Math.tan((Math.PI * 35) / 360)),
+    (look.accessory ? 1.45 : look.pet ? 1.3 : 0.85) /
+      (camera.aspect * Math.tan((Math.PI * 35) / 360)),
   );
   camera.position.set(look.pet ? 0.3 : 0, 1.45, distance);
   camera.lookAt(look.pet ? 0.3 : 0, 1.13, 0);
@@ -735,7 +766,7 @@ export function createCharacterPreview(
     camera.aspect = w / h;
     camera.position.z = Math.max(
       4.6,
-      (look.pet ? 1.15 : 0.72) /
+      (look.accessory ? 1.45 : look.pet ? 1.3 : 0.85) /
         (camera.aspect * Math.tan((Math.PI * 35) / 360)),
     );
     camera.lookAt(look.pet ? 0.3 : 0, 1.13, 0);
@@ -776,6 +807,45 @@ export function createCharacterPreview(
     }
   };
   return {
+    thumbnail(itemLook: Look, slot = "set") {
+      const oldSize = renderer.getSize(new T.Vector2());
+      const oldRatio = renderer.getPixelRatio();
+      const oldPosition = camera.position.clone();
+      const oldRotation = camera.quaternion.clone();
+      const oldAspect = camera.aspect;
+      const oldTurn = a.root.rotation.y;
+      renderer.setPixelRatio(1);
+      renderer.setSize(240, 220, false);
+      camera.aspect = 240 / 220;
+      camera.position.set(
+        slot === "pet" ? 0.85 : 0.25,
+        slot === "hair" ? 1.7 : slot === "pet" ? 0.8 : 1.5,
+        slot === "hair" ? 2.8 : slot === "pet" ? 2.8 : 5.2,
+      );
+      camera.lookAt(
+        slot === "pet" ? 0.85 : 0.25,
+        slot === "hair" ? 1.65 : slot === "pet" ? 0.5 : 1.15,
+        0,
+      );
+      camera.updateProjectionMatrix();
+      applyLook(a, itemLook);
+      a.root.rotation.y = 0.15;
+      a.root.visible = slot !== "pet";
+      animateDetails(a, 1.4, "idle", true);
+      renderer.render(scene, camera);
+      const image = renderer.domElement.toDataURL("image/png");
+      a.root.visible = true;
+      applyLook(a, look);
+      a.root.rotation.y = oldTurn;
+      renderer.setPixelRatio(oldRatio);
+      renderer.setSize(oldSize.x, oldSize.y, false);
+      camera.position.copy(oldPosition);
+      camera.quaternion.copy(oldRotation);
+      camera.aspect = oldAspect;
+      camera.updateProjectionMatrix();
+      renderer.render(scene, camera);
+      return image;
+    },
     mount(nextHost: HTMLElement, nextLook: Look & { reduced?: boolean }) {
       observer.unobserve(host);
       host = nextHost;

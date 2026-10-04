@@ -1,3 +1,5 @@
+import { legendarySets, setStarts } from "./collections.ts";
+import { legendaryMagic } from "./legendary.ts";
 // "Everyday magic" effects. Each effect mixes a few glowing meshes (wings,
 // halos, crystals) with sparkle particle layers drawn by one small shader.
 // Positions are avatar-local: feet at y 0, head centre ~1.35, crown ~1.8.
@@ -282,6 +284,11 @@ export function buildMagic(parent: T.Object3D, kind: number): Magic | null {
       true,
     );
 
+  const special = legendarySets[kind - setStarts.accessory];
+  if (special) {
+    anim.push(legendaryMagic(g, kind - setStarts.accessory));
+    glowDust([special.color, special.accent], 0.2, 2.4, 0.9, 32);
+  }
   switch (kind) {
     case 1: {
       // Orbiting stars: three glowing star gems with twinkling trails.
