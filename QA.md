@@ -1,5 +1,14 @@
 # Darecade verification — 3 October 2026
 
+## Invite a friend, 4 October 2026
+
+See [Invite a friend](INVITES.md) for the behaviour. Not deployed. Purchase prompts are not part of this change.
+
+- **132 Node tests passed, none failed, and the two browser checks that need `DARECADE_TEST_CHROMIUM` were skipped; 7/7 Cloudflare integration tests passed.** TypeScript and the Vite build passed. New `tests/invite.test.ts` covers one link per player, a player's own link, unknown codes, a veteran trying to claim, a second invite, payment only after a verified first round, payment once, the five-friend cap, the data export and account deletion.
+- Tested in an isolated local Chromium on port 4190 with two synthetic guests in separate browser sessions. The first reached the Invite window through Menu, Friends, Neighbours, Bring a friend, and it showed a link and 0 of 5. The second opened that link: the code left the address bar, and after the age check and privacy notice a toast named the inviter. After the second guest's first race the result card showed the extra 30 XP, and the first guest's window showed 1 of 5 friends and +30 XP. No page errors.
+- The menu rule of at most three main actions still passes; the invite buttons sit inside closed expandable sections.
+- **Not verified:** the device share sheet, which desktop Chromium does not have, so only Copy was shown; clipboard copy itself; phone sizes; the Cloudflare routes in a browser (the Worker's integration tests pass but do not call them).
+
 ## Open Stage, 4 October 2026
 
 See [Open Stage](STAGE.md) for the behaviour. Not deployed.

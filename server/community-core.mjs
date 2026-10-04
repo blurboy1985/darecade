@@ -29,6 +29,10 @@ import {
   RULES_VERSION,
   rulesVersion,
 } from "../shared/simulation.ts";
+/** Both players get this when an invited friend finishes a first round. */
+export const INVITE_XP = 30;
+/** The inviter is paid for this many friends at most. */
+export const INVITE_CAP = 5;
 export const PRIVACY_VERSION = "2026-10-03";
 const DAY = 86400000;
 const ACTIVE_TOUCH_INTERVAL = 5 * 60000;
@@ -113,7 +117,9 @@ export class CommunityCore {
   CREATE TABLE IF NOT EXISTS dares(id TEXT PRIMARY KEY,host TEXT REFERENCES players(id),run TEXT REFERENCES runs(id),game TEXT,seed INTEGER,score INTEGER,created INTEGER,expires INTEGER);
   CREATE TABLE IF NOT EXISTS reports(id TEXT PRIMARY KEY,reporter TEXT REFERENCES players(id),target TEXT REFERENCES players(id),reason TEXT,created INTEGER,status TEXT DEFAULT 'open');
   CREATE TABLE IF NOT EXISTS blocks(player TEXT REFERENCES players(id),target TEXT REFERENCES players(id),PRIMARY KEY(player,target));
-  CREATE TABLE IF NOT EXISTS suspensions(player TEXT PRIMARY KEY REFERENCES players(id),created INTEGER);`);
+  CREATE TABLE IF NOT EXISTS suspensions(player TEXT PRIMARY KEY REFERENCES players(id),created INTEGER);
+  CREATE TABLE IF NOT EXISTS invites(code TEXT PRIMARY KEY,player TEXT UNIQUE NOT NULL,created INTEGER NOT NULL);
+  CREATE TABLE IF NOT EXISTS invite_joins(invitee TEXT PRIMARY KEY,inviter TEXT NOT NULL,created INTEGER NOT NULL,rewarded INTEGER NOT NULL DEFAULT 0);`);
     // Retire the unused preference without changing avatars or earned progress.
     this.store.transaction(() => {
       if (
@@ -749,6 +755,7 @@ export class CommunityCore {
       if (result.outdoor && "made" in result.outdoor)
         scoreHoops(p, result.outdoor.made);
       const welcome = completeWelcomeRound(p);
+      const invite = p.rounds === 0 ? this.payInvite(id, p) : null;
       p.rounds++;
       p.xp += 20;
       p.best[r.game] = Math.max(p.best[r.game], result.score);
@@ -759,6 +766,7 @@ export class CommunityCore {
         verified: true,
         ranked,
         welcome,
+        invite,
         race,
         profile: this.privateProfile(id),
       };
@@ -953,8 +961,122 @@ export class CommunityCore {
   playtests(id) {
     return this.files.playtests(id);
   }
+  /** The player's invite link code and how their invitations have gone. Counts only. */
+  invite(id) {
+    this.privateProfile(id);
+    return this.store.transaction(() => {
+      let code = this.db
+        .prepare("SELECT code FROM invites WHERE player=?")
+        .get(id)?.code;
+      if (!code) {
+        // No vowels, zero or one: nothing that spells a word or is misread aloud.
+        const letters = "BCDFGHJKLMNPQRSTVWXZ23456789";
+        code = Array.from(
+          randomBytes(8),
+          (b) => letters[b % letters.length],
+        ).join("");
+        this.db
+          .prepare("INSERT INTO invites VALUES(?,?,?)")
+          .run(code, id, this.now());
+      }
+      const row = this.db
+        .prepare(
+          "SELECT COUNT(*) joined,COALESCE(SUM(rewarded),0) played FROM invite_joins WHERE inviter=?",
+        )
+        .get(id);
+      const paid = Math.min(INVITE_CAP, row.played);
+      return {
+        code,
+        joined: row.joined,
+        played: row.played,
+        xp: paid * INVITE_XP,
+        friendXp: INVITE_XP,
+        cap: INVITE_CAP,
+      };
+    });
+  }
+  /** Ties a brand-new player to whoever invited them. The reward waits for a first round. */
+  acceptInvite(id, code) {
+    const progress = this.privateProfile(id).progress;
+    return this.store.transaction(() => {
+      const inviter =
+        typeof code === "string" &&
+        this.db
+          .prepare("SELECT player FROM invites WHERE code=?")
+          .get(code.toUpperCase())?.player;
+      if (
+        !inviter ||
+        !this.db
+          .prepare("SELECT 1 FROM profiles WHERE player=?")
+          .get(inviter) ||
+        this.db.prepare("SELECT 1 FROM suspensions WHERE player=?").get(inviter)
+      )
+        throw Error("This invite link is no longer open.");
+      if (inviter === id) throw Error("That is your own invite link.");
+      const existing = this.db
+        .prepare("SELECT inviter FROM invite_joins WHERE invitee=?")
+        .get(id);
+      if (existing && existing.inviter !== inviter)
+        throw Error("You already joined through another invite.");
+      if (!existing) {
+        if (progress.rounds > 0)
+          throw Error("Invite links are for players who have not played yet.");
+        this.db
+          .prepare("INSERT INTO invite_joins VALUES(?,?,?,0)")
+          .run(id, inviter, this.now());
+      }
+      return {
+        inviter,
+        name: this.db
+          .prepare("SELECT name FROM players WHERE id=?")
+          .get(inviter).name,
+        xp: INVITE_XP,
+      };
+    });
+  }
+  /** Called inside finish(): pays both players once, on the invitee's first round. */
+  payInvite(id, progress) {
+    const join = this.db
+      .prepare(
+        "SELECT inviter FROM invite_joins WHERE invitee=? AND rewarded=0",
+      )
+      .get(id);
+    if (!join) return null;
+    this.db
+      .prepare("UPDATE invite_joins SET rewarded=1 WHERE invitee=?")
+      .run(id);
+    progress.xp += INVITE_XP;
+    const host = this.db
+      .prepare("SELECT progress FROM profiles WHERE player=?")
+      .get(join.inviter);
+    const paid = this.db
+      .prepare(
+        "SELECT COUNT(*) n FROM invite_joins WHERE inviter=? AND rewarded=1",
+      )
+      .get(join.inviter).n;
+    if (host && paid <= INVITE_CAP) {
+      const theirs = normalise(JSON.parse(host.progress), fresh());
+      theirs.xp += INVITE_XP;
+      // Their last-active time is left alone: they did nothing just now.
+      this.db
+        .prepare("UPDATE profiles SET progress=? WHERE player=?")
+        .run(JSON.stringify(theirs), join.inviter);
+    }
+    return { xp: INVITE_XP };
+  }
   export(id) {
     return {
+      invite: {
+        code:
+          this.db.prepare("SELECT code FROM invites WHERE player=?").get(id)
+            ?.code || null,
+        friendsJoined: this.db
+          .prepare("SELECT COUNT(*) n FROM invite_joins WHERE inviter=?")
+          .get(id).n,
+        joinedByInvite: !!this.db
+          .prepare("SELECT 1 FROM invite_joins WHERE invitee=?")
+          .get(id),
+      },
       exportedAt: new Date(this.now()).toISOString(),
       payments: this.db
         .prepare(
@@ -994,6 +1116,10 @@ export class CommunityCore {
         .prepare("DELETE FROM reports WHERE reporter=? OR target=?")
         .run(id, id);
       this.db.prepare("DELETE FROM dares WHERE host=?").run(id);
+      this.db.prepare("DELETE FROM invites WHERE player=?").run(id);
+      this.db
+        .prepare("DELETE FROM invite_joins WHERE invitee=? OR inviter=?")
+        .run(id, id);
       this.db
         .prepare(
           "UPDATE runs SET target=NULL,dare=NULL,targetScore=0 WHERE target=?",

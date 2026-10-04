@@ -223,6 +223,14 @@ const handler = async (req, res) => {
         respond(community.progression(player, data.event, data.value));
         return;
       }
+      if (req.method === "POST" && url.pathname === "/api/invite") {
+        respond(community.invite(player));
+        return;
+      }
+      if (req.method === "POST" && url.pathname === "/api/invite/accept") {
+        respond(community.acceptInvite(player, data.code));
+        return;
+      }
       if (req.method === "POST" && url.pathname === "/api/dares") {
         respond(community.postDare(player, data.run));
         return;

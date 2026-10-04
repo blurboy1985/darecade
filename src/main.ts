@@ -44,6 +44,7 @@ import { mountFishing, mountHoops, mountPlots } from "./activities";
 import { mountStage } from "./stage-game";
 
 import { OutdoorGame } from "./outdoor-game";
+import { acceptPendingInvite, captureInvite, mountInvite } from "./invite";
 import { ordinal, type RaceResult } from "../shared/racing";
 import type { Replay } from "../shared/simulation";
 import {
@@ -494,6 +495,10 @@ function open(id: string) {
     });
     return;
   }
+  if (id === "invite") {
+    void mountInvite(body, toast);
+    return;
+  }
   if (id === "fishing" || id === "hoops" || id === "plots") {
     const mount = {
       fishing: mountFishing,
@@ -787,6 +792,7 @@ async function startGame(id: GameId, defender = "", dare = "") {
     type Finished = {
       race?: RaceResult & { newBest: boolean };
       welcome?: boolean;
+      invite?: { xp: number } | null;
       ranked?: boolean;
       profile: Profile;
     };
@@ -883,6 +889,12 @@ async function startGame(id: GameId, defender = "", dare = "") {
                   : "guest round. Save your progress to enter the rankings.")
             : "Offline · nothing saved.") +
           "</div>" +
+          (result?.invite
+            ? `<p class="new-best" role="status">+${result.invite.xp} XP · you and the friend who invited you</p>`
+            : "") +
+          (run && !setup
+            ? '<details class="menu-details"><summary>Play with a friend</summary><button class="secondary" data-open="invite">Invite a friend</button></details>'
+            : "") +
           (run && score > 0 && shared?.competitionReady && !reward
             ? '<details class="menu-details"><summary>Share this round</summary><button class="secondary" data-post-dare="' +
               run.id +
@@ -1814,6 +1826,7 @@ setInterval(() => {
   }
 }, 60_000);
 renderStats();
+captureInvite();
 const accountReady = ensureAccount().then((p) => {
   try {
     if (!localStorage.getItem("darecade-preview-backup")) {
@@ -1830,6 +1843,14 @@ const accountReady = ensureAccount().then((p) => {
   renderStats();
   renderWelcome();
   void syncSocial();
+  // A new player who arrived by a friend's link is tied to them now; both are
+  // rewarded when the first round is finished.
+  void acceptPendingInvite(save.rounds).then((invite) => {
+    if (invite)
+      toast(
+        `${invite.name} invited you. Finish a round and you both get +${invite.xp} XP.`,
+      );
+  });
   return p;
 });
 window.addEventListener("account-profile", ((event: CustomEvent<Profile>) => {
@@ -2032,7 +2053,7 @@ function renderSharedNeighbours() {
     return;
   const keepFocus = document.activeElement?.id === "neighbour-choice";
   neighbourRosterSignature = signature;
-  body.innerHTML = `<h2>Neighbours</h2>${serverNote()}<label class="field-label" for="neighbour-choice">Choose a neighbour</label><select class="destination-select" id="neighbour-choice">${players.length ? `<optgroup label="Players">${players.map((player) => `<option value="player:${player.id}">${escapeText(player.name)} · ${player.status}</option>`).join("")}</optgroup>` : ""}<optgroup label="Around the block">${residents.map((resident) => `<option value="resident:${resident.id}">${resident.name}</option>`).join("")}</optgroup></select><div class="simple-menu"><button class="menu-choice" data-action="visit-neighbour">Visit</button><button class="menu-choice" data-open="worlds">Worlds</button><button class="menu-choice" data-action="report-neighbour">Report or hide</button></div>`;
+  body.innerHTML = `<h2>Neighbours</h2>${serverNote()}<label class="field-label" for="neighbour-choice">Choose a neighbour</label><select class="destination-select" id="neighbour-choice">${players.length ? `<optgroup label="Players">${players.map((player) => `<option value="player:${player.id}">${escapeText(player.name)} · ${player.status}</option>`).join("")}</optgroup>` : ""}<optgroup label="Around the block">${residents.map((resident) => `<option value="resident:${resident.id}">${resident.name}</option>`).join("")}</optgroup></select><div class="simple-menu"><button class="menu-choice" data-action="visit-neighbour">Visit</button><button class="menu-choice" data-open="worlds">Worlds</button><button class="menu-choice" data-action="report-neighbour">Report or hide</button></div><details class="menu-details"><summary>Bring a friend</summary><button class="secondary" data-open="invite">Invite a friend</button></details>`;
   const picker = body.querySelector<HTMLSelectElement>("#neighbour-choice")!;
   if (
     selected &&

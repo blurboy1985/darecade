@@ -8,7 +8,12 @@ import {
 } from "node:fs";
 import { resolve } from "node:path";
 import { CommunityCore } from "./community-core.mjs";
-export { PRIVACY_VERSION, seedFor } from "./community-core.mjs";
+export {
+  INVITE_CAP,
+  INVITE_XP,
+  PRIVACY_VERSION,
+  seedFor,
+} from "./community-core.mjs";
 export class Community extends CommunityCore {
   constructor(store, options = {}) {
     const directory = options.directory || "data";

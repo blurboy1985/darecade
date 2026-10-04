@@ -12,6 +12,10 @@ The welcome check, age/privacy consent, guest-to-email account linking, saved av
 
 The local server uses a **private local test outbox**; the hosted service uses Resend for live email. New verified progress starts fresh; previous browser saves are archived locally and legacy medal totals are preserved. The 3 October launch checks passed **65/65 Node tests and 3/3 Cloudflare runtime tests**, plus local browser-verified arcade, shared dare and account/privacy journeys and the live launch checks above.
 
+## Invite a friend — 4 October 2026
+
+Every player has an invite link. A new friend who follows it and finishes a first round earns 30 XP for both players, for up to five friends. See [INVITES.md](INVITES.md).
+
 ## Open Stage — 4 October 2026
 
 Dare Plaza, in the middle of the island, now has a stage. A forty-second rhythm show with the player's avatar dancing under the lights earns up to 45 XP a day. See [STAGE.md](STAGE.md).
