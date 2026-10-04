@@ -10,9 +10,11 @@ Live checks straight after:
 - At the old address the page loads, `/api/auth/config`, `/api/auth/me` and `/api/world/connect` return 403, a handoff request without a key or from another site is refused, and one with a key but no session returns no code. An unsigned Stripe webhook is rejected with 400 at both addresses, so the old endpoint still reaches the signature check.
 - In a browser with no session, opening the old address with an invite code arrived at the new address with the welcome check showing and the invite kept.
 
-**Sign-in email is not confirmed working.** The Worker now sends from `hello@playsimi.danielquek.com`, and the stored `RESEND_API_KEY` was recorded as restricted to the old domain. Until the owner creates a key for the new domain and sets it (step 4), expect sign-in codes to fail. Guests and gameplay do not need email.
+**Sign-in email failed from the deployment at about 03:00 until the key was changed at about 03:13 SGT.** The Worker sends from `hello@playsimi.danielquek.com`, and the stored `RESEND_API_KEY` was restricted to the old domain. The owner edited that key's domain in Resend to `playsimi.danielquek.com`; the Worker secret did not change. Guests and gameplay did not need email.
 
-Not verified live: a handoff carrying a real session (no production account was created for this check), a sign-in code and a message through the new forwarding rule.
+Checked at 03:14 SGT: the live game was asked for a sign-in notice to `hello@playsimi.danielquek.com`. Resend shows `Your Play Simi sign-in request` delivered from the new sender, and Cloudflare Email Routing shows the same message forwarded to the verified destination. This proves sending from the new domain and the new forwarding rule. TLS on the new Resend domain was then set to Enforced, matching the old domain.
+
+Not verified live: a six-digit sign-in code used to sign in (no production account was created for this check), arrival in the destination inbox itself, a handoff carrying a real session, and a real purchase through the new webhook address.
 
 Later on 5 October the Stripe webhook was repointed (step 6) and a re-sent event was delivered to the new address with HTTP 200; see PAYMENTS.md.
 
@@ -20,7 +22,7 @@ Cloudflare's Web Analytics script is injected into pages on the custom domain an
 
 ### Preparation and checklist
 
-Steps 1 to 3 and the deployment are done. The sending key and the sign-in check remain.
+All seven steps are done. What has not been checked live is listed above.
 
 What the deployment changes:
 
@@ -32,12 +34,12 @@ What the deployment changes:
 Checklist:
 
 1. **Merge PR #20** (the rename) first; this change is stacked on it. Done.
-2. **Resend — domain done 5 October 2026, key still to do.** `playsimi.danielquek.com` was added in the Tokyo (`ap-northeast-1`) region with manual DNS setup, and Resend reported it Verified at 02:56. Three DNS-only records were added to the `danielquek.com` zone: TXT `resend._domainkey.playsimi` (DKIM), CNAME `rsend.playsimi` to `rsend-apne1.forge.rmta.net` and CNAME `send.playsimi` to `send.forge.rmta.net`; all three resolve on 1.1.1.1. Tracking is off. TLS is at Resend's default, Opportunistic; the old domain's record says Enforced, so set that if it should match. **Still to do, by the owner:** the existing `RESEND_API_KEY` is restricted to `darecade.danielquek.com`, so create a sending key restricted to the new domain.
+2. **Resend — done 5 October 2026.** `playsimi.danielquek.com` was added in the Tokyo (`ap-northeast-1`) region with manual DNS setup, and Resend reported it Verified at 02:56. Three DNS-only records were added to the `danielquek.com` zone: TXT `resend._domainkey.playsimi` (DKIM), CNAME `rsend.playsimi` to `rsend-apne1.forge.rmta.net` and CNAME `send.playsimi` to `send.forge.rmta.net`; all three resolve on 1.1.1.1. Tracking is off. TLS is Enforced. The existing sending key, still named `Darecade production sign-in` in Resend, had its domain changed from `darecade.danielquek.com` to `playsimi.danielquek.com`, so no new key or secret was needed.
 3. **Cloudflare Email Routing — done 5 October 2026.** The `playsimi` subdomain is enabled with locked DNS records; its three MX records and SPF TXT resolve on 1.1.1.1. The rule `hello@playsimi.danielquek.com` is active and forwards to the same verified destination as before. The `hello@darecade.danielquek.com` rule is kept so replies to earlier email still arrive, and catch-all remains disabled. Not yet verified: a real message arriving through the new rule.
-4. **Deploy — deployed; key still to do.** `npm run cf:deploy`, then `npx wrangler secret put RESEND_API_KEY` with the new key. Wrangler creates the custom domain and its certificate. Between the deployment and the new key, sign-in email fails; do the two together.
-5. **Check:** `https://playsimi.danielquek.com/api/health` returns ready; a sign-in code arrives from the new sender; opening the old address in a browser with an existing guest lands on the new address as the same character.
+4. **Deploy — done.** `npm run cf:deploy`. Wrangler created the custom domain and its certificate. The key's domain was changed in Resend afterwards (step 2), so `wrangler secret put RESEND_API_KEY` was not needed.
+5. **Check — done except a real session handoff and a used sign-in code.** `https://playsimi.danielquek.com/api/health` returns ready; a sign-in code arrives from the new sender; opening the old address in a browser with an existing guest lands on the new address as the same character.
 6. **Stripe — done 5 October 2026.** Change the webhook endpoint `we_1UMlTDA6Maf1zlslfAoUT1gA` to `https://playsimi.danielquek.com/api/payments/webhook`. Editing the address keeps its signing secret. Until then events sent to the old address are still accepted.
-7. Record the Worker version and the checks here.
+7. Record the Worker version and the checks here. Done.
 
 Rollback: redeploy the previous commit. Sessions created at the new address stay valid in the database but their cookies belong to the new address, so those players sign in again or play as before at the old one.
 
