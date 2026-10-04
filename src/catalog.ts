@@ -40,9 +40,34 @@ export const games = {
     genre: "RACING",
     description: "Eight karts. One coastal finish.",
   },
+  hoops: {
+    name: "Hoops Court",
+    tagline: "Hoops Court",
+    rule: "Ten shots. Stop the marker in the green before the shot clock runs out.",
+    controls: "Space · tap",
+    genre: "HOOPS",
+    description: "Ten shots against the clock.",
+  },
+  fishing: {
+    name: "Fishing Jetty",
+    tagline: "Fishing Jetty",
+    rule: "One minute. Hook the bite, then reel without snapping the line.",
+    controls: "Space · tap, then hold to reel",
+    genre: "FISHING",
+    description: "Sixty seconds on the jetty.",
+  },
 } as const;
 export type GameId = keyof typeof games;
-export const gameIds = Object.keys(games) as GameId[];
+/** Every round the server replays, so every one can be a dare. */
+export const playIds = Object.keys(games) as GameId[];
+/** East Side rounds are played at their facility, not at a cabinet. */
+export const outdoorIds = ["hoops", "fishing"] as const;
+export type OutdoorId = (typeof outdoorIds)[number];
+export type CabinetId = Exclude<GameId, OutdoorId>;
+/** The arcade cabinets. Only these have daily boards and medals. */
+export const gameIds = playIds.filter(
+  (id) => !(outdoorIds as readonly string[]).includes(id),
+) as CabinetId[];
 export const activities = {
   jog: {
     name: "Jog around the park",

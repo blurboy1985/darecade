@@ -136,18 +136,16 @@ test("the server decides East Side rewards, on its own clock", () => {
     for (const place of ["fishing", "hoops", "plots"]) go("visit", place);
     assert.equal(go("visit", "plots").xp, 30);
     assert.throws(() => go("visit", "moon"), /Unknown place/);
-    assert.equal(go("fish", "catfish").xp, 40);
-    assert.equal(go("fish", "catfish").xp, 40);
-    assert.throws(() => go("fish", "kraken"), /Unknown catch/);
-    assert.equal(go("hoops", 5).xp, 65);
-    assert.throws(() => go("hoops", 50), /Unknown score/);
+    // Catches and baskets come only from a replayed round (tests/outdoor.test.ts).
+    assert.throws(() => go("fish", "catfish"), /Unknown progression/);
+    assert.throws(() => go("hoops", 5), /Unknown progression/);
     // A browser cannot grant itself XP through a settings change.
     assert.equal(
       community.patch(me.id, { xp: 9999, hoopsBest: 10, fish: ["koi"] })
         .progress.xp,
-      65,
+      30,
     );
-    assert.equal(community.privateProfile(me.id).progress.hoopsBest, 5);
+    assert.equal(community.privateProfile(me.id).progress.hoopsBest, 0);
     assert.throws(() => go("harvest"), /not ready/);
     assert.throws(() => go("water"), /nothing to water/);
     assert.equal(go("plant", "chilli").plotCrop, "chilli");
@@ -160,9 +158,16 @@ test("the server decides East Side rewards, on its own clock", () => {
     assert.throws(() => go("harvest"), /not ready/);
     time += 60000;
     const done = go("harvest");
-    assert.equal(done.xp, 75);
+    assert.equal(done.xp, 40);
     assert.equal(done.harvests, 1);
-    assert.equal(go("claim", "eastside").xp, 105);
+    // The mission needs two activities; a catch arrives through a replayed round.
+    assert.throws(() => go("claim", "eastside"), /not ready to claim/);
+    const progress = community.privateProfile(me.id).progress;
+    progress.fish = ["catfish"];
+    store.db
+      .prepare("UPDATE profiles SET progress=? WHERE player=?")
+      .run(JSON.stringify(progress), me.id);
+    assert.equal(go("claim", "eastside").xp, 70);
     assert.throws(() => go("claim", "eastside"), /not ready to claim/);
   } finally {
     store.close();

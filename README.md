@@ -14,7 +14,7 @@ The local server uses a **private local test outbox**; the hosted service uses R
 
 ## East Side — 4 October 2026
 
-A second district east of the island adds three facilities with non-arcade activities: a Fishing Jetty, a Hoops Court and Community Plots. See [EAST-SIDE.md](EAST-SIDE.md).
+A second district east of the island adds three facilities with non-arcade activities: a Fishing Jetty, a Hoops Court and Community Plots. Fishing and hoops are server-replayed rounds with three.js scenes that can be played as dares; they have no daily boards or medals. See [EAST-SIDE.md](EAST-SIDE.md).
 
 ## Run it
 

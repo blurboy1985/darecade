@@ -27,11 +27,13 @@ import { LobbyWorld, spots } from "./world";
 import { ArcadeGame } from "./games";
 import { RacingGame } from "./racing-game";
 import { mountFishing, mountHoops, mountPlots } from "./activities";
+import { OutdoorGame } from "./outdoor-game";
 import { ordinal, type RaceResult } from "../shared/racing";
 import type { Replay } from "../shared/simulation";
 import {
   games,
   gameIds,
+  playIds,
   formatScore,
   activities,
   type ActivityId,
@@ -85,7 +87,7 @@ function icon(name: string) {
 }
 const save = readSave();
 let world: LobbyWorld | null = null;
-let game: ArcadeGame | RacingGame | null = null;
+let game: ArcadeGame | RacingGame | OutdoorGame | null = null;
 let wardrobeTab = "style";
 let gamePage = 0;
 let outdoorPage = 0;
@@ -404,7 +406,8 @@ function open(id: string) {
     showResident(id.slice(9));
     return;
   }
-  if (gameIds.includes(id as GameId)) {
+  // Hoops and fishing share their id with the facility, which opens a panel.
+  if ((gameIds as string[]).includes(id)) {
     startGame(id as GameId);
     return;
   }
@@ -694,7 +697,10 @@ async function startGame(id: GameId, defender = "", dare = "") {
     renderAway();
     persist();
   }
-  openShell(defender || dare ? "FRIENDLY DARE" : "ARCADE ROW");
+  const outdoor = id === "hoops" || id === "fishing";
+  openShell(
+    defender || dare ? "FRIENDLY DARE" : outdoor ? "EAST SIDE" : "ARCADE ROW",
+  );
   const generation = gameGeneration;
   body.innerHTML = "<h2>Loading…</h2>";
   let run: Run | null = null;
@@ -741,7 +747,7 @@ async function startGame(id: GameId, defender = "", dare = "") {
     '<h2 class="game-title">' +
     games[id].name +
     '</h2><div id="game-mount"></div>';
-  boardGame = id;
+  if (!outdoor) boardGame = id;
   if (id === "coast") modal.classList.add("racing-modal");
   const onFinish = async (score: number, replay: Replay) => {
     type Finished = {
@@ -751,7 +757,10 @@ async function startGame(id: GameId, defender = "", dare = "") {
       profile: Profile;
     };
     const racing = game instanceof RacingGame ? game : null;
-    const raceSummary = racing ? racing.summary() : "";
+    const raceSummary =
+      game instanceof RacingGame || game instanceof OutdoorGame
+        ? game.summary()
+        : "";
     activeRun = null;
     playtestEvent("round-finished");
     const send = async () => {
@@ -832,8 +841,12 @@ async function startGame(id: GameId, defender = "", dare = "") {
               (result.ranked
                 ? id === "coast" && score === 0
                   ? "No ranked time this round. Finish three laps to enter the board."
-                  : "in the running for tonight’s medals."
-                : "guest round. Save your progress to enter the rankings.")
+                  : outdoor
+                    ? "East Side rounds are for dares and bests, not medals."
+                    : "in the running for tonight’s medals."
+                : outdoor
+                  ? "guest round. Save your progress to dare neighbours."
+                  : "guest round. Save your progress to enter the rankings.")
             : "Offline · nothing saved.") +
           "</div>" +
           (run && score > 0 && shared?.competitionReady && !reward
@@ -908,7 +921,16 @@ async function startGame(id: GameId, defender = "", dare = "") {
             toggleSound,
           },
         )
-      : new ArcadeGame(id, mount, onFinish, (name) => beep(name), run?.seed);
+      : id === "hoops" || id === "fishing"
+        ? new OutdoorGame(
+            mount,
+            id,
+            onFinish,
+            (name) => beep(name),
+            run?.seed ?? 314159,
+            { reduced: save.reduced, simple: save.twoD },
+          )
+        : new ArcadeGame(id, mount, onFinish, (name) => beep(name), run?.seed);
   game.onFx = (event, amount) => {
     arcadeFx?.fire(event, amount);
     if (event === "hurt" && !save.reduced) {
@@ -1335,7 +1357,7 @@ document.addEventListener("change", (e) => {
     const button = document.querySelector<HTMLButtonElement>(
       `[data-defender="${el.dataset.challengePicker}"]`,
     );
-    if (button && gameIds.includes(el.value as GameId)) {
+    if (button && playIds.includes(el.value as GameId)) {
       challengeGameByPlayer.set(el.dataset.challengePicker, el.value as GameId);
       button.dataset.challenge = el.value;
     }
@@ -1347,7 +1369,7 @@ document.addEventListener("change", (e) => {
     body.querySelector<HTMLSelectElement>("#board-period")?.focus();
     return;
   }
-  if (el.id === "board-game" && gameIds.includes(el.value as GameId)) {
+  if (el.id === "board-game" && (gameIds as string[]).includes(el.value)) {
     boardGame = el.value as GameId;
     renderSharedBoard();
     body.querySelector<HTMLSelectElement>("#board-game")?.focus();
@@ -1685,9 +1707,12 @@ window.addEventListener("account-profile", ((event: CustomEvent<Profile>) => {
   if (!profileReady) return;
   const away = save.away,
     awaySince = save.awaySince;
+  const look = (s: typeof save) => preferenceKeys.map((k) => s[k]).join();
+  const before = look(save);
   Object.assign(save, event.detail.progress, { away, awaySince });
   writeSave(save);
-  world?.updateAvatar();
+  // Rebuilding the 3D avatar is slow; do it only when the look changed.
+  if (look(save) !== before) world?.updateAvatar();
   renderStats();
   renderWelcome();
 }) as EventListener);
@@ -1916,8 +1941,8 @@ function challengeButtons(p: SharedPlayer) {
   const selected =
     previous && p.best[previous] > 0
       ? previous
-      : gameIds.find((game) => p.best[game] > 0);
-  return `<label class="field-label" for="challenge-game-${p.id}">Game</label><select class="destination-select" id="challenge-game-${p.id}" data-challenge-picker="${p.id}">${gameIds.map((game) => `<option value="${game}" ${selected === game ? "selected" : ""} ${!p.best[game] ? "disabled" : ""}>${games[game].name} · ${p.best[game] ? formatScore(game, p.best[game]) : "No score"}</option>`).join("")}</select><button class="primary" data-challenge="${selected || gameIds[0]}" data-defender="${p.id}" ${!eligible || !selected ? "disabled" : ""}>Play dare</button>`;
+      : playIds.find((game) => p.best[game] > 0);
+  return `<label class="field-label" for="challenge-game-${p.id}">Game</label><select class="destination-select" id="challenge-game-${p.id}" data-challenge-picker="${p.id}">${playIds.map((game) => `<option value="${game}" ${selected === game ? "selected" : ""} ${!p.best[game] ? "disabled" : ""}>${games[game].name} · ${p.best[game] ? formatScore(game, p.best[game]) : "No score"}</option>`).join("")}</select><button class="primary" data-challenge="${selected || gameIds[0]}" data-defender="${p.id}" ${!eligible || !selected ? "disabled" : ""}>Play dare</button>`;
 }
 function renderSharedDares() {
   const previous = body.querySelector<HTMLSelectElement>("#dare-choice")?.value;

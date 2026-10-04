@@ -21,6 +21,8 @@ test("old two-game saves migrate without losing personal bests or mutating defau
     hop: 0,
     swarm: 0,
     coast: 0,
+    hoops: 0,
+    fishing: 0,
   });
   assert.equal(fallback.best.noodle, 0);
   assert.equal(s.awayActivity, "jog");

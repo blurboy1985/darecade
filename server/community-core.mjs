@@ -1,5 +1,6 @@
 import { randomBytes, randomInt, randomUUID, createHash } from "node:crypto";
 import { day, gameIds } from "./store-core.mjs";
+import { playIds } from "../src/catalog.ts";
 import {
   fresh,
   normalise,
@@ -332,10 +333,6 @@ export class CommunityCore {
           throw Error("This mission is not ready to claim.");
         p.claims.push(value);
         p.xp += m.xp;
-      } else if (event === "fish") {
-        if (catchFish(p, value) === null) throw Error("Unknown catch.");
-      } else if (event === "hoops") {
-        if (scoreHoops(p, value) === null) throw Error("Unknown score.");
       } else if (event === "plant") {
         if (!plantCrop(p, value, this.now()))
           throw Error("This plot is already growing something.");
@@ -552,7 +549,7 @@ export class CommunityCore {
     return !!this.db.prepare("SELECT 1 FROM accounts WHERE player=?").get(id);
   }
   begin(id, game, target = null, dareId = null) {
-    if (!gameIds.includes(game)) throw Error("Choose an arcade game.");
+    if (!playIds.includes(game)) throw Error("Choose an arcade game.");
     let seed = seedFor(game, day(this.now())),
       score = 0,
       dare = null;
@@ -697,6 +694,11 @@ export class CommunityCore {
           .prepare("UPDATE runs SET race_result=? WHERE id=?")
           .run(JSON.stringify(race), r.id);
       }
+      // East Side rewards come from the replay, never from the browser's word.
+      if (result.outdoor?.catches)
+        for (const fish of result.outdoor.catches) catchFish(p, fish);
+      if (result.outdoor && "made" in result.outdoor)
+        scoreHoops(p, result.outdoor.made);
       const welcome = completeWelcomeRound(p);
       p.rounds++;
       p.xp += 20;

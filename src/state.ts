@@ -19,7 +19,7 @@ export const skins = [
 ];
 import {
   activities,
-  gameIds,
+  playIds,
   type ActivityId,
   type GameId,
 } from "./catalog.ts";
@@ -97,7 +97,15 @@ export function fresh(): Save {
     visited: [],
     cat: false,
     rounds: 0,
-    best: { noodle: 0, brick: 0, hop: 0, swarm: 0, coast: 0 },
+    best: {
+      noodle: 0,
+      brick: 0,
+      hop: 0,
+      swarm: 0,
+      coast: 0,
+      hoops: 0,
+      fishing: 0,
+    },
     coastRecord: { version: 2, timeTicks: 0, place: 0 },
     coastLegacyBest: 0,
     cameraMode: "isometric",
@@ -200,7 +208,7 @@ export function normalise(raw: unknown, fallback: Save): Save {
         : []),
     ]),
   ];
-  for (const key of gameIds)
+  for (const key of playIds)
     if (Number.isFinite(r.best?.[key]) && r.best![key] >= 0)
       s.best[key] = Math.min(1e7, Math.floor(r.best![key]));
   const record = r.coastRecord;

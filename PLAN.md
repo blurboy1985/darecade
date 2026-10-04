@@ -1,39 +1,42 @@
-# Coast Rush review: items, mobile, sound, finish
+# Hoops and Fishing review: dares, difficulty, 3D, lag
 
-Branch `scale/records`, edited in place. The unrelated uncommitted server/social work is left alone.
+Branch `hoops-fishing-review`, from `origin/main`. Separate from the Coast Rush route PR (#11).
 
 ## Task
 
-Review Coast Rush; explain shells and shields in the game itself; improve phone play; add race music and sound effects; give the race a proper ending.
+Review Hoops Court and Fishing Jetty. Make both playable as dares, make hoops harder, fix the lag when a fishing catch is submitted, and add three.js animation and effects while playing.
 
 ## Findings
 
-- **Shells**: 12 per lap, 36 per race. Counted on the result only. No speed, currency or medal effect. The game never says so, and collecting one gives no sound or visual feedback.
-- **Shield**: a crate item. Using it blocks wall and kart hits (each a 0.75s stop) for 3 seconds. Crates alternate shield and turbo. Collecting or using one has no feedback beyond a small text label.
-- **Mobile**: drifting needs GO and DRIFT held together, so two right-hand fingers. Buttons are 54×48. The cover shows keyboard keys (W A S D, Space, E) on phones.
-- **Sound**: sound is off by default with no control inside the race. The race has no music of its own, no engine, and no sound for shells, crates, shield, laps or position changes.
-- **Ending**: the frame the line is crossed, the race view is replaced by "Checking score…". Finished rivals also stack on the start line.
+- **Dares need replay.** Both activities report a result from the browser and the server trusts it. A dare compares scores between players, so each needs a deterministic simulation the server replays, like the cabinets.
+- **Fishing lag.** Each catch sends a progress event. Every profile reply calls `world.updateAvatar()`, which rebuilds the 3D avatar even though a catch never changes the look. The reply also waits behind any queued profile save.
+- **Hoops is easy.** One fixed green zone, a slow marker, no time pressure, ten shots.
+- **No 3D.** Both are DOM panels with CSS shapes.
 
-## Constraint
+## Design
 
-`shared/racing.ts` is replayed by the server and versioned (rules v2). It is not changed, so times, bests, medals and replays are unaffected. All work is presentation and input.
+- `shared/outdoor.ts`: `HoopsRound` and `FishingRound`, run by `Simulation` and `replayRun`. One input: press or hold.
+  - Hoops: ten shots, a four-second shot clock, a faster marker, a green zone that narrows and from the fourth shot slides, a perfect band worth 3, and a streak bonus.
+  - Fishing: a 60-second round. Cast, hook the bite, then reel: holding reels and raises line tension, the fish surges, and the line snaps at full tension. Rarer fish score more and fight harder.
+- Catalogue: both join `games` as playable rounds with dares. They are **not** cabinets: `gameIds` stays the five cabinets, so daily boards, medals and the 15-point daily maximum do not change.
+- Rewards: the server takes shots made and species caught from the replay, so the album and hoops-best XP are now verified. The unverified `fish` and `hoops` progress events are removed.
+- `src/outdoor-game.ts` and a lazily loaded `src/outdoor-view.ts` (three.js): ball arc, rim and net, swish sparks, streak flame; pond, rod, line, float, bite splash, fish leaping on a catch. A DOM fallback covers simple view and lost WebGL.
+- Lag: rebuild the avatar only when a look field changed.
 
 ## Steps
 
-1. `src/audio.ts`: race music mood, tempo control, engine/skid/wind loop, new effects.
-2. `src/race-view.ts`: finish camera, coasting past the line, rivals parking beyond it, shield pulse and expiry blink.
-3. `src/racing-game.ts`: item legend, touch wording, thumb sliding, DRIFT/ITEM keep throttle, pickup and position cues, final-lap moment, finish sequence, sound button.
-4. `src/racing.css`: thumb-sized controls, item states, finish overlay.
-5. `src/main.ts`: submit the result while the finish sequence plays; race music; shared sound toggle.
-6. Docs: `COAST-RUSH.md`, `QA.md`.
+1. Simulations, catalogue, save shape, `Simulation` wiring.
+2. Server: begin, finish rewards, cards; drop the old events.
+3. Client round, 3D view, styles; facility panels launch the round; challenge picker lists both.
+4. Lag fix in `src/main.ts`.
+5. Tests; docs (`EAST-SIDE.md`, `QA.md`, `README.md`).
 
 ## Verify
 
-- `npm test` and `npm run build` pass.
-- Browser at 390×844, 320×568 and 844×390: no overflow, controls reachable, a full race reaches the finish sequence and a server-verified result.
-- Not verifiable here: real-phone touch feel and how the audio sounds to a person.
+- `npm test`, `npm run build`, `npm run test:cloudflare`.
+- Browser: play both rounds to a server-verified result; check the 3D view and no page errors.
+- Not verifiable here: feel on a real phone, and whether the difficulty is right for a person.
 
-## Decisions left for Daniel
+## Decisions for Daniel
 
-- Sound default: decided 4 October 2026, on by default for new players. A sound button is also on the race cover.
-- Whether shells should ever affect anything is a rules change (version bump); not done.
+- Dares only, no medal boards for these two. Adding boards would raise the daily medal maximum.

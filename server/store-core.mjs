@@ -2,14 +2,14 @@ import { clampMovement } from "./world-core.mjs";
 import { appearanceLimits } from "../src/appearance.ts";
 import { randomUUID, randomBytes, createHash } from "node:crypto";
 
-import { gameIds } from "../src/catalog.ts";
+import { gameIds, playIds } from "../src/catalog.ts";
 export { gameIds };
 const DAY = 86400000;
 export const day = (time) =>
   new Date(time + 8 * 3600000).toISOString().slice(0, 10);
 const boundary = (date) => Date.parse(`${date}T00:00:00+08:00`);
 const hash = (token) => createHash("sha256").update(token).digest("hex");
-const empty = () => Object.fromEntries(gameIds.map((g) => [g, 0]));
+const empty = () => Object.fromEntries(playIds.map((g) => [g, 0]));
 export class StoreCore {
   constructor(db, now = Date.now) {
     this.now = now;
@@ -254,7 +254,7 @@ export class StoreCore {
   }
   begin(id, game, target = null, options = {}) {
     this.settle();
-    if (!gameIds.includes(game)) throw Error("Choose an arcade game.");
+    if (!playIds.includes(game)) throw Error("Choose an arcade game.");
     return this.transaction(() => {
       let targetScore = 0;
       if (target) {

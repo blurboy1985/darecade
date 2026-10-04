@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Store, day, gameIds } from "../server/store.mjs";
+import { playIds } from "../src/catalog.ts";
 import { CommunityCore } from "../server/community-core.mjs";
 
 const DAY = 86400000;
@@ -38,8 +39,8 @@ function baselineCards(store: Store) {
       .map(({ id }) => [
         id,
         {
-          best: Object.fromEntries(gameIds.map((game) => [game, 0])),
-          guestBest: Object.fromEntries(gameIds.map((game) => [game, 0])),
+          best: Object.fromEntries(playIds.map((game) => [game, 0])),
+          guestBest: Object.fromEntries(playIds.map((game) => [game, 0])),
           points: 0,
           wins: 0,
           incoming: 0,
