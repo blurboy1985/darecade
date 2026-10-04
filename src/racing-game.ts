@@ -8,7 +8,6 @@ import {
   ordinal,
   itemCrates,
   pickups,
-  RACE_DISTANCE,
   RACE_LAPS,
   RACE_TICKS,
   TRACK_LENGTH,
@@ -93,7 +92,6 @@ export class RacingGame {
   private readonly notice: HTMLElement;
   private readonly meter: HTMLMeterElement;
   private readonly targetTicks: number;
-  private readonly ghost: { ticks: number; own: boolean } | null;
   private readonly reduced: boolean;
   private readonly abort = new AbortController();
   constructor(
@@ -107,7 +105,6 @@ export class RacingGame {
       simple: boolean;
       target: number;
       best: number;
-      ghost?: { ticks: number; own: boolean } | null;
       /** Edge steering help, for a driver with no finished race yet. */
       assist?: boolean;
       playerName?: string;
@@ -117,7 +114,6 @@ export class RacingGame {
   ) {
     this.sim = new Simulation("coast", seed);
     this.reduced = options.reduced;
-    const ghost = (this.ghost = options.ghost ?? null);
     this.assist = !!options.assist;
     this.targetTicks =
       options.target > 0
@@ -136,11 +132,11 @@ export class RacingGame {
         <div class="race-view"></div>
         <div class="race-hud"><span class="stat-pill place-pill"><small>PLACE</small><b id="race-place">8th / 8</b></span><span class="stat-pill score-pill"><small>TIME</small><b id="run-score">0:00.00</b></span><span id="run-state">LAP <b id="race-lap">1 / 3</b></span><span class="stat-pill time-pill"><small>LEFT</small><b id="run-time">120</b></span></div>
         <div class="game-pops" aria-hidden="true"></div>
-        <canvas class="race-map" width="180" height="130" aria-label="All eight karts. You are coral with a white ring. Seven coloured dots are game characters. Red squares are missiles and brown squares are coconuts.${ghost ? " The hollow white ring is your ghost." : ""}"></canvas>
+        <canvas class="race-map" width="180" height="130" aria-label="All eight karts. You are coral with a white ring. Seven coloured dots are game characters. Red squares are missiles and brown squares are coconuts."></canvas>
         <div class="race-speed"><b id="race-speed">0</b><span>KM/H</span></div>
         <div class="race-item"><span id="race-item-label">ITEM</span><b id="race-item">Empty</b><small id="race-pickups">🐚 0 / ${SHELLS}</small></div><div class="race-notice" role="status" aria-live="polite">Loading your driver…</div>
         <div class="race-finish" role="status" hidden></div>
-        <div class="race-cover"><span class="eyebrow">DARECADE / ISLAND CIRCUIT</span><h3>COAST<br><em>RUSH</em></h3><p>Your avatar. Seven rivals. Three laps.${ghost ? `<br>Ghost to beat: <b>${raceTime(ghost.ticks)}</b> · ${ghost.own ? "your last finish" : "the neighbourhood ghost"}` : ""}</p><button class="primary" id="start-game" disabled>Getting your kart ready…</button><button class="race-sound" data-race-sound></button><div class="race-instructions">${touch ? "<span>STEER<br><b>← →</b></span><span>DRIVE<br><b>Tap GO</b></span><span>DRIFT<br><b>Hold, then release</b></span>" : "<span>DRIVE<br><b>W A S D</b></span><span>DRIFT<br><b>Hold SPACE</b></span><span>ITEM<br><b>Tap E</b></span>"}</div><ul class="race-legend"><li><b>🎁 Crates</b>Each gives one of five items at random. ${use} to use it.</li><li class="race-items"><span><b>🛡 Shield</b>blocks hits for 3s</span><span><b>⚡ Turbo</b>2s speed burst</span><span><b>🚀 Missile</b>spins the kart in front</span><span><b>🌩 Storm</b>slows every kart ahead</span><span><b>🥥 Coconut</b>dropped behind you; spins a chaser</span></li><li><b>🐚 Shells</b>Bonus pickups, 12 a lap. They never change your time or medals.</li></ul><p class="race-tip">${touch ? "Tap GO once and the kart keeps driving; BRAKE lets go. Hold DRIFT through a bend, then let go for a Mini, Super or Ultra turbo." : "Hold W to go. A/D steer, S brakes. Hold Space through a bend, then release for a Mini, Super or Ultra turbo."} At turbo speed the tight bends push you wide unless you drift. A hit costs a 0.75s stop.${options.assist ? " Until your first finish, the kart steers itself back from the road edge when you are not steering." : ""}</p><small>Same kart for everyone · 2 minute limit<br>7 rivals are game characters, not real players.</small></div>
+        <div class="race-cover"><span class="eyebrow">DARECADE / ISLAND CIRCUIT</span><h3>COAST<br><em>RUSH</em></h3><p>Your avatar. Seven rivals. Three laps.</p><button class="primary" id="start-game" disabled>Getting your kart ready…</button><button class="race-sound" data-race-sound></button><div class="race-instructions">${touch ? "<span>STEER<br><b>← →</b></span><span>DRIVE<br><b>Tap GO</b></span><span>DRIFT<br><b>Hold, then release</b></span>" : "<span>DRIVE<br><b>W A S D</b></span><span>DRIFT<br><b>Hold SPACE</b></span><span>ITEM<br><b>Tap E</b></span>"}</div><ul class="race-legend"><li><b>🎁 Crates</b>Each gives one of five items at random. ${use} to use it.</li><li class="race-items"><span><b>🛡 Shield</b>blocks hits for 3s</span><span><b>⚡ Turbo</b>2s speed burst</span><span><b>🚀 Missile</b>spins the kart in front</span><span><b>🌩 Storm</b>slows every kart ahead</span><span><b>🥥 Coconut</b>dropped behind you; spins a chaser</span></li><li><b>🐚 Shells</b>Bonus pickups, 12 a lap. They never change your time or medals.</li></ul><p class="race-tip">${touch ? "Tap GO once and the kart keeps driving; BRAKE lets go. Hold DRIFT through a bend, then let go for a Mini, Super or Ultra turbo." : "Hold W to go. A/D steer, S brakes. Hold Space through a bend, then release for a Mini, Super or Ultra turbo."} At turbo speed the tight bends push you wide unless you drift. A hit costs a 0.75s stop.${options.assist ? " Until your first finish, the kart steers itself back from the road edge when you are not steering." : ""}</p><small>Same kart for everyone · 2 minute limit<br>7 rivals are game characters, not real players.</small></div>
       </div>
       <div class="race-charge"><label for="drift-charge">DRIFT TURBO <span id="drift-label">Hold ${touch ? "DRIFT" : "Space"} while moving</span></label><meter id="drift-charge" min="0" max="1" low=".333" optimum="1" value="0">0</meter></div>
       <div class="race-touch" aria-label="Driving controls"><div class="race-steer"><button data-race-control="left" aria-label="Steer left">←</button><button data-race-control="right" aria-label="Steer right">→</button></div><div class="race-pedals"><button data-race-control="item">ITEM</button><button data-race-control="brake">BRAKE</button><button data-race-control="drift">DRIFT</button><button data-race-control="gas" aria-pressed="false">GO</button></div></div>
@@ -750,17 +746,6 @@ export class RacingGame {
       ctx.beginPath();
       ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
       ctx.fill();
-    }
-    // The ghost holds an even pace to its finish time; it is a marker, not a kart.
-    if (this.ghost && race.ticks) {
-      const g = plot(
-        RACE_DISTANCE * Math.min(1, race.ticks / this.ghost.ticks),
-      );
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(g.x, g.y, 4.5, 0, Math.PI * 2);
-      ctx.stroke();
     }
     const p = plot(race.distance, race.offset);
     ctx.fillStyle = "#ff927b";

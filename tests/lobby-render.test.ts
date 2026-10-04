@@ -10,7 +10,6 @@ import * as menus from "../src/lobby-menu.ts";
 import * as interactions from "../src/interactions.ts";
 import * as neighbourhood from "../src/neighbourhood.ts";
 import * as wardrobe from "../src/wardrobe.ts";
-import * as dares from "../src/dares.ts";
 
 // Evaluate the actual render functions. The small element fixture only records
 // generated HTML, selection and replacement; it is not a browser/DOM substitute.
@@ -157,7 +156,6 @@ function harness() {
     ...interactions,
     ...neighbourhood,
     ...wardrobe,
-    ...dares,
     body,
     document: {
       querySelector: () => inspector,
@@ -410,86 +408,60 @@ test("first-visit settings paths never start a race and Back returns to welcome"
   assert.doesNotMatch(h.body.innerHTML, /data-open="phone-menu"/);
 });
 
-test("no dare screen offers a Play dare that cannot start", () => {
-  const screens = (h: ReturnType<typeof harness>) => {
-    const html: string[] = [];
-    for (const id of ["dares", "dares-open", "dares-neighbour", "board"]) {
-      h.run(`open(${JSON.stringify(id)})`);
-      html.push(h.body.innerHTML);
-    }
-    h.run('renderPlayerInspector("p0")');
-    html.push(h.inspector.innerHTML);
-    for (const page of html) {
-      assert.doesNotMatch(page, /<button[^>]*\bdisabled\b/);
-      assert.doesNotMatch(page, /24h|24 hours after|\/3 left/);
-      checkActions(page, "dare screen");
-    }
-    return html.join("\n");
-  };
-  const dare = {
-    id: "d1",
-    host: "p0",
-    name: "Player 0",
-    game: "hop",
-    score: 100,
-    expires: Date.now() + 10000,
-  };
-  const open = harness();
-  open.context.shared.dares = [dare];
-  const ready = screens(open);
-  assert.match(ready, /data-dare="d1"[^>]*>Play dare/);
-  assert.match(ready, /data-defender="p0">Play dare/);
-  assert.match(ready, /Ready for a friendly dare/);
-  assert.match(ready, /Play today’s dare/);
-
-  // Before a first round, the played dare, an online neighbour and offline.
-  for (const [change, reason] of [
-    [(s: any) => (s.competitionReady = false), /first round|Finish one round/],
-    [(s: any) => (s.self.outgoing = 1), /Today’s dare is played/],
-  ] as const) {
-    const h = harness();
-    h.context.shared.dares = [dare];
-    change(h.context.shared);
-    const html = screens(h);
-    assert.doesNotMatch(html, /Play dare|Play today’s dare|Ready for/);
-    assert.match(html, reason);
-  }
-  const online = harness();
-  for (const p of online.context.shared.players) p.status = "online";
-  const busy = screens(online);
-  assert.doesNotMatch(busy, /Play dare|Play today’s dare|Ready for/);
-  assert.match(busy, /Online now/);
-  const offline = harness();
-  offline.context.shared.dares = [dare];
-  offline.context.connected = false;
-  assert.doesNotMatch(screens(offline), /Play dare|Play today’s dare/);
-});
-
-test("the rankings board shows the latest dare result", () => {
+// The remaining tests cover bugs from the 4 October 2026 playtest.
+test("locked dares show their real opening time and never promise dares for today", () => {
   const h = harness();
-  h.context.shared.day = "2026-10-05";
-  h.context.shared.history = [
+  h.context.shared.competitionReady = false;
+  h.context.currentProfile = {
+    name: "Sunny Otter 06",
+    account: { eligibleAt: Date.parse("2026-10-05T14:30:00+08:00") },
+  };
+  h.context.shared.dares = [
     {
-      id: "r1",
+      id: "d1",
+      host: "p0",
+      name: "Player 0",
       game: "hop",
-      score: 120,
-      targetScore: 100,
-      status: "finished",
-      day: "2026-10-04",
-      player: "self",
-      target: "p0",
-      challenger: "Review player",
-      defender: "Player 0",
+      score: 100,
+      expires: Date.now() + 10000,
     },
   ];
-  h.run('open("board")');
-  assert.match(h.body.innerHTML, /You beat Player 0/);
-  assert.match(h.body.innerHTML, /120 vs 100 · 4 Oct/);
-  h.run('open("dares")');
-  assert.match(h.body.innerHTML, /You beat Player 0/);
+  h.context.shared.recentRuns = [{ id: "r1", game: "hop", score: 100 }];
+  const playButtons = (html: string) =>
+    [...html.matchAll(/<button\b[^>]*>(?:Play|Post) dare<\/button>/g)].map(
+      ([button]) => button,
+    );
+  for (const view of ["home", "open", "neighbour", "post"]) {
+    h.context.dareView = view;
+    h.run("renderSharedDares()");
+    const html = h.body.innerHTML;
+    assert.match(html, /Your dares open Mon, 5 Oct, 14:30 SGT/, view);
+    assert.doesNotMatch(html, /left today/, view);
+    for (const button of playButtons(html)) assert.match(button, /disabled/);
+    checkActions(html, `locked dares ${view}`);
+  }
+  h.run('renderPlayerInspector("p0")');
+  assert.match(h.inspector.innerHTML, /Dares are not open for you yet/);
+  assert.match(h.inspector.innerHTML, /Your dares open Mon, 5 Oct, 14:30 SGT/);
+  assert.doesNotMatch(h.inspector.innerHTML, /Ready for a friendly dare/);
+
+  // Once the wait is over, the count and a playable button appear together.
+  h.context.shared.competitionReady = true;
+  h.context.dareView = "neighbour";
+  h.run("renderSharedDares()");
+  assert.match(h.body.innerHTML, /3\/3 left today/);
+  assert.doesNotMatch(playButtons(h.body.innerHTML)[0], /disabled/);
+  // A disabled button always says why.
+  h.context.shared.self.outgoing = 3;
+  for (const view of ["neighbour", "open"]) {
+    h.context.dareView = view;
+    h.run("renderSharedDares()");
+    assert.match(h.body.innerHTML, /0\/3 left today/);
+    assert.match(playButtons(h.body.innerHTML)[0], /disabled/);
+    assert.match(h.body.innerHTML, /No dares left today/);
+  }
 });
 
-// The remaining tests cover bugs from the 4 October 2026 playtest.
 test("the weekly board tells a player with scores today when their medals arrive", () => {
   const h = harness();
   h.context.shared.day = "2026-10-06";
@@ -527,7 +499,7 @@ test("the weekly board tells a player with scores today when their medals arrive
 
 test("My look, Head lists a claimed daily hat", () => {
   const h = harness();
-  assert.equal(state.claimGift(h.context.save, 0), true);
+  assert.equal(state.claimGift(h.context.save, 0, "2026-10-04"), true);
   h.run('open("shop")');
   assert.match(h.body.innerHTML, /data-look-tab="hair">See it in My look/);
   h.context.wardrobeTab = "hair";

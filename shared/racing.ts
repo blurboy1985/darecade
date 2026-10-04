@@ -62,9 +62,6 @@ export function trackClearance(x: number, z: number) {
   return nearest;
 }
 export const RACE_DISTANCE = TRACK_LENGTH * RACE_LAPS;
-// The ghost before a first finish. Steady driving without a drift finishes
-// near 1:16 and the sixth game character near 1:43, so this one is beatable.
-export const FIRST_GHOST_TICKS = 105 * 60;
 
 /** Arc-length lookup is shared by physics, map and scenery. Positive offset is driver-left. */
 export function trackPoint(distance: number, offset = 0) {

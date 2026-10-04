@@ -29,7 +29,6 @@ import {
   RULES_VERSION,
   rulesVersion,
 } from "../shared/simulation.ts";
-import { FIRST_GHOST_TICKS, RACE_TICKS } from "../shared/racing.ts";
 /** Both players get this when an invited friend finishes a first round. */
 export const INVITE_XP = 30;
 /** The inviter is paid for this many friends at most. */
@@ -613,30 +612,31 @@ export class CommunityCore {
     this.db.prepare("DELETE FROM presence WHERE player=?").run(id);
     return { ok: true };
   }
-  /** One finished, verified round opens dares. There is no waiting period. */
-  playedRound(id) {
-    return !!this.db
-      .prepare(
-        "SELECT 1 FROM runs WHERE player=? AND verified=1 AND status='finished'",
-      )
+  eligibleAccount(id) {
+    const a = this.db
+      .prepare("SELECT created FROM accounts WHERE player=?")
       .get(id);
+    return !!a && a.created + DAY <= this.now();
   }
-  /**
-   * The Coast Rush rival: the player's previous finish, or a beatable
-   * neighbourhood ghost before their first. Read from saved runs, so a missed
-   * day or an unfinished race changes nothing.
-   */
-  coastGhost(id) {
-    const last = this.db
-      .prepare(
-        "SELECT score FROM runs WHERE player=? AND game='coast' AND verified=1 AND status='finished' AND score>0 AND version=? ORDER BY finished DESC LIMIT 1",
-      )
-      .get(id, COAST_RULES_VERSION);
-    return last
-      ? { ticks: RACE_TICKS + 1 - last.score, own: true }
-      : { ticks: FIRST_GHOST_TICKS, own: false };
+  /** Why this player cannot dare yet, with the real opening time. */
+  dareHold(id) {
+    const a = this.db
+      .prepare("SELECT created FROM accounts WHERE player=?")
+      .get(id);
+    if (!a)
+      return "Save with email to dare. Shared dares open 24 hours after account verification. Regular rounds are available now.";
+    const opens = new Date(a.created + DAY).toLocaleString("en-SG", {
+      timeZone: "Asia/Singapore",
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    return `Your dares open ${opens} SGT, 24 hours after account verification. Regular rounds are available now.`;
   }
-  // Every verified round by an email account is ranked.
+  // Every verified round by an email account is ranked; only dares wait 24h.
   rankedAccount(id) {
     return !!this.db.prepare("SELECT 1 FROM accounts WHERE player=?").get(id);
   }
@@ -671,8 +671,11 @@ export class CommunityCore {
         this.db.prepare("SELECT 1 FROM suspensions WHERE player=?").get(target)
       )
         throw Error("This dare is unavailable.");
-      if (!this.playedRound(id))
-        throw Error("Finish one round to open your daily dare.");
+      if (!this.eligibleAccount(id)) throw Error(this.dareHold(id));
+      if (!this.eligibleAccount(target))
+        throw Error(
+          "This neighbour’s dares are not open yet. Shared dares open 24 hours after account verification.",
+        );
       if (
         this.db
           .prepare(
@@ -692,7 +695,6 @@ export class CommunityCore {
         score = best.score;
       }
     }
-    const ghost = game === "coast" ? this.coastGhost(id) : undefined;
     const run = this.store.begin(id, game, target, {
       allowOnline: !!dare,
       targetScore: target ? score : undefined,
@@ -706,7 +708,6 @@ export class CommunityCore {
     return {
       ...run,
       seed,
-      ghost,
       version: rulesVersion(game),
       ranked: this.rankedAccount(id),
       dailySeed: seed === seedFor(game, day(this.now())),
@@ -812,6 +813,7 @@ export class CommunityCore {
     return saved;
   }
   postDare(id, runId) {
+    if (!this.eligibleAccount(id)) throw Error(this.dareHold(id));
     const saved = this.store.transaction(() => {
       const r = this.db
         .prepare(
@@ -825,11 +827,9 @@ export class CommunityCore {
       if (
         this.db
           .prepare("SELECT COUNT(*) n FROM dares WHERE host=? AND created>=?")
-          .get(id, start).n >= 1
+          .get(id, start).n >= 3
       )
-        throw Error(
-          "You have posted today’s dare. Post another after midnight SGT.",
-        );
+        throw Error("You have posted three dares today.");
       const d = {
         id: randomUUID(),
         host: id,
@@ -945,7 +945,7 @@ export class CommunityCore {
         .filter((d) => d.expires > this.now() && allowed(d.host))
         .map((d) => ({ ...d })),
       profile,
-      competitionReady: this.playedRound(id),
+      competitionReady: this.eligibleAccount(id),
       recentRuns: this.db
         .prepare(
           `SELECT id,game,score,finished FROM runs WHERE player=? AND verified=1
