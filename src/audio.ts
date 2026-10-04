@@ -8,6 +8,9 @@
 
 export type Sfx =
   | "click"
+  | "plot-turn"
+  | "plot-flow"
+  | "plot-bloom"
   | "open"
   | "close"
   | "coin"
@@ -202,6 +205,9 @@ const throttle: Partial<Record<Sfx, number>> = {
   shoot: 0.14,
   brick: 0.04,
   click: 0.05,
+  "plot-turn": 0.08,
+  "plot-flow": 0.12,
+  "plot-bloom": 0.6,
   sparkle: 0.25,
   overtake: 0.5,
   overtaken: 0.5,
@@ -217,6 +223,28 @@ export function play(name: Sfx) {
   last.set(name, t);
   const r = Math.random();
   switch (name) {
+    case "plot-turn":
+      tone({ type: "triangle", f: 340, to: 190, at: t, dur: 0.09, vol: 0.1 });
+      hiss(t, 0.07, 0.025, "bandpass", 1200, 600);
+      break;
+    case "plot-flow":
+      [660, 880].forEach((f, i) =>
+        tone({ f, to: f * 1.2, at: t + i * 0.07, dur: 0.15, vol: 0.07 }),
+      );
+      hiss(t, 0.2, 0.035, "lowpass", 1700, 700);
+      break;
+    case "plot-bloom":
+      [60, 64, 67, 72].forEach((n, i) =>
+        tone({
+          type: "triangle",
+          f: midi(n),
+          at: t + i * 0.1,
+          dur: 0.3,
+          vol: 0.08,
+          send: 0.15,
+        }),
+      );
+      break;
     case "click":
       tone({ type: "triangle", f: 1300, to: 950, at: t, dur: 0.05, vol: 0.12 });
       break;

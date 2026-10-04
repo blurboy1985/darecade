@@ -1,4 +1,5 @@
 import { legendarySets } from "./collections.ts";
+import { validWaterTrail } from "../shared/plot-trail.ts";
 import { appearanceLimits } from "./appearance.ts";
 export const outfits = [
   "#bbec66",
@@ -426,6 +427,16 @@ export function waterCrop(s: Save, now: number) {
   s.plotPlanted -= Math.floor((ready - now) / 4);
   s.plotWatered = true;
   return true;
+}
+/** A solved trail grants the same single watering boost, never extra XP. */
+export function tendCrop(s: Save, value: unknown, now: number) {
+  if (
+    !s.plotCrop ||
+    s.plotWatered ||
+    !validWaterTrail(s.plotCrop, s.plotPlanted, value)
+  )
+    return false;
+  return waterCrop(s, now);
 }
 /** Crops never wilt: a ready crop waits until it is picked. Returns the crop, or null. */
 export function harvestCrop(s: Save, now: number) {

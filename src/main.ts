@@ -511,6 +511,7 @@ function open(id: string) {
     };
     mount[id](body, {
       save,
+      simple: is2d,
       sound: beep,
       // The save is refreshed from the server's reply before this resolves.
       report: (event, value) => {

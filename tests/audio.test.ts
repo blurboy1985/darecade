@@ -20,6 +20,9 @@ test("restoring enabled audio preferences waits for a player gesture", () => {
     audio.configure(true, true);
     audio.setTheme("night");
     audio.play("step");
+    audio.play("plot-turn");
+    audio.play("plot-flow");
+    audio.play("plot-bloom");
     // Coast Rush's music, effects and engine loop follow the same rule.
     audio.setTheme("race");
     audio.setTempo(1.12);

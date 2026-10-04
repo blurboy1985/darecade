@@ -18,6 +18,7 @@ import {
   performShow,
   plantCrop,
   waterCrop,
+  tendCrop,
   harvestCrop,
   missions,
   missionProgress,
@@ -452,6 +453,11 @@ export class CommunityCore {
       } else if (event === "water") {
         if (!waterCrop(p, this.now()))
           throw Error("There is nothing to water right now.");
+      } else if (event === "tend") {
+        if (!tendCrop(p, value, this.now()))
+          throw Error(
+            "This trail is not ready, or this crop was already watered. Reload the page to refresh your plot.",
+          );
       } else if (event === "harvest") {
         if (!harvestCrop(p, this.now()))
           throw Error("This crop is not ready yet.");

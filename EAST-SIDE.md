@@ -37,7 +37,23 @@ The round is drawn in three.js: the ball's arc, the rim and net, sparks on a bas
 | Pandan      | 3 hours  | 15 XP   |
 | Sunflower   | 8 hours  | 25 XP   |
 
-Watering once per crop brings the harvest a quarter of the remaining time closer. Crops grow while the player is away and never wilt, so there is nothing to lose by coming back late.
+Watering is a short, untimed **Water trail** puzzle. Turn three golden pipes to connect the tap to the plant. Water advances through connected channels, so every move shows what changed. Three.js draws the clay channels, flowing water, turning pipes and a crop that grows when the trail is solved. Turn, connection and completion sounds use the existing sound preference and gesture-unlocked audio system.
+
+Crop choice sets the puzzle rules:
+
+- **Chilli padi: Easy flow.** Each pipe turns on its own.
+- **Pandan: Linked pair.** Pipe 1 also turns pipe 2.
+- **Sunflower: Linked loop.** Pipe 1 turns 2, pipe 2 turns 3, and pipe 3 turns 1.
+
+The labels show which pipes move together. Every layout starts unsolved and is scrambled using legal moves, including the linked controls. There is no timer, move limit, penalty or streak. Three controls work with touch, Tab and Enter. The HTML/SVG board stays playable in simple view, when WebGL is unavailable or lost, or if the optional 3D module fails to load. Reduce motion uses a static 3D scene with no animation loop; the operating-system preference also disables CSS transitions.
+
+Solving brings the harvest a quarter of the remaining time closer, once per crop. A solved trail stays visible to show the water and plant; **Back to plot** returns to growth progress. After watering, **Play a water trail** makes more puzzles just for fun, with no requests or rewards. Crops grow while the player is away and never wilt, so there is nothing to lose by coming back late. Harvest XP and growth times are unchanged.
+
+### Water-trail authority and cost
+
+The client sends only its three turn counts and the crop/planting identity in a `tend` progress event. The server regenerates that planting's puzzle, validates the connected path and applies the existing watering rule inside the progression transaction. Incomplete, malformed, stale, duplicate and already-mature attempts fail before persistence. Settings cannot grant the boost. The older `water` event remains compatible with already-open clients and shares the same once-per-crop limit; it grants no separate reward.
+
+Turning pipes, animation and practice are local. Only a completed watering uses the existing progress request and its existing profile/look writes. There are no new tables, polling calls, timers on the server, or per-frame writes. The renderer caps pixel ratio, pauses while hidden, and disposes its animation frame, observer, canvas, materials and geometry when the panel closes or is replaced.
 
 ## Also added
 
@@ -54,6 +70,6 @@ Fishing and hoops rounds are replayed by the server from the player's inputs (`s
 
 ## Source
 
-`src/world.ts` (`buildEastSide`, spots, camera), `src/navigation.ts` (island bounds), `src/activities.ts` and `src/activities.css` (panels), `shared/outdoor.ts` (round rules), `src/outdoor-game.ts`, `src/outdoor-view.ts` and `src/outdoor.css` (the rounds), `src/state.ts` (rules), `src/neighbourhood.ts` (away poses), `server/community-core.mjs` (progression events), `tests/eastside.test.ts`, `tests/outdoor.test.ts`.
+`src/world.ts` (`buildEastSide`, spots, camera), `src/navigation.ts` (island bounds), `src/activities.ts` and `src/activities.css` (panels), `src/plots.ts` (plot flow and HTML controls), `shared/plot-trail.ts` (puzzle generation and validation), `src/plot-view.ts` (optional Three.js garden), `shared/outdoor.ts` (round rules), `src/outdoor-game.ts`, `src/outdoor-view.ts` and `src/outdoor.css` (the rounds), `src/state.ts` (rules), `src/neighbourhood.ts` (away poses), `server/community-core.mjs` (progression events), `tests/eastside.test.ts`, `tests/plot-trail.test.ts`, `tests/outdoor.test.ts`.
 
 The district is built from the same procedural boxes and cylinders as the rest of the island and is merged into the static batches, so it adds geometry but few draw calls. It has no Blender-animated interaction of its own.
