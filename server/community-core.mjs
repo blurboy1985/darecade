@@ -7,6 +7,7 @@ import {
   completeWelcomeRound,
   catchFish,
   scoreHoops,
+  performShow,
   plantCrop,
   waterCrop,
   harvestCrop,
@@ -295,6 +296,7 @@ export class CommunityCore {
             "fishing",
             "hoops",
             "plots",
+            "stage",
           ].includes(value)
         )
           throw Error("Unknown place.");
@@ -334,6 +336,9 @@ export class CommunityCore {
         p.xp += m.xp;
       } else if (event === "fish") {
         if (catchFish(p, value) === null) throw Error("Unknown catch.");
+      } else if (event === "perform") {
+        if (performShow(p, value, this.now(), day(this.now())) === null)
+          throw Error("Take a breath before the next show.");
       } else if (event === "hoops") {
         if (scoreHoops(p, value) === null) throw Error("Unknown score.");
       } else if (event === "plant") {

@@ -60,6 +60,11 @@ export type Save = {
   /** East Side: species caught, best of ten hoops, and the one garden plot. */
   fish: string[];
   hoopsBest: number;
+  /** Open Stage: best show score, and the XP earned from shows on stageDay. */
+  stageBest: number;
+  stageDay: string;
+  stageXp: number;
+  stageLast: number;
   plotCrop: string;
   plotPlanted: number;
   plotWatered: boolean;
@@ -116,6 +121,10 @@ export function fresh(): Save {
     welcomeDismissed: false,
     fish: [],
     hoopsBest: 0,
+    stageBest: 0,
+    stageDay: "",
+    stageXp: 0,
+    stageLast: 0,
     plotCrop: "",
     plotPlanted: 0,
     plotWatered: false,
@@ -173,6 +182,13 @@ export function normalise(raw: unknown, fallback: Save): Save {
   if (["auto", "day", "dusk", "night"].includes(r.light!)) s.light = r.light!;
   if (Array.isArray(r.fish))
     s.fish = fishSpecies.map((f) => f.id).filter((id) => r.fish!.includes(id));
+  if (Number.isInteger(r.stageBest))
+    s.stageBest = Math.max(0, Math.min(STAGE_SCORE_LIMIT, r.stageBest!));
+  if (typeof r.stageDay === "string" && /^\d{4}-\d\d-\d\d$/.test(r.stageDay))
+    s.stageDay = r.stageDay;
+  if (Number.isInteger(r.stageXp))
+    s.stageXp = Math.max(0, Math.min(STAGE_DAILY_XP, r.stageXp!));
+  if (Number.isFinite(r.stageLast)) s.stageLast = Math.max(0, r.stageLast!);
   if (Number.isInteger(r.hoopsBest))
     s.hoopsBest = Math.max(0, Math.min(HOOPS_SHOTS, r.hoopsBest!));
   if (Number.isInteger(r.harvests) && r.harvests! >= 0)
@@ -285,6 +301,48 @@ export function catchFish(s: Save, id: unknown) {
   s.fish.push(id as string);
   s.xp += FISH_XP;
   return true;
+}
+/** Open Stage: five XP a star, at most three shows' worth a day. */
+export const STAGE_STAR_XP = 5;
+export const STAGE_DAILY_XP = 45;
+export const STAGE_SCORE_LIMIT = 100000;
+/** A show lasts forty seconds, so two reports closer than this are refused. */
+export const STAGE_REST_MS = 30000;
+/**
+ * Records a show. Returns the XP earned, or null if the report is malformed
+ * or arrives before another show could have been played.
+ */
+export function performShow(
+  s: Save,
+  value: unknown,
+  now: number,
+  today: string,
+) {
+  const v = value as { score?: unknown; stars?: unknown } | null;
+  if (
+    !v ||
+    !Number.isInteger(v.score) ||
+    (v.score as number) < 0 ||
+    (v.score as number) > STAGE_SCORE_LIMIT ||
+    !Number.isInteger(v.stars) ||
+    (v.stars as number) < 0 ||
+    (v.stars as number) > 3 ||
+    now - s.stageLast < STAGE_REST_MS
+  )
+    return null;
+  if (s.stageDay !== today) {
+    s.stageDay = today;
+    s.stageXp = 0;
+  }
+  const gain = Math.min(
+    (v.stars as number) * STAGE_STAR_XP,
+    STAGE_DAILY_XP - s.stageXp,
+  );
+  s.stageLast = now;
+  s.stageXp += gain;
+  s.xp += gain;
+  s.stageBest = Math.max(s.stageBest, v.score as number);
+  return gain;
 }
 export const HOOPS_SHOTS = 10;
 export const HOOPS_XP = 5;
