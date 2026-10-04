@@ -1,5 +1,12 @@
 # Cloudflare hosting
 
+## Remaining PR deployment, 4 October 2026
+
+Redeployed main `646b81a` first as version `093907e0-d0f1-4a97-8dc1-ee8da794fd7b`. Then merged PR #8 (ready-screen controls, `1760a6d`), #9 (Records quota efficiency, `cdf5605`) and #6 (East Side activities, `098ab66`). Deployed combined main **`098ab664cf6da6f6371839483661c69be5139fe9`** as Worker version **`97e9c742-97cf-4c8b-a658-bcd7f7f69695`**. No open PRs remained at verification. All billing settings, secrets, Durable Object identities and migrations, ranked physics and rules versions were preserved.
+
+**103 Node tests, seven Cloudflare integration tests, the production build and deployment dry-run passed.** For 1,000 players and 20,000 runs, cached personal state measured p95 **0.95 ms**, maximum **1.45 ms**, and full rebuilds **32.00–41.47 ms**. The isolated local database probe recorded 659 rows read / 25 rows written and no errors. QUOTA.md contains PR #9's five-minute before/after evidence (35.5% fewer writes and 7.2% fewer reads); the five-minute run was not repeated for this integration. QA.md records local 320px/390px browser checks of ready/countdown controls, fishing, 2D hoops/plots, persisted rewards and the World picker.
+
+**Production remains blocked by the Free account's SQL-write quota.** Fresh tail logs after the final deployment, at approximately **08:14 SGT on 4 October**, still reported `Exceeded allowed rows written in Durable Objects free tier.` during Records construction. The HTML returned 200 with expected `index-mIwoEDF4.js`; private server paths returned 404; health returned 200/ready (configuration only). Account config and state returned 500. The smoke stopped before creating a profile, so no production test account or score needs cleanup. Live account, WebSocket/poll, ranked-result, export and deletion verification is still pending. The expected daily reset had passed, but recovery was not observed; do not infer recovery from the clock or successful deployment. No Paid upgrade was made. Physical-phone performance, human audio/touch checks and real inbox delivery of email codes remain unverified.
 ## Deployment of scaling and PRs #3 / #5, 4 October 2026
 
 Merged PR C #7 (`5ccd267`), PR #3 (`949c1fd`) and PR #5 (`48a1bfb`) in that order. Deployed tested main `48a1bfbd9e6a5181fb3e6a36186433a9c94f205c` as Worker version **`559210a7-cffa-418b-9acb-7dbaf6b56a84`**. This includes the World SQLite class/v2 migration, room picker, Coast Rush presentation and code-based account saving. Neighbourhood identity, v1 migration, physics, rules versions and secrets were preserved. The dashboard still shows Workers Free; no upgrade was made.
@@ -47,7 +54,7 @@ The sender is `Darecade <hello@darecade.danielquek.com>`. The user created and e
 - Resend delivers account sign-in emails. No local email outbox is available in the hosted game. `RESEND_API_KEY` is a Worker secret, never a browser asset or tracked configuration.
 - Private request limits use salted IP hashes in the database, shared across edge locations and retained through object eviction. Raw IP addresses are not stored by this application. Expired buckets are removed by daily cleanup (within approximately 24 hours). Cloudflare/provider infrastructure logs have their own policies.
 
-The scaling code described below is ready for review separately from the historical deployments above. Merging a PR does not deploy it. Local test accounts are never copied to the cloud.
+The scaling code described below is included in the deployments recorded above. Merging a PR alone does not deploy it. Local test accounts are never copied to the cloud.
 
 ## Multi-world scaling
 
