@@ -13,7 +13,7 @@ import {
   type Replay,
 } from "../shared/simulation.ts";
 import { endReasonText, holdsForFirstMove } from "../src/catalog.ts";
-import { dareBlock, dareHoldCopy, standingNote } from "../src/lobby-menu.ts";
+import { standingNote } from "../src/lobby-menu.ts";
 import { visitsOnWalk } from "../src/navigation.ts";
 import {
   IDLE_PAUSE_TICKS,
@@ -97,56 +97,8 @@ function finish(s: Setup, player: string, game: string, jump: boolean) {
   return { id: run.id, score: round.score };
 }
 
-test("1. a locked account is given the real time its dares open, and they open then", async () => {
-  const s = setup();
-  try {
-    const host = await register(s, "host@example.test"),
-      me = await register(s, "me@example.test");
-    finish(s, host.me.id, "noodle", false);
-    const state = s.community.state(me.me.id);
-    assert.equal(state.competitionReady, false);
-    assert.equal(
-      state.profile.account.eligibleAt,
-      state.profile.account.created + DAY,
-    );
-    const opens = /Your dares open Wed, 7 Oct, 10:00 SGT, 24 hours after/;
-    assert.throws(
-      () => s.community.begin(me.me.id, "noodle", host.me.id),
-      opens,
-    );
-    assert.throws(() => s.community.postDare(me.me.id, "none"), opens);
-    // A guest is told to save first, not given a time that does not exist.
-    const guest = s.community.join(consent);
-    assert.throws(
-      () => s.community.begin(guest.me.id, "noodle", host.me.id),
-      /Save with email to dare/,
-    );
-    s.tick(DAY);
-    assert.equal(s.community.state(me.me.id).competitionReady, true);
-    const dare = s.community.begin(me.me.id, "noodle", host.me.id);
-    assert.ok(dare.targetScore > 0, "a verified account can play a dare now");
-  } finally {
-    s.close();
-  }
-});
-
-test("1. the dare screen copy names the opening time and each reason a button is off", () => {
-  const opens = Date.parse("2026-10-05T14:30:00+08:00");
-  assert.equal(dareHoldCopy(true, { eligibleAt: opens }), "");
-  assert.match(
-    dareHoldCopy(false, { eligibleAt: opens }),
-    /^Your dares open Mon, 5 Oct, 14:30 SGT, 24 hours after your email was verified\./,
-  );
-  assert.match(dareHoldCopy(false, null), /Save with email/);
-  const open = { connected: true, left: 3 };
-  assert.equal(dareBlock(open), "");
-  assert.match(dareBlock({ ...open, connected: false }), /connection/);
-  assert.match(dareBlock({ ...open, left: 0 }), /No dares left today/);
-  assert.match(dareBlock({ ...open, own: true }), /your own dare/);
-  assert.match(dareBlock({ ...open, challenged: true }), /already challenged/);
-  assert.match(dareBlock({ ...open, online: true }), /online now/);
-  assert.match(dareBlock({ ...open, noScore: true }), /no saved score/);
-});
+// Bug 1, the 24-hour dare hold, no longer exists: tests/retention.test.ts covers
+// the one-dare-a-day gate that replaced it.
 
 test("2. today's board keeps a player's best score; a lower replay is saved but does not replace it", async () => {
   const s = setup();

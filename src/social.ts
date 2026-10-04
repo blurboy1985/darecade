@@ -56,6 +56,7 @@ export type SharedState = {
     score: number | null;
     targetScore: number;
     status: string;
+    day: string;
     player: string;
     target: string;
     challenger: string;
@@ -67,6 +68,8 @@ export type Run = {
   version: number;
   ranked: boolean;
   dailySeed: boolean;
+  /** Coast Rush only: the time to beat, and whether it is the player's own. */
+  ghost?: { ticks: number; own: boolean };
   id: string;
   game: GameId;
   target: string | null;

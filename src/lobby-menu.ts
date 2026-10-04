@@ -79,55 +79,6 @@ export const firstVisitCopy = {
   detail: "Race Palm Bay. Finish a round to unlock your lilac cap.",
 } as const;
 
-const sgt = (time: number) =>
-  new Date(time).toLocaleString("en-SG", {
-    timeZone: "Asia/Singapore",
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-
-/**
- * Why dares are closed for this player, with the real opening time. Empty
- * once they are open. The 24-hour wait itself is set out in ACCOUNTS.md.
- */
-export function dareHoldCopy(
-  ready: boolean,
-  account: { eligibleAt?: number } | null | undefined,
-) {
-  if (ready) return "";
-  if (!account)
-    return "Dares need a saved account. Save with email; dares open 24 hours later. Regular rounds are open now.";
-  if (!account.eligibleAt)
-    return "Dares open 24 hours after your email was verified. Regular rounds are open now.";
-  return `Your dares open ${sgt(account.eligibleAt)} SGT, 24 hours after your email was verified. Regular rounds are open now.`;
-}
-
-/**
- * The first reason a Play dare button cannot be used, or "" when it can. The
- * 24-hour wait is explained by dareHoldCopy instead.
- */
-export function dareBlock(o: {
-  connected: boolean;
-  left: number;
-  own?: boolean;
-  online?: boolean;
-  challenged?: boolean;
-  noScore?: boolean;
-}) {
-  if (!o.connected) return "Dares need a connection.";
-  if (o.own) return "This is your own dare.";
-  if (o.online)
-    return "They are online now. Dares are for resting or offline neighbours.";
-  if (o.challenged) return "You already challenged this neighbour today.";
-  if (o.left <= 0) return "No dares left today. Resets midnight SGT.";
-  if (o.noScore) return "This neighbour has no saved score to beat yet.";
-  return "";
-}
-
 /**
  * The line under a result's rank. The board keeps each player's best score of
  * the day, so a lower replay is told which score is the one that counts.

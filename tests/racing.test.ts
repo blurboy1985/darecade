@@ -172,7 +172,7 @@ test("race replay rejects early finishes, invalid inputs, after-finish events, a
   );
 });
 
-test("verified race times drive daily medals, weekly totals and three distinct-neighbour dares without rewriting older scores", () => {
+test("verified race times drive daily medals, weekly totals and one dare a day without rewriting older scores", () => {
   const directory = mkdtempSync(join(tmpdir(), "darecade-race-"));
   let time = Date.parse("2026-10-06T08:00:00+08:00");
   const store = new Store(":memory:", () => time),
@@ -258,16 +258,11 @@ test("verified race times drive daily medals, weekly totals and three distinct-n
       dare.session.targetScore,
       drive(dare.session.seed, "idle").score,
     );
-    assert.throws(
-      () => community.begin(people[4], "coast", people[3]),
-      /already|different/,
-    );
-    community.begin(people[4], "coast", people[1]);
-    community.begin(people[4], "coast", people[2]);
-    assert.throws(
-      () => community.begin(people[4], "coast", people[0]),
-      /three/,
-    );
+    for (const neighbour of [people[3], people[1]])
+      assert.throws(
+        () => community.begin(people[4], "coast", neighbour),
+        /today’s dare/,
+      );
     // The faster racing dare also becomes today's best, giving two equal firsts.
     assert.deepEqual(
       community.state(people[0]).boards.coast.map((p) => p.rank),

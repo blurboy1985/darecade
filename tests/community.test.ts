@@ -311,18 +311,28 @@ test("forged, premature and wrong-owner results never award XP; retries are idem
     s.close();
   }
 });
-test("posted dares preserve host seed and score, expire and use only three outgoing slots", async () => {
+test("posted dares preserve host seed and score, expire and need no waiting period", async () => {
   const s = setup();
   try {
     const a = await register(s, "host@example.test"),
       b = await register(s, "guest@example.test");
-    assert.throws(() => s.community.postDare(a.me.id, "none"), /24 hours/);
-    s.tick(DAY);
+    assert.throws(() => s.community.postDare(a.me.id, "none"), /validated/);
     const r = s.community.begin(a.me.id, "noodle"),
       data = play("noodle", r.seed);
     s.tick(61000);
     s.community.finish(a.me.id, { id: r.id, ...data });
     const dare = s.community.postDare(a.me.id, r.id);
+    // The challenger needs one finished round, not an aged account.
+    assert.throws(
+      () => s.community.begin(b.me.id, "noodle", null, dare.id),
+      /Finish one round/,
+    );
+    const first = s.community.begin(b.me.id, "noodle");
+    s.tick(61000);
+    s.community.finish(b.me.id, {
+      id: first.id,
+      ...play("noodle", first.seed),
+    });
     s.store.heartbeat(a.me.id, { connection: "online", away: false });
     const challenge = s.community.begin(b.me.id, "noodle", null, dare.id);
     assert.equal(challenge.seed, r.seed);
@@ -417,14 +427,13 @@ test("retention deletes inactive profiles after twelve months and production fai
   }
 });
 
-test("only three outgoing dares are allowed and a midnight reset cannot repeat a posted dare", async () => {
+test("only one outgoing dare a day is allowed and a midnight reset cannot repeat a posted dare", async () => {
   const s = setup();
   try {
     const challenger = await register(s, "limit-player@example.test");
     const hosts = [];
-    for (let i = 0; i < 4; i++)
+    for (let i = 0; i < 2; i++)
       hosts.push(await register(s, `limit-host${i}@example.test`));
-    s.tick(DAY);
     const dares = hosts.map((h) => {
       const r = s.community.begin(h.me.id, "noodle"),
         game = play("noodle", r.seed);
@@ -432,22 +441,26 @@ test("only three outgoing dares are allowed and a midnight reset cannot repeat a
       s.community.finish(h.me.id, { id: r.id, ...game });
       return s.community.postDare(h.me.id, r.id);
     });
-    for (const d of dares.slice(0, 3)) {
-      const r = s.community.begin(challenger.me.id, "noodle", null, d.id);
-      s.store.abandon(challenger.me.id, r.id);
-    }
+    const first = s.community.begin(challenger.me.id, "noodle");
+    s.tick(3000);
+    s.community.finish(challenger.me.id, {
+      id: first.id,
+      ...play("noodle", first.seed),
+    });
+    const r = s.community.begin(challenger.me.id, "noodle", null, dares[0].id);
+    s.store.abandon(challenger.me.id, r.id);
     assert.throws(
-      () => s.community.begin(challenger.me.id, "noodle", null, dares[3].id),
-      /three challenges/,
+      () => s.community.begin(challenger.me.id, "noodle", null, dares[1].id),
+      /today’s dare/,
     );
-    s.setTime(Date.parse("2026-10-05T00:00:00+08:00"));
-    // First post was just after midnight on October 4, so it remains open briefly.
+    s.setTime(Date.parse("2026-10-04T00:00:00+08:00"));
+    // First post was just after midnight on October 3, so it remains open briefly.
     assert.throws(
       () => s.community.begin(challenger.me.id, "noodle", null, dares[0].id),
       /already challenged/,
     );
     assert.ok(
-      s.community.begin(challenger.me.id, "noodle", null, dares[3].id).id,
+      s.community.begin(challenger.me.id, "noodle", null, dares[1].id).id,
     );
   } finally {
     s.close();

@@ -1,4 +1,4 @@
-import { raceScoreTime } from "../shared/racing.ts";
+import { RACE_TICKS, raceScoreTime, raceTime } from "../shared/racing.ts";
 import type { SharedState } from "./social";
 
 const escape = (text: string) =>
@@ -48,4 +48,19 @@ export function raceComparison(
     `<li${entry.id === state.me ? ' class="is-you"' : ""}><span>#${entry.rank}</span><span>${escape(entry.name)}${entry.id === state.me ? " · You" : ""}</span><strong>${raceScoreTime(entry.score)}</strong></li>`;
   const top = board.slice(0, 3);
   return `<section class="race-comparison" aria-label="Today’s Coast Rush leaderboard"><h3>Today’s leaderboard <small>${escape(state.day)} · SGT</small></h3><p class="race-comparison-summary">${comparison}</p>${top.length ? `<ol class="race-result-board">${top.map(row).join("")}${own && !top.includes(own) ? row(own) : ""}</ol>` : '<p class="fine-print">The leaderboard starts with the first verified-email racer.</p>'}${board.length > 3 ? `<details><summary>All ${board.length} racers</summary><ol class="race-result-board">${board.map(row).join("")}</ol></details>` : ""}<p class="fine-print">${ranked ? "Each racer’s best time today counts." : "Guest comparison only. Verify your email, then race to join the board."} Resets at midnight SGT.</p></section>`;
+}
+
+/** The gap to the ghost this race ran against, and what the next ghost will be. */
+export function ghostGap(
+  score: number,
+  ghost: { ticks: number; own: boolean },
+) {
+  const name = ghost.own ? "your last finish" : "the neighbourhood ghost";
+  const ticks = RACE_TICKS + 1 - score;
+  const gap = (Math.abs(ticks - ghost.ticks) / 60).toFixed(2);
+  const summary =
+    score <= 0
+      ? `No finish. ${ghost.own ? "Your last finish stays your ghost." : "The neighbourhood ghost waits for your next race."}`
+      : `<b>${ticks === ghost.ticks ? "Level with" : ticks < ghost.ticks ? `${gap}s ahead of` : `${gap}s behind`} ${name}.</b> Next visit, your ghost is this race: ${raceTime(ticks)}.`;
+  return `<section class="race-comparison" aria-label="Your ghost"><h3>Ghost <small>${ghost.own ? "Your last finish" : "Neighbourhood ghost"} · ${raceTime(ghost.ticks)}</small></h3><p class="race-comparison-summary">${summary}</p></section>`;
 }

@@ -68,26 +68,17 @@ test("equal scores share ranks; duplicate finishes cannot replace score", () => 
   );
   store.close();
 });
-test("three outgoing attempts, distinct opponents; abandoned attempts consume only sender budget", () => {
+test("one outgoing attempt a day; an abandoned attempt consumes only the sender's budget", () => {
   const { store, tick } = setup();
   const a = store.session().id;
   const defenders = Array.from({ length: 4 }, () => store.session().id);
   for (const p of defenders) store.finish(p, store.begin(p, "noodle").id, 100);
-  for (const p of defenders.slice(0, 3)) {
-    const r = store.begin(a, "noodle", p);
-    store.abandon(a, r.id);
-  }
-  assert.throws(
-    () => store.begin(a, "noodle", defenders[3]),
-    /three challenges/,
-  );
-  assert.equal(store.state(a).players[0].outgoing, 3);
+  store.abandon(a, store.begin(a, "noodle", defenders[0]).id);
+  assert.throws(() => store.begin(a, "noodle", defenders[3]), /today’s dare/);
+  assert.equal(store.state(a).players[0].outgoing, 1);
   tick(60000);
   assert.ok(store.begin(a, "noodle", defenders[0]));
-  assert.throws(
-    () => store.begin(a, "noodle", defenders[0]),
-    /already challenged/,
-  );
+  assert.throws(() => store.begin(a, "noodle", defenders[0]), /today’s dare/);
   // Four independent guests can all challenge the same defender.
   for (let i = 0; i < 4; i++)
     store.begin(store.session().id, "noodle", defenders[1]);
