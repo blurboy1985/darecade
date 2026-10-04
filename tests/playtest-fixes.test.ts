@@ -12,7 +12,7 @@ import {
   type Input,
   type Replay,
 } from "../shared/simulation.ts";
-import { endReasonText } from "../src/catalog.ts";
+import { endReasonText, holdsForFirstMove } from "../src/catalog.ts";
 import { dareBlock, dareHoldCopy, standingNote } from "../src/lobby-menu.ts";
 import { visitsOnWalk } from "../src/navigation.ts";
 import {
@@ -356,4 +356,43 @@ test("8. a walk to a chosen spot counts only that spot as visited", () => {
   // Free walking, and walks to an activity, still discover what they pass.
   assert.equal(visitsOnWalk("playground", "", spots), true);
   assert.equal(visitsOnWalk("playground", "perform:bell", spots), true);
+});
+
+test("9. Brick Bash holds for the player's first move, and a round lost on lives says so", () => {
+  // The cause: left alone from PLAY, the ball passes the paddle three times in
+  // 7.35 seconds for exactly 75 points, whatever the seed. A first swipe at
+  // that moment looked as if it had ended the round.
+  for (const seed of [1, 7, 314159]) {
+    const idle = play("brick", seed, () => still);
+    assert.equal(idle.sim.ticks, 441);
+    assert.equal(idle.score, 75);
+    assert.equal(idle.sim.endReason, "lives");
+  }
+  // So the round now starts with the first paddle move, as Noodle Run does.
+  assert.equal(holdsForFirstMove("brick"), true);
+  assert.equal(holdsForFirstMove("noodle"), true);
+  assert.equal(holdsForFirstMove("hop"), false);
+  // One swipe does not end a round: lives go one at a time, seconds apart.
+  const swipe = new Simulation("brick", 7);
+  for (let tick = 0; tick < 60; tick++) {
+    swipe.advance([0, 0, -1, 0, Math.min(394, 220 + tick * 6), -1]);
+    assert.equal(swipe.ended, false);
+    assert.equal(swipe.lives, 3);
+  }
+  // A paddle kept under the ball plays on to the Big Brick at 0:35.
+  const followed = play("brick", 7, (sim) => {
+    const ball = [sim.ball, ...sim.extra].reduce((a, b) => (b.y > a.y ? b : a));
+    return [0, 0, -1, 0, Math.round(ball.x), -1];
+  });
+  assert.equal(followed.sim.bossSpawned, true);
+  assert.ok(["time", "cleared", "lives"].includes(followed.sim.endReason));
+  assert.ok(followed.sim.elapsed > 35);
+  // The rules are untouched: the server still accepts both rounds.
+  assert.equal(replayRun("brick", 7, followed.replay).score, followed.score);
+  assert.equal(rulesVersion("brick"), 1);
+  assert.equal(
+    endReasonText("brick", "lives", 7.35),
+    "You lost all 3 lives after 7s. Keep the paddle under the ball.",
+  );
+  assert.equal(endReasonText("swarm", "lives", 12), "Out of lives after 12s.");
 });

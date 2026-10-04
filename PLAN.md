@@ -37,3 +37,27 @@ Done means: each bug has a code change and a test, `npm test` and `npm run build
 - `npm run build` and `npm run test:cloudflare` (8 of 8) pass.
 - Built app driven in headless Chrome against a local server on throwaway data: a parked kart stopped the clock at 5 s; one tap on GO reached 83 km/h and, hands-off, finished three laps in 1:22.73; Noodle Run waited for the first turn and named the wall; Hop Hop named the crate; the claimed Kopitiam Bucket showed under Head; a finished quest claimed; Explore announced and landed on Pocket Garden only; an email owned by another character left the guest unchanged; a new account saw its dare opening time and no daily count; the weekly board showed pending medals.
 - Not verified: the live site (needs a deployment) and a physical phone.
+
+# Two more playtest bugs — 4 October 2026 (same branch, same pull request)
+
+Done means: each has a cause, a code change and a test; `npm test` and `npm run build` pass; the commit is pushed to `fix/playtest-bugs` and the body of pull request 17 lists both. No merge, no force-push, no player data touched, no rules version change.
+
+## Root causes and fixes
+
+9. **Brick Bash "ends on the first swipe" at 75.** The ball launched the moment PLAY was tapped. With the paddle untouched, every seed loses all three lives in 7.35 s (ticks 131, 286, 441) with exactly 75 points. The swipe did not end the round: it arrived as the last life went, and nothing said why. Fix in the client only: the round holds until the player first moves the paddle (drag, arrow key or on-screen arrow), as Noodle Run already does, so the 60 seconds and three lives start with the player. A round lost on lives says so on the held last frame and on the result. The simulation and replays are unchanged.
+10. **Rankings sent a guest to the account dialog.** `open("board")` redirected any profile without an account to `openAccount()`. Remove the redirect and show the board to guests, read-only, saying that guest rounds are not ranked. Save with email stays as an optional button on the board and in Account & privacy.
+
+## Steps
+
+1. `src/catalog.ts`: `holdsForFirstMove`, Brick Bash wording for the lives reason. `src/games.ts`: hold Brick Bash until the first paddle move, prompt on screen.
+2. `src/main.ts`: drop the guest redirect, guest copy in `renderSharedBoard`.
+3. Tests in `tests/playtest-fixes.test.ts` and `tests/lobby-render.test.ts`.
+4. Verify: `npm test`, `npm run build`, browser check with touch input on a phone-sized viewport.
+5. Commit, push, update the pull request body.
+
+## Verification — bugs 9 and 10
+
+- `npm test`: 194 tests, 192 pass, 2 skipped (browser checks that need `DARECADE_TEST_CHROMIUM`). Two tests are new: one in `tests/playtest-fixes.test.ts` (bug 9), one in `tests/lobby-render.test.ts` (bug 10).
+- `npm run build` and `npm run test:cloudflare` pass.
+- Built app driven in headless Chrome at 390 × 844 with touch events, as a guest with no email, on a local server with throwaway data. Brick Bash: after PLAY the screen read DRAG TO START and stayed at 60 s with three hearts for 9 s untouched; one swipe started the round (58 s and 15 points two seconds later); left alone after that, it ended on lives at 50 s with "You lost all 3 lives after 11s. Keep the paddle under the ball." on the held frame and on the result. Rankings: Menu → Friends → Dares & rankings → Rankings opened the board with "Guest rounds are not ranked" and no account dialog.
+- Not verified: the live site (needs a deployment) and a physical phone.

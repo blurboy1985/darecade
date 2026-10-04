@@ -118,6 +118,12 @@ export const activityIds: readonly ActivityId[] = [
 ];
 
 /** Says why a round stopped, so an early finish is never a mystery. */
+/**
+ * Games whose round holds until the player's first move. Brick Bash left
+ * alone loses all three lives in about seven seconds, so its ball waits too.
+ */
+export const holdsForFirstMove = (game: GameId) =>
+  game === "noodle" || game === "brick";
 export function endReasonText(game: GameId, reason: string, seconds: number) {
   const after = `after ${Math.max(1, Math.round(seconds))}s`;
   if (game === "noodle") {
@@ -133,6 +139,8 @@ export function endReasonText(game: GameId, reason: string, seconds: number) {
     if (reason === "gap")
       return `You fell into a gap ${after}. Jump before the edge.`;
   }
+  if (game === "brick" && reason === "lives")
+    return `You lost all 3 lives ${after}. Keep the paddle under the ball.`;
   if (reason === "lives") return `Out of lives ${after}.`;
   if (reason === "cleared") return "Wall and Big Brick cleared!";
   if (reason === "time") return "Time! You lasted the full 60 seconds.";

@@ -1,5 +1,5 @@
 import type { CabinetId } from "./catalog";
-import { games, endReasonText } from "./catalog";
+import { games, endReasonText, holdsForFirstMove } from "./catalog";
 import type { Sfx } from "./audio";
 import type { FxEvent } from "./arcade-fx";
 import { HopRun, StarFlight } from "./action-games";
@@ -47,7 +47,7 @@ export class ArcadeGame extends Simulation {
     seed = 314159,
   ) {
     super(id, seed);
-    this.waiting = id === "noodle";
+    this.waiting = holdsForFirstMove(id);
     this.coarse =
       matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
     const info = games[id];
@@ -131,12 +131,17 @@ export class ArcadeGame extends Simulation {
     if (!this.started || this.paused || this.ended) return;
     if (this.id === "hop" && dir === "up") this.input[3] = 1;
     else this.input[2] = ["up", "right", "down", "left"].indexOf(dir);
-    if (this.waiting) {
-      this.waiting = false;
-      this.container.querySelector("#run-state")!.textContent = this.status();
-    }
+    this.begin();
+  }
+  /** The player's first move starts a round that was holding for it. */
+  private begin() {
+    if (!this.waiting || !this.started || this.paused || this.ended) return;
+    this.waiting = false;
+    this.container.querySelector("#run-state")!.textContent = this.status();
   }
   private startPrompt() {
+    if (this.id === "brick")
+      return this.coarse ? "DRAG TO START" : "MOVE TO START";
     return this.coarse ? "SWIPE TO START" : "PRESS AN ARROW";
   }
   /** Why the round stopped, in words. Empty for a game with nothing to add. */
@@ -240,6 +245,7 @@ export class ArcadeGame extends Simulation {
     this.input[4] = Math.round(
       Math.max(46, Math.min(394, ((e.clientX - r.left) / r.width) * 440)),
     );
+    this.begin();
   }
   private setShip(e: PointerEvent) {
     if (!this.started || this.paused || this.ended) return;
@@ -553,9 +559,13 @@ export class ArcadeGame extends Simulation {
       c.font = "700 24px Fredoka, sans-serif";
       c.textAlign = "center";
       c.fillText(
-        this.coarse
-          ? "Swipe or tap an arrow to start"
-          : "Press an arrow to start",
+        this.id === "brick"
+          ? this.coarse
+            ? "Drag the paddle to start"
+            : "Move the paddle to start"
+          : this.coarse
+            ? "Swipe or tap an arrow to start"
+            : "Press an arrow to start",
         220,
         228,
       );

@@ -535,3 +535,37 @@ test("a finished quest offers Claim, and a claimed quest says so", () => {
   h.run('open("quests")');
   assert.match(button("eastside"), /disabled>CLAIMED ✓</);
 });
+
+test("Rankings shows a guest the board and never opens the account dialog", () => {
+  const h = harness();
+  let accounts = 0;
+  h.context.openAccount = () => {
+    accounts++;
+  };
+  h.context.currentProfile = { name: "Sunny Otter 06", account: null };
+  h.context.shared.competitionReady = false;
+  h.context.shared.boards.hop = [
+    { id: "p1", name: "Player 1", score: 93, rank: 1 },
+  ];
+  for (const period of ["week", "daily"]) {
+    h.context.boardTab = period;
+    h.context.boardGame = "hop";
+    h.run('open("board")');
+    const html = h.body.innerHTML;
+    assert.equal(accounts, 0, period);
+    assert.match(html, /<h2>Rankings<\/h2>/);
+    assert.match(html, /<small>Guest rounds are not ranked<\/small>/);
+    assert.doesNotMatch(html, /Playing without email/);
+    assert.doesNotMatch(html, /Finish a round to (join the board|claim #1)/);
+    // Saving stays an offer on the board, not a wall in front of it.
+    assert.match(html, /data-account>Save with email to be ranked</);
+    checkActions(html, `guest rankings ${period}`);
+  }
+  assert.match(h.body.innerHTML, /Player 1[\s\S]*93/);
+  // A saved account still sees its own invitation and no guest copy.
+  h.context.currentProfile = { name: "Review player", account: {} };
+  h.context.shared.boards.hop = [];
+  h.run('open("board")');
+  assert.match(h.body.innerHTML, /Finish a round to join the board/);
+  assert.doesNotMatch(h.body.innerHTML, /Guest rounds|Save with email/);
+});
