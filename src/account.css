@@ -100,3 +100,45 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Keep the essentials visible; the full notice opens without leaving consent. */
+.account-dialog .privacy-summary {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.account-dialog .privacy-summary li + li {
+  margin-top: 10px;
+}
+.account-dialog .fine-print {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.account-dialog .account-details {
+  margin: 16px 0;
+  border-top: 1px solid #d5dacb;
+  border-bottom: 1px solid #d5dacb;
+}
+.account-dialog .account-details summary {
+  display: list-item;
+  padding: 14px 4px;
+  min-height: 48px;
+  box-sizing: border-box;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 700;
+  cursor: pointer;
+}
+.account-dialog .account-details summary:focus-visible {
+  outline: 2px solid #48623a;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.account-dialog .account-details h2 {
+  font-size: 24px;
+}
+.account-dialog .account-details p {
+  font-size: 14px;
+  line-height: 1.5;
+}

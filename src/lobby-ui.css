@@ -1,0 +1,291 @@
+/* One three-action navigation bar, at every screen size. */
+.bottom-bar {
+  justify-content: center;
+  min-height: 90px;
+}
+.bottom-bar > .profile {
+  position: absolute;
+  left: 28px;
+  cursor: default;
+}
+.bottom-bar > .footer-note {
+  position: absolute;
+  right: 28px;
+}
+.lobby-dock {
+  width: min(440px, 100%);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.lobby-dock > button {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+  min-height: 60px;
+  border-radius: 16px;
+  padding: 10px 8px;
+}
+.lobby-dock > button span {
+  font-size: 14px;
+  line-height: 1.2;
+}
+.lobby-dock > button[hidden] {
+  display: none;
+}
+.has-nearby:not(.mode-2d):not(.first-race) .lobby-dock > [data-open="map"],
+.is-interacting .lobby-dock > [data-open="map"],
+.is-interacting .lobby-dock > #interaction,
+.is-away .lobby-dock > [data-open="map"] {
+  display: none;
+}
+.lobby-dock > #interaction {
+  color: #254735;
+  background: #dcf28b;
+  white-space: normal;
+}
+.is-away .lobby-dock,
+.is-interacting .lobby-dock {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.topbar > .demo-tag {
+  font-size: 10px;
+  max-width: 135px;
+  text-align: right;
+}
+.camera-hint {
+  display: none;
+}
+.welcome-panel[hidden] {
+  display: none !important;
+}
+.welcome-options {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.welcome-options .text-button {
+  min-height: 44px;
+  font-size: 14px;
+  color: #344b3c;
+  padding: 6px 4px;
+}
+.first-race .welcome-panel {
+  width: min(360px, calc(100vw - 44px));
+}
+.first-race .welcome-panel h1 {
+  font-size: clamp(32px, 4vw, 56px);
+}
+.first-race .welcome-panel p {
+  max-width: 290px;
+  line-height: 1.5;
+  margin: 14px 0 20px;
+}
+.simple-menu {
+  display: grid;
+  gap: 12px;
+  margin: 24px 0 12px;
+}
+.menu-choice {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 20px;
+  min-height: 76px;
+  border: 1px solid #c8d1ba;
+  border-radius: 16px;
+  color: #2c4537;
+  background: #fffdf5;
+  text-align: left;
+  font:
+    600 20px "Space Grotesk",
+    sans-serif;
+}
+.menu-choice:hover {
+  background: #eef4dd;
+}
+.menu-choice svg {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+}
+.menu-choice svg:last-child {
+  width: 20px;
+  margin-left: auto;
+}
+.menu-choice span {
+  min-width: 0;
+}
+.menu-back {
+  min-height: 44px;
+  margin-bottom: 6px;
+}
+.menu-details {
+  border-top: 1px solid #c8d1ba;
+  margin-top: 18px;
+  padding-top: 10px;
+}
+.menu-details summary {
+  min-height: 44px;
+  padding: 12px 0;
+  cursor: pointer;
+  font-weight: 600;
+  box-sizing: border-box;
+}
+.menu-details p {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.camera-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.camera-buttons button {
+  min-width: 48px;
+  min-height: 48px;
+}
+.destination-select {
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  margin-top: 10px;
+  border: 1px solid #aebd9e;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fffdf5;
+  color: #2c4537;
+  font: inherit;
+}
+.mode-2d .fallback {
+  max-width: 650px;
+  padding: 35px;
+}
+.mode-2d.first-race .fallback > h1,
+.mode-2d.first-race .fallback > p,
+.mode-2d.first-race .fallback > .eyebrow {
+  display: none;
+}
+@media (max-width: 760px) {
+  .bottom-bar {
+    padding: 8px 14px max(8px, env(safe-area-inset-bottom));
+    min-height: 82px;
+  }
+  .lobby-dock {
+    gap: 8px;
+  }
+  .lobby-dock > button {
+    min-width: 0;
+    min-height: 58px;
+  }
+  .topbar .location-pill {
+    display: flex;
+    font-size: 11px;
+  }
+  .topbar .location-pill .divider,
+  .topbar #sgt-clock,
+  .topbar > .demo-tag {
+    display: none;
+  }
+  .topbar {
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .topbar .brand {
+    font-size: 16px;
+  }
+  .first-race .welcome-panel {
+    left: 22px;
+    top: 116px;
+    padding: 24px;
+  }
+  .welcome-options {
+    gap: 8px;
+  }
+  .menu-choice {
+    min-height: 68px;
+    padding: 16px;
+    font-size: 18px;
+  }
+  .mode-2d .fallback {
+    padding: 24px 20px;
+  }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .first-race .welcome-panel {
+    top: 76px;
+    left: 24px;
+    padding: 16px 22px;
+  }
+  .first-race .welcome-panel h1 {
+    font-size: 30px;
+  }
+  .first-race .welcome-panel p {
+    margin: 8px 0 12px;
+    font-size: 14px;
+  }
+  .welcome-options {
+    margin-top: 4px;
+  }
+  .first-race .welcome-panel .primary {
+    min-height: 44px;
+  }
+  .bottom-bar {
+    min-height: 68px;
+  }
+  .lobby-dock > button {
+    min-height: 48px;
+  }
+  .lobby-dock > button svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+/* Prevent the profile colliding with the centered dock on small laptops. */
+@media (max-width: 1000px) {
+  .bottom-bar > .profile,
+  .bottom-bar > .footer-note {
+    display: none !important;
+  }
+}
+.compact-games {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.compact-games .game-card {
+  min-width: 0;
+}
+.choice-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+}
+.choice-pager button {
+  min-height: 44px;
+}
+.choice-pager span {
+  white-space: nowrap;
+  color: #526546;
+}
+@media (max-width: 600px) {
+  .compact-games {
+    grid-template-columns: 1fr;
+  }
+  .compact-games .game-art {
+    height: 80px;
+  }
+  .compact-games .game-card h3 {
+    margin: 8px 0;
+  }
+}
+
+/* Player inspection is its own three-action task. */
+.inspecting .bottom-bar {
+  display: none;
+}
+.wardrobe-controls .destination-select {
+  margin-bottom: 18px;
+}

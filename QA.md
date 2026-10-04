@@ -1,5 +1,26 @@
 # Darecade verification — 3 October 2026
 
+## Concise onboarding and menus, 4 October 2026
+
+The world has Play, Explore and Menu. Nearby interaction, Stop and I’m back replace a main action rather than adding another. Player inspection hides the dock. Desktop and phone use the same three-action structure.
+
+Menu groups and task pages expose at most three main actions. Games, outdoor activities, emotes and quests page through three choices. Wardrobe, away activity, rankings, neighbours and worlds use labelled selection inputs. Back, Close, page navigation are utility controls. Gameplay inputs are unchanged.
+
+The age check, consent version, complete privacy notice, reporting and deletion checks are preserved. The visible privacy summary is shorter. Email saving is optional and skipping it returns to play. Delayed nickname saves cannot reopen dismissed setup. Live movement updates do not replace an unchanged neighbour selector, and a selected dare game survives shared-state refreshes.
+
+Verified against the final local diff:
+
+- `npm test`: 131 passed, 2 browser-only tests skipped
+- `npm run build`: TypeScript and production bundle passed
+- `npm run test:cloudflare`: deployment dry-run and 7 integration tests passed using local test storage
+- `git diff --check`: passed
+- New structural/controller checks exercise populated and empty menu views, pagination, native selection request ownership, stale setup responses, repeated clicks, selected-game retention and movement-only updates
+
+Browser and screenshot verification is blocked in this environment. Chromium cannot create its process socket, the cloud browser cannot reach the local preview, and the supported preview service is unavailable. No new screenshots are claimed. The source-render tests do not establish layout, touch, focus or real-browser correctness. Run `DARECADE_TEST_CHROMIUM=/path/to/chromium npm test` in a supported local environment and check desktop, 320px/390px phone portrait, phone landscape and 2D before release. The existing large-bundle warning remains.
+
+No production accounts, scores, age submissions, deployment or billing changes were made for this pass.
+
+
 ## Remaining PR integration, 4 October 2026
 
 - PR #8 hides Coast Rush controls on its ready screen; verified hidden while ready and visible during the countdown at 390px. PR #9 reduces repeated Records writes and grouped leaderboard reads; 94 Node tests and seven Cloudflare tests passed before its merge.
@@ -236,3 +257,4 @@ New captures:
 Testing used desktop Chromium with resized browser viewports and pointer input. Physical Android/iPhone performance, Safari/Firefox differences, sustained thermal behaviour, and the plan's 30-avatar/30-FPS device target are not verified. The 30-minute reminder is implemented but was not exercised by waiting for a full 30-minute foreground session.
 
 At the time of this historical baseline, the prototype did not implement authentication/logout, public multiplayer, trusted scores, server-side challenge accounting, payments or cloud persistence. The current sections above supersede those account and scoring limits. Away activities resume locally from saved timestamps; a closed browser does not render them for other users. The demo names and scores are clearly identified in their panels. It is not a validated launch of the entire implementation plan.
+
