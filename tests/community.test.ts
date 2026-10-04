@@ -766,3 +766,89 @@ test("sign-in requests for an address with no account send guidance, not a link,
     s.close();
   }
 });
+
+test("a move code carries the session and browser saves across once, then the old session ends", async () => {
+  const s = setup();
+  try {
+    const guest = s.community.join(consent);
+    const key = "ab".repeat(32),
+      otherKey = "cd".repeat(32);
+    // A code is only made for a key from the new address.
+    for (const bad of [undefined, "", "short", 7])
+      assert.throws(
+        () => s.community.moveOut(guest.token, bad, {}),
+        /main address/,
+      );
+    assert.deepEqual(s.community.moveOut("no-such-session", key, {}), {
+      code: null,
+    });
+    const first = s.community.moveOut(guest.token, key, {
+      "darecade-v1": "old",
+    });
+    const second = s.community.moveOut(guest.token, key, {
+      "darecade-v1": '{"xp":40}',
+      "darecade-invite": 7,
+      other: "dropped",
+    });
+    assert.match(second.code, /^[0-9a-f]{64}$/);
+    // Asking again replaces the earlier code.
+    assert.throws(
+      () => s.community.moveIn(first.code, key, undefined),
+      /expired/,
+    );
+    assert.throws(() => s.community.moveIn("guess", key, undefined), /expired/);
+    assert.throws(
+      () => s.community.moveIn(undefined, key, undefined),
+      /expired/,
+    );
+
+    // Another browser's key, or none, cannot use the code; a wrong try spends it.
+    const stolen = s.community.moveOut(guest.token, otherKey, {});
+    assert.throws(
+      () => s.community.moveIn(stolen.code, key, undefined),
+      /expired/,
+    );
+    assert.throws(
+      () => s.community.moveIn(stolen.code, otherKey, undefined),
+      /expired/,
+    );
+    assert.equal(s.community.lookup(guest.token), guest.me.id);
+    const { code } = s.community.moveOut(guest.token, key, {
+      "darecade-v1": '{"xp":40}',
+      "darecade-invite": 7,
+      other: "dropped",
+    });
+    assert.throws(
+      () => s.community.moveIn(code.replace(/.$/, ""), key, undefined),
+      /expired/,
+    );
+    const moved = s.community.moveIn(code, key, undefined);
+    assert.deepEqual(moved.saves, { "darecade-v1": '{"xp":40}' });
+    assert.equal(s.community.lookup(moved.token), guest.me.id);
+    assert.equal(s.community.lookup(guest.token), null);
+    assert.throws(() => s.community.moveIn(code, key, undefined), /expired/);
+
+    // A code not claimed within two minutes is refused and the session stays.
+    const late = s.community.moveOut(moved.token, key, {});
+    s.tick(2 * 60000);
+    assert.throws(
+      () => s.community.moveIn(late.code, key, undefined),
+      /expired/,
+    );
+    assert.equal(s.community.lookup(moved.token), guest.me.id);
+
+    // Someone already signed in at the new address keeps their own session.
+    const other = s.community.join(consent);
+    const kept = s.community.moveIn(
+      s.community.moveOut(moved.token, key, { "darecade-v1": "theirs" }).code,
+      key,
+      other.token,
+    );
+    assert.equal(kept.token, null);
+    assert.deepEqual(kept.saves, { "darecade-v1": "theirs" });
+    assert.equal(s.community.lookup(moved.token), guest.me.id);
+    assert.equal(s.community.lookup(other.token), other.me.id);
+  } finally {
+    s.close();
+  }
+});

@@ -43,7 +43,13 @@ export default {
           },
           503,
         );
-      if (url.origin !== env.PUBLIC_ORIGIN)
+      // The old address answers only the handoff and Stripe's signed webhook.
+      const legacy = !!env.LEGACY_ORIGIN && url.origin === env.LEGACY_ORIGIN;
+      if (
+        legacy
+          ? !["/api/move", "/api/payments/webhook"].includes(url.pathname)
+          : url.origin !== env.PUBLIC_ORIGIN
+      )
         return json({ error: "Please use the game’s main address." }, 403);
       const id = env.NEIGHBOURHOOD.idFromName("darecade-main-v1");
       const neighbourhood = env.NEIGHBOURHOOD.get(id, {
@@ -122,6 +128,7 @@ export class Neighbourhood extends DurableObject {
       files: this.files,
       production: true,
       origin: env.PUBLIC_ORIGIN,
+      legacyOrigin: env.LEGACY_ORIGIN || "",
       mailMode: "resend",
       mailKey: env.RESEND_API_KEY,
       mailFrom: env.MAIL_FROM,

@@ -7,6 +7,7 @@ import { Simulation, rulesVersion } from "../shared/simulation.ts";
 import { PRIVACY_VERSION } from "../server/community-core.mjs";
 
 const origin = "https://darecade.test";
+const oldOrigin = "https://old.darecade.test";
 
 test(
   "Cloudflare checkout and raw signed webhooks persist paid looks and reject forged callbacks",
@@ -267,6 +268,7 @@ function runtime(ready = true, paymentOptions = {}) {
       bindings: {
         LAUNCH_READY: String(ready),
         PUBLIC_ORIGIN: origin,
+        LEGACY_ORIGIN: oldOrigin,
         RESEND_API_KEY: "test-only-key",
         MAIL_FROM: "Play Simi <hello@example.test>",
         PRIVACY_CONTACT: "privacy@example.test",
@@ -1128,6 +1130,108 @@ test(
       assert.equal(switched.status, 200, JSON.stringify(switched.data));
       assert.equal(switched.data.id, guest.data.id);
       assert.ok(switched.cookie);
+    } finally {
+      await mf.dispose();
+    }
+  },
+);
+
+test(
+  "the old address only hands a player over, and the new address continues as that player",
+  { timeout: 60000 },
+  async () => {
+    const { mf, api } = runtime();
+    const old = (path, data, cookie = "", from = oldOrigin) =>
+      mf.dispatchFetch(oldOrigin + "/api/" + path, {
+        method: data === undefined ? "GET" : "POST",
+        headers: {
+          "CF-Connecting-IP": "192.0.2.10",
+          ...(data === undefined
+            ? {}
+            : { Origin: from, "Content-Type": "application/json" }),
+          ...(cookie ? { Cookie: cookie } : {}),
+        },
+        ...(data === undefined ? {} : { body: JSON.stringify(data) }),
+      });
+    try {
+      const key = "ab".repeat(32);
+      const guest = await api("auth/join", {
+        month: 1,
+        year: 2000,
+        consent: true,
+        privacyVersion: PRIVACY_VERSION,
+      });
+      assert.equal(guest.status, 200, JSON.stringify(guest.data));
+
+      // The old address plays no part in the game any more.
+      assert.equal((await old("auth/config")).status, 403);
+      assert.equal((await old("auth/me", undefined, guest.cookie)).status, 403);
+      assert.equal((await old("move/claim", { code: "x" })).status, 403);
+      assert.equal(
+        (await old("world/connect", undefined, guest.cookie)).status,
+        403,
+      );
+      assert.equal(
+        (await old("auth/join", { month: 1, year: 2000 })).status,
+        403,
+      );
+      // Another site cannot ask for a code, and the new address does not issue them.
+      assert.equal(
+        (await old("move", { key }, guest.cookie, origin)).status,
+        403,
+      );
+      assert.equal((await api("move", { key }, guest.cookie)).status, 404);
+      // A Stripe webhook sent to the old address still reaches the signature check.
+      assert.notEqual(
+        (await old("payments/webhook", { type: "x" })).status,
+        403,
+      );
+
+      // No key from the new address, no code.
+      assert.equal(
+        (await old("move", { saves: {} }, guest.cookie)).status,
+        400,
+      );
+      assert.deepEqual(await (await old("move", { key, saves: {} })).json(), {
+        code: null,
+      });
+      const out = await old(
+        "move",
+        { key, saves: { "darecade-v1": '{"xp":40}', other: "dropped" } },
+        guest.cookie,
+      );
+      assert.equal(out.status, 200);
+      const { code } = await out.json();
+      assert.match(code, /^[0-9a-f]{64}$/);
+
+      const claimed = await api("move/claim", { code, key });
+      assert.equal(claimed.status, 200, JSON.stringify(claimed.data));
+      assert.deepEqual(claimed.data, { saves: { "darecade-v1": '{"xp":40}' } });
+      assert.match(
+        claimed.headers.get("set-cookie"),
+        /^darecade_session=[0-9a-f]{64}; HttpOnly; Secure; SameSite=Strict/,
+      );
+      assert.notEqual(claimed.cookie, guest.cookie);
+      const me = await api("auth/me", undefined, claimed.cookie);
+      assert.equal(me.status, 200);
+      assert.equal(me.data.id, guest.data.id);
+      // The code works once and the session it replaced is gone.
+      assert.equal((await api("move/claim", { code, key })).status, 400);
+      // A code made for one browser signs nobody in from another.
+      const mine = await (
+        await old("move", { key, saves: {} }, claimed.cookie)
+      ).json();
+      const theft = await api("move/claim", {
+        code: mine.code,
+        key: "cd".repeat(32),
+      });
+      assert.equal(theft.status, 400);
+      assert.equal(theft.headers.get("set-cookie"), null);
+      assert.equal(
+        (await api("auth/me", undefined, claimed.cookie)).status,
+        200,
+      );
+      assert.equal((await api("auth/me", undefined, guest.cookie)).status, 401);
     } finally {
       await mf.dispose();
     }

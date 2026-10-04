@@ -1,5 +1,28 @@
 # Cloudflare hosting
 
+## Move to playsimi.danielquek.com — prepared 5 October 2026, not deployed
+
+The code and configuration for the move are ready and the mail domain is set up (steps 2 and 3, less the sending key). **The Worker has not been deployed**, so the game stays at https://darecade.daniel-tianwen.workers.dev and still sends from the old domain. Deploying without the new sending key stops sign-in email.
+
+What the deployment changes:
+
+- The Worker keeps the name `darecade`, so the `Neighbourhood` Durable Object `darecade-main-v1` and every account stay attached. `wrangler.jsonc` adds `playsimi.danielquek.com` as a custom domain, sets `PUBLIC_ORIGIN` to it and names the old address in `LEGACY_ORIGIN`.
+- The old address serves the same page, which now only hands the player over: the old address sends the browser to the new one, which makes a random key for that tab and sends it back; the old address swaps the session and browser saves for a single-use two-minute code tied to that key (`POST /api/move`); the new address swaps the code back with the key (`POST /api/move/claim`). A code is useless without the key held by the tab that asked for it, so a link carrying someone else's code signs nobody in. The old session ends when the code is claimed. Every other API request at the old address is refused, except Stripe's signed webhook.
+- Sign-in email comes from `Play Simi <hello@playsimi.danielquek.com>`, which is also the privacy contact.
+- The Records database gains one table, `moves`. It is created on first use, emptied of expired rows nightly and cleared on account deletion.
+
+Checklist:
+
+1. **Merge PR #20** (the rename) first; this change is stacked on it.
+2. **Resend — domain done 5 October 2026, key still to do.** `playsimi.danielquek.com` was added in the Tokyo (`ap-northeast-1`) region with manual DNS setup, and Resend reported it Verified at 02:56. Three DNS-only records were added to the `danielquek.com` zone: TXT `resend._domainkey.playsimi` (DKIM), CNAME `rsend.playsimi` to `rsend-apne1.forge.rmta.net` and CNAME `send.playsimi` to `send.forge.rmta.net`; all three resolve on 1.1.1.1. Tracking is off. TLS is at Resend's default, Opportunistic; the old domain's record says Enforced, so set that if it should match. **Still to do, by the owner:** the existing `RESEND_API_KEY` is restricted to `darecade.danielquek.com`, so create a sending key restricted to the new domain.
+3. **Cloudflare Email Routing — done 5 October 2026.** The `playsimi` subdomain is enabled with locked DNS records; its three MX records and SPF TXT resolve on 1.1.1.1. The rule `hello@playsimi.danielquek.com` is active and forwards to the same verified destination as before. The `hello@darecade.danielquek.com` rule is kept so replies to earlier email still arrive, and catch-all remains disabled. Not yet verified: a real message arriving through the new rule.
+4. **Deploy:** `npm run cf:deploy`, then `npx wrangler secret put RESEND_API_KEY` with the new key. Wrangler creates the custom domain and its certificate. Between the deployment and the new key, sign-in email fails; do the two together.
+5. **Check:** `https://playsimi.danielquek.com/api/health` returns ready; a sign-in code arrives from the new sender; opening the old address in a browser with an existing guest lands on the new address as the same character.
+6. **Stripe:** change the webhook endpoint `we_1UMlTDA6Maf1zlslfAoUT1gA` to `https://playsimi.danielquek.com/api/payments/webhook`. Editing the address keeps its signing secret. Until then events sent to the old address are still accepted.
+7. Record the Worker version and the checks here.
+
+Rollback: redeploy the previous commit. Sessions created at the new address stay valid in the database but their cookies belong to the new address, so those players sign in again or play as before at the old one.
+
 ## Ghost and one dare a day removed, 5 October 2026
 
 At the owner's request, PR #19 (`6d6bdb86905d6f50bcf3aa78ae1a3d0ce91a3712`) reverted PR #18 about ten minutes after the deployment recorded below. Deployed `main` as Worker version **`c7b780be-ffb6-4259-99d0-c7ca25efb0af`**. At **02:16 SGT**, production health returned `ready: true`; the live HTML referenced `index-DoHLrHvf.js`, and both that asset and `race-view-CHiuMCLb.js` matched the local production build byte-for-byte. The live bundle no longer contains the ghost or daily-dare copy and again contains the 24-hour hold copy. Unauthenticated state returned 401.
