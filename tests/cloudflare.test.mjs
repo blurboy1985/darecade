@@ -5,9 +5,73 @@ import { Miniflare, convertV4MiniflareOptions } from "miniflare";
 import { trackCurve } from "../shared/racing.ts";
 import { Simulation, rulesVersion } from "../shared/simulation.ts";
 import { PRIVACY_VERSION } from "../server/community-core.mjs";
+import {
+  createWaterTrail,
+  trailTiles,
+  traceWater,
+} from "../shared/plot-trail.ts";
 
 const origin = "https://darecade.test";
 const oldOrigin = "https://old.darecade.test";
+
+test(
+  "Cloudflare validates a linked water trail and persists only one crop boost",
+  { timeout: 30000 },
+  async () => {
+    const { mf, api } = runtime();
+    try {
+      const player = await api("auth/join", {
+        month: 1,
+        year: 2000,
+        consent: true,
+        privacyVersion: PRIVACY_VERSION,
+      });
+      assert.equal(player.status, 200);
+      const progress = (event, value) =>
+        api("progress", { event, value }, player.cookie);
+      const planted = await progress("plant", "sunflower");
+      assert.equal(planted.status, 200);
+      const save = planted.data.progress;
+      const trail = createWaterTrail(save.plotCrop, save.plotPlanted);
+      const turns = Array.from({ length: 64 }, (_, n) => [
+        n % 4,
+        Math.floor(n / 4) % 4,
+        Math.floor(n / 16),
+      ]).find((turns) => traceWater(trailTiles(trail, turns)).complete);
+      assert.ok(turns);
+      const value = { crop: save.plotCrop, planted: save.plotPlanted, turns };
+      assert.equal(
+        (await progress("tend", { ...value, planted: value.planted - 1 }))
+          .status,
+        400,
+      );
+      assert.equal(
+        (await progress("tend", { ...value, turns: [0, 0, 0] })).status,
+        400,
+      );
+      assert.equal(
+        (await api("auth/me", undefined, player.cookie)).data.progress
+          .plotWatered,
+        false,
+      );
+      const watered = await progress("tend", value);
+      assert.equal(watered.status, 200, JSON.stringify(watered.data));
+      assert.equal(watered.data.progress.plotWatered, true);
+      assert.equal(watered.data.progress.xp, save.xp);
+      assert.ok(watered.data.progress.plotPlanted < save.plotPlanted);
+      assert.ok(
+        save.plotPlanted - watered.data.progress.plotPlanted <= 2 * 3600000,
+      );
+      assert.equal((await progress("tend", value)).status, 400);
+      assert.equal((await progress("water")).status, 400);
+      assert.equal((await progress("harvest")).status, 400);
+      const reloaded = await api("auth/me", undefined, player.cookie);
+      assert.deepEqual(reloaded.data.progress, watered.data.progress);
+    } finally {
+      await mf.dispose();
+    }
+  },
+);
 
 test(
   "Cloudflare checkout and raw signed webhooks persist paid looks and reject forged callbacks",

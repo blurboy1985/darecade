@@ -131,6 +131,160 @@
   height: 100%;
   background: #9be38b;
 }
+.plot-view {
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+  width: 100%;
+}
+.plot-view > h2,
+.plot-view > p {
+  margin: 0;
+}
+.plot-back {
+  justify-self: start;
+}
+.plot-tag {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+.plot-bed .plot-tag {
+  color: #284338;
+}
+.plot-bed.ready small {
+  color: #284338;
+}
+.trail-frame {
+  width: min(100%, 390px);
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  align-items: stretch;
+  padding: 14px 0;
+}
+.trail-tap,
+.trail-plant {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 26px;
+  padding-top: 14px;
+}
+.trail-plant {
+  justify-content: end;
+  padding-bottom: 14px;
+}
+.trail-tap span,
+.trail-plant span {
+  font-size: 9px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+.water-trail {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 6px solid #70553d;
+  border-radius: 16px;
+  background: #70553d;
+  box-shadow: 0 5px 0 #4c3d30;
+  overflow: hidden;
+}
+.plot-visual {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.plot-visual canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.water-trail:has(.plot-3d-ready) .trail-cell {
+  z-index: 1;
+  background: transparent;
+  border-color: transparent;
+}
+.water-trail:has(.plot-3d-ready) .trail-cell.turnable {
+  border-color: #8a570d;
+}
+.water-trail:has(.plot-3d-ready) .trail-cell svg {
+  visibility: hidden;
+}
+.trail-rule {
+  max-width: 340px;
+  font-size: 13px;
+  color: #513b21;
+}
+.trail-cell {
+  position: relative;
+  display: block;
+  aspect-ratio: 1;
+  min-width: 0;
+  min-height: 48px;
+  padding: 0;
+  border: 2px solid #d7ddbe;
+  border-radius: 0;
+  background: #e9edd6;
+  color: #687457;
+  touch-action: manipulation;
+}
+.trail-cell svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.trail-cell path {
+  stroke: currentColor;
+  stroke-width: 17;
+  fill: none;
+}
+.trail-cell circle {
+  fill: currentColor;
+}
+.trail-cell.turnable {
+  border: 2px dashed #8a570d;
+  background: #ffe2a0;
+  color: #75512c;
+  cursor: pointer;
+}
+.trail-cell.wet {
+  color: #096980;
+  background: #d2f4ee;
+}
+.trail-cell.turnable.wet {
+  background: #fff0be;
+}
+.trail-cell b {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: #fff9e9;
+  color: #513b21;
+  font-size: 11px;
+  line-height: 1.2;
+}
+.trail-cell:focus-visible {
+  z-index: 1;
+  outline: 4px solid #251b4b;
+  outline-offset: -5px;
+}
+.trail-cell:active:not(:disabled) {
+  background: #f9cf6b;
+}
+.trail-meter {
+  font-weight: 800;
+  color: #205444;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .activity-plots:not(.plot-reduced) .trail-cell {
+    transition:
+      background-color 140ms ease,
+      color 140ms ease;
+  }
+}
 @media (max-width: 420px) {
   .seed-grid {
     grid-template-columns: 1fr;
