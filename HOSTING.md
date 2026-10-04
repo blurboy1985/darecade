@@ -1,5 +1,15 @@
 # Cloudflare hosting
 
+## Neighbourhood ghost, one dare a day and playtest fixes, 5 October 2026
+
+Merged PR #18 (`eb853644915b7f1c382b70ef4ff85c19c33ad33f`), which also carries PR #17's playtest fixes into production for the first time, and deployed `main` as Worker version **`176977a6-a5b4-47c3-9add-e9f518042ba8`**. At **02:09 SGT**, production health returned `ready: true`; the live HTML referenced `index-Ck6QE6sh.js`, and both that asset and `race-view-Dtgm8LYE.js` matched the local production build byte-for-byte. Unauthenticated state returned 401 and private server paths returned 404.
+
+Coast Rush now names a ghost to beat: the player's last finished time, or a fixed 1:45.00 neighbourhood ghost before a first finish. The 24-hour dare hold is replaced by one dare a day once a player, guest or account, has finished one verified round. PR #18 conflicted with PR #17 in seven files; the merge keeps PR #18's dare rules and drops PR #17's hold copy (`dareHoldCopy`, `dareBlock`) with its tests, and keeps the rest of PR #17: guest Rankings, weekly-board copy, tap GO, steering help before a first finish, end reasons and the account conflict choice.
+
+200 Node tests ran: 196 passed, 4 skipped (browser checks that need `DARECADE_TEST_CHROMIUM`). All eight Cloudflare integration tests, the build and the deployment dry-run passed. One PR #17 test claimed the daily hat on a fixed 4 October and failed from 5 October; it now claims on the current day. No schema, migration, binding, secret or rules-version change.
+
+Not verified live: a signed-in race showing the ghost, a played dare, and a physical phone. No production account was created for this check.
+
 ## Coast Rush stable kart and front wheels, 4 October 2026
 
 Deployed source commit `ca88b8040f5ce12cc3f1758cfc1379321346d952` as Worker version **`42d95c6a-f43f-42a2-842e-653b1d167029`**. At **19:24 SGT**, production health returned `ready: true`; the live HTML referenced `index-BT4VnOZk.js`, and both that asset and `race-view-RXPOxWxF.js` matched the local production build byte-for-byte.
