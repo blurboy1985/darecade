@@ -38,9 +38,13 @@ Age and privacy consent still come first. Play now opens Coast Rush directly. Be
 
 Any completed game round, including a zero-score finish, still unlocks the lilac cap and its one-time welcome XP. The first race result reveals the neighbourhood and the other four cabinets. Its main button is Name & customise your character: the wardrobe opens with the lilac cap on and the nickname field ready, then Next: save my character asks for an email and a six-digit code typed into the same window. Maybe later skips either step. On later races a guest's new-best result offers Save your avatar and this score, opening the same email form. Creating an account is optional; guest progress remains saved on the current session. No email is sent without submitting that form.
 
+## Neighbourhood ghost
+
+Every race has one ghost to beat. Before a first finish it is the neighbourhood ghost at 1:45.00, slower than steady driving without a drift. After that it is the player's own previous finished time, read from saved runs when the race starts. A missed day, an unfinished race or a new rules day does not change it, and there is no streak. The cover names the ghost, the minimap shows it as a hollow white ring at even pace, and the result gives the gap and the next ghost. The ghost is a time, not an eighth kart: it has no collisions and does not affect place, replay or medals.
+
 ## Competition and preservation
 
-Verified players compete by fastest completed three-lap time. Street-ladder place and shells never add medal points. Account verification remains; every verified round is ranked immediately, with no practice mode or waiting period. Gold/silver/bronze award 3/2/1 at midnight Singapore time, ties share ranks, and five cabinets allow up to 15 points per day. Missing a day never subtracts points. The existing shared-dare rules remain unchanged.
+Verified players compete by fastest completed three-lap time. Street-ladder place and shells never add medal points. Account verification remains; every verified round is ranked immediately, with no practice mode or waiting period. Gold/silver/bronze award 3/2/1 at midnight Singapore time, ties share ranks, and five cabinets allow up to 15 points per day. Missing a day never subtracts points. Shared dares follow ACCOUNTS.md: one a day after a first finished round.
 
 Coast Rush now uses replay rules version 3 (the winding route and five items). The other four games stay on version 1 with unchanged simulation behaviour. Completed race scores remain the exact integer `7201 - finishTicks`; zero is DNF. The server replays inputs to derive time, place, lap and pickup results. It stores personal bests and the run's result transactionally so retries neither duplicate rewards nor lose the original New best flag. Graphics and sound only observe simulation state. The touch, sound and finish changes of 4 October 2026 did not alter `shared/racing.ts`.
 

@@ -297,9 +297,9 @@ export class StoreCore {
             "SELECT count(*) n FROM runs WHERE player=? AND target IS NOT NULL AND day=?",
           )
           .get(id, day(this.now())).n;
-        if (used >= 3)
+        if (used >= 1)
           throw Error(
-            "You have used your three challenges today. Play regular rounds or return after midnight SGT.",
+            "You have played today’s dare. Play regular rounds or return after midnight SGT.",
           );
         if (
           this.db
@@ -520,7 +520,7 @@ export class StoreCore {
         .map((r) => r.target),
       history: this.db
         .prepare(
-          `SELECT r.id,r.game,r.score,r.targetScore,r.status,r.player,r.target,p.name challenger,t.name defender
+          `SELECT r.id,r.game,r.score,r.targetScore,r.status,r.day,r.player,r.target,p.name challenger,t.name defender
         FROM runs r JOIN players p ON p.id=r.player JOIN players t ON t.id=r.target
         WHERE r.player=? OR r.target=? ORDER BY r.started DESC,r.id ASC LIMIT 20`,
         )

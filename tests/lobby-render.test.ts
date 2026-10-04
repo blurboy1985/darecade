@@ -10,6 +10,7 @@ import * as menus from "../src/lobby-menu.ts";
 import * as interactions from "../src/interactions.ts";
 import * as neighbourhood from "../src/neighbourhood.ts";
 import * as wardrobe from "../src/wardrobe.ts";
+import * as dares from "../src/dares.ts";
 
 // Evaluate the actual render functions. The small element fixture only records
 // generated HTML, selection and replacement; it is not a browser/DOM substitute.
@@ -156,6 +157,7 @@ function harness() {
     ...interactions,
     ...neighbourhood,
     ...wardrobe,
+    ...dares,
     body,
     document: {
       querySelector: () => inspector,
@@ -406,4 +408,83 @@ test("first-visit settings paths never start a race and Back returns to welcome"
   h.run('open("settings")');
   assert.match(h.body.innerHTML, /data-action="close">← Back/);
   assert.doesNotMatch(h.body.innerHTML, /data-open="phone-menu"/);
+});
+
+test("no dare screen offers a Play dare that cannot start", () => {
+  const screens = (h: ReturnType<typeof harness>) => {
+    const html: string[] = [];
+    for (const id of ["dares", "dares-open", "dares-neighbour", "board"]) {
+      h.run(`open(${JSON.stringify(id)})`);
+      html.push(h.body.innerHTML);
+    }
+    h.run('renderPlayerInspector("p0")');
+    html.push(h.inspector.innerHTML);
+    for (const page of html) {
+      assert.doesNotMatch(page, /<button[^>]*\bdisabled\b/);
+      assert.doesNotMatch(page, /24h|24 hours after|\/3 left/);
+      checkActions(page, "dare screen");
+    }
+    return html.join("\n");
+  };
+  const dare = {
+    id: "d1",
+    host: "p0",
+    name: "Player 0",
+    game: "hop",
+    score: 100,
+    expires: Date.now() + 10000,
+  };
+  const open = harness();
+  open.context.shared.dares = [dare];
+  const ready = screens(open);
+  assert.match(ready, /data-dare="d1"[^>]*>Play dare/);
+  assert.match(ready, /data-defender="p0">Play dare/);
+  assert.match(ready, /Ready for a friendly dare/);
+  assert.match(ready, /Play today’s dare/);
+
+  // Before a first round, the played dare, an online neighbour and offline.
+  for (const [change, reason] of [
+    [(s: any) => (s.competitionReady = false), /first round|Finish one round/],
+    [(s: any) => (s.self.outgoing = 1), /Today’s dare is played/],
+  ] as const) {
+    const h = harness();
+    h.context.shared.dares = [dare];
+    change(h.context.shared);
+    const html = screens(h);
+    assert.doesNotMatch(html, /Play dare|Play today’s dare|Ready for/);
+    assert.match(html, reason);
+  }
+  const online = harness();
+  for (const p of online.context.shared.players) p.status = "online";
+  const busy = screens(online);
+  assert.doesNotMatch(busy, /Play dare|Play today’s dare|Ready for/);
+  assert.match(busy, /Online now/);
+  const offline = harness();
+  offline.context.shared.dares = [dare];
+  offline.context.connected = false;
+  assert.doesNotMatch(screens(offline), /Play dare|Play today’s dare/);
+});
+
+test("the rankings board shows the latest dare result", () => {
+  const h = harness();
+  h.context.shared.day = "2026-10-05";
+  h.context.shared.history = [
+    {
+      id: "r1",
+      game: "hop",
+      score: 120,
+      targetScore: 100,
+      status: "finished",
+      day: "2026-10-04",
+      player: "self",
+      target: "p0",
+      challenger: "Review player",
+      defender: "Player 0",
+    },
+  ];
+  h.run('open("board")');
+  assert.match(h.body.innerHTML, /You beat Player 0/);
+  assert.match(h.body.innerHTML, /120 vs 100 · 4 Oct/);
+  h.run('open("dares")');
+  assert.match(h.body.innerHTML, /You beat Player 0/);
 });
