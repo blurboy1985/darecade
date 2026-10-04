@@ -7,20 +7,28 @@ export function kartSteeringInput(left: boolean, right: boolean): number {
 
 export const KART_WHEEL_RADIUS = 0.31;
 
+/** Display-only steering; physics still receives the immediate input. */
+export class KartSteering {
+  private value = 0;
+
+  update(input: number, dt: number): number {
+    this.value += (input - this.value) * (1 - Math.exp(-10 * dt));
+    return this.value;
+  }
+}
+
 export class KartWheel {
   readonly steering = new Group();
-  readonly rolling = new Group();
   private readonly front: boolean;
 
   constructor(x: number, z: number) {
     this.front = z > 0;
     this.steering.position.set(x, 0.29, z);
-    this.steering.add(this.rolling);
   }
 
-  pose(distance: number, steer: number) {
+  pose(steer: number) {
     this.steering.rotation.y = this.front ? steer * 0.24 : 0;
-    // Roll around the axle, independently of the front wheels' steering.
-    this.rolling.rotation.x = distance / KART_WHEEL_RADIUS;
+    // Solid, untextured tyres and rims are rotationally symmetric. Keep their
+    // surfaces fixed around the axle so polygon edges cannot strobe at speed.
   }
 }

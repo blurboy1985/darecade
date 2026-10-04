@@ -1,5 +1,12 @@
 # Darecade verification
 
+## Coast Rush steady-motion follow-up, 4 October 2026
+
+All 176 Node tests, including opt-in Chromium checks, and eight Cloudflare integration tests passed. Build, deployment dry-run and diff checks passed. Visual-only interpolation now blends the player and all rivals between 60 Hz simulation ticks. A centred track chord removes abrupt sampled-heading changes. The chassis stays level during steering and drifting; rival hit spins, boost pulsing, shield blinking/scaling and driver cosmetic bobbing are disabled in the race view. Physics, inputs, timers and ranking rules are unchanged.
+
+The running Three.js view passed assertions that alternating steering leaves chassis rotation and camera position unchanged for the same race state, stunned rivals do not spin, and boost/shield scale stays constant. A real 390px game was exercised at turbo speed with no horizontal overflow. Front steering now eases visual changes independently of the immediate driving input. Round 32-segment tyres and solid rims retain fixed surface orientations so rapid rolling cannot produce polygon strobing. The running view verified all 32 wheels at 31 m/s and rapid alternating steering, and regression tests cover steering response at 30/60/120 Hz. Regression tests verify uniform 120 Hz presentation over 60 Hz physics, continuous headings at segment/lap boundaries, and unmodified simulation state. Physical-device comfort remains a user observation, not a claim made by these automated checks.
+
+
 ## Coast Rush clarity and post-race setup, 4 October 2026
 
 - All 171 Node tests passed, including the opt-in Chromium account and menu tests. Eight Cloudflare integration tests, TypeScript/build, deployment dry-run and `git diff --check` passed.
@@ -362,4 +369,5 @@ New captures:
 Testing used desktop Chromium with resized browser viewports and pointer input. Physical Android/iPhone performance, Safari/Firefox differences, sustained thermal behaviour, and the plan's 30-avatar/30-FPS device target are not verified. The 30-minute reminder is implemented but was not exercised by waiting for a full 30-minute foreground session.
 
 At the time of this historical baseline, the prototype did not implement authentication/logout, public multiplayer, trusted scores, server-side challenge accounting, payments or cloud persistence. The current sections above supersede those account and scoring limits. Away activities resume locally from saved timestamps; a closed browser does not render them for other users. The demo names and scores are clearly identified in their panels. It is not a validated launch of the entire implementation plan.
+
 

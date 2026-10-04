@@ -1,5 +1,5 @@
 import * as T from "three";
-import { KartWheel, KART_WHEEL_RADIUS } from "./kart-motion";
+import { KartSteering, KartWheel, KART_WHEEL_RADIUS } from "./kart-motion";
 import { RaceCameraFollow } from "./race-camera";
 import { raceTrackPose, type RaceMotion } from "./race-motion";
 import {
@@ -36,6 +36,7 @@ export class RaceView {
   private readonly textures: T.Texture[] = [];
   private readonly wheels: KartWheel[];
   private readonly wheel = new T.Group();
+  private readonly steering = new KartSteering();
   private readonly rivals: {
     kart: T.Group;
     avatar: Avatar;
@@ -828,15 +829,15 @@ export class RaceView {
     this.box(parent, 0, 0.49, -0.25, 0.8, 0.12, 0.67, "#29424c");
     this.box(parent, 0, 0.69, 0.93, 0.38, 0.07, 0.65, "#fff7d8");
     const tireGeo = this.geo(
-      new T.CylinderGeometry(KART_WHEEL_RADIUS, KART_WHEEL_RADIUS, 0.28, 14),
+      new T.CylinderGeometry(KART_WHEEL_RADIUS, KART_WHEEL_RADIUS, 0.28, 32),
     );
-    const rimGeo = this.geo(new T.CylinderGeometry(0.17, 0.17, 0.29, 8));
+    const rimGeo = this.geo(new T.CylinderGeometry(0.17, 0.17, 0.29, 32));
     for (const x of [-0.79, 0.79])
       for (const z of [-0.64, 0.73]) {
         const w = new KartWheel(x, z);
         parent.add(w.steering);
         const tire = this.mesh(
-          w.rolling,
+          w.steering,
           tireGeo,
           this.mat("#1d303c"),
           0,
@@ -844,7 +845,7 @@ export class RaceView {
           0,
         );
         tire.rotation.z = Math.PI / 2;
-        const rim = this.mesh(w.rolling, rimGeo, this.mat("#dbe4da"), 0, 0, 0);
+        const rim = this.mesh(w.steering, rimGeo, this.mat("#dbe4da"), 0, 0, 0);
         rim.rotation.z = Math.PI / 2;
         wheels.push(w);
       }
@@ -872,8 +873,9 @@ export class RaceView {
     this.kart.position.set(p.x, 0.15, p.z);
     // Keep the chassis level. Steering and drift must not rock the whole view.
     this.kart.rotation.set(0, p.yaw, 0);
-    this.wheel.rotation.z = -steer * 0.4;
-    this.wheels.forEach((w) => w.pose(distance, steer));
+    const visualSteer = this.steering.update(steer, dt);
+    this.wheel.rotation.z = -visualSteer * 0.4;
+    this.wheels.forEach((w) => w.pose(visualSteer));
     animateDetails(this.avatar, time, "drive", true);
     if (this.avatar.pet) {
       this.avatar.pet.root.position.set(1.12, 0.5, -0.18);
@@ -904,7 +906,7 @@ export class RaceView {
       // Hits still stop the racer, without a repeated spinning animation.
       kart.rotation.set(0, at.yaw, 0);
       this.rivals[i].cloud.visible = r.slow > 0 && !r.finishTick;
-      wheels.forEach((w) => w.pose(along, 0));
+      wheels.forEach((w) => w.pose(0));
       animateDetails(avatar, time, "drive", true);
     });
     this.missiles.forEach((mesh, i) => {
