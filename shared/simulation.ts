@@ -7,6 +7,10 @@ export const COAST_RULES_VERSION = 3;
 export const rulesVersion = (game: string) =>
   game === "coast" ? COAST_RULES_VERSION : RULES_VERSION;
 export const TICK_RATE = 60;
+/** Brick Bash: the Big Brick arrives at this second, or once the wall is gone. */
+export const BRICK_BOSS_AT = 35;
+export const BRICK_BOSS_HP = 8;
+type Ball = { x: number; y: number; vx: number; vy: number };
 export type Input = [number, number, number, number, number, number];
 export type Event = [number, ...Input];
 export type Replay = { version: number; ticks: number; events: Event[] };
@@ -30,6 +34,17 @@ export class Simulation {
   ball = { x: 220, y: 395, vx: 125, vy: -230 };
   lives = 3;
   bricks: { x: number; y: number; alive: boolean; color: string }[] = [];
+  /** Brick Bash extras: more balls, falling capsules, and the boss with its bombs. */
+  extra: Ball[] = [];
+  drops: { x: number; y: number; kind: "wide" | "multi" }[] = [];
+  /** Seconds of wide paddle left. */
+  wide = 0;
+  boss: { x: number; hp: number; dir: number; fire: number } | null = null;
+  bossSpawned = false;
+  bossDefeated = false;
+  bombs: { x: number; y: number }[] = [];
+  /** Seconds during which another bomb cannot hurt. */
+  guard = 0;
 
   race: CoastRace | null;
   action: HopRun | StarFlight | null;
@@ -177,11 +192,93 @@ export class Simulation {
       );
     } else this.snake.pop();
   }
+  get paddleHalf() {
+    return this.wide > 0 ? 66 : 46;
+  }
   tickBrick(dt: number) {
     if (this.ended) return;
-    const axis = this.axis;
-    this.paddle = Math.max(46, Math.min(394, this.paddle + axis * 390 * dt));
-    const b = this.ball;
+    const half = this.paddleHalf;
+    this.paddle = Math.max(
+      half,
+      Math.min(440 - half, this.paddle + this.axis * 390 * dt),
+    );
+    this.wide = Math.max(0, this.wide - dt);
+    this.guard = Math.max(0, this.guard - dt);
+    if (
+      !this.bossSpawned &&
+      (this.elapsed >= BRICK_BOSS_AT || this.bricks.every((r) => !r.alive))
+    ) {
+      this.bossSpawned = true;
+      this.boss = { x: 220, hp: BRICK_BOSS_HP, dir: 1, fire: 1.2 };
+    }
+    const boss = this.boss;
+    if (boss) {
+      boss.x += boss.dir * 70 * dt;
+      if (boss.x < 60 || boss.x > 380) {
+        boss.x = Math.max(60, Math.min(380, boss.x));
+        boss.dir = -boss.dir;
+      }
+      boss.fire -= dt;
+      if (boss.fire <= 0) {
+        this.bombs.push({ x: boss.x, y: 252 });
+        boss.fire = 1.5;
+      }
+    }
+    const caught = (p: { x: number; y: number }) =>
+      p.y >= 406 && p.y <= 424 && Math.abs(p.x - this.paddle) < half + 6;
+    for (const bomb of this.bombs) {
+      bomb.y += 150 * dt;
+      if (caught(bomb)) {
+        bomb.y = 999;
+        if (this.guard > 0) continue;
+        this.guard = 1.2;
+        this.lives--;
+        if (!this.lives) {
+          this.end();
+          return;
+        }
+      }
+    }
+    this.bombs = this.bombs.filter((b) => b.y < 450);
+    for (const drop of this.drops) {
+      drop.y += 110 * dt;
+      if (!caught(drop)) continue;
+      drop.y = 999;
+      if (drop.kind === "wide") this.wide = 8;
+      else if (this.extra.length < 2) {
+        // Two more balls fan out from the first.
+        for (const turn of [-120, 120]) {
+          const vx = Math.max(-245, Math.min(245, this.ball.vx + turn));
+          this.extra.push({
+            x: this.ball.x,
+            y: this.ball.y,
+            vx,
+            vy: -Math.sqrt(290 * 290 - vx * vx),
+          });
+        }
+      } else this.score += 30;
+    }
+    this.drops = this.drops.filter((d) => d.y < 450);
+    for (const b of [this.ball, ...this.extra]) {
+      this.stepBall(b, dt);
+      if (this.ended) return;
+    }
+    this.extra = this.extra.filter((b) => b.y <= 450);
+    if (this.ball.y > 450) {
+      // A life is lost only when the last ball falls.
+      if (this.extra.length) this.ball = this.extra.shift()!;
+      else {
+        this.lives--;
+        if (!this.lives) {
+          this.end();
+          return;
+        }
+        this.ball = { x: this.paddle, y: 390, vx: 125, vy: -230 };
+      }
+    }
+  }
+  private stepBall(b: Ball, dt: number) {
+    const half = this.paddleHalf;
     b.x += b.vx * dt;
     b.y += b.vy * dt;
     if (b.x < 10) {
@@ -199,13 +296,27 @@ export class Simulation {
     if (
       b.y > 403 &&
       b.y < 420 &&
-      Math.abs(b.x - this.paddle) < 49 &&
+      Math.abs(b.x - this.paddle) < half + 3 &&
       b.vy > 0
     ) {
-      const fraction = (b.x - this.paddle) / 48;
+      const fraction = (b.x - this.paddle) / (half + 2);
       b.vx = fraction * 245;
       b.vy = -Math.sqrt(290 * 290 - b.vx * b.vx);
       b.y = 403;
+    }
+    const boss = this.boss;
+    if (boss && Math.abs(b.x - boss.x) < 53 && b.y > 215 && b.y < 255) {
+      // The ball leaves the way it came.
+      b.vy = b.vy > 0 ? -Math.abs(b.vy) : Math.abs(b.vy);
+      b.y = b.vy > 0 ? 255 : 215;
+      boss.hp--;
+      this.score += 40;
+      if (!boss.hp) {
+        this.boss = null;
+        this.bossDefeated = true;
+        this.bombs = [];
+        this.score += 300;
+      }
     }
     for (const r of this.bricks)
       if (
@@ -218,24 +329,18 @@ export class Simulation {
         r.alive = false;
         b.vy = -b.vy;
         this.score += 15;
-
-        if (this.bricks.every((r) => !r.alive)) {
-          this.score += 100;
-          this.end();
-        }
+        // About one brick in six drops a capsule.
+        if (this.random() < 0.17)
+          this.drops.push({
+            x: r.x + 22,
+            y: r.y + 9,
+            kind: this.random() < 0.5 ? "wide" : "multi",
+          });
         break;
       }
-    if (b.y > 450) {
-      this.lives--;
-
-      if (!this.lives) {
-        this.end();
-        return;
-      }
-      b.x = this.paddle;
-      b.y = 390;
-      b.vx = 125;
-      b.vy = -230;
+    if (this.bossDefeated && this.bricks.every((r) => !r.alive)) {
+      this.score += 100;
+      this.end();
     }
   }
 }

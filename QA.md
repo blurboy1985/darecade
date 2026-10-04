@@ -1,5 +1,16 @@
 # Darecade verification — 3 October 2026
 
+## Brick Bash power-ups, boss and 3D effects, 4 October 2026
+
+Not deployed. The Brick Bash simulation changed; its rules version did not, so a round in progress during a deploy, or played on a page loaded before it, fails verification until the page is reloaded.
+
+- **Power-ups.** About one brick in six drops a capsule. WIDE widens the paddle for eight seconds. ×3 adds two balls; only losing the last ball costs a life, and a ×3 caught with three balls in play pays 30 points instead.
+- **Boss.** The Big Brick arrives at 0:35, or as soon as the wall is cleared. It slides below the wall, blocks the ball and drops a bomb every 1.5 seconds; a bomb on the paddle costs a life. Eight hits beat it, at +40 a hit and +300 for the win. The round ends early only when the wall and the boss are both gone.
+- **3D effects.** A transparent three.js layer over the 2D game, loaded on demand (3.7 kB): bricks shatter into tumbling cubes, the boss is a 3D block that flinches when hit and bursts when beaten, and capsules and bombs ring out from the paddle. With reduce motion, or without WebGL, the 2D canvas draws the boss itself.
+- **135 Node tests passed, none failed, and the two browser checks that need `DARECADE_TEST_CHROMIUM` were skipped; 7/7 Cloudflare integration tests passed.** TypeScript and the Vite build passed. New `tests/brick.test.ts` covers the boss's arrival, bombs, the eight hits and both endings, both capsules, ball loss, and a full replayed round.
+- Tested in an isolated local Chromium on port 4192 with a synthetic guest and a player that found the ball on the canvas and dragged the paddle under it. The round reached the boss, beat it in eight hits while losing two lives to bombs, and finished on **1320**, server-verified. Shattering bricks, a WIDE capsule, the 3D boss, its health bar and a bomb were seen on screen. No page errors.
+- **Not verified:** the reduce-motion 2D boss on screen; multi-ball on screen (tests only); touch input and a physical phone; whether the boss is the right difficulty for a person.
+
 ## Hop Hop review, 4 October 2026
 
 Not deployed. The Hop Hop simulation changed; its rules version did not, so a round in progress during a deploy, or played on a page loaded before it, fails verification until the page is reloaded.

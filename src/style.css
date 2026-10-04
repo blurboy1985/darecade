@@ -1776,6 +1776,13 @@ dialog::backdrop {
   display: block;
   touch-action: none;
 }
+/* Brick Bash's 3D effects sit over the game and never take input. */
+.game-screen canvas.brick-fx {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  pointer-events: none;
+}
 .game-cover {
   position: absolute;
   inset: 0;
