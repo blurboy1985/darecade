@@ -48,7 +48,11 @@ for (const outcome of [
     let focusCalls = 0;
     let closeCalls = 0;
     const opened: { onSkipped: () => void }[] = [];
-    const button = { disabled: false, dataset: { action: "setup-save" } };
+    const button = {
+      disabled: false,
+      dataset: { action: "setup-save" },
+      hasAttribute: () => false,
+    };
     const status = { textContent: "" };
     const input = { value: "newname", focus: () => focusCalls++ };
     const body = {

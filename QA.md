@@ -1,4 +1,33 @@
-# Darecade verification — 3 October 2026
+# Darecade verification
+
+## Integrated production release — 4 October 2026
+
+PRs #11–16 are integrated with grouped wardrobe previews, ten S$1.99 premium
+sets, live Stripe configuration, and S$2/S$5/S$10/S$50 one-time donations.
+
+- 166/166 Node tests passed, including both real headless Chromium checks;
+  no skips. 8/8 Cloudflare integration tests passed. TypeScript, Vite and the
+  Worker deployment dry run passed. Existing large-chunk advisory remains.
+- The merged build was opened in the operator's Chrome using an isolated local
+  database and synthetic email outbox. Play/Explore/Menu, My stuff, Support,
+  all four donation amounts and ten premium prices were verified. All ten set
+  thumbnails loaded before selection; a locked set could be previewed and
+  reset without equipping. No browser errors were recorded.
+- A requested 320px viewport produced a measured 355px Chrome viewport on this
+  machine; the narrow wardrobe view had no horizontal overflow. Earlier 320px
+  feature checks below are separate evidence, not a claim about this run.
+- Earlier Stripe sandbox purchase and refund checks and the live unpaid
+  checkout/webhook check are recorded in PAYMENTS.md. No real payment was made.
+- Coast Rush uses route/rules version 3 and archives old bests while retaining
+  medals. Pages open before deployment should reload before starting a round,
+  because Hop Hop and Brick Bash simulation changes retain their version.
+- Open Stage rewards remain bounded client reports (45 XP/day), unlike the
+  replay-verified arcade and outdoor rounds. This is an existing documented
+  limitation, not a score-verification guarantee.
+
+The sections below preserve feature-branch test history. Their "Not deployed"
+notes describe the state before this integrated release.
+
 
 ## Invite a friend, 4 October 2026
 

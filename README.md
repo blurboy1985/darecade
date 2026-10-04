@@ -2,6 +2,16 @@
 
 A working shared 3D neighbourhood with persistent accounts, saved avatars, server-validated arcade progression and shared dares, inspired by the supplied Darecade implementation plan. Original Singapore neighbourhood scenery, five playable arcade games, and a hand-built Blender dragon playground.
 
+## Integrated release — 4 October 2026
+
+The menu has three main actions: Play, Explore and Menu. Find grouped,
+preview-first cosmetics under Menu → My stuff → My look. Ten original themed
+sets can be earned through play or bought for S$1.99 each. Support & purchases
+also offers one-time S$2, S$5, S$10 and S$50 donations in SGD. Donations grant
+no gameplay advantage. See [WARDROBE.md](WARDROBE.md), [PAYMENTS.md](PAYMENTS.md)
+and [QA.md](QA.md). PRs #11–16 are integrated; the combined build passes all
+166 Node and 8 Cloudflare tests.
+
 ## Cloudflare hosting — 3 October 2026
 
 The game is live at **https://darecade.daniel-tianwen.workers.dev** on Workers Free, with accounts and the persistent SQLite Durable Object binding enabled. Resend sends sign-in links from the verified `hello@darecade.danielquek.com` identity using a private Cloudflare secret. The same support/privacy address has active free Cloudflare forwarding to the operator's verified inbox. Live checks verified age/consent rejection, avatar persistence, a replay-validated practice round, duplicate reward protection, weekly-board access, export and disposable-profile deletion. Resend reports the single approved test email as delivered, and the operator confirmed Gmail receipt and successful entry to the neighbourhood through its sign-in link. See [HOSTING.md](HOSTING.md) for details and remaining operational checks. No paid service or domain was purchased. The local Node service and its data remain supported.

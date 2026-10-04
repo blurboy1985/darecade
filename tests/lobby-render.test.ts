@@ -9,6 +9,7 @@ import * as appearance from "../src/appearance.ts";
 import * as menus from "../src/lobby-menu.ts";
 import * as interactions from "../src/interactions.ts";
 import * as neighbourhood from "../src/neighbourhood.ts";
+import * as wardrobe from "../src/wardrobe.ts";
 
 // Evaluate the actual render functions. The small element fixture only records
 // generated HTML, selection and replacement; it is not a browser/DOM substitute.
@@ -154,6 +155,7 @@ function harness() {
     ...menus,
     ...interactions,
     ...neighbourhood,
+    ...wardrobe,
     body,
     document: {
       querySelector: () => inspector,
@@ -186,7 +188,9 @@ function harness() {
     is2d: true,
     innerWidth: 1024,
     world: null,
-    wardrobeTab: "style",
+    wardrobeTab: "clothing",
+    wardrobeCollection: "starter",
+    tryingLook: null,
     setupGuide: false,
     gamePage: 0,
     outdoorPage: 0,
@@ -278,16 +282,32 @@ test("real menu renders have at most three primary actions with populated social
     "dares-neighbour",
     "dares-post",
     "board",
-    "wardrobe",
   ]) {
     h.run(`open(${JSON.stringify(id)})`);
     checkActions(h.body.innerHTML, id);
   }
-  h.context.setupGuide = true;
-  h.run('open("wardrobe")');
-  checkActions(h.body.innerHTML, "guided wardrobe");
   h.run('renderPlayerInspector("p0")');
   checkActions(h.inspector.innerHTML, "player inspector");
+});
+
+test("wardrobe renders previews before selection without equipping them", () => {
+  const h = harness();
+  const before = structuredClone(h.context.save);
+  for (const tab of ["clothing", "hair", "pet", "accessory", "sets"]) {
+    h.context.wardrobeTab = tab;
+    h.run('open("wardrobe")');
+    const html = h.body.innerHTML;
+    const cards = [
+      ...html.matchAll(/<article class="collection-card[\s\S]*?<\/article>/g),
+    ];
+    assert.ok(cards.length > 0, tab);
+    for (const [card] of cards) {
+      assert.match(card, /<img[^>]+src="\/wardrobe\//);
+      assert.match(card, /aria-label="Preview /);
+    }
+    assert.match(html, /Tap a card to try it on/);
+    assert.deepEqual(h.context.save, before);
+  }
 });
 
 test("all paginated choices remain reachable, including later games and quests", () => {

@@ -1,7 +1,8 @@
 # Donations and premium looks
 
 Implemented for the local Node server and Cloudflare Worker. Premium set
-purchases are enabled in production at S$1.99 per complete set. The separate
+purchases are enabled in production at S$1.99 per complete set. One-time
+donations are S$2, S$5, S$10 or S$50, all in SGD. The separate
 local sandbox purchase and refund passed; no real payment has been processed
 as part of setup.
 

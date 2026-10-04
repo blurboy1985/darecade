@@ -394,7 +394,10 @@ function cards() {
   return `<div class="game-grid compact-games">${choices.items.map((id) => `<button class="game-card ${id}" data-game="${id}"><div class="game-art ${id}-art">${art[id]}</div><span class="eyebrow">${games[id].genre}</span><h3>${games[id].name}</h3><div><span>${id === "coast" ? "3 laps" : "60s"} · BEST ${formatScore(id, shared?.self.best[id] ?? 0)}</span>${icon("arrow")}</div></button>`).join("")}</div>${pager(choices.page, choices.total, "games")}`;
 }
 function open(id: string) {
-  if (id !== "wardrobe") { setupGuide = false; tryingLook = null; }
+  if (id !== "wardrobe") {
+    setupGuide = false;
+    tryingLook = null;
+  }
   if (
     firstRacePending() &&
     ![

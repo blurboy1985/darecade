@@ -1,8 +1,8 @@
 # Menu and wardrobe
 
-The dock has four destinations: Play, Explore, My look and More. More groups
-rewards, social features, outdoor activities and preferences. Camera options
-are in Settings. Emotes and the album remain accessible through More.
+The dock has three main actions: Play, Explore and Menu. Menu groups My stuff,
+Friends and Settings. My stuff contains My look, Rewards and Support & purchases.
+Camera and account options are in Settings; social tools are under Friends.
 
 My look separates browsing from equipping. Every card has a PNG rendered from
 the actual 3D assets, including locked pieces and complete sets. Selecting a
@@ -19,7 +19,7 @@ resetting the preview discards it. The lightweight lobby uses the same PNGs.
 Each 100 lifetime XP earns one Style token. Available tokens equal
 `floor(XP / 100) - tokens already exchanged`. Exchanges preserve XP, level,
 medals and rankings. Tokens cannot be bought with money. Optional Stripe payments can buy complete
-sets directly; checkout is disabled until configured. See PAYMENTS.md. Existing saved appearance indices keep their meanings. An
+sets directly for S$1.99; production checkout is enabled. See PAYMENTS.md. Existing saved appearance indices keep their meanings. An
 already-worn older item remains wearable when other slots change.
 
 Each Legendary set costs tokens AND requires the listed lifetime medal points
@@ -45,7 +45,7 @@ grant XP, tokens or ownership. Presence updates cannot equip an unowned look.
 
 ## Verification
 
-Validated with the TypeScript/Vite build, 105 Node tests and 7 Cloudflare
+Validated with the TypeScript/Vite build, 166 Node tests and 8 Cloudflare
 integration tests, including the deployment dry run. Browser checks covered
 desktop, 320px phone layout, locked previews, explicit equip, server persistence,
 token exchange and the 2D fallback. Browser testing used a separate local test
@@ -58,4 +58,5 @@ as PNGs. Windows PowerShell can pass the script to `agent-browser eval -b`
 using `[Convert]::ToBase64String([IO.File]::ReadAllBytes(...))` to preserve
 multiline JavaScript. Run `npm run build` after changing the previews.
 
-This change was verified locally; it has not been deployed or pushed.
+Integrated with PRs #11–16 for the 4 October production release. See QA.md for
+merged-release checks and the historical feature-level checks.
