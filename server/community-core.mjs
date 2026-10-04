@@ -200,7 +200,7 @@ export class CommunityCore {
     if (months < 0) throw Error("Choose a valid birth month and year.");
     if (months < 13 * 12)
       throw Error(
-        "Darecade is for ages 13 and over. No profile has been created and your birth details have not been saved.",
+        "Play Simi is for ages 13 and over. No profile has been created and your birth details have not been saved.",
       );
     return months < 18 * 12 ? "13–17" : "18+";
   }
@@ -483,8 +483,8 @@ export class CommunityCore {
     try {
       await this.sendEmail(
         email,
-        `${code} is your Darecade code`,
-        `Your Darecade code is ${code}\n\nType it into the Darecade window you already have open. It expires in ${CODE_MINUTES} minutes and works once. Do not share it.\n\nIf you did not request this, ignore this email.`,
+        `${code} is your Play Simi code`,
+        `Your Play Simi code is ${code}\n\nType it into the Play Simi window you already have open. It expires in ${CODE_MINUTES} minutes and works once. Do not share it.\n\nIf you did not request this, ignore this email.`,
         key,
         { code, expires },
       );
@@ -515,8 +515,8 @@ export class CommunityCore {
     try {
       await this.sendEmail(
         normal,
-        "Your Darecade sign-in request",
-        `Someone asked to sign in to Darecade with this email address, but no Darecade account uses it yet.\n\nPlayed as a guest? Your avatar and progress are saved in the browser you played on. Open Darecade there, choose More → Account & privacy → Create my account, and enter this email. After that you can sign in on any device.\n\nNew to Darecade? Start here: ${this.origin}\n\nIf you did not ask for this, ignore this email. We will not email this address again for at least an hour.`,
+        "Your Play Simi sign-in request",
+        `Someone asked to sign in to Play Simi with this email address, but no Play Simi account uses it yet.\n\nPlayed as a guest? Your avatar and progress are saved in the browser you played on. Open Play Simi there, choose More → Account & privacy → Create my account, and enter this email. After that you can sign in on any device.\n\nNew to Play Simi? Start here: ${this.origin}\n\nIf you did not ask for this, ignore this email. We will not email this address again for at least an hour.`,
         hash(randomBytes(32)),
         { notice: true },
       );
@@ -618,13 +618,13 @@ export class CommunityCore {
       .get(id);
     return !!a && a.created + DAY <= this.now();
   }
-  /** Why this player cannot dare yet, with the real opening time. */
+  /** Why this player cannot challenge yet, with the real opening time. */
   dareHold(id) {
     const a = this.db
       .prepare("SELECT created FROM accounts WHERE player=?")
       .get(id);
     if (!a)
-      return "Save with email to dare. Shared dares open 24 hours after account verification. Regular rounds are available now.";
+      return "Save with email to challenge. Shared challenges open 24 hours after account verification. Regular rounds are available now.";
     const opens = new Date(a.created + DAY).toLocaleString("en-SG", {
       timeZone: "Asia/Singapore",
       weekday: "short",
@@ -634,9 +634,9 @@ export class CommunityCore {
       minute: "2-digit",
       hour12: false,
     });
-    return `Your dares open ${opens} SGT, 24 hours after account verification. Regular rounds are available now.`;
+    return `Your challenges open ${opens} SGT, 24 hours after account verification. Regular rounds are available now.`;
   }
-  // Every verified round by an email account is ranked; only dares wait 24h.
+  // Every verified round by an email account is ranked; only challenges wait 24h.
   rankedAccount(id) {
     return !!this.db.prepare("SELECT 1 FROM accounts WHERE player=?").get(id);
   }
@@ -655,13 +655,13 @@ export class CommunityCore {
         this.db.prepare("SELECT version FROM runs WHERE id=?").get(dare.run)
           ?.version !== rulesVersion(game)
       )
-        throw Error("This dare has closed.");
+        throw Error("This challenge has closed.");
       if (
         this.db
           .prepare("SELECT 1 FROM runs WHERE player=? AND dare=?")
           .get(id, dareId)
       )
-        throw Error("You already challenged this dare.");
+        throw Error("You already played this challenge.");
       target = dare.host;
       seed = dare.seed;
       score = dare.score;
@@ -670,11 +670,11 @@ export class CommunityCore {
       if (
         this.db.prepare("SELECT 1 FROM suspensions WHERE player=?").get(target)
       )
-        throw Error("This dare is unavailable.");
+        throw Error("This challenge is unavailable.");
       if (!this.eligibleAccount(id)) throw Error(this.dareHold(id));
       if (!this.eligibleAccount(target))
         throw Error(
-          "This neighbour’s dares are not open yet. Shared dares open 24 hours after account verification.",
+          "This neighbour’s challenges are not open yet. Shared challenges open 24 hours after account verification.",
         );
       if (
         this.db
@@ -683,7 +683,7 @@ export class CommunityCore {
           )
           .get(id, target, target, id)
       )
-        throw Error("This dare is unavailable.");
+        throw Error("This challenge is unavailable.");
       if (!dare) {
         const best = this.db
           .prepare(
@@ -822,14 +822,14 @@ export class CommunityCore {
         .get(runId, id);
       if (!r) throw Error("Choose a positive, validated round to post.");
       if (this.db.prepare("SELECT 1 FROM dares WHERE run=?").get(runId))
-        throw Error("This round is already a dare.");
+        throw Error("This round is already a challenge.");
       const start = Date.parse(`${day(this.now())}T00:00:00+08:00`);
       if (
         this.db
           .prepare("SELECT COUNT(*) n FROM dares WHERE host=? AND created>=?")
           .get(id, start).n >= 3
       )
-        throw Error("You have posted three dares today.");
+        throw Error("You have posted three challenges today.");
       const d = {
         id: randomUUID(),
         host: id,

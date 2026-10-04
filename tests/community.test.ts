@@ -330,9 +330,12 @@ test("posted dares preserve host seed and score, expire and use only three outgo
     s.store.abandon(b.me.id, challenge.id);
     assert.throws(
       () => s.community.begin(b.me.id, "noodle", null, dare.id),
-      /already challenged/,
+      /already played this challenge/,
     );
-    assert.throws(() => s.community.postDare(a.me.id, r.id), /already a dare/);
+    assert.throws(
+      () => s.community.postDare(a.me.id, r.id),
+      /already a challenge/,
+    );
     s.tick(DAY + 1);
     assert.throws(
       () => s.community.begin(b.me.id, "noodle", null, dare.id),
@@ -444,7 +447,7 @@ test("only three outgoing dares are allowed and a midnight reset cannot repeat a
     // First post was just after midnight on October 4, so it remains open briefly.
     assert.throws(
       () => s.community.begin(challenger.me.id, "noodle", null, dares[0].id),
-      /already challenged/,
+      /already played this challenge/,
     );
     assert.ok(
       s.community.begin(challenger.me.id, "noodle", null, dares[3].id).id,

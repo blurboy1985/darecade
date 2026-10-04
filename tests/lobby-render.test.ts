@@ -428,22 +428,25 @@ test("locked dares show their real opening time and never promise dares for toda
   ];
   h.context.shared.recentRuns = [{ id: "r1", game: "hop", score: 100 }];
   const playButtons = (html: string) =>
-    [...html.matchAll(/<button\b[^>]*>(?:Play|Post) dare<\/button>/g)].map(
+    [...html.matchAll(/<button\b[^>]*>(?:Play|Post) challenge<\/button>/g)].map(
       ([button]) => button,
     );
   for (const view of ["home", "open", "neighbour", "post"]) {
     h.context.dareView = view;
     h.run("renderSharedDares()");
     const html = h.body.innerHTML;
-    assert.match(html, /Your dares open Mon, 5 Oct, 14:30 SGT/, view);
+    assert.match(html, /Your challenges open Mon, 5 Oct, 14:30 SGT/, view);
     assert.doesNotMatch(html, /left today/, view);
     for (const button of playButtons(html)) assert.match(button, /disabled/);
     checkActions(html, `locked dares ${view}`);
   }
   h.run('renderPlayerInspector("p0")');
-  assert.match(h.inspector.innerHTML, /Dares are not open for you yet/);
-  assert.match(h.inspector.innerHTML, /Your dares open Mon, 5 Oct, 14:30 SGT/);
-  assert.doesNotMatch(h.inspector.innerHTML, /Ready for a friendly dare/);
+  assert.match(h.inspector.innerHTML, /Challenges are not open for you yet/);
+  assert.match(
+    h.inspector.innerHTML,
+    /Your challenges open Mon, 5 Oct, 14:30 SGT/,
+  );
+  assert.doesNotMatch(h.inspector.innerHTML, /Ready for a friendly challenge/);
 
   // Once the wait is over, the count and a playable button appear together.
   h.context.shared.competitionReady = true;
@@ -458,7 +461,7 @@ test("locked dares show their real opening time and never promise dares for toda
     h.run("renderSharedDares()");
     assert.match(h.body.innerHTML, /0\/3 left today/);
     assert.match(playButtons(h.body.innerHTML)[0], /disabled/);
-    assert.match(h.body.innerHTML, /No dares left today/);
+    assert.match(h.body.innerHTML, /No challenges left today/);
   }
 });
 

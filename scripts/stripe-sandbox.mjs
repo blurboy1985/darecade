@@ -8,7 +8,7 @@ import { parseEnv } from "node:util";
 const file = resolve(".env.stripe-sandbox");
 const config = parseEnv(readFileSync(file, "utf8"));
 if (!config.STRIPE_SECRET_KEY?.startsWith("sk_test_"))
-  throw Error("Enter the Darecade sandbox secret key in .env.stripe-sandbox.");
+  throw Error("Enter the Play Simi sandbox secret key in .env.stripe-sandbox.");
 if (
   config.PUBLIC_ORIGIN !== "http://127.0.0.1:4174" ||
   config.PORT !== "4174" ||
@@ -21,7 +21,7 @@ const check = await fetch("https://api.stripe.com/v1/account", {
   signal: AbortSignal.timeout(15000),
 });
 if (!check.ok || (await check.json()).id !== "acct_1UMkqOPB58tsspFG")
-  throw Error("This key does not belong to the Darecade sandbox.");
+  throw Error("This key does not belong to the Play Simi sandbox.");
 
 const executable = resolve(
   ".browser/stripe-tools/node_modules/@stripe/cli-win32-x64/bin/stripe.exe",

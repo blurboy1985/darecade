@@ -366,7 +366,7 @@ const timer = setInterval(() => {
 timer.unref();
 server.listen(Number(process.env.PORT || 4173), "127.0.0.1", () =>
   console.log(
-    `Darecade neighbourhood ready at http://127.0.0.1:${process.env.PORT || 4173}`,
+    `Play Simi neighbourhood ready at http://127.0.0.1:${process.env.PORT || 4173}`,
   ),
 );
 process.on("SIGINT", () => {

@@ -552,7 +552,7 @@ export class RaceView {
     );
     this.label(
       line,
-      "DARECADE",
+      "PLAY SIMI",
       0,
       5.5,
       0.24,

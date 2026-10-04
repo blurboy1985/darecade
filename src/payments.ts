@@ -41,7 +41,7 @@ const text = (s: string) =>
       ] ?? c,
   );
 const productName = (id: string) =>
-  legendarySets.find((s) => s.id === id)?.name ?? "Donation to Darecade";
+  legendarySets.find((s) => s.id === id)?.name ?? "Donation to Play Simi";
 
 export async function mountPayments(
   host: HTMLElement,
@@ -50,7 +50,7 @@ export async function mountPayments(
   cancelled = false,
 ) {
   host.innerHTML =
-    '<section class="payment-panel"><h2>Support Darecade</h2><p role="status">Loading payment options…</p></section>';
+    '<section class="payment-panel"><h2>Support Play Simi</h2><p role="status">Loading payment options…</p></section>';
   const panel = host.querySelector<HTMLElement>(".payment-panel")!;
   let message = cancelled
     ? "Checkout was cancelled. No new look has been granted."
@@ -67,7 +67,7 @@ export async function mountPayments(
         result.status === "paid"
           ? result.kind === "set"
             ? `${productName(result.product)} is yours. Find all four pieces in My look.`
-            : "Thank you for supporting Darecade! Your donation is confirmed."
+            : "Thank you for supporting Play Simi! Your donation is confirmed."
           : `Payment status: ${result.status}. Refresh to check again. Sets unlock only after payment is confirmed.`;
     }
     const [config, orders] = await Promise.all([
@@ -84,7 +84,7 @@ export async function mountPayments(
         return '<button class="secondary" disabled>Payments coming soon</button>';
       return `<button class="primary" data-checkout="${text(p.id)}" ${currentProfile?.account ? "" : "disabled"}>${p.kind === "donation" ? "Donate" : "Buy set"} · ${money(p.amount)}</button>`;
     };
-    panel.innerHTML = `<span class="eyebrow">OPTIONAL SUPPORT</span><h2>${selected ? text(selected.name) : "Support Darecade"}</h2><p class="lead">Help keep the neighbourhood growing.</p><p class="payment-status" role="status">${text(message)}</p>${!config.enabled ? '<div class="note">Payments are not open yet. Prices will appear when checkout is ready. You can still earn every Legendary set by playing.</div>' : config.testMode ? '<div class="note">Test checkout. No real payments.</div>' : ""}${!currentProfile?.account ? '<p>Save your account with email to keep purchases across devices.</p><button class="secondary" data-payment-account>Save my account</button>' : ""}<section><h3>Premium looks</h3><p>One payment unlocks the complete outfit, headwear, pet and magic. No medal requirement or token deduction. All looks are cosmetic.</p><div class="payment-products">${(selected
+    panel.innerHTML = `<span class="eyebrow">OPTIONAL SUPPORT</span><h2>${selected ? text(selected.name) : "Support Play Simi"}</h2><p class="lead">Help keep the neighbourhood growing.</p><p class="payment-status" role="status">${text(message)}</p>${!config.enabled ? '<div class="note">Payments are not open yet. Prices will appear when checkout is ready. You can still earn every Legendary set by playing.</div>' : config.testMode ? '<div class="note">Test checkout. No real payments.</div>' : ""}${!currentProfile?.account ? '<p>Save your account with email to keep purchases across devices.</p><button class="secondary" data-payment-account>Save my account</button>' : ""}<section><h3>Premium looks</h3><p>One payment unlocks the complete outfit, headwear, pet and magic. No medal requirement or token deduction. All looks are cosmetic.</p><div class="payment-products">${(selected
       ? [selected]
       : legendarySets
     )

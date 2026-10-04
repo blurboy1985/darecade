@@ -63,7 +63,7 @@ export async function mountInvite(
   const link = `${location.origin}/?invite=${summary.code}`;
   const waiting = summary.joined - summary.played;
   const paid = Math.min(summary.cap, summary.played);
-  root.innerHTML = `<h2>Invite a friend</h2><p class="lead">Send your link. When a friend finishes their first round, you both get +${summary.friendXp} XP.</p><label class="field-label" for="invite-link">Your link</label><input id="invite-link" class="invite-link" readonly><div class="button-row"><button class="primary" id="invite-share">Share link</button><button class="secondary" id="invite-copy">Copy link</button></div><div class="invite-progress" role="status"><strong></strong><span></span></div><p class="fine-print">Rewards are for your first ${summary.cap} friends who play. Darecade never asks for your friends’ contact details.</p>`;
+  root.innerHTML = `<h2>Invite a friend</h2><p class="lead">Send your link. When a friend finishes their first round, you both get +${summary.friendXp} XP.</p><label class="field-label" for="invite-link">Your link</label><input id="invite-link" class="invite-link" readonly><div class="button-row"><button class="primary" id="invite-share">Share link</button><button class="secondary" id="invite-copy">Copy link</button></div><div class="invite-progress" role="status"><strong></strong><span></span></div><p class="fine-print">Rewards are for your first ${summary.cap} friends who play. Play Simi never asks for your friends’ contact details.</p>`;
   const input = root.querySelector<HTMLInputElement>("#invite-link")!;
   input.value = link;
   root.querySelector(".invite-progress strong")!.textContent =
@@ -88,8 +88,8 @@ export async function mountInvite(
   share.addEventListener("click", async () => {
     try {
       await navigator.share({
-        title: "Darecade",
-        text: "Come and play Darecade with me.",
+        title: "Play Simi",
+        text: "Come and play Play Simi with me.",
         url: link,
       });
     } catch {

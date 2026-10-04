@@ -207,7 +207,7 @@ let activeMinutes = 0;
 const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
   <div id="world"></div><div class="vignette" aria-hidden="true"></div>
-  <header class="topbar"><a class="brand" href="#" aria-label="Darecade home"><span class="brand-mark">d<span>★</span></span><span>DARECADE</span></a><div class="location-pill"><span class="status-dot"></span><span id="current-world">Joining…</span><span class="divider"></span><span id="sgt-clock">SGT</span></div><span class="demo-tag" role="status">Connecting…</span></header>
+  <header class="topbar"><a class="brand" href="#" aria-label="Play Simi home"><span class="brand-mark">p<span>★</span></span><span>PLAY SIMI</span></a><div class="location-pill"><span class="status-dot"></span><span id="current-world">Joining…</span><span class="divider"></span><span id="sgt-clock">SGT</span></div><span class="demo-tag" role="status">Connecting…</span></header>
   <main class="hud"><section class="welcome-panel" aria-label="Welcome"></section>
   <div class="move-hint"><kbd>W</kbd><span><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><p>Move <i>·</i> tap to walk</p></div>
   <div id="joystick" class="joystick" role="group" aria-label="Drag to walk"><span></span></div>
@@ -216,7 +216,7 @@ app.innerHTML = `
   <footer class="bottom-bar"><div class="profile"><span class="avatar-icon" id="avatar-icon"><i></i></span><span><strong id="player-name">New neighbour</strong><small id="medal-points">0 MEDALS</small><span id="level-label">LEVEL 1</span><span class="xp-track"><i id="xp-fill"></i></span></span></div><nav class="dock lobby-dock" aria-label="Main actions"><button class="selected" data-open="arcade" data-main-action>${icon("game")}<span>Play</span></button><button data-open="map" data-main-action>${icon("compass")}<span>Explore</span></button><button id="interaction" data-main-action hidden>${icon("pin")}<span></span></button><button class="phone-more" data-open="phone-menu" data-main-action>${icon("settings")}<span>Menu</span></button></nav><span class="footer-note" id="quality-note">3D WORLD</span></footer>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <dialog id="modal"><div class="modal-top"><span class="eyebrow" id="modal-kicker">THE NEIGHBOURHOOD</span><button id="close-modal" class="close-button" aria-label="Close panel">×</button></div><div id="modal-body"></div></dialog>
-  <div id="loading"><span class="brand-mark">d<span>★</span></span><h2>See you downstairs.</h2><p>Loading…</p><span class="loading-line"></span></div>
+  <div id="loading"><span class="brand-mark">p<span>★</span></span><h2>See you downstairs.</h2><p>Loading…</p><span class="loading-line"></span></div>
 `;
 document
   .querySelector(".hud")!
@@ -483,8 +483,8 @@ function open(id: string) {
           : ["fishing", "hoops", "plots"].includes(id)
             ? "EAST SIDE"
             : id === "stage"
-              ? "DARE PLAZA"
-              : "DARECADE",
+              ? "SIMI PLAZA"
+              : "PLAY SIMI",
     id === "wardrobe" && !is2d,
   );
   if (id === "stage") {
@@ -726,7 +726,7 @@ function open(id: string) {
 }
 function openDares(view: typeof dareView = "home") {
   dareView = view;
-  openShell("DARE PLAZA");
+  openShell("SIMI PLAZA");
   socialPanel = "dares";
   renderSharedDares();
 }
@@ -745,7 +745,11 @@ async function startGame(id: GameId, defender = "", dare = "") {
   }
   const outdoor = id === "hoops" || id === "fishing";
   openShell(
-    defender || dare ? "FRIENDLY DARE" : outdoor ? "EAST SIDE" : "ARCADE ROW",
+    defender || dare
+      ? "FRIENDLY CHALLENGE"
+      : outdoor
+        ? "EAST SIDE"
+        : "ARCADE ROW",
   );
   const generation = gameGeneration;
   body.innerHTML = "<h2>Loading…</h2>";
@@ -760,9 +764,9 @@ async function startGame(id: GameId, defender = "", dare = "") {
     if (generation !== gameGeneration) return;
     if (defender || dare) {
       body.innerHTML =
-        "<h2>Dare unavailable</h2><p>" +
+        "<h2>Challenge unavailable</h2><p>" +
         escapeText((error as Error).message) +
-        '</p><button class="primary" data-open="dares">Back to dares</button>';
+        '</p><button class="primary" data-open="dares">Back to challenges</button>';
       return;
     }
     toast("Offline · this round won’t be saved.");
@@ -783,7 +787,7 @@ async function startGame(id: GameId, defender = "", dare = "") {
     arcadeFx = createArcadeFx(modal.querySelector(".arcade-fx")!, id);
   const target = run?.targetScore || 0;
   document.querySelector("#modal-kicker")!.textContent = target
-    ? `DARE · BEAT ${formatScore(id, target)}`
+    ? `CHALLENGE · BEAT ${formatScore(id, target)}`
     : run?.ranked
       ? "RANKED ROUND"
       : run
@@ -875,7 +879,7 @@ async function startGame(id: GameId, defender = "", dare = "") {
               '<p class="lead">' +
               (target
                 ? score > target
-                  ? "Dare beaten!"
+                  ? "Challenge beaten!"
                   : score === target
                     ? "Draw!"
                     : "Target " + formatScore(id, target) + ". Try again!"
@@ -900,10 +904,10 @@ async function startGame(id: GameId, defender = "", dare = "") {
                 ? "✓ Verified · " +
                   (result.ranked
                     ? outdoor
-                      ? "East Side rounds are for dares and bests, not medals."
+                      ? "East Side rounds are for challenges and bests, not medals."
                       : "in the running for tonight’s medals."
                     : outdoor
-                      ? "guest round. Save your progress to dare neighbours."
+                      ? "guest round. Save your progress to challenge neighbours."
                       : "guest round. Save your progress to enter the rankings.")
                 : "Offline · nothing saved.") +
               "</div>" +
@@ -916,7 +920,7 @@ async function startGame(id: GameId, defender = "", dare = "") {
               (run && score > 0 && shared?.competitionReady && !reward
                 ? '<details class="menu-details"><summary>Share this round</summary><button class="secondary" data-post-dare="' +
                   run.id +
-                  '">Post a dare</button></details>'
+                  '">Post a challenge</button></details>'
                 : "") +
               (!currentProfile?.account && !setup
                 ? result?.race?.newBest
@@ -1135,7 +1139,7 @@ document.addEventListener("click", (e) => {
     b.disabled = true;
     void api("dares", { run: b.dataset.postDare })
       .then(() => {
-        toast("Your dare is live for 24 hours.");
+        toast("Your challenge is live for 24 hours.");
         void syncSocial();
       })
       .catch((err) => {
@@ -1980,7 +1984,7 @@ requestAnimationFrame(async () => {
       const loading = document.querySelector("#loading")!;
       const setupPending =
         error instanceof Error &&
-        error.message.startsWith("Darecade is being set up.");
+        error.message.startsWith("Play Simi is being set up.");
       loading.innerHTML = setupPending
         ? '<h2>Your neighbourhood is nearly ready.</h2><p>We’re finishing sign-in and privacy setup before opening the gates. Please come back soon.</p><button class="primary" id="retry-welcome">Check again</button>'
         : '<h2>The neighbourhood is taking a moment.</h2><p>We need the server for your welcome and privacy check.</p><button class="primary" id="retry-welcome">Try again</button>';
@@ -2080,7 +2084,7 @@ async function syncSocial() {
 function serverNote() {
   return connected
     ? ""
-    : '<div class="note">Offline · rankings may be stale, dares need a connection.</div>';
+    : '<div class="note">Offline · rankings may be stale, challenges need a connection.</div>';
 }
 function renderSharedNeighbours() {
   const selected =
@@ -2156,7 +2160,7 @@ function renderSharedBoard() {
   const awarded = weekEnds
     ? "They are awarded at 00:00 SGT and count for this week, which closes then: look under Last week’s champions tomorrow."
     : "They are awarded at 00:00 SGT and then appear here.";
-  body.innerHTML = `<span class="eyebrow">LEAGUE</span><h2>Rankings</h2>${serverNote()}<section class="your-standing"><div><span>YOUR ${boardTab === "week" ? "WEEKLY" : "DAILY"} RANK</span><strong>${rank ? "#" + rank : "—"}</strong><small>${rank ? "Nice!" : waiting}</small></div><div class="standing-stats"><span><b>${ownWeek?.points || 0}</b>This week</span><span><b>${pending ? "+" + pending : "0"}</b>Pending tonight</span><span><b>${me?.points || 0}</b>Lifetime</span></div></section><label class="field-label" for="board-period">Show</label><select class="destination-select" id="board-period"><option value="week" ${boardTab === "week" ? "selected" : ""}>Weekly medals</option><option value="daily" ${boardTab === "daily" ? "selected" : ""}>Today’s scores</option></select>${boardTab === "daily" ? `<label class="field-label" for="board-game">Game</label><select class="destination-select" id="board-game">${gameIds.map((g) => `<option value="${g}" ${g === boardGame ? "selected" : ""}>${games[g].name}</option>`).join("")}</select><p class="fine-print">${games[boardGame].name}${boardGame === "coast" ? " · Fastest three-lap time wins" : ""} · Your best today: <b>${formatScore(boardGame, ownDay?.score || 0)}</b> · Each player’s best score of the day is listed, so a lower replay does not replace it. Medals are pending until 00:00 SGT.</p>` : `<p class="fine-print">Week of ${shared?.week || "Monday"} · resets Monday 00:00 SGT</p>`}<div class="podium-cards">${podium.length ? podium.map((p) => `<article class="podium-card medal-${p.rank} ${p.id === shared?.me ? "is-you" : ""}"><span class="podium-medal">${["🥇", "🥈", "🥉"][p.rank - 1]}</span><small>RANK ${p.rank}${p.id === shared?.me ? " · YOU" : ""}</small><h3>${escapeText(p.name)}</h3><strong>${p.value}</strong><small>${unit}${boardTab === "daily" ? ` · +${4 - p.rank} PENDING` : ""}</small></article>`).join("") : `<div class="board-empty"><span>✦</span><h3>${guest ? "Nothing yet!" : boardTab !== "week" ? "Be the first!" : playedToday ? "Medals land at midnight" : "Nothing yet!"}</h3><p>${guest ? "Guest rounds earn XP and are not ranked. Top 3 daily scores win medals at midnight." : boardTab !== "week" ? "Finish a round to claim #1." : pending ? `Your scores today are worth +${pending} medal points so far. ${awarded}` : playedToday ? "Your rounds today are on Today’s scores. Top 3 in a game win medals at midnight." : "Top 3 daily scores win medals at midnight."}</p>${boardTab === "week" && playedToday ? '<button class="primary" data-board-tab="daily">See today’s scores →</button>' : `<button class="primary" data-game="${boardGame}">Play ${games[boardGame].name} →</button>`}</div>`}</div>${list.length ? `<div class="leaderboard">${list.map((p) => `<div class="${p.id === shared?.me ? "you-row" : ""}"><b>#${p.rank}</b><span>${escapeText(p.name)}${p.id === shared?.me ? " · You" : ""}</span><strong>${p.value}<small>${unit}</small></strong></div>`).join("")}</div>` : ""}${boardTab === "daily" && ownDay && board[0] ? `<div class="score-target"><label>${boardGame === "coast" ? "Your time / today’s fastest" : "Your score compared with today’s leader"} <b>${formatScore(boardGame, ownDay.score)} / ${formatScore(boardGame, board[0].score)}</b></label><progress value="${ownDay.score}" max="${Math.max(1, board[0].score)}"></progress></div>` : ""}${boardTab === "daily" && podium.length ? `<button class="primary" data-game="${boardGame}">Play ${games[boardGame].name}</button>` : ""}<details class="scoring-guide"><summary>How scores become medals</summary><div class="medal-rule"><span>🥇<b>+3</b>Gold</span><span>🥈<b>+2</b>Silver</span><span>🥉<b>+1</b>Bronze</span></div><p>1. Play any of the five daily games. Your best positive score counts. Coast Rush ranks fastest three-lap times.</p><p>2. At midnight Singapore time, each game awards its top three ranks. Up to 15 medal points a day.</p><p>3. Daily medals build your weekly total. The weekly board resets Monday; lifetime medals stay.</p><p class="fine-print">Ties share a rank (1, 1, 3). Pending medals can change before midnight. Cosmetic XP levels up your avatar and never affects ranks. Dares record wins separately.</p></details><details class="scoring-guide"><summary>Last week’s champions</summary><div class="leaderboard">${(shared?.lastWeek || []).map((p) => `<div><b>#${p.rank}</b><span>${escapeText(p.name)}</span><strong>${p.points}<small>MEDAL PTS</small></strong></div>`).join("") || "<p>No completed week yet.</p>"}</div></details>${guest ? '<button class="secondary" data-account>Save with email to be ranked</button>' : !shared?.competitionReady ? '<button class="secondary" data-account>Account & dares →</button>' : ""}`;
+  body.innerHTML = `<span class="eyebrow">LEAGUE</span><h2>Rankings</h2>${serverNote()}<section class="your-standing"><div><span>YOUR ${boardTab === "week" ? "WEEKLY" : "DAILY"} RANK</span><strong>${rank ? "#" + rank : "—"}</strong><small>${rank ? "Nice!" : waiting}</small></div><div class="standing-stats"><span><b>${ownWeek?.points || 0}</b>This week</span><span><b>${pending ? "+" + pending : "0"}</b>Pending tonight</span><span><b>${me?.points || 0}</b>Lifetime</span></div></section><label class="field-label" for="board-period">Show</label><select class="destination-select" id="board-period"><option value="week" ${boardTab === "week" ? "selected" : ""}>Weekly medals</option><option value="daily" ${boardTab === "daily" ? "selected" : ""}>Today’s scores</option></select>${boardTab === "daily" ? `<label class="field-label" for="board-game">Game</label><select class="destination-select" id="board-game">${gameIds.map((g) => `<option value="${g}" ${g === boardGame ? "selected" : ""}>${games[g].name}</option>`).join("")}</select><p class="fine-print">${games[boardGame].name}${boardGame === "coast" ? " · Fastest three-lap time wins" : ""} · Your best today: <b>${formatScore(boardGame, ownDay?.score || 0)}</b> · Each player’s best score of the day is listed, so a lower replay does not replace it. Medals are pending until 00:00 SGT.</p>` : `<p class="fine-print">Week of ${shared?.week || "Monday"} · resets Monday 00:00 SGT</p>`}<div class="podium-cards">${podium.length ? podium.map((p) => `<article class="podium-card medal-${p.rank} ${p.id === shared?.me ? "is-you" : ""}"><span class="podium-medal">${["🥇", "🥈", "🥉"][p.rank - 1]}</span><small>RANK ${p.rank}${p.id === shared?.me ? " · YOU" : ""}</small><h3>${escapeText(p.name)}</h3><strong>${p.value}</strong><small>${unit}${boardTab === "daily" ? ` · +${4 - p.rank} PENDING` : ""}</small></article>`).join("") : `<div class="board-empty"><span>✦</span><h3>${guest ? "Nothing yet!" : boardTab !== "week" ? "Be the first!" : playedToday ? "Medals land at midnight" : "Nothing yet!"}</h3><p>${guest ? "Guest rounds earn XP and are not ranked. Top 3 daily scores win medals at midnight." : boardTab !== "week" ? "Finish a round to claim #1." : pending ? `Your scores today are worth +${pending} medal points so far. ${awarded}` : playedToday ? "Your rounds today are on Today’s scores. Top 3 in a game win medals at midnight." : "Top 3 daily scores win medals at midnight."}</p>${boardTab === "week" && playedToday ? '<button class="primary" data-board-tab="daily">See today’s scores →</button>' : `<button class="primary" data-game="${boardGame}">Play ${games[boardGame].name} →</button>`}</div>`}</div>${list.length ? `<div class="leaderboard">${list.map((p) => `<div class="${p.id === shared?.me ? "you-row" : ""}"><b>#${p.rank}</b><span>${escapeText(p.name)}${p.id === shared?.me ? " · You" : ""}</span><strong>${p.value}<small>${unit}</small></strong></div>`).join("")}</div>` : ""}${boardTab === "daily" && ownDay && board[0] ? `<div class="score-target"><label>${boardGame === "coast" ? "Your time / today’s fastest" : "Your score compared with today’s leader"} <b>${formatScore(boardGame, ownDay.score)} / ${formatScore(boardGame, board[0].score)}</b></label><progress value="${ownDay.score}" max="${Math.max(1, board[0].score)}"></progress></div>` : ""}${boardTab === "daily" && podium.length ? `<button class="primary" data-game="${boardGame}">Play ${games[boardGame].name}</button>` : ""}<details class="scoring-guide"><summary>How scores become medals</summary><div class="medal-rule"><span>🥇<b>+3</b>Gold</span><span>🥈<b>+2</b>Silver</span><span>🥉<b>+1</b>Bronze</span></div><p>1. Play any of the five daily games. Your best positive score counts. Coast Rush ranks fastest three-lap times.</p><p>2. At midnight Singapore time, each game awards its top three ranks. Up to 15 medal points a day.</p><p>3. Daily medals build your weekly total. The weekly board resets Monday; lifetime medals stay.</p><p class="fine-print">Ties share a rank (1, 1, 3). Pending medals can change before midnight. Cosmetic XP levels up your avatar and never affects ranks. Challenges record wins separately.</p></details><details class="scoring-guide"><summary>Last week’s champions</summary><div class="leaderboard">${(shared?.lastWeek || []).map((p) => `<div><b>#${p.rank}</b><span>${escapeText(p.name)}</span><strong>${p.points}<small>MEDAL PTS</small></strong></div>`).join("") || "<p>No completed week yet.</p>"}</div></details>${guest ? '<button class="secondary" data-account>Save with email to be ranked</button>' : !shared?.competitionReady ? '<button class="secondary" data-account>Account & challenges →</button>' : ""}`;
 }
 function challengeButtons(p: SharedPlayer) {
   const previous = challengeGameByPlayer.get(p.id);
@@ -2173,7 +2177,7 @@ function challengeButtons(p: SharedPlayer) {
     noScore: !selected,
   });
   const eligible = !!shared?.competitionReady && !blocked;
-  return `<label class="field-label" for="challenge-game-${p.id}">Game</label><select class="destination-select" id="challenge-game-${p.id}" data-challenge-picker="${p.id}">${playIds.map((game) => `<option value="${game}" ${selected === game ? "selected" : ""} ${!p.best[game] ? "disabled" : ""}>${games[game].name} · ${p.best[game] ? formatScore(game, p.best[game]) : "No score"}</option>`).join("")}</select><button class="primary" data-challenge="${selected || gameIds[0]}" data-defender="${p.id}" ${!eligible || !selected ? "disabled" : ""}>Play dare</button>${blocked && shared?.competitionReady ? `<p class="fine-print dare-reason">${blocked}</p>` : ""}`;
+  return `<label class="field-label" for="challenge-game-${p.id}">Game</label><select class="destination-select" id="challenge-game-${p.id}" data-challenge-picker="${p.id}">${playIds.map((game) => `<option value="${game}" ${selected === game ? "selected" : ""} ${!p.best[game] ? "disabled" : ""}>${games[game].name} · ${p.best[game] ? formatScore(game, p.best[game]) : "No score"}</option>`).join("")}</select><button class="primary" data-challenge="${selected || gameIds[0]}" data-defender="${p.id}" ${!eligible || !selected ? "disabled" : ""}>Play challenge</button>${blocked && shared?.competitionReady ? `<p class="fine-print dare-reason">${blocked}</p>` : ""}`;
 }
 function renderSharedDares() {
   const previous = body.querySelector<HTMLSelectElement>("#dare-choice")?.value;
@@ -2183,12 +2187,12 @@ function renderSharedDares() {
   const hold = dareHoldCopy(ready, currentProfile?.account);
   const eligibility = hold ? `<p class="fine-print dare-hold">${hold}</p>` : "";
   const left = Math.max(0, 3 - (shared?.self?.outgoing || 0));
-  // Never promise dares for today beside a button that cannot be played.
+  // Never promise challenges for today beside a button that cannot be played.
   const rule = ready
-    ? `<p class="fine-print">${left}/3 left today. Starting uses a dare. Resets midnight SGT.</p>`
+    ? `<p class="fine-print">${left}/3 left today. Starting uses a challenge. Resets midnight SGT.</p>`
     : "";
   if (dareView === "home") {
-    body.innerHTML = `<h2>Dares</h2>${serverNote()}<div class="simple-menu"><button class="menu-choice" data-open="dares-open">Open dares</button><button class="menu-choice" data-open="dares-neighbour">Challenge a neighbour</button><button class="menu-choice" data-open="dares-post">Post a dare</button></div>${eligibility}<details class="menu-details"><summary>Recent challenges</summary><div class="challenge-history">${shared?.history.map((r) => `<div><strong>${escapeText(r.challenger)} → ${escapeText(r.defender)}</strong><span>${games[r.game].name} · ${r.status === "finished" ? `${formatScore(r.game, r.score || 0)} vs ${formatScore(r.game, r.targetScore)} · ${r.score! > r.targetScore ? "WON" : r.score === r.targetScore ? "TIED" : "HELD"}` : r.status === "started" ? "IN PROGRESS" : "ENDED"}</span></div>`).join("") || "<p>No challenges yet.</p>"}</div></details>`;
+    body.innerHTML = `<h2>Challenges</h2>${serverNote()}<div class="simple-menu"><button class="menu-choice" data-open="dares-open">Open challenges</button><button class="menu-choice" data-open="dares-neighbour">Challenge a neighbour</button><button class="menu-choice" data-open="dares-post">Post a challenge</button></div>${eligibility}<details class="menu-details"><summary>Recent challenges</summary><div class="challenge-history">${shared?.history.map((r) => `<div><strong>${escapeText(r.challenger)} → ${escapeText(r.defender)}</strong><span>${games[r.game].name} · ${r.status === "finished" ? `${formatScore(r.game, r.score || 0)} vs ${formatScore(r.game, r.targetScore)} · ${r.score! > r.targetScore ? "WON" : r.score === r.targetScore ? "TIED" : "HELD"}` : r.status === "started" ? "IN PROGRESS" : "ENDED"}</span></div>`).join("") || "<p>No challenges yet.</p>"}</div></details>`;
     return;
   }
   if (dareView === "neighbour") {
@@ -2212,18 +2216,18 @@ function renderSharedDares() {
           challenged: shared?.challenged.includes(selected.host),
         })
       : "";
-    body.innerHTML = `${back}<h2>Open dares</h2>${serverNote()}${selected ? `<label class="field-label" for="dare-choice">Choose a dare</label><select class="destination-select" id="dare-choice">${dares.map((dare) => `<option value="${dare.id}" ${dare.id === selected.id ? "selected" : ""}>${escapeText(dare.name)} · ${games[dare.game].name}</option>`).join("")}</select><p>Beat ${formatScore(selected.game, selected.score)} · ends ${new Date(selected.expires).toLocaleString("en-SG", { timeZone: "Asia/Singapore", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} SGT</p><button class="primary" data-dare="${selected.id}" data-game-id="${selected.game}" ${!ready || blocked ? "disabled" : ""}>Play dare</button>${blocked && ready ? `<p class="fine-print dare-reason">${blocked}</p>` : ""}` : "<p>No open dares yet.</p>"}${rule}${eligibility}`;
+    body.innerHTML = `${back}<h2>Open challenges</h2>${serverNote()}${selected ? `<label class="field-label" for="dare-choice">Choose a challenge</label><select class="destination-select" id="dare-choice">${dares.map((dare) => `<option value="${dare.id}" ${dare.id === selected.id ? "selected" : ""}>${escapeText(dare.name)} · ${games[dare.game].name}</option>`).join("")}</select><p>Beat ${formatScore(selected.game, selected.score)} · ends ${new Date(selected.expires).toLocaleString("en-SG", { timeZone: "Asia/Singapore", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} SGT</p><button class="primary" data-dare="${selected.id}" data-game-id="${selected.game}" ${!ready || blocked ? "disabled" : ""}>Play challenge</button>${blocked && ready ? `<p class="fine-print dare-reason">${blocked}</p>` : ""}` : "<p>No open challenges yet.</p>"}${rule}${eligibility}`;
     return;
   }
   const runs = (shared?.recentRuns || []).filter((run) => run.score > 0);
   const selected = runs.find((run) => run.id === previous) || runs[0];
-  body.innerHTML = `${back}<h2>Post a dare</h2>${serverNote()}${selected ? `<label class="field-label" for="dare-choice">Saved round</label><select class="destination-select" id="dare-choice">${runs.map((run) => `<option value="${run.id}" ${run.id === selected.id ? "selected" : ""}>${games[run.game].name} · ${formatScore(run.game, run.score)}</option>`).join("")}</select><p>Neighbours can try to beat this for 24 hours.</p><button class="primary" data-post-dare="${selected.id}" ${!shared?.competitionReady ? "disabled" : ""}>Post dare</button>` : "<p>Finish a round first.</p>"}${eligibility}`;
+  body.innerHTML = `${back}<h2>Post a challenge</h2>${serverNote()}${selected ? `<label class="field-label" for="dare-choice">Saved round</label><select class="destination-select" id="dare-choice">${runs.map((run) => `<option value="${run.id}" ${run.id === selected.id ? "selected" : ""}>${games[run.game].name} · ${formatScore(run.game, run.score)}</option>`).join("")}</select><p>Neighbours can try to beat this for 24 hours.</p><button class="primary" data-post-dare="${selected.id}" ${!shared?.competitionReady ? "disabled" : ""}>Post challenge</button>` : "<p>Finish a round first.</p>"}${eligibility}`;
 }
 function renderPlayerInspector(id: string) {
   const p = shared?.players.find((p) => p.id === id);
   if (!p) return;
   const el = document.querySelector<HTMLElement>("#inspector")!;
-  el.innerHTML = `<button class="close-button" data-action="close-inspector" aria-label="Stop inspecting neighbour">×</button><span class="eyebrow">${p.status.toUpperCase()} · SAVED NEIGHBOUR</span><h3>${escapeText(p.name)}</h3><p>${p.points} medal points · ${p.wins} challenge wins<br>${activities[p.activity].icon} ${activities[p.activity].name}</p><div class="resident-outfit"><i style="background:${outfits[p.look.outfit]}"></i><span>${clothingNames[p.look.clothing || 0]} · ${petNames[p.look.pet || 0]} · ${accessoryNames[p.look.accessory || 0]}</span></div><strong>${shared?.challenged.includes(p.id) ? "Already challenged today" : shared?.competitionReady ? "Ready for a friendly dare" : "Dares are not open for you yet"}</strong>${challengeButtons(p)}<button class="secondary" data-join-friend="${p.id}">Join friend’s world</button><button class="secondary" data-report="${p.id}">Report or hide this player</button><p class="fine-print">${dareHoldCopy(!!shared?.competitionReady, currentProfile?.account) || "Starting uses one of your three daily dares. Beat their saved score to win."} Drag to orbit; scroll or pinch to zoom.</p>`;
+  el.innerHTML = `<button class="close-button" data-action="close-inspector" aria-label="Stop inspecting neighbour">×</button><span class="eyebrow">${p.status.toUpperCase()} · SAVED NEIGHBOUR</span><h3>${escapeText(p.name)}</h3><p>${p.points} medal points · ${p.wins} challenge wins<br>${activities[p.activity].icon} ${activities[p.activity].name}</p><div class="resident-outfit"><i style="background:${outfits[p.look.outfit]}"></i><span>${clothingNames[p.look.clothing || 0]} · ${petNames[p.look.pet || 0]} · ${accessoryNames[p.look.accessory || 0]}</span></div><strong>${shared?.challenged.includes(p.id) ? "Already challenged today" : shared?.competitionReady ? "Ready for a friendly challenge" : "Challenges are not open for you yet"}</strong>${challengeButtons(p)}<button class="secondary" data-join-friend="${p.id}">Join friend’s world</button><button class="secondary" data-report="${p.id}">Report or hide this player</button><p class="fine-print">${dareHoldCopy(!!shared?.competitionReady, currentProfile?.account) || "Starting uses one of your three daily challenges. Beat their saved score to win."} Drag to orbit; scroll or pinch to zoom.</p>`;
 }
 function showPlayer(id: string) {
   if (!shared?.players.some((p) => p.id === id)) return;
@@ -2231,7 +2235,7 @@ function showPlayer(id: string) {
     const player = shared?.players.find((p) => p.id === id);
     if (!player) return;
     openShell("NEIGHBOUR");
-    body.innerHTML = `<h2>${escapeText(player.name)}</h2><p>${activities[player.activity].name}</p><div class="simple-menu"><button class="secondary" data-open="dares">Dares</button><button class="secondary" data-join-friend="${player.id}">Join their world</button><button class="secondary" data-report="${player.id}">Report or hide</button></div>`;
+    body.innerHTML = `<h2>${escapeText(player.name)}</h2><p>${activities[player.activity].name}</p><div class="simple-menu"><button class="secondary" data-open="dares">Challenges</button><button class="secondary" data-join-friend="${player.id}">Join their world</button><button class="secondary" data-report="${player.id}">Report or hide</button></div>`;
     return;
   }
   if (modal.open) close();

@@ -1,6 +1,6 @@
-"""Build Darecade's chibi neighbour from Quaternius CC0 connected topology.
+"""Build Play Simi's chibi neighbour from Quaternius CC0 connected topology.
 Reference direction: user-provided cute large-headed arcade character. Original
-wardrobe additions, proportion edits and integration are authored for Darecade.
+wardrobe additions, proportion edits and integration are authored for Play Simi.
 """
 import bpy,bmesh,math,os
 from pathlib import Path

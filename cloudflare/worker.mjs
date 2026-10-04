@@ -39,7 +39,7 @@ export default {
         return json(
           {
             error:
-              "Darecade is being set up. Accounts will open once sign-in email and privacy information are ready.",
+              "Play Simi is being set up. Accounts will open once sign-in email and privacy information are ready.",
           },
           503,
         );

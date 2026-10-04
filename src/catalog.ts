@@ -58,7 +58,7 @@ export const games = {
   },
 } as const;
 export type GameId = keyof typeof games;
-/** Every round the server replays, so every one can be a dare. */
+/** Every round the server replays, so every one can be a challenge. */
 export const playIds = Object.keys(games) as GameId[];
 /** East Side rounds are played at their facility, not at a cabinet. */
 export const outdoorIds = ["hoops", "fishing"] as const;
