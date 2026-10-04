@@ -499,7 +499,7 @@ test("the weekly board tells a player with scores today when their medals arrive
 
 test("My look, Head lists a claimed daily hat", () => {
   const h = harness();
-  assert.equal(state.claimGift(h.context.save, 0, "2026-10-04"), true);
+  assert.equal(state.claimGift(h.context.save, 0), true);
   h.run('open("shop")');
   assert.match(h.body.innerHTML, /data-look-tab="hair">See it in My look/);
   h.context.wardrobeTab = "hair";
