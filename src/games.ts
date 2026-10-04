@@ -3,7 +3,9 @@ import { games } from "./catalog";
 import type { Sfx } from "./audio";
 import type { FxEvent } from "./arcade-fx";
 import { HopRun, StarFlight } from "./action-games";
+import type { BrickFx } from "./brick-fx";
 import {
+  BRICK_BOSS_HP,
   Simulation,
   RULES_VERSION,
   type Input,
@@ -24,6 +26,10 @@ export class ArcadeGame extends Simulation {
   previous = "";
   shownScore = 0;
   lastPop = 0;
+  /** Brick Bash's 3D layer, when WebGL and motion are available. */
+  private brickFx: BrickFx | null = null;
+  private frameDt = 0;
+  private disposed = false;
   /** Optional cosmetic hook for visual effects; never affects the simulation. */
   onFx: ((event: FxEvent, amount: number) => void) | null = null;
   onTime: ((secondsLeft: number) => void) | null = null;
@@ -54,10 +60,21 @@ export class ArcadeGame extends Simulation {
     if (id === "hop")
       container.querySelector(".dpad")!.innerHTML =
         '<button data-dir="up" class="jump-control" aria-label="Jump">JUMP ↑</button>';
-    if (id === "brick")
+    if (id === "brick") {
       container
         .querySelectorAll('[data-dir="up"],[data-dir="down"]')
         .forEach((e) => e.remove());
+      if (!document.documentElement.classList.contains("reduced"))
+        void import("./brick-fx")
+          .then((module) => {
+            if (!this.disposed)
+              this.brickFx = new module.BrickFx(
+                container.querySelector(".game-screen")!,
+              );
+          })
+          // The 2D canvas draws the boss and everything else on its own.
+          .catch(() => {});
+    }
     container.querySelector("#start-game")!.addEventListener("click", () => {
       this.started = true;
       container.querySelector("#game-cover")!.remove();
@@ -201,7 +218,8 @@ export class ArcadeGame extends Simulation {
   /** Hearts for games with lives, otherwise a simple GO! tag. */
   private status() {
     if (this.id !== "brick" && this.id !== "swarm") return "GO!";
-    return "♥".repeat(Math.max(0, this.snapshot().lives));
+    const hearts = "♥".repeat(Math.max(0, this.snapshot().lives));
+    return this.boss ? `${hearts} · BOSS ${"■".repeat(this.boss.hp)}` : hearts;
   }
   /** Read-only view of the simulation, used to pick sound effects. */
   private snapshot() {
@@ -212,7 +230,14 @@ export class ArcadeGame extends Simulation {
       vy: this.ball.vy,
       jump: a instanceof HopRun ? a.velocity : 0,
       shield: a instanceof StarFlight ? a.shield : 0,
-      boss: a instanceof StarFlight ? a.bossSpawned : false,
+      boss: a instanceof StarFlight ? a.bossSpawned : this.bossSpawned,
+      bossHp: this.boss?.hp ?? 0,
+      bossX: this.boss?.x ?? 0,
+      bossDown: this.bossDefeated,
+      wide: this.wide,
+      balls: this.extra.length,
+      guard: this.guard,
+      alive: this.id === "brick" ? this.bricks.map((r) => r.alive) : [],
       shots:
         a instanceof StarFlight ? a.bullets.filter((b) => !b.enemy).length : 0,
       ended: this.ended,
@@ -229,6 +254,7 @@ export class ArcadeGame extends Simulation {
       if (n.lives !== b.lives)
         this.container.querySelector("#run-state")!.textContent = this.status();
     }
+    if (this.id === "brick") this.brickCue(b, n);
     if (n.ended && !b.ended && this.id !== "hop")
       this.sound(this.id === "swarm" ? "bigboom" : "hurt");
     else if (n.ended && !b.ended) this.sound("hurt");
@@ -252,10 +278,38 @@ export class ArcadeGame extends Simulation {
                 : "boom",
       );
   }
+  /** Brick Bash power-ups, bombs and the boss: sounds, status and 3D effects. */
+  private brickCue(
+    b: ReturnType<ArcadeGame["snapshot"]>,
+    n: ReturnType<ArcadeGame["snapshot"]>,
+  ) {
+    const fx = this.brickFx;
+    n.alive.forEach((alive, i) => {
+      const r = this.bricks[i];
+      if (!alive && b.alive[i]) fx?.shatter(r.x + 22, r.y + 9, r.color);
+    });
+    if (n.wide > b.wide || n.balls > b.balls) {
+      this.sound("powerup");
+      this.onFx?.("power", 0);
+      fx?.power(this.paddle, 412, n.wide > b.wide ? "#8ff0c8" : "#ffb3d1");
+    }
+    if (n.guard > b.guard) fx?.bomb(this.paddle, 412);
+    if (n.bossHp < b.bossHp && n.bossHp > 0) {
+      this.sound("boom");
+      fx?.bossHit();
+    }
+    if (n.bossDown && !b.bossDown) {
+      this.sound("bigboom");
+      fx?.bossDown(b.bossX, 235);
+    }
+    if (n.boss !== b.boss || n.bossHp !== b.bossHp || n.bossDown !== b.bossDown)
+      this.container.querySelector("#run-state")!.textContent = this.status();
+  }
   private loop = (now: number) => {
     this.frame = requestAnimationFrame(this.loop);
     const dt = this.last ? Math.min((now - this.last) / 1000, 0.15) : 0;
     this.last = now;
+    this.frameDt = this.paused ? 0 : dt;
     if (this.started && !this.ended && !this.paused) {
       this.accumulator += dt;
       while (this.accumulator >= 1 / 60 && !this.ended) {
@@ -366,14 +420,60 @@ export class ArcadeGame extends Simulation {
         c.fillStyle = "#ffffff38";
         c.fillRect(r.x + 3, r.y + 2, 38, 3);
       });
-      c.fillStyle = "#dceabf";
-      c.beginPath();
-      c.roundRect(this.paddle - 42, 412, 84, 10, 5);
-      c.fill();
-      c.fillStyle = "#ffdab0";
-      c.beginPath();
-      c.arc(this.ball.x, this.ball.y, 7, 0, Math.PI * 2);
-      c.fill();
+      const time = performance.now() / 1000;
+      for (const d of this.drops) {
+        c.fillStyle = d.kind === "wide" ? "#8ff0c8" : "#ffb3d1";
+        c.beginPath();
+        c.roundRect(d.x - 16, d.y - 8, 32, 16, 8);
+        c.fill();
+        c.fillStyle = "#1c3340";
+        c.font = "700 11px Fredoka, sans-serif";
+        c.textAlign = "center";
+        c.fillText(d.kind === "wide" ? "WIDE" : "×3", d.x, d.y + 4);
+      }
+      const boss = this.boss;
+      if (boss) {
+        // Without the 3D layer the Big Brick is drawn flat.
+        if (!this.brickFx) {
+          c.fillStyle = "#e8705f";
+          c.beginPath();
+          c.roundRect(boss.x - 46, 222, 92, 26, 5);
+          c.fill();
+          c.fillStyle = "#fff7e6";
+          c.fillRect(boss.x - 30, 229, 16, 11);
+          c.fillRect(boss.x + 14, 229, 16, 11);
+          c.fillStyle = "#2a1f2b";
+          c.fillRect(boss.x - 24 + boss.dir * 3, 232, 6, 6);
+          c.fillRect(boss.x + 20 + boss.dir * 3, 232, 6, 6);
+        }
+        c.fillStyle = "#172e38";
+        c.fillRect(boss.x - 40, 206, 80, 6);
+        c.fillStyle = "#ffe27a";
+        c.fillRect(boss.x - 39, 207, (78 * boss.hp) / BRICK_BOSS_HP, 4);
+      }
+      for (const bomb of this.bombs) {
+        c.fillStyle = "#2a1f2b";
+        c.beginPath();
+        c.arc(bomb.x, bomb.y, 8, 0, Math.PI * 2);
+        c.fill();
+        c.fillStyle = Math.sin(time * 30) > 0 ? "#ffe27a" : "#ff6a55";
+        c.fillRect(bomb.x - 1.5, bomb.y - 13, 3, 6);
+      }
+      // The paddle glows while wide and blinks after a bomb.
+      const half = this.paddleHalf - 4;
+      if (this.guard <= 0 || Math.sin(time * 40) > 0) {
+        c.fillStyle = this.wide > 0 ? "#8ff0c8" : "#dceabf";
+        c.beginPath();
+        c.roundRect(this.paddle - half, 412, half * 2, 10, 5);
+        c.fill();
+      }
+      for (const ball of [this.ball, ...this.extra]) {
+        c.fillStyle = ball === this.ball ? "#ffdab0" : "#ffb3d1";
+        c.beginPath();
+        c.arc(ball.x, ball.y, 7, 0, Math.PI * 2);
+        c.fill();
+      }
+      this.brickFx?.draw(this.frameDt, time, boss);
     }
     if (this.paused) {
       c.fillStyle = "#172e38bb";
@@ -387,6 +487,9 @@ export class ArcadeGame extends Simulation {
     }
   }
   dispose() {
+    this.disposed = true;
+    this.brickFx?.dispose();
+    this.brickFx = null;
     cancelAnimationFrame(this.frame);
     window.removeEventListener("keydown", this.keyDown);
     window.removeEventListener("keyup", this.keyUp);

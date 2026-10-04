@@ -1,39 +1,38 @@
-# Coast Rush review: items, mobile, sound, finish
+# Brick Bash: power-ups, a boss and 3D effects
 
-Branch `scale/records`, edited in place. The unrelated uncommitted server/social work is left alone.
+Branch `brick-bash-review`, from `origin/main`. Separate from PRs #11, #12 and #13.
 
 ## Task
 
-Review Coast Rush; explain shells and shields in the game itself; improve phone play; add race music and sound effects; give the race a proper ending.
+Add features to Brick Bash, with three.js effects and a boss fight.
 
 ## Findings
 
-- **Shells**: 12 per lap, 36 per race. Counted on the result only. No speed, currency or medal effect. The game never says so, and collecting one gives no sound or visual feedback.
-- **Shield**: a crate item. Using it blocks wall and kart hits (each a 0.75s stop) for 3 seconds. Crates alternate shield and turbo. Collecting or using one has no feedback beyond a small text label.
-- **Mobile**: drifting needs GO and DRIFT held together, so two right-hand fingers. Buttons are 54×48. The cover shows keyboard keys (W A S D, Space, E) on phones.
-- **Sound**: sound is off by default with no control inside the race. The race has no music of its own, no engine, and no sound for shells, crates, shield, laps or position changes.
-- **Ending**: the frame the line is crossed, the race view is replaced by "Checking score…". Finished rivals also stack on the start line.
+- The round is one wall of 40 bricks, one ball and a fixed paddle. Nothing changes from the first second to the last, and clearing the wall simply ends the round.
+- Breaking a brick has no visual effect beyond the brick vanishing.
 
-## Constraint
+## Design
 
-`shared/racing.ts` is replayed by the server and versioned (rules v2). It is not changed, so times, bests, medals and replays are unaffected. All work is presentation and input.
+- **Power-ups**: about one brick in six drops a capsule to catch with the paddle.
+  - Wide: a wider paddle for eight seconds.
+  - Multi: two extra balls. Losing an extra ball costs nothing; a life is lost only when the last ball falls.
+- **Boss**: at 0:35, or as soon as the wall is cleared, the Big Brick arrives below the wall. It slides from side to side, blocks the ball, and drops bombs. A bomb on the paddle costs a life. Eight hits beat it: +40 a hit and +300 for the win. The round ends early only when both the wall and the boss are gone.
+- **3D effects** (`src/brick-fx.ts`, three.js, loaded on demand): a transparent layer over the 2D game. Bricks shatter into tumbling cubes, the boss is a 3D block that flinches when hit and bursts when beaten, and power-ups ring out from the paddle. Without WebGL, or with reduce motion, the 2D canvas draws everything itself.
+
+The brick simulation lives in `shared/simulation.ts` and is replayed by the server. Scores stay on the same scale, so the rules version is not bumped; see Decisions.
 
 ## Steps
 
-1. `src/audio.ts`: race music mood, tempo control, engine/skid/wind loop, new effects.
-2. `src/race-view.ts`: finish camera, coasting past the line, rivals parking beyond it, shield pulse and expiry blink.
-3. `src/racing-game.ts`: item legend, touch wording, thumb sliding, DRIFT/ITEM keep throttle, pickup and position cues, final-lap moment, finish sequence, sound button.
-4. `src/racing.css`: thumb-sized controls, item states, finish overlay.
-5. `src/main.ts`: submit the result while the finish sequence plays; race music; shared sound toggle.
-6. Docs: `COAST-RUSH.md`, `QA.md`.
+1. `shared/simulation.ts`: balls, drops, wide paddle, boss, bombs.
+2. `src/games.ts`: drawing, cues, status. `src/brick-fx.ts`: the 3D layer. `src/catalog.ts`: rule text.
+3. Tests in `tests/brick.test.ts`; notes in `QA.md`.
 
 ## Verify
 
-- `npm test` and `npm run build` pass.
-- Browser at 390×844, 320×568 and 844×390: no overflow, controls reachable, a full race reaches the finish sequence and a server-verified result.
-- Not verifiable here: real-phone touch feel and how the audio sounds to a person.
+- `npm test`, `npm run build`, `npm run test:cloudflare`.
+- Browser: play a round to the boss, see the effects, get a server-verified result.
+- Not verifiable here: feel on a real phone.
 
-## Decisions left for Daniel
+## Decisions for Daniel
 
-- Sound default: decided 4 October 2026, on by default for new players. A sound button is also on the race cover.
-- Whether shells should ever affect anything is a rules change (version bump); not done.
+- No version bump: old Brick Bash bests stay and are easier to beat, since the boss adds points. A round in progress during deploy, or played on a page loaded before it, fails verification until the page is reloaded.

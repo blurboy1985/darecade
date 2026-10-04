@@ -11,7 +11,7 @@ export const games = {
   brick: {
     name: "Brick Bash",
     tagline: "Brick Bash",
-    rule: "Smash every brick. 3 lives.",
+    rule: "Smash bricks, catch power-ups, and beat the Big Brick at 0:35. 3 lives.",
     controls: "← → · A D · drag",
     genre: "BREAKER",
     description: "Smash the wall.",
