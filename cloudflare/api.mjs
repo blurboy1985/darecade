@@ -70,9 +70,13 @@ export async function handleApi(
         ),
       );
     }
+    // The old address only hands players over to the new one.
+    const legacy = !!c.legacyOrigin && url.origin === c.legacyOrigin;
+    if (legacy && !(method === "POST" && path === "/api/move"))
+      return json({ error: "Please use the game’s main address." }, 403);
     if (
       request.headers.get("origin") &&
-      request.headers.get("origin") !== c.origin
+      request.headers.get("origin") !== (legacy ? c.legacyOrigin : c.origin)
     )
       return json({ error: "This request came from another site." }, 403);
     if (request.headers.get("sec-fetch-site") === "cross-site")
@@ -80,7 +84,10 @@ export async function handleApi(
     rate("api-ip", 3000, 60000);
     const data =
       method === "POST"
-        ? await readBody(request, path === "/api/finish" ? 262144 : 8192)
+        ? await readBody(
+            request,
+            ["/api/finish", "/api/move"].includes(path) ? 262144 : 8192,
+          )
         : {};
     const token = request.headers
       .get("cookie")
@@ -118,6 +125,18 @@ export async function handleApi(
     if (method === "POST" && path === "/api/auth/login-code") {
       rate("email", 6, 900000);
       return json(await c.requestExistingCode(data.email));
+    }
+    if (method === "POST" && path === "/api/move") {
+      if (!legacy) return json({ error: "Not found." }, 404);
+      rate("move", 12, 900000);
+      return json(c.moveOut(token, data.saves));
+    }
+    if (method === "POST" && path === "/api/move/claim") {
+      rate("move", 12, 900000);
+      const moved = c.moveIn(data.code, token);
+      return moved.token
+        ? withCookie({ saves: moved.saves }, moved.token)
+        : json({ saves: moved.saves });
     }
     if (!id)
       return json(

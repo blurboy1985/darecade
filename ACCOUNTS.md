@@ -1,6 +1,6 @@
 # Accounts, progression and shared challenges
 
-Implemented 3 October 2026 on the existing Node/SQLite service. The Cloudflare version is deployed at https://darecade.daniel-tianwen.workers.dev (see HOSTING.md), with the historical account/email launch checks recorded in HOSTING.md. The multi-world changes require a separately approved deployment. The privacy/support contact is hello@darecade.danielquek.com, forwarding to the operator's verified inbox. The local service and its private data remain available. The existing cute Blender characters, outfits and interactions remain in use.
+Implemented 3 October 2026 on the existing Node/SQLite service. The Cloudflare version is deployed at https://darecade.daniel-tianwen.workers.dev and moves to https://playsimi.danielquek.com (see HOSTING.md), with the historical account/email launch checks recorded in HOSTING.md. The multi-world changes require a separately approved deployment. The privacy/support contact is hello@darecade.danielquek.com, forwarding to the operator's verified inbox. The local service and its private data remain available. The existing cute Blender characters, outfits and interactions remain in use.
 
 ## Local run
 

@@ -1,5 +1,28 @@
 # Cloudflare hosting
 
+## Move to playsimi.danielquek.com — prepared 5 October 2026, not deployed
+
+The code and configuration for the move are ready; **nothing below has been done on the live service yet.** The game stays at https://darecade.daniel-tianwen.workers.dev until these steps are completed in order. Deploying before step 2 is finished stops sign-in email.
+
+What the deployment changes:
+
+- The Worker keeps the name `darecade`, so the `Neighbourhood` Durable Object `darecade-main-v1` and every account stay attached. `wrangler.jsonc` adds `playsimi.danielquek.com` as a custom domain, sets `PUBLIC_ORIGIN` to it and names the old address in `LEGACY_ORIGIN`.
+- The old address serves the same page, which now only hands the player over: it swaps the session and browser saves for a single-use two-minute code (`POST /api/move`) and goes to the new address, which swaps the code back (`POST /api/move/claim`). The old session ends when the code is claimed. Every other API request at the old address is refused, except Stripe's signed webhook.
+- Sign-in email comes from `Play Simi <hello@playsimi.danielquek.com>`, which is also the privacy contact.
+- The Records database gains one table, `moves`. It is created on first use, emptied of expired rows nightly and cleared on account deletion.
+
+Checklist:
+
+1. **Merge PR #20** (the rename) first; this change is stacked on it.
+2. **Resend:** add the domain `playsimi.danielquek.com` in the Tokyo region, add the DNS records it lists to the `danielquek.com` zone (DKIM TXT, and the `send` MX and TXT), and wait for Verified. The existing `RESEND_API_KEY` is restricted to `darecade.danielquek.com`, so create a sending key restricted to the new domain.
+3. **Cloudflare Email Routing:** enable routing for the `playsimi` subdomain and add the rule `hello@playsimi.danielquek.com` to the same verified destination. Keep the `hello@darecade.danielquek.com` rule so replies to earlier email still arrive.
+4. **Deploy:** `npm run cf:deploy`, then `npx wrangler secret put RESEND_API_KEY` with the new key. Wrangler creates the custom domain and its certificate. Between the deployment and the new key, sign-in email fails; do the two together.
+5. **Check:** `https://playsimi.danielquek.com/api/health` returns ready; a sign-in code arrives from the new sender; opening the old address in a browser with an existing guest lands on the new address as the same character.
+6. **Stripe:** change the webhook endpoint `we_1UMlTDA6Maf1zlslfAoUT1gA` to `https://playsimi.danielquek.com/api/payments/webhook`. Editing the address keeps its signing secret. Until then events sent to the old address are still accepted.
+7. Record the Worker version and the checks here.
+
+Rollback: redeploy the previous commit. Sessions created at the new address stay valid in the database but their cookies belong to the new address, so those players sign in again or play as before at the old one.
+
 ## Ghost and one dare a day removed, 5 October 2026
 
 At the owner's request, PR #19 (`6d6bdb86905d6f50bcf3aa78ae1a3d0ce91a3712`) reverted PR #18 about ten minutes after the deployment recorded below. Deployed `main` as Worker version **`c7b780be-ffb6-4259-99d0-c7ca25efb0af`**. At **02:16 SGT**, production health returned `ready: true`; the live HTML referenced `index-DoHLrHvf.js`, and both that asset and `race-view-CHiuMCLb.js` matched the local production build byte-for-byte. The live bundle no longer contains the ghost or daily-dare copy and again contains the 24-hour hold copy. Unauthenticated state returned 401.

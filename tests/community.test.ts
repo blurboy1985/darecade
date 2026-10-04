@@ -766,3 +766,49 @@ test("sign-in requests for an address with no account send guidance, not a link,
     s.close();
   }
 });
+
+test("a move code carries the session and browser saves across once, then the old session ends", async () => {
+  const s = setup();
+  try {
+    const guest = s.community.join(consent);
+    assert.deepEqual(s.community.moveOut("no-such-session", {}), {
+      code: null,
+    });
+    const first = s.community.moveOut(guest.token, { "darecade-v1": "old" });
+    const { code } = s.community.moveOut(guest.token, {
+      "darecade-v1": '{"xp":40}',
+      "darecade-invite": 7,
+      other: "dropped",
+    });
+    assert.match(code, /^[0-9a-f]{64}$/);
+    // Asking again replaces the earlier code.
+    assert.throws(() => s.community.moveIn(first.code, undefined), /expired/);
+    assert.throws(() => s.community.moveIn("guess", undefined), /expired/);
+    assert.throws(() => s.community.moveIn(undefined, undefined), /expired/);
+
+    const moved = s.community.moveIn(code, undefined);
+    assert.deepEqual(moved.saves, { "darecade-v1": '{"xp":40}' });
+    assert.equal(s.community.lookup(moved.token), guest.me.id);
+    assert.equal(s.community.lookup(guest.token), null);
+    assert.throws(() => s.community.moveIn(code, undefined), /expired/);
+
+    // A code not claimed within two minutes is refused and the session stays.
+    const late = s.community.moveOut(moved.token, {});
+    s.tick(2 * 60000);
+    assert.throws(() => s.community.moveIn(late.code, undefined), /expired/);
+    assert.equal(s.community.lookup(moved.token), guest.me.id);
+
+    // Someone already signed in at the new address keeps their own session.
+    const other = s.community.join(consent);
+    const kept = s.community.moveIn(
+      s.community.moveOut(moved.token, { "darecade-v1": "theirs" }).code,
+      other.token,
+    );
+    assert.equal(kept.token, null);
+    assert.deepEqual(kept.saves, { "darecade-v1": "theirs" });
+    assert.equal(s.community.lookup(moved.token), guest.me.id);
+    assert.equal(s.community.lookup(other.token), other.me.id);
+  } finally {
+    s.close();
+  }
+});

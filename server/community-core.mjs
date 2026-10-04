@@ -37,6 +37,13 @@ export const PRIVACY_VERSION = "2026-10-03";
 const DAY = 86400000;
 const ACTIVE_TOUCH_INTERVAL = 5 * 60000;
 const CODE_MINUTES = 15;
+const MOVE_MINUTES = 2;
+// Browser saves a player may carry from the old address to the new one.
+export const MOVE_KEYS = [
+  "darecade-v1",
+  "darecade-preview-backup",
+  "darecade-invite",
+];
 // A code dies after this many wrong guesses; an email address is refused for
 // the rest of a day after this many across all of its codes.
 const CODE_TRIES = 5;
@@ -70,6 +77,7 @@ export class CommunityCore {
     {
       files,
       origin = "http://127.0.0.1:4173",
+      legacyOrigin = "",
       mailMode = "outbox",
       mailKey = "",
       mailFrom = "",
@@ -83,6 +91,7 @@ export class CommunityCore {
     this.now = store.now;
     this.files = files;
     this.origin = origin;
+    this.legacyOrigin = legacyOrigin;
     this.mailMode = mailMode;
     this.mailKey = mailKey;
     this.mailFrom = mailFrom;
@@ -110,6 +119,7 @@ export class CommunityCore {
   CREATE TABLE IF NOT EXISTS profiles(player TEXT PRIMARY KEY REFERENCES players(id),age_band TEXT NOT NULL,consent TEXT NOT NULL,consented INTEGER NOT NULL,progress TEXT NOT NULL,last_active INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS accounts(player TEXT PRIMARY KEY REFERENCES players(id),email TEXT UNIQUE NOT NULL,created INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,player TEXT REFERENCES players(id),expires INTEGER NOT NULL);
+  CREATE TABLE IF NOT EXISTS moves(code TEXT PRIMARY KEY,player TEXT REFERENCES players(id),session TEXT NOT NULL,saves TEXT NOT NULL,expires INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS magic_links(token TEXT PRIMARY KEY,email TEXT NOT NULL,candidate TEXT REFERENCES players(id),expires INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS email_codes(email TEXT PRIMARY KEY,code TEXT NOT NULL,candidate TEXT REFERENCES players(id),expires INTEGER NOT NULL,attempts INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS code_failures(email TEXT PRIMARY KEY,n INTEGER NOT NULL,expires INTEGER NOT NULL);
@@ -184,6 +194,40 @@ export class CommunityCore {
       .prepare("INSERT INTO sessions VALUES(?,?,?)")
       .run(hash(token), player, this.now() + 30 * DAY);
     return token;
+  }
+  /** At the old address: a single-use code that carries this session across. */
+  moveOut(token, saves) {
+    const player = this.lookup(token);
+    if (!player) return { code: null };
+    const kept = {};
+    for (const key of MOVE_KEYS)
+      if (typeof saves?.[key] === "string") kept[key] = saves[key];
+    const code = randomBytes(32).toString("hex");
+    this.db.prepare("DELETE FROM moves WHERE player=?").run(player);
+    this.db
+      .prepare("INSERT INTO moves VALUES(?,?,?,?,?)")
+      .run(
+        hash(code),
+        player,
+        hash(token),
+        JSON.stringify(kept),
+        this.now() + MOVE_MINUTES * 60000,
+      );
+    return { code };
+  }
+  /** At the new address: swap the code for a session and the browser saves. */
+  moveIn(code, current) {
+    const row =
+      typeof code === "string" &&
+      this.db.prepare("SELECT * FROM moves WHERE code=?").get(hash(code));
+    if (row) this.db.prepare("DELETE FROM moves WHERE code=?").run(row.code);
+    if (!row || row.expires <= this.now())
+      throw Error("This move has expired. Open the old address again.");
+    const saves = JSON.parse(row.saves);
+    // Whoever is already signed in here stays signed in.
+    if (this.lookup(current)) return { saves, token: null };
+    this.db.prepare("DELETE FROM sessions WHERE token=?").run(row.session);
+    return { saves, token: this.issue(row.player) };
   }
   eligible(month, year) {
     if (
@@ -1194,6 +1238,7 @@ export class CommunityCore {
         "medals",
         "runs",
         "sessions",
+        "moves",
         "accounts",
         "profiles",
         "suspensions",
@@ -1207,6 +1252,7 @@ export class CommunityCore {
   }
   cleanup() {
     this.db.prepare("DELETE FROM sessions WHERE expires<=?").run(this.now());
+    this.db.prepare("DELETE FROM moves WHERE expires<=?").run(this.now());
     this.db.prepare("DELETE FROM magic_links WHERE expires<=?").run(this.now());
     this.db.prepare("DELETE FROM email_codes WHERE expires<=?").run(this.now());
     this.db
