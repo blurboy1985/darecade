@@ -1,5 +1,13 @@
 # Cloudflare hosting
 
+## Ghost and one dare a day removed, 5 October 2026
+
+At the owner's request, PR #19 (`6d6bdb86905d6f50bcf3aa78ae1a3d0ce91a3712`) reverted PR #18 about ten minutes after the deployment recorded below. Deployed `main` as Worker version **`c7b780be-ffb6-4259-99d0-c7ca25efb0af`**. At **02:16 SGT**, production health returned `ready: true`; the live HTML referenced `index-DoHLrHvf.js`, and both that asset and `race-view-CHiuMCLb.js` matched the local production build byte-for-byte. The live bundle no longer contains the ghost or daily-dare copy and again contains the 24-hour hold copy. Unauthenticated state returned 401.
+
+The application code is identical to `main` before PR #18 (`d683a21`), so PR #17's playtest fixes remain live and dares are back to the 24-hour hold with three outgoing dares a day. The only kept change is the wardrobe render test claiming the daily hat on the current day. PR #18 stored no new data, so nothing was migrated back. 196 Node tests ran: 192 passed, 4 skipped (browser checks that need `DARECADE_TEST_CHROMIUM`). All eight Cloudflare integration tests, the build and the deployment dry-run passed.
+
+Not verified live: a signed-in round or dare, and a physical phone. No production account was created for this check.
+
 ## Neighbourhood ghost, one dare a day and playtest fixes, 5 October 2026
 
 Merged PR #18 (`eb853644915b7f1c382b70ef4ff85c19c33ad33f`), which also carries PR #17's playtest fixes into production for the first time, and deployed `main` as Worker version **`176977a6-a5b4-47c3-9add-e9f518042ba8`**. At **02:09 SGT**, production health returned `ready: true`; the live HTML referenced `index-Ck6QE6sh.js`, and both that asset and `race-view-Dtgm8LYE.js` matched the local production build byte-for-byte. Unauthenticated state returned 401 and private server paths returned 404.
