@@ -1,5 +1,13 @@
 # Cloudflare hosting
 
+## Coast Rush stable kart and front wheels, 4 October 2026
+
+Deployed source commit `ca88b8040f5ce12cc3f1758cfc1379321346d952` as Worker version **`42d95c6a-f43f-42a2-842e-653b1d167029`**. At **19:24 SGT**, production health returned `ready: true`; the live HTML referenced `index-BT4VnOZk.js`, and both that asset and `race-view-RXPOxWxF.js` matched the local production build byte-for-byte.
+
+The release removes chassis rocking, rival hit spins and repeated boost/shield/cosmetic pulsing. Display interpolation and continuous track headings steady player and rival movement between physics ticks. Front-wheel steering eases visually while controls remain immediate. Round tyre/rim surfaces retain their orientation around the axle, eliminating the rapidly rotating polygon edges that resembled wheel shaking. Physics, race verification and leaderboard rules are unchanged.
+
+All 176 Node tests and eight Cloudflare integration tests passed, including Chromium checks, build and deployment dry-run. The actual Three.js view verified stable surfaces on all 32 wheels at turbo speed and filtered rapid alternating steering. A real mobile-sized local race ran with no horizontal overflow. Physical-phone comfort is not established by automated tests.
+
 ## Coast Rush clarity and post-race setup, 4 October 2026
 
 Deployed code commit `f7abbf7805094a284209f0ea157cb3a3e326f1f4` as Worker version **`c9e77b3e-44b3-4b3f-8195-d1d81e251a1c`**. Production HTML and the expected `index-qoU7Lmhv.js` asset returned 200. The browser reached the age/privacy onboarding screen. All 171 Node tests, eight Cloudflare integration tests, build and deployment dry-run passed.
