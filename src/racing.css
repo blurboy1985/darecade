@@ -86,6 +86,8 @@ dialog.game-modal.racing-modal {
   isolation: isolate;
 }
 .coast-game[data-status="ready"] .race-hud,
+.coast-game[data-status="ready"] .race-item,
+.coast-game[data-status="ready"]:not(.simple-race) .race-map,
 .coast-game[data-status="ready"] .race-speed {
   visibility: hidden;
 }
@@ -541,4 +543,287 @@ dialog.game-modal.racing-modal {
   .coast-game[data-status="ready"] .race-touch {
     visibility: hidden;
   }
+}
+
+/* Item legend, item states, finish sequence and thumb-sized touch controls.
+   Selectors are scoped to .coast-game so they hold whichever sheet loads last. */
+.coast-game .race-cover {
+  justify-content: safe center;
+}
+.coast-game .race-sound {
+  min-height: 40px;
+  padding: 8px 14px;
+  margin-bottom: 6px;
+  border: 1px solid #ffffff59;
+  border-radius: 20px;
+  background: #ffffff1f;
+  color: #fff3d2;
+  font:
+    700 12px "DM Sans",
+    sans-serif;
+}
+.coast-game .race-sound[aria-pressed="true"] {
+  background: #8ce4d740;
+  border-color: #8ce4d7;
+}
+.coast-game .race-legend {
+  list-style: none;
+  display: grid;
+  gap: 5px;
+  max-width: 340px;
+  margin: 8px 0 2px;
+  padding: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #e1ecd4;
+}
+.coast-game .race-legend b {
+  margin-right: 6px;
+  color: #fff3d2;
+  white-space: nowrap;
+}
+.coast-game .race-footer > span:last-child {
+  display: flex;
+  gap: 6px;
+  flex: none;
+}
+.coast-game .game-pops .pop {
+  left: 0;
+  right: 0;
+  text-align: center;
+}
+.coast-game:not([data-item="empty"]) .race-item {
+  background: #f7d575;
+  border-color: #fff7d7;
+  color: #173e48;
+  animation: item-ready 0.6s ease-in-out infinite alternate;
+}
+@keyframes item-ready {
+  to {
+    transform: scale(1.07);
+  }
+}
+.coast-game .race-item.got,
+.coast-game .race-item small.got {
+  animation: item-got 0.35s ease-out;
+}
+@keyframes item-got {
+  40% {
+    transform: scale(1.3);
+    color: #ffe27a;
+  }
+}
+.coast-game[data-shield="on"] .race-screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 4px #7ae9ed,
+    inset 0 0 46px #7ae9edb3;
+  pointer-events: none;
+}
+.coast-game[data-status="finished"] .race-hud,
+.coast-game[data-status="finished"] .race-speed,
+.coast-game[data-status="finished"] .race-item,
+.coast-game[data-status="finished"] .race-notice,
+.coast-game[data-status="finished"]:not(.simple-race) .race-map {
+  visibility: hidden;
+}
+.coast-game[data-status="finished"] .race-touch,
+.coast-game[data-status="finished"] .race-charge {
+  opacity: 0.35;
+  pointer-events: none;
+}
+.race-finish {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: clamp(14px, 6%, 40px) 16px;
+  overflow-y: auto;
+  text-align: center;
+  color: #fff3d2;
+  text-shadow: 0 2px 6px #0c2a36;
+  background: linear-gradient(180deg, #123e4de0, #123e4d33 46%, #123e4de6);
+  animation: finish-in 0.5s ease-out both;
+}
+.race-finish[hidden] {
+  display: none;
+}
+.race-finish .eyebrow {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #8ce4d7;
+}
+.race-finish h3 {
+  margin: 4px 0;
+  font:
+    900 italic clamp(44px, 11vw, 92px) / 0.9 "Space Grotesk",
+    sans-serif;
+  letter-spacing: -2px;
+  color: #ffe27a;
+  animation: finish-pop 0.7s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+.race-finish .finish-place {
+  margin: 0;
+  font:
+    700 clamp(30px, 7vw, 54px) "Space Grotesk",
+    sans-serif;
+  animation: finish-rise 0.5s 0.7s both;
+}
+.race-finish .finish-place small {
+  font-size: 0.45em;
+  opacity: 0.8;
+}
+/* Title above the driver, numbers below, so the kart stays in view. */
+.race-finish .finish-stats {
+  margin-top: auto !important;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px 22px;
+  margin: 8px 0;
+}
+.race-finish .finish-stats span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  animation: finish-rise 0.5s 1.2s both;
+}
+.race-finish .finish-stats span:nth-child(2) {
+  animation-delay: 1.6s;
+}
+.race-finish .finish-stats span:nth-child(3) {
+  animation-delay: 2s;
+}
+.race-finish .finish-stats b {
+  font:
+    700 22px "Space Grotesk",
+    sans-serif;
+  letter-spacing: 0;
+}
+.race-finish .primary {
+  min-height: 46px;
+  background: #d8edaa;
+  color: #173e48;
+  text-shadow: none;
+  animation: finish-rise 0.5s 2.6s both;
+}
+@keyframes finish-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes finish-pop {
+  from {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+}
+@keyframes finish-rise {
+  from {
+    transform: translateY(14px);
+    opacity: 0;
+  }
+}
+.reduced .coast-game .race-item,
+.reduced .race-finish,
+.reduced .race-finish * {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .coast-game .race-item,
+  .race-finish,
+  .race-finish * {
+    animation: none !important;
+  }
+}
+/* Phones and tablets: steering under the left thumb, a 2×2 pedal pad under
+   the right, with GO in the corner where the thumb rests. */
+@media (pointer: coarse), (max-width: 600px) {
+  .coast-game .race-head {
+    display: none;
+  }
+  .coast-game .race-screen {
+    height: clamp(210px, calc(100dvh - 318px), 640px);
+  }
+  .coast-game .race-charge {
+    margin: 8px 0;
+  }
+  .coast-game .race-touch {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 14px;
+    touch-action: none;
+  }
+  .coast-game .race-steer,
+  .coast-game .race-pedals {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .coast-game .race-touch button {
+    width: auto;
+    height: auto;
+    min-height: 58px;
+    font-size: 13px;
+  }
+  .coast-game .race-steer button {
+    min-height: 124px;
+    font-size: 34px;
+  }
+  .coast-game .race-touch [data-race-control="gas"] {
+    font-size: 19px;
+  }
+}
+/* Short landscape screens: keep the item box and notice clear of the map
+   and the overlaid controls. */
+@media (max-height: 550px) and (min-width: 600px) {
+  .coast-game .race-screen {
+    height: calc(100dvh - 168px);
+    min-height: 180px;
+  }
+  .coast-game .race-item {
+    top: 100px;
+    right: 154px;
+    bottom: auto;
+    padding: 6px 10px;
+  }
+  .coast-game .race-notice {
+    top: 104px;
+    bottom: auto;
+  }
+}
+@media (max-height: 550px) and (min-width: 600px) and (pointer: coarse) {
+  .coast-game .race-screen {
+    height: calc(100dvh - 148px);
+    min-height: 180px;
+  }
+  .coast-game .race-touch {
+    grid-template-columns: 170px 190px;
+    justify-content: space-between;
+    bottom: 49px;
+  }
+  .coast-game .race-touch button {
+    min-height: 44px;
+    opacity: 0.86;
+  }
+  .coast-game .race-steer button {
+    min-height: 96px;
+  }
+}
+
+/* Ready screen already hides the HUD. Hide the pedals, drift meter, and footer hint on every layout, not only short landscape. Race stays. */
+.coast-game[data-status="ready"] .race-touch,
+.coast-game[data-status="ready"] .race-charge,
+.coast-game[data-status="ready"] .race-footer > span:first-child {
+    visibility: hidden;
 }

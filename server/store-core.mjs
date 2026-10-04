@@ -1,3 +1,4 @@
+import { clampMovement } from "./world-core.mjs";
 import { appearanceLimits } from "../src/appearance.ts";
 import { randomUUID, randomBytes, createHash } from "node:crypto";
 
@@ -149,12 +150,9 @@ export class StoreCore {
     )
       throw Error("Invalid connection");
     const p = this.db.prepare("SELECT * FROM players WHERE id=?").get(id);
-    const was = this.status(id),
-      activity = ["jog", "dragon", "dance", "rest", "arcade"].includes(
-        data.activity,
-      )
-        ? data.activity
-        : p.activity;
+    const was = this.status(id);
+    const movement = clampMovement(data, p);
+    const activity = movement.activity;
     const look = JSON.parse(p.look);
     for (const [key, max] of [
       ["outfit", 5],
@@ -171,10 +169,6 @@ export class StoreCore {
         data.look[key] <= max
       )
         look[key] = data.look[key];
-    const num = (v, f) =>
-      typeof v === "number" && Number.isFinite(v)
-        ? Math.max(-25, Math.min(25, v))
-        : f;
     this.db
       .prepare("INSERT OR REPLACE INTO presence VALUES(?,?,?,?)")
       .run(
@@ -196,9 +190,9 @@ export class StoreCore {
         JSON.stringify(look),
         activity,
         since,
-        num(data.x, p.x),
-        num(data.z, p.z),
-        num(data.yaw, p.yaw),
+        movement.x,
+        movement.z,
+        movement.yaw,
         this.now(),
         id,
       );
@@ -389,28 +383,28 @@ export class StoreCore {
           },
         ]),
     );
-    // One grouped pass per aggregate, regardless of the number of neighbours.
+    // Group score records and wins in one pass through finished rounds.
     for (const r of this.db
       .prepare(
         `SELECT player,game,
-        MAX(CASE WHEN eligible=1 AND (game!='coast' OR COALESCE(version,1)=2) THEN score ELSE 0 END) best,
-        MAX(CASE WHEN version=CASE WHEN game='coast' THEN 2 ELSE 1 END THEN score ELSE 0 END) guestBest
-        FROM runs WHERE status='finished' AND verified=1 GROUP BY player,game`,
+        COUNT(CASE WHEN verified=1 THEN 1 END) verifiedRuns,
+        MAX(CASE WHEN verified=1 THEN CASE WHEN eligible=1 AND (game!='coast' OR COALESCE(version,1)=2) THEN score ELSE 0 END END) best,
+        MAX(CASE WHEN verified=1 THEN CASE WHEN version=CASE WHEN game='coast' THEN 2 ELSE 1 END THEN score ELSE 0 END END) guestBest,
+        SUM(CASE WHEN target IS NOT NULL AND score>targetScore THEN 1 ELSE 0 END) wins
+        FROM runs WHERE status='finished' GROUP BY player,game`,
       )
       .all()) {
       const card = cards.get(r.player);
       if (card) {
-        card.best[r.game] = r.best;
-        card.guestBest[r.game] = r.guestBest;
+        if (r.verifiedRuns) {
+          card.best[r.game] = r.best;
+          card.guestBest[r.game] = r.guestBest;
+        }
+        card.wins += r.wins;
       }
     }
     for (const [field, sql, args] of [
       ["points", "SELECT player,SUM(points) n FROM medals GROUP BY player", []],
-      [
-        "wins",
-        "SELECT player,COUNT(*) n FROM runs WHERE target IS NOT NULL AND status='finished' AND score>targetScore GROUP BY player",
-        [],
-      ],
       [
         "incoming",
         "SELECT target player,COUNT(*) n FROM runs WHERE target IS NOT NULL AND day=? GROUP BY target",

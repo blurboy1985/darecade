@@ -6,6 +6,105 @@ import { Simulation, rulesVersion } from "../shared/simulation.ts";
 import { PRIVACY_VERSION } from "../server/community-core.mjs";
 
 const origin = "https://darecade.test";
+
+test(
+  "occupancy reports only write changed away flags and keep room freshness",
+  { timeout: 30000 },
+  async () => {
+    const { mf, api } = runtime();
+    const sockets = [];
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const connect = async (cookie) => {
+      const response = await mf.dispatchFetch(
+        origin + "/api/world/connect?world=world-1",
+        {
+          headers: { Upgrade: "websocket", Cookie: cookie, Origin: origin },
+        },
+      );
+      assert.equal(response.status, 101);
+      const socket = response.webSocket;
+      socket.addEventListener("message", (event) => {
+        if (JSON.parse(event.data).t === "closed") socket.close();
+      });
+      socket.addEventListener("close", () => {
+        try {
+          socket.close();
+        } catch {}
+      });
+      socket.accept();
+      sockets.push(socket);
+      return socket;
+    };
+    try {
+      const users = [];
+      for (let n = 0; n < 4; n++) {
+        const user = await api(
+          "auth/join",
+          {
+            month: 1,
+            year: 2000,
+            consent: true,
+            privacyVersion: PRIVACY_VERSION,
+          },
+          "",
+          { "CF-Connecting-IP": `192.0.2.${n + 1}` },
+        );
+        assert.equal(user.status, 200);
+        users.push(user);
+      }
+      // Let the Worker allocate the first room before using the explicit room path.
+      await api("world/poll", { x: 0 }, users[0].cookie);
+      const first = await connect(users[0].cookie);
+      const sql = await mf.unsafeGetDurableObjectStorage(
+        "darecade-test",
+        "Neighbourhood",
+        { name: "darecade-main-v1" },
+      );
+      await sql.exec("CREATE TABLE away_writes(n INTEGER NOT NULL)");
+      await sql.exec("INSERT INTO away_writes VALUES(0)");
+      await sql.exec(
+        "CREATE TRIGGER count_away_writes AFTER UPDATE OF away ON world_members BEGIN UPDATE away_writes SET n=n+1; END",
+      );
+      await sql.exec("UPDATE worlds SET seen=0 WHERE name='world-1'");
+      await connect(users[1].cookie);
+      const writes = async () =>
+        (await sql.exec("SELECT n FROM away_writes"))[0].n;
+      assert.equal(await writes(), 0);
+      const fresh = (
+        await sql.exec("SELECT seen,occupancy FROM worlds WHERE name='world-1'")
+      )[0];
+      assert.equal(fresh.occupancy, 2);
+      assert.ok(fresh.seen > Date.now() - 5000);
+      first.send(JSON.stringify({ away: true }));
+      await sleep(250);
+      await connect(users[2].cookie);
+      assert.equal(await writes(), 1);
+      assert.equal(
+        (await api("state", undefined, users[0].cookie)).data.players.find(
+          (p) => p.id === users[0].data.id,
+        ).status,
+        "resting",
+      );
+      first.send(JSON.stringify({ away: false }));
+      await sleep(250);
+      await connect(users[3].cookie);
+      assert.equal(await writes(), 2);
+      assert.equal(
+        (await api("state", undefined, users[0].cookie)).data.players.find(
+          (p) => p.id === users[0].data.id,
+        ).status,
+        "online",
+      );
+    } finally {
+      for (const socket of sockets)
+        try {
+          socket.close();
+        } catch {}
+      await mf.dispose();
+    }
+  },
+);
+
 function runtime(ready = true) {
   const messages = [];
   const mf = new Miniflare(
@@ -96,6 +195,102 @@ function play(game, seed) {
 }
 
 test(
+  "World auto-join fills 25 places, reuses the fullest room, and keeps empty rooms reusable",
+  { timeout: 60000 },
+  async () => {
+    const { mf, api } = runtime();
+    const sockets = [];
+    const users = [];
+    const join = async (cookie) => {
+      const response = await mf.dispatchFetch(origin + "/api/world/connect", {
+        headers: { Upgrade: "websocket", Cookie: cookie, Origin: origin },
+      });
+      assert.equal(response.status, 101);
+      const ws = response.webSocket;
+      sockets.push(ws);
+      const first = new Promise((resolve) =>
+        ws.addEventListener("message", (e) => resolve(JSON.parse(e.data)), {
+          once: true,
+        }),
+      );
+      ws.addEventListener("close", () => {
+        try {
+          ws.close();
+        } catch {}
+      });
+      ws.accept();
+      return first;
+    };
+    try {
+      for (let i = 0; i < 27; i++) {
+        const user = await api(
+          "auth/join",
+          {
+            month: 1,
+            year: 2000,
+            consent: true,
+            privacyVersion: PRIVACY_VERSION,
+          },
+          "",
+          { "CF-Connecting-IP": `192.0.2.${i + 1}` },
+        );
+        users.push(user);
+        const packet = await join(user.cookie);
+        assert.equal(packet.world, i < 25 ? "world-1" : "world-2");
+      }
+      assert.deepEqual(
+        (await api("worlds", undefined, users[0].cookie)).data.worlds.map(
+          (w) => w.count,
+        ),
+        [25, 2],
+      );
+      sockets[0].close();
+      await new Promise((r) => setTimeout(r, 100));
+      assert.equal(
+        (await join(users[0].cookie)).world,
+        "world-1",
+        "24 places wins over a room with 2",
+      );
+      sockets[25].close();
+      sockets[26].close();
+      await new Promise((r) => setTimeout(r, 100));
+      const empty = (
+        await api("worlds", undefined, users[0].cookie)
+      ).data.worlds.find((w) => w.id === "world-2");
+      assert.equal(empty.count, 0);
+      assert.equal(
+        (await join(users[25].cookie)).world,
+        "world-2",
+        "empty room reused when first room has 25",
+      );
+      const sql = await mf.unsafeGetDurableObjectStorage(
+        "darecade-test",
+        "Neighbourhood",
+        { name: "darecade-main-v1" },
+      );
+      await sql.exec(
+        "UPDATE worlds SET occupancy=30,seen=0 WHERE name='world-2'",
+      );
+      await sql.exec(
+        "DELETE FROM world_members WHERE player=?",
+        users[26].data.id,
+      );
+      assert.equal(
+        (await join(users[26].cookie)).world,
+        "world-2",
+        "stale occupancy cannot strand a room forever",
+      );
+    } finally {
+      for (const ws of sockets)
+        try {
+          ws.close();
+        } catch {}
+      await mf.dispose();
+    }
+  },
+);
+
+test(
   "World sockets enforce capacity, privacy, trusted identity, hibernation and HTTP fallback",
   { timeout: 60000 },
   async () => {
@@ -181,6 +376,25 @@ test(
         "world membership preserves live status between position saves",
       );
       assert.equal((await connect(users[30].cookie, "world-1")).status, 409);
+      const directory = await api("worlds", undefined, users[0].cookie);
+      assert.equal(directory.status, 200);
+      assert.deepEqual(directory.data.worlds, [
+        { id: "world-1", code: "W1", count: 30 },
+      ]);
+      assert.doesNotMatch(
+        JSON.stringify(directory.data),
+        /session|email|ageBand|blockedIds/,
+      );
+      assert.equal(
+        (
+          await api(
+            "worlds/join",
+            { friend: users[0].data.id },
+            users[30].cookie,
+          )
+        ).status,
+        400,
+      );
       const b = sockets[1],
         bp = [];
       b.addEventListener("message", (e) => bp.push(JSON.parse(e.data)));
@@ -197,8 +411,18 @@ test(
       const slot = a.packets[0].p[0][0];
       assert.ok(
         bp.some((p) =>
-          p.d.some((d) => d[0] === slot && d[1] === 2500 && d[2] === -2500),
+          p.d.some((d) => d[0] === slot && d[1] === 3300 && d[2] === -2500),
         ),
+      );
+      a.ws.send(
+        JSON.stringify({ x: 27.4, z: 11, activity: "fish", away: true }),
+      );
+      await sleep(260);
+      assert.ok(
+        bp.some((p) =>
+          p.d.some((d) => d[0] === slot && d[1] === 2740 && d[4] === 5),
+        ),
+        "East Side fishing reaches another socket without clipping or losing its activity",
       );
       const before = bp.length;
       assert.equal(
@@ -215,6 +439,20 @@ test(
       assert.ok(bp.slice(before).some((p) => p.gone.includes(slot)));
       const ownBlocked = a.packets.at(-1);
       assert.ok(ownBlocked.gone.length > 0);
+      for (const [viewer, hidden] of [
+        [users[0], users[1]],
+        [users[1], users[0]],
+      ]) {
+        const listing = await api("worlds", undefined, viewer.cookie);
+        assert.ok(
+          !listing.data.neighbours.some((p) => p.id === hidden.data.id),
+        );
+        assert.equal(
+          (await api("worlds/join", { friend: hidden.data.id }, viewer.cookie))
+            .status,
+          400,
+        );
+      }
       a.ws.send(JSON.stringify({ x: 3 }));
       await sleep(260);
       assert.ok(!bp.slice(before).some((p) => p.d.some((d) => d[0] === slot)));
@@ -310,6 +548,18 @@ test(
         users[3].data.id,
       );
       assert.equal(membership[0].world, "world-2");
+      const friend = await api(
+        "worlds/join",
+        { friend: users[3].data.id },
+        users[4].cookie,
+      );
+      assert.deepEqual(friend.data, { world: "world-2" });
+      assert.equal(
+        (await api("worlds/join", { world: "world-9999" }, users[4].cookie))
+          .status,
+        400,
+      );
+      assert.equal((await api("worlds", undefined)).status, 401);
     } finally {
       for (const ws of sockets)
         try {
@@ -375,18 +625,48 @@ test(
         403,
       );
       assert.equal(
-        (await api("auth/link", { email: "cloud@example.test" }, cookie))
+        (await api("auth/code", { email: "cloud@example.test" }, cookie))
           .status,
         200,
       );
+      const previousCookie = cookie;
+      const beforeVerify = await mf.dispatchFetch(
+        origin + "/api/world/connect?connection=before-code",
+        {
+          headers: { Cookie: cookie, Origin: origin, Upgrade: "websocket" },
+        },
+      );
+      assert.equal(beforeVerify.status, 101);
+      beforeVerify.webSocket.accept();
       assert.equal(messages.length, 1);
-      const token = messages[0].text.match(/#login=([a-f0-9]+)/)[1];
+      const verify = {
+        email: "cloud@example.test",
+        code: messages[0].text.match(/code is (\d{6})/)[1],
+      };
       const signed = await Promise.all([
-        api("auth/consume", { token }),
-        api("auth/consume", { token }),
+        api("auth/verify", verify),
+        api("auth/verify", verify),
       ]);
       assert.deepEqual(signed.map((r) => r.status).sort(), [200, 400]);
       cookie = signed.find((r) => r.status === 200).cookie;
+      assert.equal(
+        (await api("auth/me", undefined, previousCookie)).status,
+        401,
+      );
+      const afterVerify = await mf.dispatchFetch(
+        origin + "/api/world/connect?world=world-1&connection=after-code",
+        {
+          headers: { Cookie: cookie, Origin: origin, Upgrade: "websocket" },
+        },
+      );
+      assert.equal(
+        afterVerify.status,
+        101,
+        "rotated session can replace its world connection",
+      );
+      afterVerify.webSocket.accept();
+      afterVerify.webSocket.close();
+      beforeVerify.webSocket.close();
       const sql = await mf.unsafeGetDurableObjectStorage(
         "darecade-test",
         "Neighbourhood",
@@ -610,45 +890,55 @@ test(
       });
       assert.equal(guest.status, 200, JSON.stringify(guest.data));
       assert.equal(
-        (await api("auth/link", { email: "cloud@example.test" }, guest.cookie))
+        (await api("auth/code", { email: "cloud@example.test" }, guest.cookie))
           .status,
         200,
       );
-      const first = messages[0].text.match(/#login=([a-f0-9]+)/)[1];
-      assert.equal((await api("auth/consume", { token: first })).status, 200);
+      assert.doesNotMatch(messages[0].text, /https?:/);
+      assert.equal(
+        (
+          await api("auth/verify", {
+            email: "cloud@example.test",
+            code: messages[0].text.match(/code is (\d{6})/)[1],
+          })
+        ).status,
+        200,
+      );
 
       // A signed-out browser (no cookie) asks to sign in to the existing account.
-      const known = await api("auth/login-link", {
+      const known = await api("auth/login-code", {
         email: "  Cloud@Example.test ",
       });
       assert.equal(known.status, 200, JSON.stringify(known.data));
       assert.equal(messages.length, 2);
       assert.deepEqual(messages[1].to, ["cloud@example.test"]);
-      const again = messages[1].text.match(/#login=([a-f0-9]+)/)[1];
-      const signed = await api("auth/consume", { token: again });
+      const signed = await api("auth/verify", {
+        email: "cloud@example.test",
+        code: messages[1].text.match(/code is (\d{6})/)[1],
+      });
       assert.equal(signed.status, 200);
       assert.equal(signed.data.id, guest.data.id);
 
-      // An address with no account still gets an email, but never a sign-in link.
-      const unknown = await api("auth/login-link", {
+      // An address with no account still gets an email, but never a sign-in code.
+      const unknown = await api("auth/login-code", {
         email: "guest-only@example.test",
       });
       assert.equal(unknown.status, 200);
       assert.deepEqual(unknown.data, known.data);
       assert.equal(messages.length, 3);
       assert.deepEqual(messages[2].to, ["guest-only@example.test"]);
-      assert.doesNotMatch(messages[2].text, /#login=/);
+      assert.doesNotMatch(messages[2].text, /\d{6}/);
       assert.match(messages[2].text, /Account & privacy/);
 
       // Repeat requests for an unknown address are not re-sent within the hour.
       assert.equal(
-        (await api("auth/login-link", { email: "guest-only@example.test" }))
+        (await api("auth/login-code", { email: "guest-only@example.test" }))
           .status,
         200,
       );
       assert.equal(messages.length, 3);
       assert.equal(
-        (await api("auth/login-link", { email: "not-an-email" })).status,
+        (await api("auth/login-code", { email: "not-an-email" })).status,
         400,
       );
     } finally {

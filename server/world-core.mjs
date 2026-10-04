@@ -1,5 +1,7 @@
+import { activityIds } from "../src/catalog.ts";
+import { BOUNDS } from "../src/navigation.ts";
 export const WORLD_CAP = 30;
-export const activities = ["jog", "dragon", "dance", "rest", "arcade"];
+export const activities = activityIds;
 export const emotes = [
   "",
   "wave",
@@ -12,7 +14,7 @@ export const emotes = [
 export function clampMovement(data, previous = {}) {
   const number = (key) =>
     typeof data[key] === "number" && Number.isFinite(data[key])
-      ? Math.max(-25, Math.min(25, data[key]))
+      ? Math.max(-25, Math.min(key === "x" ? BOUNDS.east : 25, data[key]))
       : previous[key] || 0;
   return {
     x: number("x"),

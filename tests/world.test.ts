@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { WorldState, clampMovement } from "../server/world-core.mjs";
+import { Store } from "../server/store.mjs";
+import { activityIds, activities } from "../src/catalog.ts";
 import { MovementBuffer } from "../src/movement-buffer.ts";
 const identity = (id: string) => ({
   id,
@@ -69,4 +71,41 @@ test("remote interpolation uses a 150ms buffer and shortest rotation", () => {
   assert.equal(mid.z, 2);
   assert.ok(Math.abs(mid.yaw - Math.PI) < 0.01);
   assert.ok(buffer.sample(10000)!.x <= 2.5);
+});
+
+test("East Side positions and activity indices survive live encoding and Records checkpoints", () => {
+  assert.deepEqual(activityIds.slice(0, 5), [
+    "jog",
+    "dragon",
+    "dance",
+    "rest",
+    "arcade",
+  ]);
+  assert.deepEqual([...activityIds].sort(), Object.keys(activities).sort());
+  const store = new Store(":memory:");
+  try {
+    const { id } = store.session();
+    const world = new WorldState();
+    world.join(identity(id));
+    for (const [activity, x, z, wire] of [
+      ["fish", 27.4, 11, 5],
+      ["hoops", 28.4, -9.2, 6],
+    ] as const) {
+      const movement = { x, z, activity, away: true, yaw: 1 };
+      world.move(id, movement);
+      const packet = world.snapshot(id, new Map(), true);
+      assert.equal(packet.d[0][1], Math.round(x * 100));
+      assert.equal(activityIds[packet.d[0][4]], activity);
+      assert.equal(packet.d[0][4], wire);
+      store.heartbeat(id, { ...movement, connection: "eastside-checkpoint" });
+      const saved = store.db
+        .prepare("SELECT x,z,activity FROM players WHERE id=?")
+        .get(id);
+      assert.deepEqual({ ...saved }, { x, z, activity });
+    }
+    assert.equal(clampMovement({ x: 999 }).x, 33);
+    assert.equal(clampMovement({ x: -999 }).x, -25);
+  } finally {
+    store.close();
+  }
 });

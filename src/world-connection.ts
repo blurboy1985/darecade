@@ -1,5 +1,5 @@
 import { api, type SharedPlayer } from "./social";
-import type { ActivityId } from "./catalog";
+import { activityIds, type ActivityId } from "./catalog";
 
 type Movement = {
   x?: number;
@@ -17,7 +17,6 @@ type Packet = {
   d: number[][];
   gone: number[];
 };
-const activities: ActivityId[] = ["jog", "dragon", "dance", "rest", "arcade"];
 
 export class WorldConnection {
   private socket?: WebSocket;
@@ -34,7 +33,33 @@ export class WorldConnection {
   constructor(
     private position: () => Movement,
     private update: (players: SharedPlayer[]) => void,
+    private changed: (world: string) => void = () => {},
   ) {}
+  async join(world: string) {
+    if (world === this.world && !this.stopped) return;
+    const connection = crypto.randomUUID();
+    // Claim a place before closing the old transport. A full destination leaves us connected.
+    const packet = await api<Packet>(
+      `world/poll?world=${encodeURIComponent(world)}&connection=${connection}`,
+      this.position(),
+    );
+    this.stop(false);
+    this.connection = connection;
+    this.world = world;
+    this.failures = 0;
+    this.polling = false;
+    this.previous = "";
+    this.receive(packet);
+    this.start();
+  }
+  refreshSession() {
+    this.stop(false);
+    this.connection = crypto.randomUUID();
+    this.failures = 0;
+    this.polling = false;
+    this.previous = "";
+    this.start();
+  }
   start() {
     if (!this.stopped) return;
     this.stopped = false;
@@ -69,6 +94,7 @@ export class WorldConnection {
       this.socket = ws;
       this.handshake = setTimeout(() => ws.close(), 8000);
       ws.onmessage = (event) => {
+        if (this.socket !== ws || this.stopped) return;
         try {
           const packet = JSON.parse(event.data);
           clearTimeout(this.handshake);
@@ -121,19 +147,26 @@ export class WorldConnection {
   }
   private async poll() {
     if (this.stopped || !this.polling) return;
+    const connection = this.connection;
     try {
       const suffix =
         `?connection=${this.connection}` +
         (this.world ? `&world=${this.world}` : "");
-      this.receive(await api<Packet>(`world/poll${suffix}`, this.position()));
+      const packet = await api<Packet>(`world/poll${suffix}`, this.position());
+      if (this.stopped || connection !== this.connection) return;
+      this.receive(packet);
     } catch {
       /* State refresh handles expired sessions and offline notices. */
     }
-    if (!this.stopped) this.timer = setTimeout(() => void this.poll(), 2000);
+    if (!this.stopped && connection === this.connection)
+      this.timer = setTimeout(() => void this.poll(), 2000);
   }
   private receive(packet: Packet) {
     if (packet.t !== "sync" && packet.t !== "delta") return;
-    if (packet.world) this.world = packet.world;
+    if (packet.world) {
+      this.world = packet.world;
+      this.changed(this.world);
+    }
     if (packet.t === "sync") this.players.clear();
     for (const slot of packet.gone) this.players.delete(slot);
     for (const [slot, id, name, look] of packet.p)
@@ -160,7 +193,7 @@ export class WorldConnection {
           x: x / 100,
           z: z / 100,
           yaw: yaw / 100,
-          activity: activities[activity] || "rest",
+          activity: activityIds[activity] || "rest",
           status: away ? "resting" : "online",
           emote:
             ["", "wave", "cheer", "dance", "jump", "victory", "think"][emote] ||

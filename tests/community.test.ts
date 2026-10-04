@@ -64,16 +64,20 @@ function play(game: string, seed: number): { score: number; replay: Replay } {
     replay: { version: rulesVersion(game), ticks: sim.ticks, events },
   };
 }
+/** The code most recently "emailed" to an address in the local test outbox. */
+function emailedCode(directory: string, email: string): string {
+  return readdirSync(join(directory, "mail-outbox"))
+    .map((n) =>
+      JSON.parse(readFileSync(join(directory, "mail-outbox", n), "utf8")),
+    )
+    .find((m) => m.to === email && m.code).code;
+}
+const wrong = (code: string) => (code === "000000" ? "000001" : "000000");
 async function register(s: ReturnType<typeof setup>, email: string) {
   const guest = s.community.join(consent);
-  await s.community.requestLink(guest.me.id, email);
-  const messages = readdirSync(join(s.directory, "mail-outbox")).map((n) =>
-    JSON.parse(readFileSync(join(s.directory, "mail-outbox", n), "utf8")),
-  );
-  const raw = new URL(
-    messages.find((m) => m.to === email && m.url).url,
-  ).hash.slice(7);
-  return { ...s.community.consume(raw), raw };
+  await s.community.requestCode(guest.me.id, email);
+  const code = emailedCode(s.directory, email);
+  return { ...s.community.verifyCode(email, code), code };
 }
 test("all five games replay exactly from bounded tick inputs and seeded rules", () => {
   for (const game of ["noodle", "brick", "hop", "swarm", "coast"])
@@ -119,6 +123,7 @@ test("under-age and declined consent leave no player, profile, account or birth 
       "accounts",
       "sessions",
       "magic_links",
+      "email_codes",
     ])
       assert.equal(
         s.store.db.prepare(`SELECT count(*) n FROM ${t}`).get().n,
@@ -135,12 +140,16 @@ test("under-age and declined consent leave no player, profile, account or birth 
     s.close();
   }
 });
-test("email link is one-time, hashed, expires and restores the same account across sessions", async () => {
+test("email code is one-time, hashed, expires and restores the same account across sessions", async () => {
   const s = setup();
   try {
     const a = await register(s, "account@example.test");
     assert.equal(s.community.lookup(a.token), a.me.id);
-    assert.throws(() => s.community.consume(a.raw), /invalid or expired/);
+    assert.match(a.code, /^\d{6}$/);
+    assert.throws(
+      () => s.community.verifyCode("account@example.test", a.code),
+      /incorrect or has expired/,
+    );
     const stored = s.store.db
       .prepare("SELECT token FROM sessions WHERE player=?")
       .get(a.me.id);
@@ -149,7 +158,7 @@ test("email link is one-time, hashed, expires and restores the same account acro
     assert.equal(s.community.privateProfile(a.me.id).progress.xp, 0);
     s.community.logout(a.me.id, a.token);
     assert.equal(s.community.lookup(a.token), null);
-    await s.community.requestExistingLink("account@example.test");
+    await s.community.requestExistingCode("account@example.test");
     const msg = JSON.parse(
       readFileSync(
         join(
@@ -160,11 +169,23 @@ test("email link is one-time, hashed, expires and restores the same account acro
         "utf8",
       ),
     );
-    const b = s.community.consume(new URL(msg.url).hash.slice(7));
+    assert.equal(msg.url, undefined);
+    assert.doesNotMatch(msg.text, /https?:/);
+    assert.match(msg.subject, new RegExp(msg.code));
+    // Only a hash of the code is stored.
+    const pending = s.store.db.prepare("SELECT * FROM email_codes").all();
+    assert.equal(pending.length, 1);
+    assert.equal(JSON.stringify(pending).includes(msg.code), false);
+    // Asking again within a minute does not send a second code.
+    await s.community.requestExistingCode("account@example.test");
+    assert.equal(readdirSync(join(s.directory, "mail-outbox")).length, 1);
+    // Email case and spacing do not matter when the code is typed in.
+    const b = s.community.verifyCode(" Account@Example.test ", msg.code);
+    assert.equal(readdirSync(join(s.directory, "mail-outbox")).length, 0);
     assert.equal(b.me.id, a.me.id);
     assert.equal(b.me.progress.pet, 3);
     assert.equal(b.me.progress.clothing, 2);
-    await s.community.requestExistingLink("account@example.test");
+    await s.community.requestExistingCode("account@example.test");
     const expiry = JSON.parse(
       readFileSync(
         join(
@@ -177,8 +198,76 @@ test("email link is one-time, hashed, expires and restores the same account acro
     );
     s.tick(16 * 60000);
     assert.throws(
-      () => s.community.consume(new URL(expiry.url).hash.slice(7)),
+      () => s.community.verifyCode("account@example.test", expiry.code),
       /expired/,
+    );
+  } finally {
+    s.close();
+  }
+});
+test("wrong codes are limited per code and per email, without revealing accounts", async () => {
+  const s = setup();
+  const email = "guess@example.test";
+  try {
+    const a = await register(s, email);
+    s.community.logout(a.me.id, a.token);
+    for (const bad of ["12345", "1234567", "abcdef", 123456, null])
+      assert.throws(
+        () => s.community.verifyCode(email, bad),
+        /incorrect or has expired/,
+      );
+    // Five wrong guesses retire a code, even if the sixth try is right.
+    await s.community.requestExistingCode(email);
+    const first = emailedCode(s.directory, email);
+    for (let i = 0; i < 5; i++)
+      assert.throws(
+        () => s.community.verifyCode(email, wrong(first)),
+        /incorrect or has expired/,
+      );
+    assert.throws(
+      () => s.community.verifyCode(email, first),
+      /incorrect or has expired/,
+    );
+    assert.equal(
+      s.store.db.prepare("SELECT count(*) n FROM email_codes").get().n,
+      0,
+    );
+    assert.equal(readdirSync(join(s.directory, "mail-outbox")).length, 0);
+    // An address with no account answers exactly the same way.
+    assert.throws(
+      () => s.community.verifyCode("nobody@example.test", "123456"),
+      /incorrect or has expired/,
+    );
+    // A fresh code still works after earlier failures.
+    await s.community.requestExistingCode(email);
+    const second = emailedCode(s.directory, email);
+    assert.equal(s.community.verifyCode(email, second).me.id, a.me.id);
+    // Fifteen wrong guesses in a day lock the address: no new code is sent
+    // and nothing verifies, until the day has passed.
+    for (let i = 0; i < 9; i++)
+      assert.throws(
+        () => s.community.verifyCode(email, "000000"),
+        /incorrect or has expired/,
+      );
+    assert.deepEqual(await s.community.requestExistingCode(email), {
+      sent: true,
+      delivery: "outbox",
+    });
+    assert.equal(readdirSync(join(s.directory, "mail-outbox")).length, 0);
+    assert.throws(() => s.community.verifyCode(email, "000000"), /Too many/);
+    // Only a hash of the address is kept with the failure count.
+    assert.equal(
+      JSON.stringify(
+        s.store.db.prepare("SELECT * FROM code_failures").all(),
+      ).includes("guess@"),
+      false,
+    );
+    s.tick(86400000 + 1);
+    s.community.cleanup();
+    await s.community.requestExistingCode(email);
+    assert.equal(
+      s.community.verifyCode(email, emailedCode(s.directory, email)).me.id,
+      a.me.id,
     );
   } finally {
     s.close();
@@ -365,12 +454,12 @@ test("only three outgoing dares are allowed and a midnight reset cannot repeat a
   }
 });
 
-test("deletion removes feedback and all pending links to the deleted email", async () => {
+test("deletion removes feedback and all pending codes for the deleted email", async () => {
   const s = setup();
   try {
     const a = await register(s, "erase@example.test"),
       b = s.community.join(consent);
-    await s.community.requestLink(b.me.id, "erase@example.test");
+    await s.community.requestCode(b.me.id, "erase@example.test");
     const message = JSON.parse(
       readFileSync(
         join(
@@ -386,13 +475,21 @@ test("deletion removes feedback and all pending links to the deleted email", asy
       join(s.directory, "playtests", "feedback.json"),
       JSON.stringify({ player: a.me.id, answers: { device: "test phone" } }),
     );
+    // A pre-code sign-in message must also be erased during an upgrade.
+    s.store.db
+      .prepare("INSERT INTO magic_links VALUES (?,?,?,?)")
+      .run("legacy-link", "erase@example.test", b.me.id, Date.now() + DAY);
+    writeFileSync(
+      join(s.directory, "mail-outbox", "legacy-link.json"),
+      JSON.stringify({ to: "erase@example.test", token: "legacy-link" }),
+    );
     assert.equal(s.community.export(a.me.id).playtests.length, 1);
     s.community.delete(a.me.id);
     assert.equal(readdirSync(join(s.directory, "playtests")).length, 0);
     assert.equal(readdirSync(join(s.directory, "mail-outbox")).length, 0);
     assert.throws(
-      () => s.community.consume(new URL(message.url).hash.slice(7)),
-      /invalid or expired/,
+      () => s.community.verifyCode("erase@example.test", message.code),
+      /incorrect or has expired/,
     );
     assert.ok(s.community.lookup(b.token));
   } finally {
@@ -431,12 +528,12 @@ test("account, saved avatar and session survive a database restart", async () =>
   let community = new Community(store, { directory });
   try {
     const guest = community.join(consent);
-    await community.requestLink(guest.me.id, "restart@example.test");
+    await community.requestCode(guest.me.id, "restart@example.test");
     const file = readdirSync(join(directory, "mail-outbox"))[0];
     const message = JSON.parse(
       readFileSync(join(directory, "mail-outbox", file), "utf8"),
     );
-    const account = community.consume(new URL(message.url).hash.slice(7));
+    const account = community.verifyCode("restart@example.test", message.code);
     community.patch(account.me.id, {
       name: "Moon Mochi",
       sound: true,
@@ -601,16 +698,16 @@ test("sign-in requests for an address with no account send guidance, not a link,
       }
     };
     await assert.rejects(
-      s.community.requestExistingLink("not-an-email"),
+      s.community.requestExistingCode("not-an-email"),
       /valid email/,
     );
-    const reply = await s.community.requestExistingLink(" Guest@Example.test ");
+    const reply = await s.community.requestExistingCode(" Guest@Example.test ");
     assert.deepEqual(reply, { sent: true, delivery: "outbox" });
     const [notice] = outbox();
     assert.equal(notice.to, "guest@example.test");
     assert.equal(notice.notice, true);
-    assert.equal(notice.url, undefined);
-    assert.doesNotMatch(notice.text, /#login=/);
+    assert.equal(notice.code, undefined);
+    assert.doesNotMatch(notice.text, /\d{6}/);
     assert.match(notice.text, /Account & privacy/);
     // Only a hash of the address is kept for throttling.
     assert.equal(
@@ -619,23 +716,20 @@ test("sign-in requests for an address with no account send guidance, not a link,
       ).includes("guest@"),
       false,
     );
-    await s.community.requestExistingLink("guest@example.test");
+    await s.community.requestExistingCode("guest@example.test");
     assert.equal(outbox().length, 1);
     s.tick(61 * 60000);
-    await s.community.requestExistingLink("guest@example.test");
+    await s.community.requestExistingCode("guest@example.test");
     assert.equal(outbox().length, 2);
-    // Once the guest saves this email, the same form sends a real sign-in link.
+    // Once the guest saves this email, the same form sends a real sign-in code.
     const account = await register(s, "guest@example.test");
     s.community.logout(account.me.id, account.token);
-    await s.community.requestExistingLink("guest@example.test");
-    const link = outbox().find(
-      (m) =>
-        m.url &&
-        m.to === "guest@example.test" &&
-        new URL(m.url).hash.slice(7) !== account.raw,
-    );
+    await s.community.requestExistingCode("guest@example.test");
     assert.equal(
-      s.community.consume(new URL(link.url).hash.slice(7)).me.id,
+      s.community.verifyCode(
+        "guest@example.test",
+        emailedCode(s.directory, "guest@example.test"),
+      ).me.id,
       account.me.id,
     );
   } finally {

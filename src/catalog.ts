@@ -81,6 +81,16 @@ export const activities = {
   },
 } as const;
 export type ActivityId = keyof typeof activities;
+/** Stable wire positions: append new activities so existing indices never change. */
+export const activityIds: readonly ActivityId[] = [
+  "jog",
+  "dragon",
+  "dance",
+  "rest",
+  "arcade",
+  "fish",
+  "hoops",
+];
 
 export function formatScore(game: GameId, score: number) {
   return game === "coast" ? raceScoreTime(score) : String(score);

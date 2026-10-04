@@ -111,9 +111,9 @@ const handler = async (req, res) => {
         respond({ ok: true });
         return;
       }
-      if (req.method === "POST" && url.pathname === "/api/auth/login-link") {
+      if (req.method === "POST" && url.pathname === "/api/auth/login-code") {
         rate(req, "email", 6, 900000);
-        respond(await community.requestExistingLink(data.email));
+        respond(await community.requestExistingCode(data.email));
         return;
       }
       if (req.method === "POST" && url.pathname === "/api/auth/join") {
@@ -123,9 +123,9 @@ const handler = async (req, res) => {
         respond(joined.me);
         return;
       }
-      if (req.method === "POST" && url.pathname === "/api/auth/consume") {
-        rate(req, "consume", 12, 900000);
-        const signed = community.consume(data.token);
+      if (req.method === "POST" && url.pathname === "/api/auth/verify") {
+        rate(req, "verify", 12, 900000);
+        const signed = community.verifyCode(data.email, data.code);
         cookie(res, signed.token);
         respond(signed.me);
         return;
@@ -140,6 +140,14 @@ const handler = async (req, res) => {
         return;
       }
       const session = { id: player };
+      if (req.method === "GET" && url.pathname === "/api/worlds") {
+        respond(worlds.directory(player));
+        return;
+      }
+      if (req.method === "POST" && url.pathname === "/api/worlds/join") {
+        respond({ world: worlds.destination(player, data) });
+        return;
+      }
       if (req.method === "POST" && url.pathname === "/api/world/poll") {
         respond(worlds.poll(player, url.searchParams.get("world"), data));
         return;
@@ -153,9 +161,9 @@ const handler = async (req, res) => {
         respond(community.privateProfile(player));
         return;
       }
-      if (req.method === "POST" && url.pathname === "/api/auth/link") {
+      if (req.method === "POST" && url.pathname === "/api/auth/code") {
         rate(req, "email", 6, 900000);
-        respond(await community.requestLink(player, data.email));
+        respond(await community.requestCode(player, data.email));
         return;
       }
       if (req.method === "POST" && url.pathname === "/api/auth/logout") {

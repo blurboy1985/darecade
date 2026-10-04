@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID, createHash } from "node:crypto";
+import { randomBytes, randomInt, randomUUID, createHash } from "node:crypto";
 import { day, gameIds } from "./store-core.mjs";
 import {
   fresh,
@@ -21,6 +21,13 @@ import {
 } from "../shared/simulation.ts";
 export const PRIVACY_VERSION = "2026-10-03";
 const DAY = 86400000;
+const ACTIVE_TOUCH_INTERVAL = 5 * 60000;
+const CODE_MINUTES = 15;
+// A code dies after this many wrong guesses; an email address is refused for
+// the rest of a day after this many across all of its codes.
+const CODE_TRIES = 5;
+const DAILY_CODE_TRIES = 15;
+const BAD_CODE = "That code is incorrect or has expired.";
 const hash = (x) => createHash("sha256").update(x).digest("hex");
 export const seedFor = (game, date) =>
   parseInt(hash(`darecade-v${RULES_VERSION}:${game}:${date}`).slice(0, 8), 16);
@@ -87,6 +94,8 @@ export class CommunityCore {
   CREATE TABLE IF NOT EXISTS accounts(player TEXT PRIMARY KEY REFERENCES players(id),email TEXT UNIQUE NOT NULL,created INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,player TEXT REFERENCES players(id),expires INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS magic_links(token TEXT PRIMARY KEY,email TEXT NOT NULL,candidate TEXT REFERENCES players(id),expires INTEGER NOT NULL);
+  CREATE TABLE IF NOT EXISTS email_codes(email TEXT PRIMARY KEY,code TEXT NOT NULL,candidate TEXT REFERENCES players(id),expires INTEGER NOT NULL,attempts INTEGER NOT NULL);
+  CREATE TABLE IF NOT EXISTS code_failures(email TEXT PRIMARY KEY,n INTEGER NOT NULL,expires INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS login_notices(email TEXT PRIMARY KEY,expires INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS dares(id TEXT PRIMARY KEY,host TEXT REFERENCES players(id),run TEXT REFERENCES runs(id),game TEXT,seed INTEGER,score INTEGER,created INTEGER,expires INTEGER);
   CREATE TABLE IF NOT EXISTS reports(id TEXT PRIMARY KEY,reporter TEXT REFERENCES players(id),target TEXT REFERENCES players(id),reason TEXT,created INTEGER,status TEXT DEFAULT 'open');
@@ -131,19 +140,23 @@ export class CommunityCore {
   }
   lookup(token) {
     if (typeof token !== "string") return null;
+    const now = this.now();
     const s = this.db
       .prepare(
-        "SELECT s.player FROM sessions s JOIN profiles p ON p.player=s.player WHERE s.token=? AND s.expires>? AND p.consent=?",
+        "SELECT s.player,p.last_active FROM sessions s JOIN profiles p ON p.player=s.player WHERE s.token=? AND s.expires>? AND p.consent=?",
       )
-      .get(hash(token), this.now(), PRIVACY_VERSION);
+      .get(hash(token), now, PRIVACY_VERSION);
     if (
       !s ||
       this.db.prepare("SELECT 1 FROM suspensions WHERE player=?").get(s.player)
     )
       return null;
-    this.db
-      .prepare("UPDATE profiles SET last_active=? WHERE player=?")
-      .run(this.now(), s.player);
+    // Activity retention needs a recent timestamp, not a write on every read.
+    // Session expiry, consent and suspension are still checked on every lookup.
+    if (now - s.last_active >= ACTIVE_TOUCH_INTERVAL)
+      this.db
+        .prepare("UPDATE profiles SET last_active=? WHERE player=?")
+        .run(now, s.player);
     return s.player;
   }
   issue(player) {
@@ -377,38 +390,58 @@ export class CommunityCore {
       this.files.writeOutbox(outboxId, { to: email, subject, text, ...outbox });
     } else throw Error("Email delivery is not configured.");
   }
-  async requestLink(id, email) {
+  codeLocked(email) {
+    return !!this.db
+      .prepare(
+        "SELECT 1 FROM code_failures WHERE email=? AND expires>? AND n>=?",
+      )
+      .get(hash("code-failures:" + email), this.now(), DAILY_CODE_TRIES);
+  }
+  /**
+   * Emails a six-digit code that the player types into the window they already
+   * have open. Only a hash of the code is stored. A repeat request within a
+   * minute, or for a locked address, answers the same way without sending.
+   */
+  async requestCode(id, email) {
     email = this.normaliseEmail(email);
-    const old = this.db
-      .prepare("SELECT 1 FROM magic_links WHERE email=? AND expires>?")
-      .get(email, this.now() + 14 * 60000);
-    if (old) return { sent: true, delivery: this.mailMode };
-    const token = randomBytes(32).toString("hex");
-    this.db.prepare("DELETE FROM magic_links WHERE email=?").run(email);
+    const live = this.db
+      .prepare("SELECT 1 FROM email_codes WHERE email=? AND expires>?")
+      .get(email, this.now() + (CODE_MINUTES - 1) * 60000);
+    if (live || this.codeLocked(email))
+      return { sent: true, delivery: this.mailMode };
+    const code = String(randomInt(1000000)).padStart(6, "0");
+    const key = hash(`code:${email}:${code}`);
+    const expires = this.now() + CODE_MINUTES * 60000;
+    const previous = this.db
+      .prepare("SELECT code FROM email_codes WHERE email=?")
+      .get(email);
+    if (previous)
+      try {
+        this.files.removeOutbox(previous.code);
+      } catch {}
     this.db
-      .prepare("INSERT INTO magic_links VALUES(?,?,?,?)")
-      .run(hash(token), email, id, this.now() + 15 * 60000);
-    const url = `${this.origin}/#login=${token}`;
+      .prepare("INSERT OR REPLACE INTO email_codes VALUES(?,?,?,?,0)")
+      .run(email, key, id, expires);
     try {
       await this.sendEmail(
         email,
-        "Your Darecade sign-in link",
-        `Open this link to sign in to Darecade. It expires in 15 minutes and works once. Do not share it.\n\n${url}\n\nIf you did not request this, ignore this email.`,
-        hash(token),
-        { url, expires: this.now() + 15 * 60000 },
+        `${code} is your Darecade code`,
+        `Your Darecade code is ${code}\n\nType it into the Darecade window you already have open. It expires in ${CODE_MINUTES} minutes and works once. Do not share it.\n\nIf you did not request this, ignore this email.`,
+        key,
+        { code, expires },
       );
     } catch (e) {
-      this.db.prepare("DELETE FROM magic_links WHERE token=?").run(hash(token));
+      this.db.prepare("DELETE FROM email_codes WHERE code=?").run(key);
       throw e;
     }
     return { sent: true, delivery: this.mailMode };
   }
-  async requestExistingLink(email) {
+  async requestExistingCode(email) {
     const normal = this.normaliseEmail(email);
     const account = this.db
       .prepare("SELECT player FROM accounts WHERE email=?")
       .get(normal);
-    if (account) return this.requestLink(account.player, normal);
+    if (account) return this.requestCode(account.player, normal);
     // No account uses this address (often a guest who never saved an email).
     // Reply exactly as for a real account, but email guidance instead of
     // silence. Only a hash of the address is kept, for one hour, so the same
@@ -435,17 +468,46 @@ export class CommunityCore {
     }
     return { sent: true, delivery: this.mailMode };
   }
-  consume(raw) {
-    if (typeof raw !== "string" || !/^[a-f0-9]{64}$/.test(raw))
-      throw Error("This sign-in link is invalid or expired.");
-    return this.store.transaction(() => {
+  /** Checks an emailed code, then signs in or attaches the email to the guest. */
+  verifyCode(email, code) {
+    email = this.normaliseEmail(email);
+    if (typeof code !== "string" || !/^\d{6}$/.test(code))
+      throw Error(BAD_CODE);
+    // A wrong guess is recorded and reported after the transaction, because a
+    // thrown error would roll the count back.
+    const result = this.store.transaction(() => {
+      if (this.codeLocked(email))
+        return { error: "Too many incorrect codes. Try again tomorrow." };
       const link = this.db
-        .prepare("SELECT * FROM magic_links WHERE token=? AND expires>?")
-        .get(hash(raw), this.now());
-      if (!link) throw Error("This sign-in link is invalid or expired.");
+        .prepare("SELECT * FROM email_codes WHERE email=? AND expires>?")
+        .get(email, this.now());
+      if (!link || link.code !== hash(`code:${email}:${code}`)) {
+        // Counted whether or not a code exists, so the reply never reveals
+        // which addresses have accounts.
+        this.db
+          .prepare(
+            "INSERT INTO code_failures VALUES(?,1,?) ON CONFLICT(email) DO UPDATE SET n=CASE WHEN expires<=? THEN 1 ELSE n+1 END,expires=CASE WHEN expires<=? THEN excluded.expires ELSE expires END",
+          )
+          .run(
+            hash("code-failures:" + email),
+            this.now() + DAY,
+            this.now(),
+            this.now(),
+          );
+        if (link && link.attempts + 1 >= CODE_TRIES) {
+          this.db.prepare("DELETE FROM email_codes WHERE email=?").run(email);
+          try {
+            this.files.removeOutbox(link.code);
+          } catch {}
+        } else if (link)
+          this.db
+            .prepare("UPDATE email_codes SET attempts=attempts+1 WHERE email=?")
+            .run(email);
+        return { error: BAD_CODE };
+      }
       const account = this.db
         .prepare("SELECT player FROM accounts WHERE email=?")
-        .get(link.email);
+        .get(email);
       const id = account?.player || link.candidate;
       if (this.db.prepare("SELECT 1 FROM suspensions WHERE player=?").get(id))
         throw Error(
@@ -459,18 +521,20 @@ export class CommunityCore {
           throw Error("Start this sign-in from a signed-out browser.");
         this.db
           .prepare("INSERT INTO accounts VALUES(?,?,?)")
-          .run(id, link.email, this.now());
+          .run(id, email, this.now());
         this.db
           .prepare("UPDATE players SET token=? WHERE id=?")
           .run(hash(randomBytes(32)), id);
         this.db.prepare("DELETE FROM sessions WHERE player=?").run(id);
       }
-      this.db.prepare("DELETE FROM magic_links WHERE token=?").run(hash(raw));
+      this.db.prepare("DELETE FROM email_codes WHERE email=?").run(email);
       try {
-        this.files.removeOutbox(hash(raw));
+        this.files.removeOutbox(link.code);
       } catch {}
       return { token: this.issue(id), me: this.privateProfile(id) };
     });
+    if (result.error) throw Error(result.error);
+    return result;
   }
   logout(id, token) {
     this.db.prepare("DELETE FROM sessions WHERE token=?").run(hash(token));
@@ -879,10 +943,23 @@ export class CommunityCore {
       const email =
         this.db.prepare("SELECT email FROM accounts WHERE player=?").get(id)
           ?.email || "";
-      const links = this.db
-        .prepare("SELECT token FROM magic_links WHERE candidate=? OR email=?")
+      const codes = this.db
+        .prepare("SELECT code FROM email_codes WHERE candidate=? OR email=?")
         .all(id, email);
-      for (const link of links)
+      for (const pending of codes)
+        try {
+          this.files.removeOutbox(pending.code);
+        } catch {}
+      this.db
+        .prepare("DELETE FROM email_codes WHERE candidate=? OR email=?")
+        .run(id, email);
+      this.db
+        .prepare("DELETE FROM code_failures WHERE email=?")
+        .run(hash("code-failures:" + email));
+      // Links were replaced by codes; erase older outbox messages too.
+      for (const link of this.db
+        .prepare("SELECT token FROM magic_links WHERE candidate=? OR email=?")
+        .all(id, email))
         try {
           this.files.removeOutbox(link.token);
         } catch {}
@@ -909,6 +986,10 @@ export class CommunityCore {
   cleanup() {
     this.db.prepare("DELETE FROM sessions WHERE expires<=?").run(this.now());
     this.db.prepare("DELETE FROM magic_links WHERE expires<=?").run(this.now());
+    this.db.prepare("DELETE FROM email_codes WHERE expires<=?").run(this.now());
+    this.db
+      .prepare("DELETE FROM code_failures WHERE expires<=?")
+      .run(this.now());
     this.db
       .prepare("DELETE FROM login_notices WHERE expires<=?")
       .run(this.now());
@@ -919,7 +1000,9 @@ export class CommunityCore {
       .all(cutoff.getTime()))
       this.delete(p.player);
     this.db
-      .prepare("UPDATE runs SET replay=NULL WHERE finished<?")
+      .prepare(
+        "UPDATE runs SET replay=NULL WHERE finished<? AND replay IS NOT NULL",
+      )
       .run(this.now() - 30 * DAY);
     this.files.cleanup(this.now());
   }
