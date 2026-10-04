@@ -12,13 +12,15 @@ Live checks straight after:
 
 **Sign-in email is not confirmed working.** The Worker now sends from `hello@playsimi.danielquek.com`, and the stored `RESEND_API_KEY` was recorded as restricted to the old domain. Until the owner creates a key for the new domain and sets it (step 4), expect sign-in codes to fail. Guests and gameplay do not need email.
 
-Not verified live: a handoff carrying a real session (no production account was created for this check), a sign-in code, a message through the new forwarding rule, and the Stripe endpoint change.
+Not verified live: a handoff carrying a real session (no production account was created for this check), a sign-in code and a message through the new forwarding rule.
+
+Later on 5 October the Stripe webhook was repointed (step 6) and a re-sent event was delivered to the new address with HTTP 200; see PAYMENTS.md.
 
 Cloudflare's Web Analytics script is injected into pages on the custom domain and is blocked by the page's content security policy, so it does not load. Turn off the automatic injection for the zone to remove the console error.
 
 ### Preparation and checklist
 
-Steps 1 to 3 and the deployment are done. The sending key, the sign-in check and the Stripe endpoint remain.
+Steps 1 to 3 and the deployment are done. The sending key and the sign-in check remain.
 
 What the deployment changes:
 
@@ -34,7 +36,7 @@ Checklist:
 3. **Cloudflare Email Routing — done 5 October 2026.** The `playsimi` subdomain is enabled with locked DNS records; its three MX records and SPF TXT resolve on 1.1.1.1. The rule `hello@playsimi.danielquek.com` is active and forwards to the same verified destination as before. The `hello@darecade.danielquek.com` rule is kept so replies to earlier email still arrive, and catch-all remains disabled. Not yet verified: a real message arriving through the new rule.
 4. **Deploy — deployed; key still to do.** `npm run cf:deploy`, then `npx wrangler secret put RESEND_API_KEY` with the new key. Wrangler creates the custom domain and its certificate. Between the deployment and the new key, sign-in email fails; do the two together.
 5. **Check:** `https://playsimi.danielquek.com/api/health` returns ready; a sign-in code arrives from the new sender; opening the old address in a browser with an existing guest lands on the new address as the same character.
-6. **Stripe:** change the webhook endpoint `we_1UMlTDA6Maf1zlslfAoUT1gA` to `https://playsimi.danielquek.com/api/payments/webhook`. Editing the address keeps its signing secret. Until then events sent to the old address are still accepted.
+6. **Stripe — done 5 October 2026.** Change the webhook endpoint `we_1UMlTDA6Maf1zlslfAoUT1gA` to `https://playsimi.danielquek.com/api/payments/webhook`. Editing the address keeps its signing secret. Until then events sent to the old address are still accepted.
 7. Record the Worker version and the checks here.
 
 Rollback: redeploy the previous commit. Sessions created at the new address stay valid in the database but their cookies belong to the new address, so those players sign in again or play as before at the old one.

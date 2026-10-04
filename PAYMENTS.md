@@ -42,12 +42,20 @@ as part of setup.
   not bank payout completion. Account status retrieval is outside this key's
   permissions.
 - Active webhook `we_1UMlTDA6Maf1zlslfAoUT1gA` sends the five events below to
-  `https://darecade.daniel-tianwen.workers.dev/api/payments/webhook`, using
-  snapshot payloads and API version `2026-08-26.dahlia`.
+  `https://playsimi.danielquek.com/api/payments/webhook`, using
+  snapshot payloads and API version `2026-08-26.dahlia`. Until 5 October 2026
+  it pointed at `https://darecade.daniel-tianwen.workers.dev/api/payments/webhook`,
+  which still accepts signed events. The address was edited in place, so the
+  signing secret is unchanged; the destination is now named `Play Simi
+  purchases`.
 - Stripe delivered live event `evt_1UMlW5A6Maf1zlsltj5Rbx3y` with HTTP 200 and
   `received: true` at 17:15:48 SGT. Its initial attempt reached the previous
   deployment during propagation; Stripe's automatic retry recovered after
   15 seconds. Unsigned callbacks now return HTTP 400.
+- After the move, the same event was re-sent by hand from the Stripe
+  dashboard and delivered to the new address with HTTP 200 at 03:10:57 SGT on
+  5 October 2026. It is the expired, unpaid preflight session, so no charge or
+  order changed. A real purchase through the new address is not yet verified.
 - Production purchases were enabled in Worker version
   `081d7958-76fc-4887-a0eb-f2c3ac24dd41`. The live browser shows all ten S$1.99
   sets with loaded previews; guest purchase buttons require saving an email
