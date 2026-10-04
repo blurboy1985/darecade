@@ -13,7 +13,9 @@ import {
   TRACK_LENGTH,
   raceTime,
   raceScoreTime,
+  trackBounds,
   trackPoint,
+  type RaceItem,
 } from "../shared/racing";
 import { loadCharacter, type Look } from "./character";
 import { audio, type Sfx, type Theme } from "./audio";
@@ -23,6 +25,18 @@ import { kartSteeringInput } from "./kart-motion";
 import "./racing.css";
 
 const SHELLS = pickups.length * RACE_LAPS;
+const ITEM_NAMES: Record<NonNullable<RaceItem>, string> = {
+  shield: "🛡 Shield",
+  turbo: "⚡ Turbo",
+  missile: "🚀 Missile",
+  storm: "🌩 Storm",
+  coconut: "🥥 Coconut",
+};
+// The minimap fits whatever route the simulation defines.
+const MAP_SCALE = Math.min(
+  160 / (trackBounds.maxX - trackBounds.minX),
+  112 / (trackBounds.maxZ - trackBounds.minZ),
+);
 const OUTRO_SECONDS = 9;
 
 export class RacingGame {
@@ -99,11 +113,11 @@ export class RacingGame {
         <div class="race-view"></div>
         <div class="race-hud"><span class="stat-pill place-pill"><small>PLACE</small><b id="race-place">8th / 8</b></span><span class="stat-pill score-pill"><small>TIME</small><b id="run-score">0:00.00</b></span><span id="run-state">LAP <b id="race-lap">1 / 3</b></span><span class="stat-pill time-pill"><small>LEFT</small><b id="run-time">120</b></span></div>
         <div class="game-pops" aria-hidden="true"></div>
-        <canvas class="race-map" width="180" height="130" aria-label="All eight karts. You are coral with a white ring. Seven coloured dots are game characters."></canvas>
+        <canvas class="race-map" width="180" height="130" aria-label="All eight karts. You are coral with a white ring. Seven coloured dots are game characters. Red squares are missiles and brown squares are coconuts."></canvas>
         <div class="race-speed"><b id="race-speed">0</b><span>KM/H</span></div>
         <div class="race-item"><span id="race-item-label">ITEM</span><b id="race-item">Empty</b><small id="race-pickups">🐚 0 / ${SHELLS}</small></div><div class="race-notice" role="status" aria-live="polite">Loading your driver…</div>
         <div class="race-finish" role="status" hidden></div>
-        <div class="race-cover"><span class="eyebrow">DARECADE / ISLAND CIRCUIT</span><h3>COAST<br><em>RUSH</em></h3><p>Your avatar. Seven rivals. Three laps.</p><button class="primary" id="start-game" disabled>Getting your kart ready…</button><button class="race-sound" data-race-sound></button><div class="race-instructions">${touch ? "<span>STEER<br><b>← →</b></span><span>DRIVE<br><b>Hold GO</b></span><span>DRIFT<br><b>Hold, then release</b></span>" : "<span>DRIVE<br><b>W A S D</b></span><span>DRIFT<br><b>Hold SPACE</b></span><span>ITEM<br><b>Tap E</b></span>"}</div><ul class="race-legend"><li><b>🛡 Shield</b>From a crate. ${use} to block wall and kart hits for 3 seconds.</li><li><b>⚡ Turbo</b>From a crate. ${use} for a 2-second speed burst.</li><li><b>🐚 Shells</b>Bonus pickups, 12 a lap. They are counted on your result and never change your time or medals.</li></ul><p class="race-tip">${touch ? "Hold DRIFT through a bend, then let go for a Mini, Super or Ultra turbo. DRIFT and ITEM keep you accelerating, so one thumb can slide between them and GO." : "Hold W to go. A/D steer, S brakes. Hold Space through a bend, then release for a Mini, Super or Ultra turbo."} A hit costs a 0.75s stop.</p><small>Same kart for everyone · 2 minute limit<br>7 rivals are game characters, not real players.</small></div>
+        <div class="race-cover"><span class="eyebrow">DARECADE / ISLAND CIRCUIT</span><h3>COAST<br><em>RUSH</em></h3><p>Your avatar. Seven rivals. Three laps.</p><button class="primary" id="start-game" disabled>Getting your kart ready…</button><button class="race-sound" data-race-sound></button><div class="race-instructions">${touch ? "<span>STEER<br><b>← →</b></span><span>DRIVE<br><b>Hold GO</b></span><span>DRIFT<br><b>Hold, then release</b></span>" : "<span>DRIVE<br><b>W A S D</b></span><span>DRIFT<br><b>Hold SPACE</b></span><span>ITEM<br><b>Tap E</b></span>"}</div><ul class="race-legend"><li><b>🎁 Crates</b>Each gives one of five items at random. ${use} to use it.</li><li class="race-items"><span><b>🛡 Shield</b>blocks hits for 3s</span><span><b>⚡ Turbo</b>2s speed burst</span><span><b>🚀 Missile</b>spins the kart in front</span><span><b>🌩 Storm</b>slows every kart ahead</span><span><b>🥥 Coconut</b>dropped behind you; spins a chaser</span></li><li><b>🐚 Shells</b>Bonus pickups, 12 a lap. They never change your time or medals.</li></ul><p class="race-tip">${touch ? "Hold DRIFT through a bend, then let go for a Mini, Super or Ultra turbo. DRIFT and ITEM keep you accelerating, so one thumb can slide between them and GO." : "Hold W to go. A/D steer, S brakes. Hold Space through a bend, then release for a Mini, Super or Ultra turbo."} At turbo speed the tight bends push you wide unless you drift. A hit costs a 0.75s stop.</p><small>Same kart for everyone · 2 minute limit<br>7 rivals are game characters, not real players.</small></div>
       </div>
       <div class="race-charge"><label for="drift-charge">DRIFT TURBO <span id="drift-label">Hold ${touch ? "DRIFT" : "Space"} while moving</span></label><meter id="drift-charge" min="0" max="1" low=".333" optimum="1" value="0">0</meter></div>
       <div class="race-touch" aria-label="Driving controls"><div class="race-steer"><button data-race-control="left" aria-label="Steer left">←</button><button data-race-control="right" aria-label="Steer right">→</button></div><div class="race-pedals"><button data-race-control="item">ITEM</button><button data-race-control="brake">BRAKE</button><button data-race-control="drift">DRIFT</button><button data-race-control="gas">GO</button></div></div>
@@ -398,6 +412,7 @@ export class RacingGame {
           shield: race.shield,
           place: race.place,
           tier: race.tier,
+          knocks: race.knocks,
         };
         this.sim.advance(input);
         this.cue(before, now);
@@ -451,12 +466,7 @@ export class RacingGame {
           : `Hold ${this.touch ? "DRIFT" : "Space"}: Mini 0.8s · Super 1.6s · Ultra 2.4s`;
     this.container.querySelector("#race-place")!.textContent =
       `${ordinal(race.place)} / 8`;
-    const item =
-      race.item === "shield"
-        ? "🛡 Shield"
-        : race.item === "turbo"
-          ? "⚡ Turbo"
-          : "Empty";
+    const item = race.item ? ITEM_NAMES[race.item] : "Empty";
     const itemName = this.container.querySelector("#race-item")!;
     if (itemName.textContent !== item) {
       itemName.textContent = item;
@@ -472,6 +482,7 @@ export class RacingGame {
     this.stats.dataset.place = String(race.place);
     this.stats.dataset.pickups = String(race.pickupCount);
     this.stats.dataset.item = race.item || "empty";
+    this.stats.dataset.knocks = String(race.knocks);
     this.stats.dataset.speed = race.speed.toFixed(2);
     this.stats.dataset.charge = race.charge.toFixed(3);
     const finished = this.status === "finished";
@@ -522,10 +533,11 @@ export class RacingGame {
       bumps: number;
       laps: number;
       pickups: number;
-      item: string | null;
+      item: RaceItem;
       shield: number;
       place: number;
       tier: string | null;
+      knocks: number;
     },
     now: number,
   ) {
@@ -537,7 +549,19 @@ export class RacingGame {
     if (race.item && !before.item) {
       this.sound("crate");
       this.flash(this.itemBox);
-      this.pop(race.item === "shield" ? "🛡 SHIELD!" : "⚡ TURBO!", now);
+      this.pop(ITEM_NAMES[race.item].toUpperCase() + "!", now);
+    }
+    // Shield and turbo already sound through their own state below.
+    if (before.item && !race.item) {
+      if (before.item === "missile") this.sound("shoot");
+      else if (before.item === "storm") {
+        this.sound("bigboom");
+        this.pop("🌩 STORM!", now);
+      } else if (before.item === "coconut") this.sound("blip");
+    }
+    if (race.knocks > before.knocks) {
+      this.sound("boom");
+      this.pop("💥 SPUN OUT!", now);
     }
     if (race.shield > 0 && before.shield <= 0) this.sound("shield");
     if (race.shield <= 0 && before.shield > 0) this.sound("shieldoff");
@@ -585,12 +609,15 @@ export class RacingGame {
     ctx.clearRect(0, 0, 180, 130);
     const plot = (distance: number, offset = 0) => {
       const p = trackPoint(distance, offset);
-      return { x: p.x * 0.69 + 80, y: p.z * 0.69 + 65 };
+      return {
+        x: 90 + (p.x - (trackBounds.minX + trackBounds.maxX) / 2) * MAP_SCALE,
+        y: 65 + (p.z - (trackBounds.minZ + trackBounds.maxZ) / 2) * MAP_SCALE,
+      };
     };
     ctx.lineCap = "round";
     ctx.beginPath();
-    for (let i = 0; i <= 160; i++) {
-      const p = plot((i / 160) * TRACK_LENGTH);
+    for (let i = 0; i <= 240; i++) {
+      const p = plot((i / 240) * TRACK_LENGTH);
       if (i === 0) ctx.moveTo(p.x, p.y);
       else ctx.lineTo(p.x, p.y);
     }
@@ -613,6 +640,16 @@ export class RacingGame {
         ctx.fillStyle = kind === "crate" ? "#83fff1" : "#fff0a6";
         ctx.fillRect(point.x - 1.5, point.y - 1.5, 3, 3);
       });
+    // Coconuts and missiles show here too, as the simple view has no 3D scene.
+    for (const [objects, colour] of [
+      [race.coconuts, "#c98a4b"],
+      [race.missiles, "#ff5a4a"],
+    ] as const)
+      for (const object of objects) {
+        const point = plot(object.distance, object.offset);
+        ctx.fillStyle = colour;
+        ctx.fillRect(point.x - 2, point.y - 2, 4, 4);
+      }
     for (const rival of race.rivals) {
       const point = plot(rival.distance, rival.offset);
       ctx.fillStyle = rival.color;

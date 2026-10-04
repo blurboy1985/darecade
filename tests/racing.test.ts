@@ -13,6 +13,7 @@ import {
 import {
   CoastRace,
   driftTier,
+  ITEMS,
   itemCrates,
   pickups,
   RIVALS,
@@ -70,10 +71,13 @@ function drive(seed: number, style: Driving = "clean") {
   };
 }
 
-test("Coast Rush shares deterministic three-lap physics with server replay; seed and graphics do not change handling", () => {
+test("Coast Rush shares deterministic three-lap physics with server replay; the seed changes item draws, never handling", () => {
   const a = drive(1, "drift"),
     b = drive(876543, "drift");
-  assert.deepEqual(a, b);
+  assert.deepEqual(a, drive(1, "drift"));
+  // Neither driver uses an item, so only the crate draw may differ.
+  assert.deepEqual(a.replay, b.replay);
+  assert.deepEqual(a.race.result(), b.race.result());
   assert.ok(a.score > 0);
   assert.equal(a.race.distance, RACE_DISTANCE);
   assert.equal(a.race.lapTicks.length, 3);
@@ -322,7 +326,7 @@ test("drift release awards the displayed Mini, Super and Ultra tiers", () => {
   }
 });
 
-test("crates give only shield or turbo; E consumes once per press; shells are lap pickups", () => {
+test("crates draw one of five seeded items; E consumes once per press; shells are lap pickups", () => {
   const race = new CoastRace();
   const cross = (point: { distance: number; offset: number }) => {
     race.distance = point.distance - 0.1;
@@ -331,12 +335,13 @@ test("crates give only shield or turbo; E consumes once per press; shells are la
     race.advance(0, 1, false);
   };
   cross(itemCrates[0]);
-  assert.equal(race.item, "shield");
+  assert.ok(ITEMS.includes(race.item!));
+  race.item = "shield";
   race.advance(0, 1, false, true);
   assert.equal(race.item, null);
   assert.ok(race.shield > 2.9);
-  cross(itemCrates[1]);
-  assert.equal(race.item, "turbo");
+  race.item = "turbo";
+  race.advance(0, 1, false);
   race.advance(0, 1, false, true);
   assert.equal(race.item, null);
   assert.ok(race.boost > 1.9);
@@ -346,6 +351,131 @@ test("crates give only shield or turbo; E consumes once per press; shells are la
   cross(pickups[9]);
   assert.equal(race.pickupCount, 1);
   assert.ok(race.collected.has("pickup:0:9"));
+
+  // The draw depends on the seed, covers all five, and repeats for one seed.
+  const draw = (seed: number, leading = false) => {
+    const r = new CoastRace(seed);
+    if (leading) r.distance = TRACK_LENGTH;
+    r.distance += itemCrates[0].distance - 0.1;
+    r.offset = itemCrates[0].offset;
+    r.speed = 23;
+    r.advance(0, 1, false);
+    return r.item;
+  };
+  const seeds = Array.from({ length: 400 }, (_, i) => i * 7919 + 1);
+  const counts = new Map<string, number>();
+  for (const seed of seeds) {
+    const item = draw(seed)!;
+    assert.equal(draw(seed), item);
+    counts.set(item, (counts.get(item) ?? 0) + 1);
+  }
+  assert.deepEqual([...counts.keys()].sort(), [...ITEMS].sort());
+  for (const [item, n] of counts)
+    assert.ok(n > 40 && n < 120, `${item} drawn ${n} of 400 times`);
+  for (const seed of seeds)
+    assert.ok(
+      ["shield", "turbo", "coconut"].includes(draw(seed, true)!),
+      "the leader has no kart ahead to aim at",
+    );
+});
+
+test("missile knocks the kart in front, storm slows every kart ahead, coconut spins a chaser", () => {
+  const settle = (race: CoastRace, ticks: number) => {
+    for (let i = 0; i < ticks; i++) race.advance(0, 0, false);
+  };
+  const missile = new CoastRace();
+  settle(missile, 300);
+  // Coco is the nearest kart ahead of a parked player.
+  const ahead = missile.rivals.map((r) => r.distance);
+  missile.item = "missile";
+  missile.advance(0, 0, false, true);
+  assert.equal(missile.item, null);
+  assert.equal(missile.missiles.length, 1);
+  assert.equal(missile.missiles[0].target, 6);
+  settle(missile, 240);
+  assert.equal(missile.missiles.length, 0);
+  assert.equal(missile.knocks, 1);
+  const free = new CoastRace();
+  settle(free, 541);
+  assert.ok(
+    free.rivals[6].distance - missile.rivals[6].distance > 20,
+    "the knocked kart loses ground",
+  );
+  for (let i = 0; i < 6; i++) {
+    assert.ok(missile.rivals[i].distance > ahead[i]);
+    assert.equal(missile.rivals[i].distance, free.rivals[i].distance);
+  }
+
+  const storm = new CoastRace();
+  settle(storm, 300);
+  storm.rivals[6].distance = -5;
+  storm.item = "storm";
+  storm.advance(0, 0, false, true);
+  assert.ok(storm.rivals.slice(0, 6).every((r) => r.slow > 0));
+  assert.equal(storm.rivals[6].slow, 0, "a kart behind is not slowed");
+  settle(storm, 60);
+  assert.ok(storm.rivals[0].speed < storm.rivals[0].pace * 0.6);
+  settle(storm, 300);
+  assert.equal(storm.rivals[0].speed, storm.rivals[0].pace);
+  assert.equal(storm.knocks, 0);
+
+  const coconut = new CoastRace();
+  coconut.distance = 200;
+  coconut.item = "coconut";
+  coconut.advance(0, 0, false, true);
+  assert.equal(coconut.coconuts.length, 1);
+  settle(coconut, 60 * 12);
+  assert.equal(coconut.coconuts.length, 0);
+  assert.equal(coconut.knocks, 1, "only the first chaser is caught");
+
+  const leader = new CoastRace();
+  leader.distance = 500;
+  leader.item = "missile";
+  leader.advance(0, 0, false, true);
+  settle(leader, 120);
+  assert.equal(leader.missiles.length, 0, "with no kart ahead it flies off");
+  assert.equal(leader.knocks, 0);
+});
+
+test("the winding route is closed, never crosses itself, and makes drifting the fast way through bends", () => {
+  let tightest = Infinity,
+    left = 0,
+    right = 0;
+  for (let d = 0; d < TRACK_LENGTH; d += 2) {
+    const curve = trackCurve(d);
+    tightest = Math.min(tightest, 1 / Math.abs(curve));
+    if (curve > 0.03) left++;
+    if (curve < -0.03) right++;
+    for (let e = d + 60; e < d + TRACK_LENGTH - 60; e += 2) {
+      const a = trackPoint(d),
+        b = trackPoint(e);
+      assert.ok(
+        Math.hypot(a.x - b.x, a.z - b.z) > 30,
+        `sections at ${d} and ${e} stay apart`,
+      );
+    }
+  }
+  assert.ok(tightest > 12 && tightest < 18, `tightest radius ${tightest}`);
+  assert.ok(left > 20 && right > 20, "bends go both ways");
+  // Held at turbo speed, the hairpin needs a drift to stay off the wall.
+  const hairpin = (drift: boolean) => {
+    const race = new CoastRace();
+    race.distance = TRACK_LENGTH * 0.2;
+    race.offset = 0;
+    while (race.distance < TRACK_LENGTH * 0.36 && !race.bumps) {
+      race.speed = 31;
+      race.boost = 1;
+      const steer = Math.sign(
+        trackCurve(race.distance) * race.speed ** 2 * 0.24 -
+          race.offset * 2 -
+          race.lateralSpeed * 0.5,
+      );
+      race.advance(steer, 1, drift);
+    }
+    return race.bumps;
+  };
+  assert.equal(hairpin(true), 0);
+  assert.equal(hairpin(false), 1);
 });
 
 test("walls and kart contact visibly stop the clocked racer; an active shield prevents both", () => {
@@ -411,7 +541,7 @@ test("new bests and race records come from replay, retry safely, and never put r
     assert.equal(better.race.newBest, true);
     const record = better.profile.progress.coastRecord;
     community.patch(id, {
-      coastRecord: { version: 2, timeTicks: 1, place: 1 },
+      coastRecord: { version: 3, timeTicks: 1, place: 1 },
     });
     assert.deepEqual(community.privateProfile(id).progress.coastRecord, record);
     assert.equal(
@@ -495,6 +625,103 @@ test("old two-lap times and dares are archived without changing other games or e
     assert.equal(
       store.db.prepare("SELECT score FROM runs WHERE id=?").get(old.id).score,
       5000,
+    );
+  } finally {
+    store.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("a race that uses its items replays to the same result on the server", () => {
+  const seed = 20261004,
+    sim = new Simulation("coast", seed),
+    events: Replay["events"] = [],
+    used = new Set<string>();
+  let previous = "";
+  while (!sim.ended) {
+    const r = sim.race!;
+    if (r.item) used.add(r.item);
+    const input: Input = [
+      Math.sign(
+        trackCurve(r.distance) * r.speed ** 2 * 0.24 -
+          r.offset * 2 -
+          r.lateralSpeed * 0.5,
+      ),
+      1,
+      r.item && sim.ticks % 30 === 0 ? 1 : -1,
+      Number(r.charge < 0.98),
+      -1,
+      -1,
+    ];
+    const stamp = JSON.stringify(input);
+    if (stamp !== previous) {
+      events.push([sim.ticks, ...input]);
+      previous = stamp;
+    }
+    sim.advance(input);
+  }
+  assert.ok(sim.score > 0);
+  assert.ok(used.size >= 3, `used ${[...used]}`);
+  assert.deepEqual(
+    replayRun("coast", seed, {
+      version: rulesVersion("coast"),
+      ticks: sim.ticks,
+      events,
+    }),
+    { score: sim.score, ticks: sim.ticks, race: sim.race!.result() },
+  );
+});
+
+test("old-loop times are archived when the route changes; earlier days still settle on the old loop", () => {
+  const directory = mkdtempSync(join(tmpdir(), "darecade-route-migration-"));
+  const now = Date.parse("2026-10-06T10:00:00+08:00"),
+    midnight = Date.parse("2026-10-06T00:00:00+08:00");
+  const store = new Store(":memory:", () => now),
+    community = new Community(store, { directory });
+  try {
+    assert.equal(rulesVersion("coast"), 3);
+    const id = community.join({
+      year: 2000,
+      month: 1,
+      consent: true,
+      privacyVersion: PRIVACY_VERSION,
+    }).me.id;
+    store.db
+      .prepare("INSERT INTO accounts VALUES(?,?,?)")
+      .run(id, "loop@example.test", now - 172800000);
+    const old = store.begin(id, "coast");
+    store.finish(id, old.id, 4200);
+    store.db
+      .prepare("UPDATE runs SET version=2,seed=42,finished=? WHERE id=?")
+      .run(midnight - 3600000, old.id);
+    const progress = community.privateProfile(id).progress;
+    Object.assign(progress, {
+      coastRecord: { version: 2, timeTicks: 3001, place: 2 },
+      coastLegacyBest: 5000,
+    });
+    progress.best.coast = 4200;
+    progress.best.hop = 40;
+    store.db
+      .prepare("UPDATE profiles SET progress=? WHERE player=?")
+      .run(JSON.stringify(progress), id);
+    const migrated = community.privateProfile(id).progress;
+    assert.equal(migrated.best.coast, 0);
+    assert.equal(migrated.best.hop, 40);
+    assert.equal(migrated.coastLegacyBest, 4200);
+    assert.deepEqual(migrated.coastRecord, {
+      version: 3,
+      timeTicks: 0,
+      place: 0,
+    });
+    assert.throws(() => community.postDare(id, old.id), /validated/);
+    assert.equal(community.state(id).boards.coast.length, 0);
+    // The day before the route changed is still ranked on the old loop.
+    store.coastFrom = "2026-10-01";
+    assert.equal(store.board("coast", midnight, midnight - 86400000).length, 1);
+    assert.equal(store.board("coast", now + 1, midnight - 86400000).length, 0);
+    assert.equal(
+      store.db.prepare("SELECT score FROM runs WHERE id=?").get(old.id).score,
+      4200,
     );
   } finally {
     store.close();

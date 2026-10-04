@@ -47,7 +47,7 @@ export type Save = {
   cat: boolean;
   rounds: number;
   best: Record<GameId, number>;
-  coastRecord: { version: 2; timeTicks: number; place: number };
+  coastRecord: { version: 3; timeTicks: number; place: number };
   coastLegacyBest: number;
   sound: boolean;
   music: boolean;
@@ -105,7 +105,7 @@ export function fresh(): Save {
     cat: false,
     rounds: 0,
     best: { noodle: 0, brick: 0, hop: 0, swarm: 0, coast: 0 },
-    coastRecord: { version: 2, timeTicks: 0, place: 0 },
+    coastRecord: { version: 3, timeTicks: 0, place: 0 },
     coastLegacyBest: 0,
     cameraMode: "isometric",
     awayActivity: "jog",
@@ -230,7 +230,7 @@ export function normalise(raw: unknown, fallback: Save): Save {
       s.best[key] = Math.min(1e7, Math.floor(r.best![key]));
   const record = r.coastRecord;
   if (
-    record?.version === 2 &&
+    record?.version === 3 &&
     Number.isInteger(record.timeTicks) &&
     record.timeTicks >= 0 &&
     record.timeTicks <= 7200 &&
@@ -243,10 +243,15 @@ export function normalise(raw: unknown, fallback: Save): Save {
       ? Math.max(0, r.coastLegacyBest!)
       : 0;
   } else {
-    // Preserve the old trial record, but never compare two laps with three.
-    s.coastLegacyBest = s.best.coast;
+    // Keep the best from the previous rules, but never compare it with the
+    // current route: two laps, then three on the old loop, now the winding one.
+    s.coastLegacyBest =
+      s.best.coast ||
+      (Number.isFinite(r.coastLegacyBest)
+        ? Math.max(0, r.coastLegacyBest!)
+        : 0);
     s.best.coast = 0;
-    s.coastRecord = { version: 2, timeTicks: 0, place: 0 };
+    s.coastRecord = { version: 3, timeTicks: 0, place: 0 };
   }
   return s;
 }

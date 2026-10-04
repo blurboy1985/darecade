@@ -325,7 +325,7 @@ function play(game, seed) {
     if (game === "coast") {
       const race = sim.race;
       input[0] = Math.sign(
-        trackCurve(race.distance) * race.speed ** 2 * 0.1 -
+        trackCurve(race.distance) * race.speed ** 2 * 0.24 -
           race.offset * 2 -
           race.lateralSpeed * 0.5,
       );

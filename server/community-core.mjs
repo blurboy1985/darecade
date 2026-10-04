@@ -23,6 +23,7 @@ import {
 } from "../src/state.ts";
 import {
   replayRun,
+  COAST_RULES_VERSION,
   RULES_VERSION,
   rulesVersion,
 } from "../shared/simulation.ts";
@@ -728,7 +729,7 @@ export class CommunityCore {
         race = { ...result.race, newBest };
         if (race.finished)
           p.coastRecord = {
-            version: 2,
+            version: COAST_RULES_VERSION,
             timeTicks: previous.timeTicks
               ? Math.min(previous.timeTicks, race.timeTicks)
               : race.timeTicks,
@@ -764,7 +765,7 @@ export class CommunityCore {
     const saved = this.store.transaction(() => {
       const r = this.db
         .prepare(
-          "SELECT * FROM runs WHERE id=? AND player=? AND verified=1 AND status='finished' AND score>0 AND version=CASE WHEN game='coast' THEN 2 ELSE 1 END",
+          `SELECT * FROM runs WHERE id=? AND player=? AND verified=1 AND status='finished' AND score>0 AND version=CASE WHEN game='coast' THEN ${COAST_RULES_VERSION} ELSE 1 END`,
         )
         .get(runId, id);
       if (!r) throw Error("Choose a positive, validated round to post.");
@@ -831,7 +832,7 @@ export class CommunityCore {
       dares: this.db
         .prepare(
           `SELECT d.*,p.name FROM dares d JOIN players p ON p.id=d.host
-        JOIN runs r ON r.id=d.run WHERE r.version=CASE WHEN d.game='coast' THEN 2 ELSE 1 END
+        JOIN runs r ON r.id=d.run WHERE r.version=CASE WHEN d.game='coast' THEN ${COAST_RULES_VERSION} ELSE 1 END
         AND d.expires>? ORDER BY d.created DESC LIMIT 100`,
         )
         .all(this.now()),
@@ -896,7 +897,7 @@ export class CommunityCore {
       recentRuns: this.db
         .prepare(
           `SELECT id,game,score,finished FROM runs WHERE player=? AND verified=1
-        AND status='finished' AND version=CASE WHEN game='coast' THEN 2 ELSE 1 END ORDER BY finished DESC LIMIT 12`,
+        AND status='finished' AND version=CASE WHEN game='coast' THEN ${COAST_RULES_VERSION} ELSE 1 END ORDER BY finished DESC LIMIT 12`,
         )
         .all(id),
     };

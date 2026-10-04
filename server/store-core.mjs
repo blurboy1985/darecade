@@ -3,6 +3,7 @@ import { appearanceLimits } from "../src/appearance.ts";
 import { randomUUID, randomBytes, createHash } from "node:crypto";
 
 import { gameIds } from "../src/catalog.ts";
+import { COAST_RULES_VERSION } from "../shared/simulation.ts";
 export { gameIds };
 const DAY = 86400000;
 export const day = (time) =>
@@ -61,6 +62,13 @@ export class StoreCore {
       .run(day(this.now()));
     this.coastFrom = this.db
       .prepare("SELECT value FROM rules WHERE key='coast_gp_from'")
+      .get().value;
+    // First day of the winding route. Earlier days settle on the old loop.
+    this.db
+      .prepare("INSERT OR IGNORE INTO rules VALUES('coast_route_from',?)")
+      .run(day(this.now()));
+    this.routeFrom = this.db
+      .prepare("SELECT value FROM rules WHERE key='coast_route_from'")
       .get().value;
     this.rulesFrom = this.db
       .prepare("SELECT value FROM rules WHERE key='daily_rules_from'")
@@ -218,7 +226,16 @@ export class StoreCore {
         SELECT p.id,p.name,b.score,b.achieved FROM best b JOIN players p ON p.id=b.player
         WHERE b.choice=1 ORDER BY b.score DESC,b.achieved ASC,p.id ASC`,
       )
-      .all(game, before <= boundary(this.coastFrom) ? 1 : 2, after, before);
+      .all(
+        game,
+        before <= boundary(this.coastFrom)
+          ? 1
+          : before <= boundary(this.routeFrom)
+            ? 2
+            : COAST_RULES_VERSION,
+        after,
+        before,
+      );
     let rank = 0;
     return rows.map((p, i) => {
       if (!i || p.score !== rows[i - 1].score) rank = i + 1;
@@ -321,7 +338,7 @@ export class StoreCore {
         );
       this.db
         .prepare("UPDATE runs SET version=? WHERE id=?")
-        .run(game === "coast" ? 2 : 1, run.id);
+        .run(game === "coast" ? COAST_RULES_VERSION : 1, run.id);
       return run;
     });
   }
@@ -397,8 +414,8 @@ export class StoreCore {
       .prepare(
         `SELECT player,game,
         COUNT(CASE WHEN verified=1 THEN 1 END) verifiedRuns,
-        MAX(CASE WHEN verified=1 THEN CASE WHEN eligible=1 AND (game!='coast' OR COALESCE(version,1)=2) THEN score ELSE 0 END END) best,
-        MAX(CASE WHEN verified=1 THEN CASE WHEN version=CASE WHEN game='coast' THEN 2 ELSE 1 END THEN score ELSE 0 END END) guestBest,
+        MAX(CASE WHEN verified=1 THEN CASE WHEN eligible=1 AND (game!='coast' OR COALESCE(version,1)=${COAST_RULES_VERSION}) THEN score ELSE 0 END END) best,
+        MAX(CASE WHEN verified=1 THEN CASE WHEN version=CASE WHEN game='coast' THEN ${COAST_RULES_VERSION} ELSE 1 END THEN score ELSE 0 END END) guestBest,
         SUM(CASE WHEN target IS NOT NULL AND score>targetScore THEN 1 ELSE 0 END) wins
         FROM runs WHERE status='finished' GROUP BY player,game`,
       )

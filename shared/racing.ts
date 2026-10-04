@@ -1,25 +1,66 @@
-/** Coast Rush physics. No rendering, wall clock, random rewards or avatar stats. */
+/** Coast Rush physics. No rendering, wall clock or avatar stats. Item draws are seeded. */
 export const RACE_TICKS = 120 * 60;
 export const RACE_LAPS = 3;
 export const ROAD_HALF_WIDTH = 5.4;
 const TAU = Math.PI * 2;
 const SAMPLES = 720;
+// The winding Palm Bay route as x,z pairs: east straight, harbour hairpin, west
+// kink, then S-bends along the north shore. A closed Catmull-Rom spline runs
+// through them, so the centre line needs arithmetic only.
+// prettier-ignore
+const ROUTE = [
+  89.9,0, 89.7,9.6, 89,19.2, 87.3,28.7, 83.9,37.7, 78.5,45.6, 71.1,51.8, 62.2,55.2,
+  52.6,55.8, 43.2,53.9, 34.9,49.2, 28.8,41.8, 25.6,32.7, 23.9,23.2, 21.9,13.8, 16.9,5.8,
+  8.2,1.8, -1.4,1.4, -10.5,4.1, -16.8,11.1, -19.4,20.4, -21,29.9, -23.6,39.1, -28.8,47.2,
+  -36.5,52.8, -45.7,55.7, -55.3,56.2, -64.7,54.3, -73.2,49.9, -79.6,42.8, -81.8,33.5, -79.9,24.1,
+  -77.8,14.7, -78.5,5.1, -81.2,-4.1, -83.2,-13.5, -82.6,-23, -79.2,-32, -73.6,-39.8, -66.2,-45.9,
+  -57.2,-49, -47.7,-48, -38.7,-44.5, -29.7,-41.2, -20.2,-41.3, -11.5,-45.4, -3.3,-50.4, 5.9,-53,
+  15.1,-50.5, 23.4,-45.6, 32.1,-41.6, 41.5,-42.3, 50.1,-46.6, 58.9,-50.5, 68.3,-49.8, 76.3,-44.6,
+  82.4,-37.2, 86.6,-28.6, 88.8,-19.2, 89.7,-9.6,
+];
+const POINTS = ROUTE.length / 2;
+const STEPS = SAMPLES / POINTS;
 
-function centre(t: number) {
-  return {
-    x: 77 * Math.cos(t) + 18 * Math.cos(2 * t) - 8 * Math.sin(3 * t),
-    z: 57 * Math.sin(t) + 12 * Math.sin(2 * t),
+function centre(i: number) {
+  const segment = Math.floor(i / STEPS),
+    u = (i % STEPS) / STEPS;
+  const spline = (axis: number) => {
+    const [a, b, c, d] = [-1, 0, 1, 2].map(
+      (k) => ROUTE[((segment + k + POINTS) % POINTS) * 2 + axis],
+    );
+    return (
+      0.5 *
+      (2 * b +
+        (c - a) * u +
+        (2 * a - 5 * b + 4 * c - d) * u * u +
+        (3 * b - a - 3 * c + d) * u * u * u)
+    );
   };
+  return { x: spline(0), z: spline(1) };
 }
-const nodes = Array.from({ length: SAMPLES + 1 }, (_, i) => {
-  const t = (i / SAMPLES) * TAU;
-  return { ...centre(t), distance: 0 };
-});
+const nodes = Array.from({ length: SAMPLES + 1 }, (_, i) => ({
+  ...centre(i),
+  distance: 0,
+}));
 for (let i = 1; i < nodes.length; i++)
   nodes[i].distance =
     nodes[i - 1].distance +
     Math.hypot(nodes[i].x - nodes[i - 1].x, nodes[i].z - nodes[i - 1].z);
 export const TRACK_LENGTH = nodes[SAMPLES].distance;
+/** Extent of the centre line, for the minimap. */
+export const trackBounds = {
+  minX: Math.min(...nodes.map((n) => n.x)),
+  maxX: Math.max(...nodes.map((n) => n.x)),
+  minZ: Math.min(...nodes.map((n) => n.z)),
+  maxZ: Math.max(...nodes.map((n) => n.z)),
+};
+/** Distance from a point to the nearest part of the centre line, for scenery. */
+export function trackClearance(x: number, z: number) {
+  let nearest = Infinity;
+  for (const n of nodes)
+    nearest = Math.min(nearest, Math.hypot(n.x - x, n.z - z));
+  return nearest;
+}
 export const RACE_DISTANCE = TRACK_LENGTH * RACE_LAPS;
 
 /** Arc-length lookup is shared by physics, map and scenery. Positive offset is driver-left. */
@@ -50,11 +91,10 @@ export function trackCurve(distance: number) {
   while (angle < -Math.PI) angle += TAU;
   return angle / 10;
 }
-export const boostPads = [
-  { distance: TRACK_LENGTH * 0.12, offset: -2.7 },
-  { distance: TRACK_LENGTH * 0.43, offset: 2.7 },
-  { distance: TRACK_LENGTH * 0.77, offset: -2.7 },
-] as const;
+export const boostPads = [0.13, 0.41, 0.62, 0.965].map((f, i) => ({
+  distance: TRACK_LENGTH * f,
+  offset: i % 2 ? 2.7 : -2.7,
+}));
 
 export function raceTime(ticks: number) {
   const centiseconds = Math.round((ticks * 100) / 60);
@@ -69,7 +109,24 @@ export function raceScoreTime(score: number) {
   return score > 0 ? raceTime(RACE_TICKS + 1 - score) : "No finish";
 }
 
-export type RaceItem = "shield" | "turbo" | null;
+export const ITEMS = [
+  "shield",
+  "turbo",
+  "missile",
+  "storm",
+  "coconut",
+] as const;
+export type RaceItem = (typeof ITEMS)[number] | null;
+// Missile and storm need a kart ahead, so the leader never draws them.
+const LEADER_ITEMS = ["shield", "turbo", "coconut"] as const;
+// Normal steering holds every bend at cruising speed. At turbo speed the tight
+// ones push the kart wide unless it is drifting.
+const GRIP = 6.4;
+const DRIFT_GRIP = 11;
+const SLIDE = 0.24;
+const MISSILE_SPEED = 80;
+const SPIN_TICKS = 90;
+const STORM_TICKS = 180;
 export type TurboTier = "Mini" | "Super" | "Ultra";
 export const RIVALS = [
   { name: "Marina", pace: 24.2, color: "#ab94ed" },
@@ -80,10 +137,10 @@ export const RIVALS = [
   { name: "Breeze", pace: 17, color: "#dfa5cb" },
   { name: "Coco", pace: 14.5, color: "#b8c8d5" },
 ] as const;
-export const itemCrates = [0.08, 0.37, 0.68].map((f, i) => ({
-  distance: TRACK_LENGTH * f,
-  offset: [0, 2.7, -2.7][i],
-}));
+// Four rows a lap, three crates across, so a row is hard to miss.
+export const itemCrates = [0.03, 0.222, 0.555, 0.81].flatMap((f) =>
+  [-2.7, 0, 2.7].map((offset) => ({ distance: TRACK_LENGTH * f, offset })),
+);
 export const pickups = Array.from({ length: 12 }, (_, i) => ({
   distance: TRACK_LENGTH * (0.05 + i * 0.078),
   offset: [0, -2.7, 0, 2.7][i % 4],
@@ -125,6 +182,16 @@ export class CoastRace {
   item: RaceItem = null;
   pickupCount = 0;
   lastTurbo: TurboTier | null = null;
+  /** Rivals spun out by a missile or a coconut. */
+  knocks = 0;
+  readonly missiles: {
+    distance: number;
+    offset: number;
+    target: number;
+    ticks: number;
+  }[] = [];
+  /** Dropped coconuts, by position around the lap. */
+  readonly coconuts: { distance: number; offset: number }[] = [];
   drifting = false;
   ended = false;
   score = 0;
@@ -136,9 +203,15 @@ export class CoastRace {
     offset: i % 2 ? -2.8 : 2.8,
     speed: 0,
     finishTick: 0,
+    stun: 0,
+    slow: 0,
   }));
   private previousLapTick = 0;
   private itemHeld = false;
+  private readonly seed: number;
+  constructor(seed = 0) {
+    this.seed = seed >>> 0;
+  }
   get offroad() {
     return Math.abs(this.offset) > ROAD_HALF_WIDTH;
   }
@@ -174,12 +247,7 @@ export class CoastRace {
     this.ticks++;
     const dt = 1 / 60;
     if (useItem && !this.itemHeld && this.item) {
-      if (this.item === "shield") this.shield = 3;
-      else {
-        this.boost = 2;
-        this.boosts++;
-        this.lastTurbo = null;
-      }
+      this.use(this.item);
       this.item = null;
     }
     this.itemHeld = useItem;
@@ -188,9 +256,42 @@ export class CoastRace {
     this.bumpCooldown = Math.max(0, this.bumpCooldown - dt);
     for (const r of this.rivals) {
       if (r.finishTick) continue;
-      r.speed = Math.min(r.pace, r.speed + dt * 6);
+      const from = r.distance;
+      if (r.stun) {
+        r.stun--;
+        r.speed = 0;
+      } else {
+        const top = r.slow ? r.pace * 0.55 : r.pace;
+        r.speed =
+          r.speed > top
+            ? Math.max(top, r.speed - dt * 30)
+            : Math.min(top, r.speed + dt * 6);
+      }
+      if (r.slow) r.slow--;
       r.distance = Math.min(RACE_DISTANCE, r.distance + r.speed * dt);
       if (r.distance === RACE_DISTANCE) r.finishTick = this.ticks;
+      // The first rival to reach a coconut spins and clears it.
+      const hit = this.coconuts.findIndex(
+        (c) =>
+          r.distance > from &&
+          (((c.distance - from) % TRACK_LENGTH) + TRACK_LENGTH) % TRACK_LENGTH <
+            r.distance - from,
+      );
+      if (hit >= 0) {
+        this.coconuts.splice(hit, 1);
+        this.knock(r);
+      }
+    }
+    for (let i = this.missiles.length - 1; i >= 0; i--) {
+      const m = this.missiles[i],
+        r = this.rivals[m.target];
+      m.ticks++;
+      m.distance += MISSILE_SPEED * dt;
+      if (r) m.offset += (r.offset - m.offset) * 0.08;
+      if (r && !r.finishTick && m.distance >= r.distance) {
+        this.knock(r);
+        this.missiles.splice(i, 1);
+      } else if (r ? r.finishTick : m.ticks > 90) this.missiles.splice(i, 1);
     }
     const wasDrifting = this.drifting;
     this.drifting = drift && throttle > 0 && this.speed > 9 && !this.stunTicks;
@@ -224,9 +325,11 @@ export class CoastRace {
         Math.min(acceleration * dt, target - this.speed),
       );
       const steering =
-        steer * (this.drifting ? 7.5 : 6.4) * Math.min(1, this.speed / 10);
+        steer *
+        (this.drifting ? DRIFT_GRIP : GRIP) *
+        Math.min(1, this.speed / 10);
       const outward =
-        -trackCurve(this.distance) * this.speed * this.speed * 0.1;
+        -trackCurve(this.distance) * this.speed * this.speed * SLIDE;
       this.lateralSpeed += (steering + outward - this.lateralSpeed) * 0.15;
       this.offset += this.lateralSpeed * dt;
       if (Math.abs(this.offset) > 6.4) {
@@ -265,7 +368,7 @@ export class CoastRace {
         }
       itemCrates.forEach((p, i) => {
         if (crossed(p, 1.45) && !this.item) {
-          this.item = (lap + i) % 2 ? "turbo" : "shield";
+          this.item = this.draw(lap, i);
           this.collected.add(`crate:${lap}:${i}`);
         }
       });
@@ -285,6 +388,57 @@ export class CoastRace {
       this.score = raceScore(this.ticks);
       this.ended = true;
     } else if (this.ticks >= RACE_TICKS) this.ended = true;
+  }
+  private use(item: NonNullable<RaceItem>) {
+    if (item === "shield") this.shield = 3;
+    else if (item === "turbo") {
+      this.boost = 2;
+      this.boosts++;
+      this.lastTurbo = null;
+    } else if (item === "missile") {
+      // Homes on the next kart ahead in the race; with none, it flies off.
+      let target = -1;
+      this.rivals.forEach((r, i) => {
+        if (
+          !r.finishTick &&
+          r.distance > this.distance &&
+          (target < 0 || r.distance < this.rivals[target].distance)
+        )
+          target = i;
+      });
+      this.missiles.push({
+        distance: this.distance,
+        offset: this.offset,
+        target,
+        ticks: 0,
+      });
+    } else if (item === "storm") {
+      for (const r of this.rivals)
+        if (!r.finishTick && r.distance > this.distance) r.slow = STORM_TICKS;
+    } else
+      this.coconuts.push({
+        distance:
+          (((this.distance - 3) % TRACK_LENGTH) + TRACK_LENGTH) % TRACK_LENGTH,
+        offset: this.offset,
+      });
+  }
+  /** The run seed and the pickup tick decide the item, so a replay draws the same one. */
+  private draw(lap: number, crate: number): RaceItem {
+    let h =
+      (this.seed ^
+        Math.imul(this.ticks, 0x9e3779b1) ^
+        Math.imul(lap * 16 + crate + 1, 0x85ebca6b)) >>>
+      0;
+    h = Math.imul(h ^ (h >>> 16), 0x45d9f3b);
+    h = Math.imul(h ^ (h >>> 16), 0x45d9f3b);
+    h = (h ^ (h >>> 16)) >>> 0;
+    const pool = this.place === 1 ? LEADER_ITEMS : ITEMS;
+    return pool[h % pool.length];
+  }
+  private knock(rival: { stun: number; speed: number }) {
+    rival.stun = SPIN_TICKS;
+    rival.speed = 0;
+    this.knocks++;
   }
   private hit() {
     if (this.shield > 0 || this.bumpCooldown > 0) return;
