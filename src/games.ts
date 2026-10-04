@@ -24,6 +24,7 @@ export class ArcadeGame extends Simulation {
   previous = "";
   shownScore = 0;
   lastPop = 0;
+  private shownBonus = 0;
   /** Optional cosmetic hook for visual effects; never affects the simulation. */
   onFx: ((event: FxEvent, amount: number) => void) | null = null;
   onTime: ((secondsLeft: number) => void) | null = null;
@@ -211,6 +212,10 @@ export class ArcadeGame extends Simulation {
       lives: a instanceof StarFlight ? a.lives : this.lives,
       vy: this.ball.vy,
       jump: a instanceof HopRun ? a.velocity : 0,
+      power: a instanceof HopRun ? a.power : 0,
+      smashed: a instanceof HopRun ? a.smashed : 0,
+      falling: a instanceof HopRun && a.falling,
+      bonus: a instanceof HopRun ? a.bonus : 0,
       shield: a instanceof StarFlight ? a.shield : 0,
       boss: a instanceof StarFlight ? a.bossSpawned : false,
       shots:
@@ -225,7 +230,7 @@ export class ArcadeGame extends Simulation {
       if (gained >= 200) this.onFx("big", gained);
       if (n.lives < b.lives || (n.ended && !b.ended)) this.onFx("hurt", 0);
       if (n.boss && !b.boss) this.onFx("boss", 0);
-      if (n.shield > b.shield + 1) this.onFx("power", 0);
+      if (n.shield > b.shield + 1 || n.power > b.power) this.onFx("power", 0);
       if (n.lives !== b.lives)
         this.container.querySelector("#run-state")!.textContent = this.status();
     }
@@ -234,12 +239,22 @@ export class ArcadeGame extends Simulation {
     else if (n.ended && !b.ended) this.sound("hurt");
     if (n.lives < b.lives) this.sound("hurt");
     if (n.boss && !b.boss) this.sound("boss");
-    if (n.shield > b.shield + 1) this.sound("powerup");
+    if (n.shield > b.shield + 1 || n.power > b.power) this.sound("powerup");
+    if (n.smashed > b.smashed) this.sound("boom");
+    if (n.falling && !b.falling) this.sound("slide");
+    if (this.id === "hop" && n.power > 0 !== b.power > 0)
+      this.container.querySelector("#run-state")!.textContent =
+        n.power > 0 ? "★ STAR POWER" : this.status();
     if (n.jump > 0 && b.jump <= 0) this.sound("jump");
     if (n.shots > b.shots) this.sound("shoot");
     if (this.id === "brick" && b.vy > 0 && n.vy < 0 && gained === 0)
       this.sound("paddle");
-    if (gained > 0)
+    // Hop Hop's time points tick up silently; only its bonuses are announced.
+    if (
+      this.id === "hop"
+        ? n.bonus > b.bonus && n.smashed === b.smashed
+        : gained > 0
+    )
       this.sound(
         this.id === "noodle"
           ? "eat"
@@ -302,8 +317,17 @@ export class ArcadeGame extends Simulation {
   private popScore(now: number) {
     const el = this.container.querySelector<HTMLElement>("#run-score")!;
     el.textContent = String(this.score);
+    let gained = this.score - this.shownScore;
+    if (this.action instanceof HopRun) {
+      // Time adds a point every 83 ms. Announce only hazards, stars and smashes.
+      gained = this.action.bonus - this.shownBonus;
+      if (!gained) {
+        this.shownScore = this.score;
+        return;
+      }
+    }
     if (now - this.lastPop < 400) return;
-    const gained = this.score - this.shownScore;
+    if (this.action instanceof HopRun) this.shownBonus = this.action.bonus;
     this.shownScore = this.score;
     this.lastPop = now;
     if (gained > 0 && gained < 200) this.onFx?.("score", gained);

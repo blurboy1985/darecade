@@ -1,5 +1,16 @@
 # Darecade verification — 3 October 2026
 
+## Hop Hop review, 4 October 2026
+
+Not deployed. The Hop Hop simulation changed; its rules version did not, so a round in progress during a deploy, or played on a page loaded before it, fails verification until the page is reloaded.
+
+- **Point spam fixed.** Time points (one every 83 ms) no longer pop, sound or burst; only hazards, stars and smashes do. Bonuses are now added to time points instead of being overtaken by them.
+- **Cliff edges.** The runner falls only when the gap is under the middle of its feet, falls for about a third of a second before the round ends, and can still jump in the first moment of the fall. Crates have a slightly smaller hit box.
+- **Power star.** A star floats at jump height about every 13 seconds. Catching it gives five seconds in which crates are smashed for +50 and gaps are bridged; a bridge under the runner holds until solid ground.
+- **136 Node tests passed, none failed, and the two browser checks that need `DARECADE_TEST_CHROMIUM` were skipped; 7/7 Cloudflare integration tests passed.** TypeScript and the Vite build passed. New tests cover additive scoring, toe and heel forgiveness, the fall and the late jump, the star, smashing, the bridge, and a full replayed round.
+- Tested in an isolated local Chromium on port 4193 with a synthetic guest. A player that read the canvas and pressed Space ran the full 60 seconds: 35 pops, one per hazard or smash and none from time, star power twice, **1645**, server-verified. A fixed-beat round that hit the first crate showed no pops at all. No page errors.
+- **Not verified:** the fall and the bridge on screen (covered by tests only); touch input and a physical phone; whether the difficulty suits a person.
+
 ## Hoops and Fishing rounds, 4 October 2026
 
 See [East Side](EAST-SIDE.md) for the behaviour. Not deployed.

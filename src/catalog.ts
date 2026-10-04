@@ -19,7 +19,7 @@ export const games = {
   hop: {
     name: "Hop Hop",
     tagline: "Hop Hop",
-    rule: "Jump crates and gaps.",
+    rule: "Jump crates and gaps. Catch a star to smash crates and bridge gaps.",
     controls: "Space · ↑ · tap",
     genre: "RUNNER",
     description: "Run the rooftops.",
