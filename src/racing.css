@@ -370,6 +370,7 @@ dialog.game-modal.racing-modal {
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 .race-touch [data-race-control="left"],
 .race-touch [data-race-control="right"] {

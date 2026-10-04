@@ -4,8 +4,10 @@ Coast Rush is Darecade's original three-lap race around Palm Bay, on a winding r
 
 ## Playing
 
-- W/up or the touch GO button accelerates. A/D or left/right steers. S/down brakes. There is no automatic acceleration.
-- On touch screens, steering sits under the left thumb and a 2×2 pad (ITEM, BRAKE, DRIFT, GO) under the right. Holding DRIFT or ITEM also holds the throttle, and a thumb can slide between neighbouring buttons without lifting, so drifting needs one right-hand finger. Keyboard throttle is unchanged. The cover and prompts use touch wording on touch devices.
+- W/up or the touch GO button accelerates. A/D or left/right steers. S/down brakes. On the keyboard the throttle is held. A tap on GO latches the throttle until BRAKE, so a tap, a short hold and a long press all drive; the long-press browser menu is suppressed over the race.
+- A kart parked for five seconds with no throttle pauses the race with "Clock stopped". GO, W or Resume continues. Lapping rivals hit a parked kart, so an untouched race used to end as No finish after two minutes of hit stops.
+- Until a player's first finished race, the kart steers itself back from the road edge when the player is not steering. The player's own steering always wins, and the help ends with the first finish. It only shapes the inputs sent to the server; physics, replay checks and the rules version are unchanged.
+- On touch screens, steering sits under the left thumb and a 2×2 pad (ITEM, BRAKE, DRIFT, GO) under the right. Holding DRIFT or ITEM also holds the throttle, and a thumb can slide between neighbouring buttons without lifting, so drifting needs one right-hand finger. The cover and prompts use touch wording on touch devices.
 - Hold Space or DRIFT while moving, then release for Mini (0.8 seconds held), Super (1.6 seconds) or Ultra (2.4 seconds). The meter names the available tier. Turbos last 0.8, 1.4 or 2.1 seconds respectively.
 - Normal steering holds every bend at cruising speed. At turbo speed the tight bends push the kart wide and into the wall unless it is drifting, so chaining turbos through the bends needs the drift held. The tightest bend has a radius of about 15 units against a 10.8-unit road.
 - The cover explains crates, the five items and shells before the race.

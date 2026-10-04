@@ -1,4 +1,15 @@
 // The new games keep simulation separate from the browser controls and renderer.
+/** Why a round stopped. Recorded for the player; it never changes a score. */
+export type EndReason =
+  | ""
+  | "time"
+  | "wall"
+  | "tail"
+  | "full"
+  | "lives"
+  | "cleared"
+  | "crate"
+  | "gap";
 export const HOP_POWER_SECONDS = 5;
 export class HopRun {
   elapsed = 0;
@@ -6,6 +17,7 @@ export class HopRun {
   /** Points from hazards and smashes, on top of the steady time points. */
   bonus = 0;
   ended = false;
+  endReason: EndReason = "";
   height = 0;
   velocity = 0;
   spawn = 1.25;
@@ -76,6 +88,7 @@ export class HopRun {
     }
     if (this.height < -90) {
       this.ended = true;
+      this.endReason = "gap";
       return;
     }
     for (const h of this.hazards) {
@@ -94,6 +107,7 @@ export class HopRun {
           continue;
         }
         this.ended = true;
+        this.endReason = "crate";
         return;
       }
       if (!h.passed && h.x + h.width < 76 && !this.falling) {
@@ -111,7 +125,10 @@ export class HopRun {
     this.hazards = this.hazards.filter((h) => h.x + h.width > -10);
     this.stars = this.stars.filter((s) => s.x > -20);
     this.score = Math.floor(this.elapsed * 12) + this.bonus;
-    if (this.elapsed >= 60) this.ended = true;
+    if (this.elapsed >= 60) {
+      this.ended = true;
+      this.endReason = "time";
+    }
   }
   draw(c: CanvasRenderingContext2D) {
     c.fillStyle = "#243b50";
@@ -210,6 +227,7 @@ export class StarFlight {
   elapsed = 0;
   score = 0;
   ended = false;
+  endReason: EndReason = "";
   x = 220;
   y = 375;
   lives = 3;
@@ -334,13 +352,19 @@ export class StarFlight {
     this.bullets = this.bullets.filter((b) => b.y > -30 && b.y < 470);
     this.enemies = this.enemies.filter((e) => e.hp > 0 && e.y < 475);
     this.pickups = this.pickups.filter((p) => p.y < 460);
-    if (this.elapsed >= 60) this.ended = true;
+    if (this.elapsed >= 60 && !this.ended) {
+      this.ended = true;
+      this.endReason = "time";
+    }
   }
   hit() {
     if (this.invulnerable > 0 || this.shield > 0) return;
     this.lives--;
     this.invulnerable = 1.5;
-    if (this.lives <= 0) this.ended = true;
+    if (this.lives <= 0 && !this.ended) {
+      this.ended = true;
+      this.endReason = "lives";
+    }
   }
   draw(c: CanvasRenderingContext2D) {
     c.fillStyle = "#192d43";

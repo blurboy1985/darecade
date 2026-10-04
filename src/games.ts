@@ -1,5 +1,5 @@
 import type { CabinetId } from "./catalog";
-import { games } from "./catalog";
+import { games, endReasonText, holdsForFirstMove } from "./catalog";
 import type { Sfx } from "./audio";
 import type { FxEvent } from "./arcade-fx";
 import { HopRun, StarFlight } from "./action-games";
@@ -30,6 +30,9 @@ export class ArcadeGame extends Simulation {
   private brickFx: BrickFx | null = null;
   private frameDt = 0;
   private disposed = false;
+  /** Noodle Run stands still until the first turn, so PLAY never runs it into a wall. */
+  private waiting: boolean;
+  private readonly coarse: boolean;
 
   private shownBonus = 0;
   /** Optional cosmetic hook for visual effects; never affects the simulation. */
@@ -44,6 +47,9 @@ export class ArcadeGame extends Simulation {
     seed = 314159,
   ) {
     super(id, seed);
+    this.waiting = holdsForFirstMove(id);
+    this.coarse =
+      matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
     const info = games[id];
     container.innerHTML = `<div class="game-stats"><span class="stat-pill score-pill"><small>SCORE</small><b id="run-score">0</b></span><span id="run-state">READY</span><span class="stat-pill time-pill"><small>TIME</small><b id="run-time">60</b></span></div><div class="game-screen"><div class="game-pops" aria-hidden="true"></div><canvas width="440" height="440" aria-label="${id === "noodle" ? "Noodle Run: use arrow keys or swipe to eat dumplings" : "Brick Bash: drag or use left and right arrows to move the paddle"}" tabindex="0"></canvas><div class="game-cover" id="game-cover"><span class="eyebrow">READY?</span><h3>${id === "noodle" ? "Follow your appetite." : "Make a little noise."}</h3><p>${id === "noodle" ? "Eat dumplings. Grow your noodle.<br>Watch the walls and your own tail." : "Bounce the ball. Break every brick.<br>You have three chances."}</p><button class="primary" id="start-game">PLAY <span>▶</span></button></div></div><div class="game-controls"><span>${id === "noodle" ? "Arrow keys / WASD · swipe to turn" : "← → / A D · drag to move"}</span><button class="text-button" id="pause-game" disabled>Pause</button></div><div class="dpad" aria-label="Game direction controls"><button data-dir="up" aria-label="Up">↑</button><button data-dir="left" aria-label="Left">←</button><button data-dir="down" aria-label="Down">↓</button><button data-dir="right" aria-label="Right">→</button></div>`;
     this.canvas = container.querySelector("canvas")!;
@@ -52,7 +58,7 @@ export class ArcadeGame extends Simulation {
     container.querySelector(".game-cover h3")!.textContent = info.tagline;
     container.querySelector(".game-cover p")!.textContent = info.rule;
     container.querySelector(".game-controls>span")!.textContent = info.controls;
-    if (matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0)
+    if (this.coarse)
       container.querySelector(".game-controls>span")!.textContent = {
         noodle: "Swipe to turn",
         brick: "Drag to move",
@@ -87,7 +93,9 @@ export class ArcadeGame extends Simulation {
           '<div class="go-splash" aria-hidden="true">GO!</div>',
         );
       setTimeout(() => container.querySelector(".go-splash")?.remove(), 1100);
-      container.querySelector("#run-state")!.textContent = this.status();
+      container.querySelector("#run-state")!.textContent = this.waiting
+        ? this.startPrompt()
+        : this.status();
       this.onFx?.("start", 0);
       (container.querySelector("#pause-game") as HTMLButtonElement).disabled =
         false;
@@ -123,6 +131,51 @@ export class ArcadeGame extends Simulation {
     if (!this.started || this.paused || this.ended) return;
     if (this.id === "hop" && dir === "up") this.input[3] = 1;
     else this.input[2] = ["up", "right", "down", "left"].indexOf(dir);
+    this.begin();
+  }
+  /** The player's first move starts a round that was holding for it. */
+  private begin() {
+    if (!this.waiting || !this.started || this.paused || this.ended) return;
+    this.waiting = false;
+    this.container.querySelector("#run-state")!.textContent = this.status();
+  }
+  private startPrompt() {
+    if (this.id === "brick")
+      return this.coarse ? "DRAG TO START" : "MOVE TO START";
+    return this.coarse ? "SWIPE TO START" : "PRESS AN ARROW";
+  }
+  /** Why the round stopped, in words. Empty for a game with nothing to add. */
+  endNote() {
+    return endReasonText(this.id as CabinetId, this.endReason, this.elapsed);
+  }
+  /**
+   * Hands over the result. A round cut short first holds its last frame with
+   * the reason on screen, so the player sees what ended it.
+   */
+  private conclude() {
+    const replay = {
+      version: RULES_VERSION,
+      ticks: this.ticks,
+      events: this.events,
+    };
+    const note = this.endNote();
+    if (!note || ["time", "cleared", "full"].includes(this.endReason)) {
+      this.finish(this.score, replay);
+      return;
+    }
+    this.container.querySelector("#run-state")!.textContent = "ROUND OVER";
+    (
+      this.container.querySelector("#pause-game") as HTMLButtonElement
+    ).disabled = true;
+    const card = document.createElement("div");
+    card.className = "round-over";
+    card.setAttribute("role", "status");
+    card.innerHTML = "<strong>ROUND OVER</strong><span></span>";
+    card.querySelector("span")!.textContent = note;
+    this.container.querySelector(".game-screen")!.append(card);
+    setTimeout(() => {
+      if (!this.disposed) this.finish(this.score, replay);
+    }, 1600);
   }
   private keyDown = (e: KeyboardEvent) => {
     const k = e.key.toLowerCase();
@@ -192,6 +245,7 @@ export class ArcadeGame extends Simulation {
     this.input[4] = Math.round(
       Math.max(46, Math.min(394, ((e.clientX - r.left) / r.width) * 440)),
     );
+    this.begin();
   }
   private setShip(e: PointerEvent) {
     if (!this.started || this.paused || this.ended) return;
@@ -213,7 +267,9 @@ export class ArcadeGame extends Simulation {
       : "Pause";
     this.container.querySelector("#run-state")!.textContent = this.paused
       ? "PAUSED"
-      : this.status();
+      : this.waiting
+        ? this.startPrompt()
+        : this.status();
     this.container.classList.toggle("is-paused", this.paused);
     this.onPause?.(this.paused);
   }
@@ -326,7 +382,7 @@ export class ArcadeGame extends Simulation {
     const dt = this.last ? Math.min((now - this.last) / 1000, 0.15) : 0;
     this.last = now;
     this.frameDt = this.paused ? 0 : dt;
-    if (this.started && !this.ended && !this.paused) {
+    if (this.started && !this.ended && !this.paused && !this.waiting) {
       this.accumulator += dt;
       while (this.accumulator >= 1 / 60 && !this.ended) {
         this.input[0] =
@@ -355,11 +411,7 @@ export class ArcadeGame extends Simulation {
         this.onTime?.(left);
       }
       if (this.ended) {
-        this.finish(this.score, {
-          version: RULES_VERSION,
-          ticks: this.ticks,
-          events: this.events,
-        });
+        this.conclude();
         return;
       }
     }
@@ -499,6 +551,24 @@ export class ArcadeGame extends Simulation {
         c.fill();
       }
       this.brickFx?.draw(this.frameDt, time, boss);
+    }
+    if (this.started && this.waiting && !this.paused) {
+      c.fillStyle = "#172e38aa";
+      c.fillRect(0, 186, 440, 68);
+      c.fillStyle = "#e5f1c7";
+      c.font = "700 24px Fredoka, sans-serif";
+      c.textAlign = "center";
+      c.fillText(
+        this.id === "brick"
+          ? this.coarse
+            ? "Drag the paddle to start"
+            : "Move the paddle to start"
+          : this.coarse
+            ? "Swipe or tap an arrow to start"
+            : "Press an arrow to start",
+        220,
+        228,
+      );
     }
     if (this.paused) {
       c.fillStyle = "#172e38bb";

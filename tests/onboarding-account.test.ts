@@ -16,6 +16,10 @@ const social = readFileSync(
   new URL("../src/social.ts", import.meta.url),
   "utf8",
 );
+const lobbyMenu = readFileSync(
+  new URL("../src/lobby-menu.ts", import.meta.url),
+  "utf8",
+);
 // Browser execution is opt-in because standard test environments may not allow
 // Chromium processes, even when a Chromium binary is installed.
 const chromium = process.env.DARECADE_TEST_CHROMIUM;
@@ -228,15 +232,15 @@ try {
 `;
     const server = createServer(async (request, response) => {
       const path = request.url ?? "/";
-      if (path === "/account.js" || path === "/social") {
+      // The account dialog's own imports, served as the browser asks for them.
+      const modules: Record<string, string> = {
+        "/account.js": account.replace('import "./account.css";', ""),
+        "/social": social,
+        "/lobby-menu": lobbyMenu,
+      };
+      if (modules[path]) {
         response.setHeader("Content-Type", "text/javascript; charset=utf-8");
-        response.end(
-          compile(
-            path === "/account.js"
-              ? account.replace('import "./account.css";', "")
-              : social,
-          ),
-        );
+        response.end(compile(modules[path]));
         return;
       }
       if (path === "/") {

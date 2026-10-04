@@ -488,3 +488,112 @@ test("the rankings board shows the latest dare result", () => {
   h.run('open("dares")');
   assert.match(h.body.innerHTML, /You beat Player 0/);
 });
+
+// The remaining tests cover bugs from the 4 October 2026 playtest.
+test("the weekly board tells a player with scores today when their medals arrive", () => {
+  const h = harness();
+  h.context.shared.day = "2026-10-06";
+  h.context.shared.boards.hop = [
+    { id: "self", name: "Sunny Otter 06", score: 93, rank: 1 },
+  ];
+  h.context.boardTab = "week";
+  h.run("renderSharedBoard()");
+  let html = h.body.innerHTML;
+  assert.match(html, /\+3 medal points pending · awarded at 00:00 SGT/);
+  assert.match(html, /Medals land at midnight/);
+  assert.match(html, /then appear here/);
+  assert.match(html, /data-board-tab="daily">See today’s scores/);
+  assert.doesNotMatch(html, /Finish a round to join the board/);
+  assert.doesNotMatch(html, /Nothing yet!/);
+  checkActions(html, "weekly board with scores today");
+  // Sunday's medals count for the week that closes at the same midnight.
+  h.context.shared.day = "2026-10-04";
+  h.run("renderSharedBoard()");
+  assert.match(h.body.innerHTML, /Last week’s champions tomorrow/);
+  // Today's board lists the best score and says a lower replay is not shown.
+  h.context.boardTab = "daily";
+  h.context.boardGame = "hop";
+  h.run("renderSharedBoard()");
+  html = h.body.innerHTML;
+  assert.match(html, /Your best today: <b>93<\/b>/);
+  assert.match(html, /a lower replay does not replace it/);
+  // A player with no round today still gets the original invitation.
+  h.context.shared.boards.hop = [];
+  h.context.boardTab = "week";
+  h.run("renderSharedBoard()");
+  assert.match(h.body.innerHTML, /Finish a round to join the board/);
+  assert.match(h.body.innerHTML, /Nothing yet!/);
+});
+
+test("My look, Head lists a claimed daily hat", () => {
+  const h = harness();
+  assert.equal(state.claimGift(h.context.save, 0, "2026-10-04"), true);
+  h.run('open("shop")');
+  assert.match(h.body.innerHTML, /data-look-tab="hair">See it in My look/);
+  h.context.wardrobeTab = "hair";
+  h.run('open("wardrobe")');
+  assert.match(
+    h.body.innerHTML,
+    /class="hat-shelf"[\s\S]*The Kopitiam Bucket · wearing/,
+  );
+  h.context.wardrobeTab = "clothing";
+  h.run('open("wardrobe")');
+  assert.doesNotMatch(h.body.innerHTML, /class="hat-shelf"/);
+});
+
+test("a finished quest offers Claim, and a claimed quest says so", () => {
+  const h = harness();
+  const button = (id: string) =>
+    h.body.innerHTML.match(
+      new RegExp(`<button data-claim="${id}"[^>]*>[^<]*</button>`),
+    )![0];
+  h.run('open("quests")');
+  assert.match(button("explore"), /disabled>0\/4 · \+40 XP</);
+  // Two East Side activities done: "A breath of fresh air" is at 2/2.
+  h.context.save.fish = ["guppy"];
+  h.context.save.hoopsBest = 4;
+  h.context.questPage = 1;
+  h.run('open("quests")');
+  assert.match(h.body.innerHTML, /A breath of fresh air[\s\S]*2\/2/);
+  assert.match(
+    button("eastside"),
+    /^<button data-claim="eastside" >CLAIM \+30 XP</,
+  );
+  h.context.save.claims.push("eastside");
+  h.run('open("quests")');
+  assert.match(button("eastside"), /disabled>CLAIMED ✓</);
+});
+
+test("Rankings shows a guest the board and never opens the account dialog", () => {
+  const h = harness();
+  let accounts = 0;
+  h.context.openAccount = () => {
+    accounts++;
+  };
+  h.context.currentProfile = { name: "Sunny Otter 06", account: null };
+  h.context.shared.competitionReady = false;
+  h.context.shared.boards.hop = [
+    { id: "p1", name: "Player 1", score: 93, rank: 1 },
+  ];
+  for (const period of ["week", "daily"]) {
+    h.context.boardTab = period;
+    h.context.boardGame = "hop";
+    h.run('open("board")');
+    const html = h.body.innerHTML;
+    assert.equal(accounts, 0, period);
+    assert.match(html, /<h2>Rankings<\/h2>/);
+    assert.match(html, /<small>Guest rounds are not ranked<\/small>/);
+    assert.doesNotMatch(html, /Playing without email/);
+    assert.doesNotMatch(html, /Finish a round to (join the board|claim #1)/);
+    // Saving stays an offer on the board, not a wall in front of it.
+    assert.match(html, /data-account>Save with email to be ranked</);
+    checkActions(html, `guest rankings ${period}`);
+  }
+  assert.match(h.body.innerHTML, /Player 1[\s\S]*93/);
+  // A saved account still sees its own invitation and no guest copy.
+  h.context.currentProfile = { name: "Review player", account: {} };
+  h.context.shared.boards.hop = [];
+  h.run('open("board")');
+  assert.match(h.body.innerHTML, /Finish a round to join the board/);
+  assert.doesNotMatch(h.body.innerHTML, /Guest rounds|Save with email/);
+});

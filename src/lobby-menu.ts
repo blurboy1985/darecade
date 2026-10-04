@@ -79,6 +79,28 @@ export const firstVisitCopy = {
   detail: "Race Palm Bay. Finish a round to unlock your lilac cap.",
 } as const;
 
+/**
+ * The line under a result's rank. The board keeps each player's best score of
+ * the day, so a lower replay is told which score is the one that counts.
+ */
+export function standingNote(
+  ranked: boolean,
+  standing: { rank: number; score: number } | undefined,
+  score: number,
+  best: string,
+) {
+  if (!ranked) return "";
+  if (!standing)
+    return score > 0
+      ? "Not on today’s board yet"
+      : "Score above 0 to join the board";
+  const medals =
+    standing.rank <= 3 ? ` · +${4 - standing.rank} medals at midnight` : "";
+  return standing.score === score
+    ? `This round is your best today${medals}`
+    : `Your best today, ${best}, holds this rank${medals}`;
+}
+
 export function pageChoices<T>(items: readonly T[], requested: number) {
   const total = Math.max(1, Math.ceil(items.length / 3));
   const page = Math.min(

@@ -1,5 +1,6 @@
 import { CoastRace, RACE_TICKS } from "./racing.ts";
-import { HopRun, StarFlight } from "../src/action-games.ts";
+import { HopRun, StarFlight, type EndReason } from "../src/action-games.ts";
+export type { EndReason } from "../src/action-games.ts";
 import { FishingRound, HoopsRound } from "./outdoor.ts";
 export const RULES_VERSION = 1;
 /** 3: winding route and five seeded items. 2: three laps on the old loop. */
@@ -19,6 +20,8 @@ export class Simulation {
   elapsed = 0;
   score = 0;
   ended = false;
+  /** Why the round stopped, for the player. Scores never depend on it. */
+  endReason: EndReason = "";
   step = 0;
   axis = 0;
   snake = [
@@ -143,12 +146,14 @@ export class Simulation {
         else this.tickBrick(1 / 240);
         if (this.action) {
           this.score = this.action.score;
-          if (this.action.ended) this.ended = true;
+          if (this.action.ended) this.end(this.action.endReason);
         }
       }
-    if (this.ticks >= 3600) this.ended = true;
+    if (this.ticks >= 3600) this.end("time");
   }
-  end() {
+  end(reason: EndReason = "") {
+    // The first cause stands when two fall on the same tick.
+    if (!this.ended) this.endReason = reason;
     this.ended = true;
   }
   random() {
@@ -162,16 +167,14 @@ export class Simulation {
       y: this.snake[0].y + this.direction.y,
     };
     const eat = h.x === this.food.x && h.y === this.food.y;
+    const wall = h.x < 0 || h.x >= 20 || h.y < 0 || h.y >= 20;
     if (
-      h.x < 0 ||
-      h.x >= 20 ||
-      h.y < 0 ||
-      h.y >= 20 ||
+      wall ||
       this.snake
         .slice(0, eat ? undefined : -1)
         .some((p) => p.x === h.x && p.y === h.y)
     ) {
-      this.end();
+      this.end(wall ? "wall" : "tail");
       return;
     }
     this.snake.unshift(h);
@@ -179,7 +182,7 @@ export class Simulation {
       this.score += 20;
 
       if (this.snake.length === 400) {
-        this.end();
+        this.end("full");
         return;
       }
       do {
@@ -234,7 +237,7 @@ export class Simulation {
         this.guard = 1.2;
         this.lives--;
         if (!this.lives) {
-          this.end();
+          this.end("lives");
           return;
         }
       }
@@ -270,7 +273,7 @@ export class Simulation {
       else {
         this.lives--;
         if (!this.lives) {
-          this.end();
+          this.end("lives");
           return;
         }
         this.ball = { x: this.paddle, y: 390, vx: 125, vy: -230 };
@@ -340,7 +343,7 @@ export class Simulation {
       }
     if (this.bossDefeated && this.bricks.every((r) => !r.alive)) {
       this.score += 100;
-      this.end();
+      this.end("cleared");
     }
   }
 }
