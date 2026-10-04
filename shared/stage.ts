@@ -1,0 +1,134 @@
+/** Open Stage: a forty-second rhythm show. Pure rules, no rendering or clock. */
+export const STAGE_LANES = 4;
+export const STAGE_TICKS = 40 * 60;
+/** Ticks either side of a note that still count. */
+export const STAGE_PERFECT = 4;
+export const STAGE_GOOD = 9;
+export type StageJudgement = "perfect" | "good" | "miss" | "stray";
+export type StageNote = {
+  tick: number;
+  lane: number;
+  hit: StageJudgement | null;
+};
+
+/** The seed decides the song: a beat that quickens, with more off-beats later. */
+export function stageChart(seed: number): StageNote[] {
+  let state = seed >>> 0;
+  const random = () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
+  const notes: StageNote[] = [];
+  let tick = 120,
+    lane = -1;
+  while (tick < STAGE_TICKS - 60) {
+    const progress = tick / STAGE_TICKS;
+    const beat = Math.round(36 - progress * 14);
+    let next = Math.floor(random() * STAGE_LANES);
+    if (next === lane) next = (next + 1) % STAGE_LANES;
+    lane = next;
+    notes.push({ tick, lane, hit: null });
+    if (random() < 0.2 + progress * 0.3) {
+      const off =
+        (lane + 1 + Math.floor(random() * (STAGE_LANES - 1))) % STAGE_LANES;
+      notes.push({ tick: tick + Math.round(beat / 2), lane: off, hit: null });
+      lane = off;
+    }
+    tick += beat;
+  }
+  return notes;
+}
+
+export class StageShow {
+  tick = 0;
+  score = 0;
+  combo = 0;
+  bestCombo = 0;
+  /** The crowd's mood, 0 to 1. At zero the show is booed off. */
+  hype = 0.5;
+  ended = false;
+  booed = false;
+  counts = { perfect: 0, good: 0, miss: 0, stray: 0 };
+  last: { judgement: StageJudgement; lane: number; tick: number } | null = null;
+  readonly notes: StageNote[];
+  private next = 0;
+  constructor(seed = 0) {
+    this.notes = stageChart(seed);
+  }
+  /** Each combo of eight adds half again, up to three times the points. */
+  get multiplier() {
+    return 1 + Math.min(4, Math.floor(this.combo / 8)) * 0.5;
+  }
+  private judge(judgement: StageJudgement, lane: number) {
+    this.counts[judgement]++;
+    this.last = { judgement, lane, tick: this.tick };
+    if (judgement === "perfect" || judgement === "good") {
+      this.score += (judgement === "perfect" ? 100 : 50) * this.multiplier;
+      this.combo++;
+      this.bestCombo = Math.max(this.bestCombo, this.combo);
+      this.hype = Math.min(
+        1,
+        this.hype + (judgement === "perfect" ? 0.04 : 0.02),
+      );
+    } else {
+      this.combo = 0;
+      this.hype -= judgement === "miss" ? 0.12 : 0.05;
+      if (this.hype <= 0) {
+        this.hype = 0;
+        this.booed = true;
+        this.ended = true;
+      }
+    }
+  }
+  /** pressed holds the lanes pressed on this tick, not the ones held down. */
+  advance(pressed: readonly boolean[]) {
+    if (this.ended) return;
+    this.tick++;
+    for (let lane = 0; lane < STAGE_LANES && !this.ended; lane++) {
+      if (!pressed[lane]) continue;
+      const note = this.notes.find(
+        (n) =>
+          !n.hit &&
+          n.lane === lane &&
+          Math.abs(n.tick - this.tick) <= STAGE_GOOD,
+      );
+      if (!note) this.judge("stray", lane);
+      else {
+        note.hit =
+          Math.abs(note.tick - this.tick) <= STAGE_PERFECT ? "perfect" : "good";
+        this.judge(note.hit, lane);
+      }
+    }
+    // Notes that slipped past the line are misses.
+    while (
+      !this.ended &&
+      this.next < this.notes.length &&
+      this.notes[this.next].tick < this.tick - STAGE_GOOD
+    ) {
+      const note = this.notes[this.next++];
+      if (!note.hit) {
+        note.hit = "miss";
+        this.judge("miss", note.lane);
+      }
+    }
+    if (this.tick >= STAGE_TICKS) this.ended = true;
+  }
+}
+
+/** The score of a show with every note hit perfectly. */
+export function stageMaxScore(seed: number) {
+  const show = new StageShow(seed);
+  const pressed = [false, false, false, false];
+  while (!show.ended) {
+    pressed.fill(false);
+    for (const n of show.notes)
+      if (n.tick === show.tick + 1) pressed[n.lane] = true;
+    show.advance(pressed);
+  }
+  return show.score;
+}
+/** Zero to three stars from the share of a perfect show's score. */
+export function stageStars(score: number, max: number) {
+  const share = max > 0 ? score / max : 0;
+  return share >= 0.8 ? 3 : share >= 0.55 ? 2 : share >= 0.3 ? 1 : 0;
+}

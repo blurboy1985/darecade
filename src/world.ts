@@ -46,6 +46,8 @@ export const spots: Spot[] = [
   { id: "hoops", name: "Hoops Court", x: 27, z: -11, approach: [27, -8] },
   { id: "plots", name: "Community Plots", x: 28, z: 3, approach: [24, 3] },
   { id: "fishing", name: "Fishing Jetty", x: 27, z: 11, approach: [27, 11] },
+  // The stage fills the back of Dare Plaza; the dare floor sign is in front.
+  { id: "stage", name: "Open Stage", x: 0, z: -0.2, approach: [0, -0.4] },
 ];
 const matCache = new Map<string, T.MeshStandardMaterial>();
 function material(color: string, emissive = false) {
@@ -717,6 +719,41 @@ export class LobbyWorld {
     );
     sign(g, "WARDROBE", 0, 4.15, 0, 3.8, 0.6, "#b5a0d0", "#302e45", 34);
   }
+  /** The Open Stage: a low dance floor anyone can walk onto, with lights behind. */
+  private buildStage() {
+    const r = this.root;
+    cylinder(r, 0, 0.31, -0.2, 2.25, 0.12, "#2f3558", 40);
+    cylinder(r, 0, 0.36, -0.2, 2.05, 0.06, "#444b7a", 40);
+    const tiles = ["#ff8fb8", "#7fe3e0", "#ffe27a", "#b9a4ff"];
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      const tile = box(
+        r,
+        Math.cos(a) * 1.5,
+        0.395,
+        -0.2 + Math.sin(a) * 1.5,
+        0.5,
+        0.02,
+        0.5,
+        tiles[i % 4],
+      );
+      tile.material = material(tiles[i % 4], true);
+      tile.rotation.y = -a;
+    }
+    // A truss with three lamps, two speakers and the name over the back edge.
+    for (const x of [-2.3, 2.3]) {
+      cylinder(r, x, 1.95, -2.1, 0.07, 3.3, "#3a4250");
+      box(r, x * 0.87, 0.75, -1.9, 0.6, 0.9, 0.5, "#232833");
+      cylinder(r, x * 0.87, 0.8, -1.64, 0.2, 0.04, "#596273").rotation.x =
+        Math.PI / 2;
+    }
+    box(r, 0, 3.55, -2.1, 4.9, 0.14, 0.14, "#3a4250");
+    ["#ff8fb8", "#ffe27a", "#7fe3e0"].forEach((c, i) => {
+      const lamp = sphere(r, -1.4 + i * 1.4, 3.36, -2.1, 0.17, c);
+      lamp.material = material(c, true);
+    });
+    sign(r, "OPEN STAGE", 0, 2.85, -2.1, 3, 0.55, "#2f3558", "#ffe27a", 60);
+  }
   private buildPlaza() {
     cylinder(this.root, 0, 0.16, 1, 4, 0.1, "#b5bbb0", 48);
     cylinder(this.root, 0, 0.23, 1, 3.65, 0.08, "#e4dabf", 48);
@@ -727,12 +764,13 @@ export class LobbyWorld {
     ring.rotation.x = -Math.PI / 2;
     ring.position.set(0, 0.29, 1);
     this.root.add(ring);
+    this.buildStage();
     const floor = sign(
       this.root,
       "DARE TO PLAY",
       0,
       0.3,
-      2.6,
+      3.75,
       4,
       0.5,
       "#e4dabf",

@@ -1,0 +1,132 @@
+/* Open Stage: the rhythm show in the neighbourhood window. */
+.activity-stage {
+  gap: 10px;
+}
+.stage-screen {
+  position: relative;
+  width: min(100%, 420px);
+  height: min(46vh, 380px);
+  min-height: 250px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: linear-gradient(#1b1d38, #2f3558);
+  touch-action: none;
+  user-select: none;
+}
+.stage-view,
+.stage-view canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.stage-notes {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: min(100%, 360px);
+  height: 58%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.stage-hud {
+  position: absolute;
+  inset: 0 0 auto;
+  padding: 8px 10px 14px;
+  background: linear-gradient(#0b0c1ad9, #0b0c1a00);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #dfe3ff;
+  text-shadow: 0 1px 0 #0009;
+}
+.stage-hud b {
+  margin-left: 5px;
+  font:
+    700 16px "Space Grotesk",
+    sans-serif;
+  color: #fff7d7;
+}
+.stage-hype {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  max-width: 150px;
+}
+.stage-hype i {
+  flex: 1;
+  height: 10px;
+  border-radius: 5px;
+  background: #0b0c1acc;
+  overflow: hidden;
+  box-shadow: 0 0 0 2px #fff7d7;
+}
+.stage-hype i b {
+  display: block;
+  margin: 0;
+  height: 100%;
+  width: 50%;
+  background: linear-gradient(90deg, #7fe3e0, #ffe27a);
+}
+.stage-hype i b[data-low="true"] {
+  background: #ff6a55;
+}
+.stage-call {
+  position: absolute;
+  inset: 34px 0 auto;
+  min-height: 1.3em;
+  text-align: center;
+  font-weight: 800;
+  font-size: 17px;
+  color: #fff7d7;
+  text-shadow: 0 2px 0 #0009;
+  pointer-events: none;
+}
+.stage-call[data-judgement="perfect"] {
+  color: #ffe27a;
+}
+.stage-call[data-judgement="miss"],
+.stage-call[data-judgement="stray"] {
+  color: #ff9a8a;
+}
+.stage-lanes {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  width: min(100%, 420px);
+}
+.stage-lanes button {
+  min-height: 58px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--lane);
+  color: #1b1d38;
+  font-size: 24px;
+  font-weight: 800;
+  box-shadow: 0 5px 0 #0004;
+  touch-action: none;
+  user-select: none;
+}
+.stage-lanes button.hit {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 #0004;
+  filter: brightness(1.25);
+}
+.stage-lanes button:disabled {
+  opacity: 0.45;
+}
+@media (max-height: 700px) {
+  .stage-screen {
+    height: 40vh;
+    min-height: 200px;
+  }
+  .stage-lanes button {
+    min-height: 48px;
+  }
+}

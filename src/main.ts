@@ -41,6 +41,8 @@ import { LobbyWorld, spots } from "./world";
 import { ArcadeGame } from "./games";
 import { RacingGame } from "./racing-game";
 import { mountFishing, mountHoops, mountPlots } from "./activities";
+import { mountStage } from "./stage-game";
+
 import { OutdoorGame } from "./outdoor-game";
 import { ordinal, type RaceResult } from "../shared/racing";
 import type { Replay } from "../shared/simulation";
@@ -475,9 +477,23 @@ function open(id: string) {
           ? "MY LOOK"
           : ["fishing", "hoops", "plots"].includes(id)
             ? "EAST SIDE"
-            : "DARECADE",
+            : id === "stage"
+              ? "DARE PLAZA"
+              : "DARECADE",
     id === "wardrobe" && !is2d,
   );
+  if (id === "stage") {
+    mountStage(body, {
+      save,
+      sound: beep,
+      simple: is2d,
+      report: (event, value) => {
+        progress(event, value);
+        return profileQueue;
+      },
+    });
+    return;
+  }
   if (id === "fishing" || id === "hoops" || id === "plots") {
     const mount = {
       fishing: mountFishing,

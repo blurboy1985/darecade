@@ -1,5 +1,13 @@
 # Darecade verification — 3 October 2026
 
+## Open Stage, 4 October 2026
+
+See [Open Stage](STAGE.md) for the behaviour. Not deployed.
+
+- **135 Node tests passed, none failed, and the two browser checks that need `DARECADE_TEST_CHROMIUM` were skipped; 7/7 Cloudflare integration tests passed.** TypeScript and the Vite build passed; the 3D scene is a separate 4.7 kB chunk. New `tests/stage.test.ts` covers the seeded song, Perfect and Good timing, the combo multiplier, being booed off by idling or mashing, the star thresholds, the daily cap, the 30-second minimum, malformed reports and save recovery.
+- Tested in an isolated local Chromium on port 4191 with a synthetic guest. The stage, truss, sign and speakers stand on the plaza, and Explore lists Open Stage as a twelfth place. Walking there opened the panel with the avatar under the lamps. A player that read the note highway and pressed arrow keys hit all 101 notes as Good: combo 101 at ×3, confetti, **13150 points, one star, +5 XP** from the server. 5,896 frames, none over 50 ms. No page errors.
+- **Not verified:** how the timing windows feel to a person; Perfect hits, a booed-off ending and the daily cap on screen (tests only); touch buttons, phone sizes and a physical phone; the 2D lobby.
+
 ## Brick Bash power-ups, boss and 3D effects, 4 October 2026
 
 Not deployed. The Brick Bash simulation changed; its rules version did not, so a round in progress during a deploy, or played on a page loaded before it, fails verification until the page is reloaded.

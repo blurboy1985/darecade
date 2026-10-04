@@ -15,6 +15,7 @@ import {
   completeWelcomeRound,
   catchFish,
   scoreHoops,
+  performShow,
   plantCrop,
   waterCrop,
   harvestCrop,
@@ -340,6 +341,7 @@ export class CommunityCore {
             "fishing",
             "hoops",
             "plots",
+            "stage",
           ].includes(value)
         )
           throw Error("Unknown place.");
@@ -377,6 +379,9 @@ export class CommunityCore {
           throw Error("This mission is not ready to claim.");
         p.claims.push(value);
         p.xp += m.xp;
+      } else if (event === "perform") {
+        if (performShow(p, value, this.now(), day(this.now())) === null)
+          throw Error("Take a breath before the next show.");
       } else if (event === "plant") {
         if (!plantCrop(p, value, this.now()))
           throw Error("This plot is already growing something.");
