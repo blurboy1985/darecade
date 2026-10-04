@@ -119,7 +119,7 @@ export class CommunityCore {
   CREATE TABLE IF NOT EXISTS profiles(player TEXT PRIMARY KEY REFERENCES players(id),age_band TEXT NOT NULL,consent TEXT NOT NULL,consented INTEGER NOT NULL,progress TEXT NOT NULL,last_active INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS accounts(player TEXT PRIMARY KEY REFERENCES players(id),email TEXT UNIQUE NOT NULL,created INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,player TEXT REFERENCES players(id),expires INTEGER NOT NULL);
-  CREATE TABLE IF NOT EXISTS moves(code TEXT PRIMARY KEY,player TEXT REFERENCES players(id),session TEXT NOT NULL,saves TEXT NOT NULL,expires INTEGER NOT NULL);
+  CREATE TABLE IF NOT EXISTS moves(code TEXT PRIMARY KEY,player TEXT REFERENCES players(id),session TEXT NOT NULL,key TEXT NOT NULL,saves TEXT NOT NULL,expires INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS magic_links(token TEXT PRIMARY KEY,email TEXT NOT NULL,candidate TEXT REFERENCES players(id),expires INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS email_codes(email TEXT PRIMARY KEY,code TEXT NOT NULL,candidate TEXT REFERENCES players(id),expires INTEGER NOT NULL,attempts INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS code_failures(email TEXT PRIMARY KEY,n INTEGER NOT NULL,expires INTEGER NOT NULL);
@@ -195,8 +195,14 @@ export class CommunityCore {
       .run(hash(token), player, this.now() + 30 * DAY);
     return token;
   }
-  /** At the old address: a single-use code that carries this session across. */
-  moveOut(token, saves) {
+  /**
+   * At the old address: a single-use code that carries this session across.
+   * `key` is the secret the new address made for this browser tab; the code
+   * only works with it, so a code sent to someone else signs nobody in.
+   */
+  moveOut(token, key, saves) {
+    if (typeof key !== "string" || !/^[0-9a-f]{64}$/.test(key))
+      throw Error("Start the move from the game’s main address.");
     const player = this.lookup(token);
     if (!player) return { code: null };
     const kept = {};
@@ -205,23 +211,29 @@ export class CommunityCore {
     const code = randomBytes(32).toString("hex");
     this.db.prepare("DELETE FROM moves WHERE player=?").run(player);
     this.db
-      .prepare("INSERT INTO moves VALUES(?,?,?,?,?)")
+      .prepare("INSERT INTO moves VALUES(?,?,?,?,?,?)")
       .run(
         hash(code),
         player,
         hash(token),
+        hash(key),
         JSON.stringify(kept),
         this.now() + MOVE_MINUTES * 60000,
       );
     return { code };
   }
   /** At the new address: swap the code for a session and the browser saves. */
-  moveIn(code, current) {
+  moveIn(code, key, current) {
     const row =
       typeof code === "string" &&
       this.db.prepare("SELECT * FROM moves WHERE code=?").get(hash(code));
     if (row) this.db.prepare("DELETE FROM moves WHERE code=?").run(row.code);
-    if (!row || row.expires <= this.now())
+    if (
+      !row ||
+      row.expires <= this.now() ||
+      typeof key !== "string" ||
+      row.key !== hash(key)
+    )
       throw Error("This move has expired. Open the old address again.");
     const saves = JSON.parse(row.saves);
     // Whoever is already signed in here stays signed in.

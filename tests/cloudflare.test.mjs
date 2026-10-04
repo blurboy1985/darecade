@@ -1154,6 +1154,7 @@ test(
         ...(data === undefined ? {} : { body: JSON.stringify(data) }),
       });
     try {
+      const key = "ab".repeat(32);
       const guest = await api("auth/join", {
         month: 1,
         year: 2000,
@@ -1175,27 +1176,35 @@ test(
         403,
       );
       // Another site cannot ask for a code, and the new address does not issue them.
-      assert.equal((await old("move", {}, guest.cookie, origin)).status, 403);
-      assert.equal((await api("move", {}, guest.cookie)).status, 404);
+      assert.equal(
+        (await old("move", { key }, guest.cookie, origin)).status,
+        403,
+      );
+      assert.equal((await api("move", { key }, guest.cookie)).status, 404);
       // A Stripe webhook sent to the old address still reaches the signature check.
       assert.notEqual(
         (await old("payments/webhook", { type: "x" })).status,
         403,
       );
 
-      assert.deepEqual(await (await old("move", { saves: {} })).json(), {
+      // No key from the new address, no code.
+      assert.equal(
+        (await old("move", { saves: {} }, guest.cookie)).status,
+        400,
+      );
+      assert.deepEqual(await (await old("move", { key, saves: {} })).json(), {
         code: null,
       });
       const out = await old(
         "move",
-        { saves: { "darecade-v1": '{"xp":40}', other: "dropped" } },
+        { key, saves: { "darecade-v1": '{"xp":40}', other: "dropped" } },
         guest.cookie,
       );
       assert.equal(out.status, 200);
       const { code } = await out.json();
       assert.match(code, /^[0-9a-f]{64}$/);
 
-      const claimed = await api("move/claim", { code });
+      const claimed = await api("move/claim", { code, key });
       assert.equal(claimed.status, 200, JSON.stringify(claimed.data));
       assert.deepEqual(claimed.data, { saves: { "darecade-v1": '{"xp":40}' } });
       assert.match(
@@ -1207,7 +1216,21 @@ test(
       assert.equal(me.status, 200);
       assert.equal(me.data.id, guest.data.id);
       // The code works once and the session it replaced is gone.
-      assert.equal((await api("move/claim", { code })).status, 400);
+      assert.equal((await api("move/claim", { code, key })).status, 400);
+      // A code made for one browser signs nobody in from another.
+      const mine = await (
+        await old("move", { key, saves: {} }, claimed.cookie)
+      ).json();
+      const theft = await api("move/claim", {
+        code: mine.code,
+        key: "cd".repeat(32),
+      });
+      assert.equal(theft.status, 400);
+      assert.equal(theft.headers.get("set-cookie"), null);
+      assert.equal(
+        (await api("auth/me", undefined, claimed.cookie)).status,
+        200,
+      );
       assert.equal((await api("auth/me", undefined, guest.cookie)).status, 401);
     } finally {
       await mf.dispose();

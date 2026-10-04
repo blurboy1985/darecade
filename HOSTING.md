@@ -7,7 +7,7 @@ The code and configuration for the move are ready; **nothing below has been done
 What the deployment changes:
 
 - The Worker keeps the name `darecade`, so the `Neighbourhood` Durable Object `darecade-main-v1` and every account stay attached. `wrangler.jsonc` adds `playsimi.danielquek.com` as a custom domain, sets `PUBLIC_ORIGIN` to it and names the old address in `LEGACY_ORIGIN`.
-- The old address serves the same page, which now only hands the player over: it swaps the session and browser saves for a single-use two-minute code (`POST /api/move`) and goes to the new address, which swaps the code back (`POST /api/move/claim`). The old session ends when the code is claimed. Every other API request at the old address is refused, except Stripe's signed webhook.
+- The old address serves the same page, which now only hands the player over: the old address sends the browser to the new one, which makes a random key for that tab and sends it back; the old address swaps the session and browser saves for a single-use two-minute code tied to that key (`POST /api/move`); the new address swaps the code back with the key (`POST /api/move/claim`). A code is useless without the key held by the tab that asked for it, so a link carrying someone else's code signs nobody in. The old session ends when the code is claimed. Every other API request at the old address is refused, except Stripe's signed webhook.
 - Sign-in email comes from `Play Simi <hello@playsimi.danielquek.com>`, which is also the privacy contact.
 - The Records database gains one table, `moves`. It is created on first use, emptied of expired rows nightly and cleared on account deletion.
 

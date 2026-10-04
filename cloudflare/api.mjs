@@ -129,11 +129,11 @@ export async function handleApi(
     if (method === "POST" && path === "/api/move") {
       if (!legacy) return json({ error: "Not found." }, 404);
       rate("move", 12, 900000);
-      return json(c.moveOut(token, data.saves));
+      return json(c.moveOut(token, data.key, data.saves));
     }
     if (method === "POST" && path === "/api/move/claim") {
       rate("move", 12, 900000);
-      const moved = c.moveIn(data.code, token);
+      const moved = c.moveIn(data.code, data.key, token);
       return moved.token
         ? withCookie({ saves: moved.saves }, moved.token)
         : json({ saves: moved.saves });
