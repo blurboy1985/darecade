@@ -1,7 +1,10 @@
 // The new games keep simulation separate from the browser controls and renderer.
+export const HOP_POWER_SECONDS = 5;
 export class HopRun {
   elapsed = 0;
   score = 0;
+  /** Points from hazards and smashes, on top of the steady time points. */
+  bonus = 0;
   ended = false;
   height = 0;
   velocity = 0;
@@ -13,9 +16,22 @@ export class HopRun {
     passed: boolean;
   }[] = [];
   count = 0;
+  /** True once the runner has stepped off into a gap. */
+  falling = false;
+  /** Seconds of star power left: crates smash and gaps are bridged. */
+  power = 0;
+  smashed = 0;
+  stars: { x: number }[] = [];
+  private starTimer = 7;
+  private bridged = false;
   jump() {
-    if (!this.ended && this.height === 0) {
+    // A jump pressed just after stepping off an edge still counts.
+    if (
+      !this.ended &&
+      (this.height === 0 || (this.falling && this.height > -12))
+    ) {
       this.velocity = 480;
+      this.falling = false;
       return true;
     }
     return false;
@@ -23,9 +39,7 @@ export class HopRun {
   tick(dt: number) {
     if (this.ended) return;
     this.elapsed += dt;
-    this.velocity -= 1400 * dt;
-    this.height = Math.max(0, this.height + this.velocity * dt);
-    if (!this.height) this.velocity = 0;
+    this.power = Math.max(0, this.power - dt);
     const speed = 165 + Math.min(90, this.elapsed * 1.5);
     this.spawn -= dt;
     if (this.spawn <= 0) {
@@ -38,23 +52,65 @@ export class HopRun {
       });
       this.spawn = 1.55 + (this.count % 3) * 0.18;
     }
+    this.starTimer -= dt;
+    if (this.starTimer <= 0) {
+      this.stars.push({ x: 460 });
+      this.starTimer = 13;
+    }
+    for (const h of this.hazards) h.x -= speed * dt;
+    for (const s of this.stars) s.x -= speed * dt;
+    // The runner only falls when the gap is under the middle of its feet.
+    const over = this.hazards.some(
+      (h) => h.kind === "gap" && h.x < 84 && h.x + h.width > 92,
+    );
+    // A bridge under the runner holds until solid ground, even if power ends.
+    this.bridged = over && (this.power > 0 || this.bridged);
+    this.velocity -= 1400 * dt;
+    this.height += this.velocity * dt;
+    if (this.height <= 0 && !this.falling) {
+      if (over && !this.bridged) this.falling = true;
+      else {
+        this.height = 0;
+        this.velocity = 0;
+      }
+    }
+    if (this.height < -90) {
+      this.ended = true;
+      return;
+    }
     for (const h of this.hazards) {
-      h.x -= speed * dt;
       if (
-        h.x < 100 &&
-        h.x + h.width > 76 &&
-        this.height < (h.kind === "gap" ? 4 : 40)
+        h.kind === "crate" &&
+        h.x < 97 &&
+        h.x + h.width > 79 &&
+        this.height < 36 &&
+        !this.falling
       ) {
+        if (this.power > 0) {
+          h.x = -100;
+          h.passed = true;
+          this.smashed++;
+          this.bonus += 50;
+          continue;
+        }
         this.ended = true;
         return;
       }
-      if (!h.passed && h.x + h.width < 76) {
+      if (!h.passed && h.x + h.width < 76 && !this.falling) {
         h.passed = true;
-        this.score += 25;
+        this.bonus += 25;
       }
     }
+    // Stars float at jump height.
+    for (const s of this.stars)
+      if (s.x < 106 && s.x > 62 && this.height > 22) {
+        s.x = -100;
+        this.power = HOP_POWER_SECONDS;
+        this.bonus += 25;
+      }
     this.hazards = this.hazards.filter((h) => h.x + h.width > -10);
-    this.score = Math.max(this.score, Math.floor(this.elapsed * 12));
+    this.stars = this.stars.filter((s) => s.x > -20);
+    this.score = Math.floor(this.elapsed * 12) + this.bonus;
     if (this.elapsed >= 60) this.ended = true;
   }
   draw(c: CanvasRenderingContext2D) {
@@ -83,6 +139,12 @@ export class HopRun {
         c.fillStyle = "#edbe81";
         c.fillRect(h.x - 5, 340, 5, 12);
         c.fillRect(h.x + h.width, 340, 5, 12);
+        // Star power lays a bridge across the gap.
+        if (this.power > 0 || (this.bridged && h.x < 100)) {
+          c.fillStyle = "#ffe27a";
+          for (let x = h.x; x < h.x + h.width; x += 13)
+            c.fillRect(x + 1, 340, 11, 5);
+        }
       } else {
         c.fillStyle = "#dcaa73";
         c.fillRect(h.x, 300, h.width, 40);
@@ -95,7 +157,33 @@ export class HopRun {
         c.stroke();
       }
     }
+    for (const s of this.stars) {
+      const y = 262 + Math.sin(this.elapsed * 5) * 4;
+      c.fillStyle = "#ffe27a";
+      c.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const a = (i * Math.PI) / 5 - Math.PI / 2,
+          r = i % 2 ? 6 : 13;
+        c.lineTo(s.x + Math.cos(a) * r, y + Math.sin(a) * r);
+      }
+      c.fill();
+    }
     const y = 340 - this.height;
+    if (this.power > 0) {
+      // A glow that blinks through the last second, and a streak behind.
+      const on = this.power > 1 || Math.sin(this.elapsed * 40) > 0;
+      c.fillStyle = on ? "#ffe27a66" : "#ffe27a22";
+      c.beginPath();
+      c.arc(88, y - 24, 30, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = "#ffe27a55";
+      for (let i = 1; i <= 3; i++)
+        c.fillRect(76 - i * 14, y - 40 + i * 4, 10, 4);
+      c.fillStyle = "#172e38";
+      c.fillRect(150, 22, 140, 10);
+      c.fillStyle = "#ffe27a";
+      c.fillRect(152, 24, (136 * this.power) / HOP_POWER_SECONDS, 6);
+    }
     c.fillStyle = "#bce98e";
     c.fillRect(76, y - 31, 23, 22);
     c.fillStyle = "#f1cca1";

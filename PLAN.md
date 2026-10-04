@@ -1,39 +1,38 @@
-# Coast Rush review: items, mobile, sound, finish
+# Hop Hop review: point spam, cliff edges, power star
 
-Branch `scale/records`, edited in place. The unrelated uncommitted server/social work is left alone.
+Branch `hop-hop-review`, from `origin/main`. Separate from PRs #11 and #12.
 
 ## Task
 
-Review Coast Rush; explain shells and shields in the game itself; improve phone play; add race music and sound effects; give the race a proper ending.
+Review Hop Hop. Fix the stream of points at the start, stop the round ending abruptly at a cliff edge, and add one feature that helps the player.
 
 ## Findings
 
-- **Shells**: 12 per lap, 36 per race. Counted on the result only. No speed, currency or medal effect. The game never says so, and collecting one gives no sound or visual feedback.
-- **Shield**: a crate item. Using it blocks wall and kart hits (each a 0.75s stop) for 3 seconds. Crates alternate shield and turbo. Collecting or using one has no feedback beyond a small text label.
-- **Mobile**: drifting needs GO and DRIFT held together, so two right-hand fingers. Buttons are 54×48. The cover shows keyboard keys (W A S D, Space, E) on phones.
-- **Sound**: sound is off by default with no control inside the race. The race has no music of its own, no engine, and no sound for shells, crates, shield, laps or position changes.
-- **Ending**: the frame the line is crossed, the race view is replaced by "Checking score…". Finished rivals also stack on the start line.
+- **Point spam.** The score rises one point every 83 ms from time alone. Each rise fires a "+N" label, a sound and a particle burst, so the screen fills with small numbers from the first second. Hazard bonuses were also not added: the score was `max(bonus, time)`, so a +25 showed and then stalled until time caught up.
+- **Cliff edge.** On the ground, any overlap between the runner's 24 px box and a gap ended the round in the same tick: a toe over the near edge, or landing a few pixels short of the far edge. There was no fall, so it read as a sudden stop.
+- Crates use the same full box, so a clipped corner also ends the round.
 
-## Constraint
+## Design
 
-`shared/racing.ts` is replayed by the server and versioned (rules v2). It is not changed, so times, bests, medals and replays are unaffected. All work is presentation and input.
+- **Scoring**: time points plus bonuses, added together. Only bonuses pop, sound and burst.
+- **Edges**: the runner falls only when the gap is under the middle of its feet. It then falls into the gap for about a third of a second before the round ends, and a jump pressed in the first moment of the fall still works. Crates get a slightly smaller hit box.
+- **Power star**: a star floats at jump height every so often. Catching it gives five seconds of power: crates are smashed for +50 and gaps are bridged. A bridge under the runner holds until solid ground even if the power runs out.
+- No boss: a 60-second runner has no room for one, and the star is the helping feature asked for.
+
+`HopRun` is replayed by the server. Scores stay on the same scale, so the rules version is not bumped; see Decisions.
 
 ## Steps
 
-1. `src/audio.ts`: race music mood, tempo control, engine/skid/wind loop, new effects.
-2. `src/race-view.ts`: finish camera, coasting past the line, rivals parking beyond it, shield pulse and expiry blink.
-3. `src/racing-game.ts`: item legend, touch wording, thumb sliding, DRIFT/ITEM keep throttle, pickup and position cues, final-lap moment, finish sequence, sound button.
-4. `src/racing.css`: thumb-sized controls, item states, finish overlay.
-5. `src/main.ts`: submit the result while the finish sequence plays; race music; shared sound toggle.
-6. Docs: `COAST-RUSH.md`, `QA.md`.
+1. `src/action-games.ts`: `HopRun` rules and drawing.
+2. `src/games.ts`: quiet time points, cues for star, smash and fall. `src/catalog.ts`: rule text.
+3. Tests in `tests/neighbourhood.test.ts`; docs in `README.md` and `QA.md`.
 
 ## Verify
 
-- `npm test` and `npm run build` pass.
-- Browser at 390×844, 320×568 and 844×390: no overflow, controls reachable, a full race reaches the finish sequence and a server-verified result.
-- Not verifiable here: real-phone touch feel and how the audio sounds to a person.
+- `npm test`, `npm run build`, `npm run test:cloudflare`.
+- Browser: play Hop Hop, confirm no point spam, a visible fall, a star pickup, and a server-verified result.
+- Not verifiable here: feel on a real phone.
 
-## Decisions left for Daniel
+## Decisions for Daniel
 
-- Sound default: decided 4 October 2026, on by default for new players. A sound button is also on the race cover.
-- Whether shells should ever affect anything is a rules change (version bump); not done.
+- No version bump: old Hop Hop bests stay, and are a little easier to beat because bonuses now add up. A round in progress during deploy, or played on a page loaded before it, will fail verification until the page is reloaded.
