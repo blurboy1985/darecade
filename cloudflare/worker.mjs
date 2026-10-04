@@ -385,8 +385,10 @@ export class Neighbourhood extends DurableObject {
       .run(name, players.length, Date.now());
     for (const { id, away } of players)
       this.db
-        .prepare("UPDATE world_members SET away=? WHERE player=? AND world=?")
-        .run(Number(away), id, name);
+        .prepare(
+          "UPDATE world_members SET away=? WHERE player=? AND world=? AND away!=?",
+        )
+        .run(Number(away), id, name, Number(away));
   }
   worldDepart(name, id) {
     this.db

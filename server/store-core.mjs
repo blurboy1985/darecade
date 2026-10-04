@@ -389,28 +389,28 @@ export class StoreCore {
           },
         ]),
     );
-    // One grouped pass per aggregate, regardless of the number of neighbours.
+    // Group score records and wins in one pass through finished rounds.
     for (const r of this.db
       .prepare(
         `SELECT player,game,
-        MAX(CASE WHEN eligible=1 AND (game!='coast' OR COALESCE(version,1)=2) THEN score ELSE 0 END) best,
-        MAX(CASE WHEN version=CASE WHEN game='coast' THEN 2 ELSE 1 END THEN score ELSE 0 END) guestBest
-        FROM runs WHERE status='finished' AND verified=1 GROUP BY player,game`,
+        COUNT(CASE WHEN verified=1 THEN 1 END) verifiedRuns,
+        MAX(CASE WHEN verified=1 THEN CASE WHEN eligible=1 AND (game!='coast' OR COALESCE(version,1)=2) THEN score ELSE 0 END END) best,
+        MAX(CASE WHEN verified=1 THEN CASE WHEN version=CASE WHEN game='coast' THEN 2 ELSE 1 END THEN score ELSE 0 END END) guestBest,
+        SUM(CASE WHEN target IS NOT NULL AND score>targetScore THEN 1 ELSE 0 END) wins
+        FROM runs WHERE status='finished' GROUP BY player,game`,
       )
       .all()) {
       const card = cards.get(r.player);
       if (card) {
-        card.best[r.game] = r.best;
-        card.guestBest[r.game] = r.guestBest;
+        if (r.verifiedRuns) {
+          card.best[r.game] = r.best;
+          card.guestBest[r.game] = r.guestBest;
+        }
+        card.wins += r.wins;
       }
     }
     for (const [field, sql, args] of [
       ["points", "SELECT player,SUM(points) n FROM medals GROUP BY player", []],
-      [
-        "wins",
-        "SELECT player,COUNT(*) n FROM runs WHERE target IS NOT NULL AND status='finished' AND score>targetScore GROUP BY player",
-        [],
-      ],
       [
         "incoming",
         "SELECT target player,COUNT(*) n FROM runs WHERE target IS NOT NULL AND day=? GROUP BY target",

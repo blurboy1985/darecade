@@ -73,6 +73,8 @@ Workers Paid starts at **US$5/month** and includes larger monthly allowances, wi
 
 ### Local load test
 
+See [Database quota measurements](QUOTA.md) for per-statement SQL counts, separate World storage-operation counts, comparison commands, and measurement limits.
+
 Windows PowerShell, from the repository root:
 
 ```powershell
