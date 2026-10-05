@@ -253,7 +253,7 @@ const alwaysShown = [
   "Head",
   "Lashes",
   "Shirt",
-  "Trim",
+  // The source's "Trim" is a bag/strap crossing the outfit, not garment trim.
   "Socks",
 ];
 const unitBall = new T.SphereGeometry(1, 12, 8);

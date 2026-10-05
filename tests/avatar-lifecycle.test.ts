@@ -12,6 +12,7 @@ import {
 } from "../src/character.ts";
 import { outfits, skins } from "../src/state.ts";
 import { buildMagic } from "../src/magic.ts";
+import { appearanceLimits } from "../src/appearance.ts";
 
 let source: T.Group;
 // Exercise the real GLB meshes and rig in Node. Only embedded image decoding is
@@ -64,6 +65,23 @@ test("a failed character download can retry, and successful loading is shared", 
     assert.equal(attempts, 2, "Success stays cached after a retry");
   } finally {
     GLTFLoader.prototype.loadAsync = originalLoad;
+  }
+});
+
+test("outfits never show the source bag across the chest", () => {
+  const avatar = createAvatar(new T.Group(), 0, 0, outfits[0]);
+  try {
+    const bag = avatar.model.getObjectByName("Trim");
+    assert.ok(bag instanceof T.Mesh);
+    for (const body of [0, 1]) {
+      for (let clothing = 0; clothing < appearanceLimits.clothing; clothing++) {
+        applyLook(avatar, { outfit: 0, skin: 0, hat: 0, body, clothing });
+        assert.equal(bag.visible, false, `body ${body}, outfit ${clothing}`);
+        assert.equal(avatar.model.getObjectByName("Shirt")?.visible, true);
+      }
+    }
+  } finally {
+    disposeAvatar(avatar);
   }
 });
 
