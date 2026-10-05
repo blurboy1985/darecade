@@ -15,6 +15,141 @@ const origin = "https://darecade.test";
 const oldOrigin = "https://old.darecade.test";
 
 test(
+  "Cloudflare season registration, concurrent XP, challenge filtering and midnight rewards preserve lifetime data",
+  { timeout: 30000 },
+  async () => {
+    const today = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
+    const monday = new Date(today + "T00:00:00Z");
+    // Always register strictly in the future, including when this test runs Monday.
+    monday.setUTCDate(
+      monday.getUTCDate() + ((8 - monday.getUTCDay()) % 7 || 7),
+    );
+    const date = monday.toISOString().slice(0, 10),
+      start = Date.parse(date + "T00:00:00+08:00");
+    const { mf, api } = runtime(true, {
+      awards: true,
+      env: {
+        COMPETITION_SEASONS: JSON.stringify([
+          {
+            id: "fixture-season",
+            name: "Fixture season",
+            startsAt: date + "T00:00:00+08:00",
+          },
+        ]),
+        SEASON_VIEW: "true",
+      },
+    });
+    try {
+      const consent = {
+        month: 1,
+        year: 2000,
+        consent: true,
+        privacyVersion: PRIVACY_VERSION,
+      };
+      const a = await api("auth/join", consent),
+        b = await api("auth/join", consent);
+      assert.equal(a.status, 200);
+      assert.equal(b.status, 200);
+      assert.equal(a.data.season, null);
+      const sql = await mf.unsafeGetDurableObjectStorage(
+        "darecade-test",
+        "AwardsNeighbourhood",
+        { name: "darecade-main-v1" },
+      );
+      for (const p of [a, b])
+        await sql.exec(
+          "INSERT INTO accounts VALUES(?,?,?)",
+          p.data.id,
+          `${p.data.id}@example.test`,
+          Date.now() - 172800000,
+        );
+      await sql.exec(
+        "UPDATE profiles SET progress=json_set(progress,'$.xp',250,'$.wardrobePurchased',json('[\"solar\"]')) WHERE player=?",
+        a.data.id,
+      );
+      await sql.exec(
+        "INSERT INTO runs(id,player,game,started,finished,score,day,status,verified,eligible,seed,version) VALUES('old',?,'hop',?,?,?,?, 'finished',1,1,123,1)",
+        b.data.id,
+        start - 2000,
+        start - 1000,
+        100,
+        new Date(start - 1000 + 8 * 3600000).toISOString().slice(0, 10),
+      );
+      const namespace = await mf.getDurableObjectNamespace("NEIGHBOURHOOD"),
+        stub = namespace.get(namespace.idFromName("darecade-main-v1"));
+      await stub.runAwardAlarm(start + 1000);
+      let state = await api("state", undefined, a.cookie);
+      assert.equal(state.data.season.xp, 0);
+      assert.equal(state.data.season.points, 0);
+      assert.equal(
+        (
+          await api(
+            "run",
+            { game: "hop", target: b.data.id, targetRun: "old" },
+            a.cookie,
+          )
+        ).status,
+        400,
+      );
+      const results = await Promise.all([
+        api("progress", { event: "gift", value: 0 }, a.cookie),
+        api("progress", { event: "gift", value: 0 }, a.cookie),
+      ]);
+      assert.deepEqual(results.map((r) => r.status).sort(), [200, 400]);
+      await Promise.all([
+        api("progress", { event: "visit", value: "garden" }, a.cookie),
+        api("progress", { event: "visit", value: "plots" }, a.cookie),
+        api("progress", { event: "visit", value: "stage" }, a.cookie),
+      ]);
+      const profile = (await api("auth/me", undefined, a.cookie)).data;
+      assert.equal(profile.progress.xp, 310);
+      assert.equal(profile.season.xp, 60);
+      assert.ok(profile.progress.wardrobePurchased.includes("solar"));
+      assert.equal(
+        (
+          await sql.exec(
+            "SELECT SUM(tokens) n FROM style_reward_notices WHERE player=?",
+            a.data.id,
+          )
+        )[0].n,
+        1,
+      );
+      for (const game of ["hop", "noodle"])
+        await sql.exec(
+          "INSERT INTO runs(id,player,game,started,finished,score,day,status,verified,eligible,seed,version) VALUES(?,?,?,?,?,?,?,'finished',1,1,123,1)",
+          game,
+          a.data.id,
+          game,
+          start + 1000,
+          start + 61000,
+          100,
+          date,
+        );
+      await stub.runAwardAlarm(start + 86401000);
+      await stub.runAwardAlarm(start + 86402000);
+      state = await api("state", undefined, a.cookie);
+      assert.equal(state.data.season.points, 6);
+      assert.equal(state.data.season.xp, 60);
+      assert.equal(state.data.profile.progress.medalTokens, 3);
+      assert.equal(
+        (
+          await sql.exec(
+            "SELECT COUNT(*) n FROM medal_rewards WHERE player=?",
+            a.data.id,
+          )
+        )[0].n,
+        1,
+      );
+      const exported = await api("privacy/export", undefined, a.cookie);
+      assert.equal(exported.data.seasons[0].xp, 60);
+      assert.equal((await api("auth/me", undefined, b.cookie)).status, 200);
+    } finally {
+      await mf.dispose();
+    }
+  },
+);
+
+test(
   "Cloudflare validates a linked water trail and persists only one crop boost",
   { timeout: 30000 },
   async () => {

@@ -18,6 +18,8 @@ const community = new Community(store, {
   directory: dir,
   origin,
   production,
+  competitionSeasons: process.env.COMPETITION_SEASONS || "[]",
+  seasonView: process.env.SEASON_VIEW === "true",
   mailMode: process.env.MAIL_MODE || "outbox",
   mailKey: process.env.RESEND_API_KEY || "",
   mailFrom: process.env.MAIL_FROM || "",

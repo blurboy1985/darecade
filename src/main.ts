@@ -30,6 +30,7 @@ import { playtestEnabled, playtestEvent, playtestSummary } from "./playtest";
 import "./style.css";
 import "./neighbourhood.css";
 import { api, type SharedState, type SharedPlayer, type Run } from "./social";
+import type { SeasonStanding } from "./season";
 import { WorldConnection } from "./world-connection";
 import { WorldPicker, worldCode } from "./world-picker";
 import {
@@ -124,6 +125,7 @@ let questPage = 0;
 // dressing their character, on the way to saving it.
 let setupGuide = false;
 let boardTab = "week";
+let boardPeriodChosen = false;
 let boardGame: GameId = "noodle";
 const challengeGameByPlayer = new Map<string, GameId>();
 let neighbourRosterSignature = "";
@@ -1609,8 +1611,15 @@ document.addEventListener("change", (e) => {
     renderSharedBoard();
     return;
   }
-  if (el.id === "board-period" && ["week", "daily"].includes(el.value)) {
+  if (
+    el.id === "board-period" &&
+    (["week", "daily"].includes(el.value) ||
+      [shared?.season, ...(shared?.seasonHistory || [])].some(
+        (s) => s && el.value === `season:${s.id}`,
+      ))
+  ) {
     boardTab = el.value;
+    boardPeriodChosen = true;
     renderSharedBoard();
     body.querySelector<HTMLSelectElement>("#board-period")?.focus();
     return;
@@ -2146,6 +2155,8 @@ async function syncSocial() {
       shared.friends,
       shared.boards,
       shared.weekly,
+      shared.season,
+      shared.seasonHistory,
       shared.history,
       shared.dares,
       shared.recentRuns,
@@ -2214,7 +2225,32 @@ function renderSharedNeighbours() {
   )!.disabled = !picker.value.startsWith("player:");
   if (keepFocus) picker.focus();
 }
+function rankingPeriodPicker() {
+  const current = shared?.season;
+  return `<label class="field-label" for="board-period">Show</label><select class="destination-select" id="board-period">${current ? `<option value="season:${current.id}" ${boardTab === `season:${current.id}` ? "selected" : ""}>${escapeText(current.name)}</option>` : ""}<option value="week" ${boardTab === "week" ? "selected" : ""}>Weekly medals</option><option value="daily" ${boardTab === "daily" ? "selected" : ""}>Today’s scores</option>${(shared?.seasonHistory || []).map((s) => `<option value="season:${s.id}" ${boardTab === `season:${s.id}` ? "selected" : ""}>${escapeText(s.name)} · past</option>`).join("")}</select>`;
+}
+function renderSeasonBoard(season: SeasonStanding) {
+  modal.classList.remove("race-board");
+  const past = season.id !== shared?.season?.id;
+  const rows = season.standings;
+  const date = new Date(season.startsAt).toLocaleDateString("en-SG", {
+    timeZone: "Asia/Singapore",
+  });
+  body.innerHTML = `<span class="eyebrow">LEAGUE</span><h2>Rankings</h2>${serverNote()}<section class="your-standing"><div><span>YOUR SEASON RANK</span><strong>${season.rank ? `#${season.rank}` : "—"}</strong><small>${past ? "Past season" : "Medals settle at midnight"}</small></div><div class="standing-stats"><span><b>${season.points}</b>Season medals</span><span><b>${season.xp}</b>Season XP</span><span><b>${save.xp}</b>Lifetime XP</span></div></section>${rankingPeriodPicker()}<p class="fine-print">${escapeText(season.name)} · from ${date} SGT. Daily medals build this ranking. XP keeps your lifetime level and earns tokens once.</p><div class="leaderboard">${rows.map((p) => `<div class="${p.id === shared?.me ? "you-row" : ""}"><b>#${p.rank}</b><span>${escapeText(p.name)}${p.id === shared?.me ? " · You" : ""}</span><strong>${p.points}<small>MEDAL PTS</small></strong></div>`).join("") || `<section class="board-empty"><h3>${past ? "No medals" : "A fresh season"}</h3><p>${past ? "No saved medal results for this season." : "Play today. Top daily ranks earn medals at 00:00 SGT. Your earlier progress stays saved."}</p>${past ? "" : `<button class="primary" data-game="${boardGame}">Play ${games[boardGame].name}</button>`}</section>`}</div><details class="scoring-guide"><summary>Lifetime & history</summary><p>${shared?.self.points || 0} lifetime medal points · ${save.xp} lifetime XP · Level ${1 + Math.floor(save.xp / 100)}.</p><p>Earlier scores, outfits and tokens stay saved. Past seasons are in Show. Your personal bests are on each game card.</p></details>${!currentProfile?.account ? '<button class="secondary" data-account>Save with email to be ranked</button>' : ""}`;
+}
 function renderSharedBoard() {
+  if (shared?.season && !boardPeriodChosen && boardTab !== "daily")
+    boardTab = `season:${shared.season.id}`;
+  if (boardTab.startsWith("season:")) {
+    const season = [shared?.season, ...(shared?.seasonHistory || [])].find(
+      (s) => s && boardTab === `season:${s.id}`,
+    );
+    if (season) {
+      renderSeasonBoard(season);
+      return;
+    }
+    boardTab = "week";
+  }
   modal.classList.toggle(
     "race-board",
     boardTab === "daily" && boardGame === "coast",
@@ -2266,7 +2302,7 @@ function renderSharedBoard() {
   const awarded = weekEnds
     ? "They are awarded at 00:00 SGT and count for this week, which closes then: look under Last week’s champions tomorrow."
     : "They are awarded at 00:00 SGT and then appear here.";
-  body.innerHTML = `<span class="eyebrow">LEAGUE</span><h2>Rankings</h2>${serverNote()}<section class="your-standing"><div><span>YOUR ${boardTab === "week" ? "WEEKLY" : "DAILY"} RANK</span><strong>${rank ? "#" + rank : "—"}</strong><small>${rank ? "Nice!" : waiting}</small></div><div class="standing-stats"><span><b>${ownWeek?.points || 0}</b>This week</span><span><b>${pending ? "+" + pending : "0"}</b>Pending tonight</span><span><b>${me?.points || 0}</b>Lifetime</span></div></section><label class="field-label" for="board-period">Show</label><select class="destination-select" id="board-period"><option value="week" ${boardTab === "week" ? "selected" : ""}>Weekly medals</option><option value="daily" ${boardTab === "daily" ? "selected" : ""}>Today’s scores</option></select>${boardTab === "daily" ? `<label class="field-label" for="board-game">Game</label><select class="destination-select" id="board-game">${gameIds.map((g) => `<option value="${g}" ${g === boardGame ? "selected" : ""}>${games[g].name}</option>`).join("")}</select><p class="fine-print">${games[boardGame].name}${boardGame === "coast" ? " · Fastest three-lap time wins" : ""} · Your best today: <b>${formatScore(boardGame, ownDay?.score || 0)}</b> · Each player’s best score of the day is listed, so a lower replay does not replace it. Medals are pending until 00:00 SGT.</p>` : `<p class="fine-print">Week of ${shared?.week || "Monday"} · resets Monday 00:00 SGT</p>`}<div class="podium-cards">${podium.length ? podium.map((p) => `<article class="podium-card medal-${p.rank} ${p.id === shared?.me ? "is-you" : ""}"><span class="podium-medal">${["🥇", "🥈", "🥉"][p.rank - 1]}</span><small>RANK ${p.rank}${p.id === shared?.me ? " · YOU" : ""}</small><h3>${escapeText(p.name)}</h3><strong>${p.value}</strong><small>${unit}${boardTab === "daily" ? ` · +${4 - p.rank} PENDING` : ""}</small></article>`).join("") : `<div class="board-empty"><span>✦</span><h3>${guest ? "Nothing yet!" : boardTab !== "week" ? "Be the first!" : playedToday ? "Medals land at midnight" : "Nothing yet!"}</h3><p>${guest ? "Guest rounds earn XP and are not ranked. Top 3 daily scores win medals at midnight." : boardTab !== "week" ? "Finish a round to claim #1." : pending ? `Your scores today are worth +${pending} medal points so far. ${awarded}` : playedToday ? "Your rounds today are on Today’s scores. Top 3 in a game win medals at midnight." : "Top 3 daily scores win medals at midnight."}</p>${boardTab === "week" && playedToday ? '<button class="primary" data-board-tab="daily">See today’s scores →</button>' : `<button class="primary" data-game="${boardGame}">Play ${games[boardGame].name} →</button>`}</div>`}</div>${list.length ? `<div class="leaderboard">${list.map((p) => `<div class="${p.id === shared?.me ? "you-row" : ""}"><b>#${p.rank}</b><span>${escapeText(p.name)}${p.id === shared?.me ? " · You" : ""}</span><strong>${p.value}<small>${unit}</small></strong></div>`).join("")}</div>` : ""}${boardTab === "daily" && ownDay && board[0] ? `<div class="score-target"><label>${boardGame === "coast" ? "Your time / today’s fastest" : "Your score compared with today’s leader"} <b>${formatScore(boardGame, ownDay.score)} / ${formatScore(boardGame, board[0].score)}</b></label><progress value="${ownDay.score}" max="${Math.max(1, board[0].score)}"></progress></div>` : ""}${boardTab === "daily" && podium.length ? `<button class="primary" data-game="${boardGame}">Play ${games[boardGame].name}</button>` : ""}${challenge}<details class="scoring-guide"><summary>How scores become medals</summary><div class="medal-rule"><span>🥇<b>+3</b>Gold</span><span>🥈<b>+2</b>Silver</span><span>🥉<b>+1</b>Bronze</span></div><p>1. Play any of the five daily games. Your best positive score counts. Coast Rush ranks fastest three-lap times.</p><p>2. At midnight Singapore time, each game awards its top three ranks. Gold earns 3 Style tokens, silver 2, bronze 1. Medal tokens cap at 3 per day across games.</p><p>3. Daily medals build your weekly total. The weekly board resets Monday; lifetime medals stay.</p><p class="fine-print">Ties share a rank (1, 1, 3). Pending medals can change before midnight. Cosmetic XP levels up your avatar and never affects ranks. Challenges record wins separately.</p></details><details class="scoring-guide"><summary>Last week’s champions</summary><div class="leaderboard">${(shared?.lastWeek || []).map((p) => `<div><b>#${p.rank}</b><span>${escapeText(p.name)}</span><strong>${p.points}<small>MEDAL PTS</small></strong></div>`).join("") || "<p>No completed week yet.</p>"}</div></details>${guest ? '<button class="secondary" data-account>Save with email to be ranked</button>' : !shared?.competitionReady ? '<button class="secondary" data-account>Account & challenges →</button>' : ""}`;
+  body.innerHTML = `<span class="eyebrow">LEAGUE</span><h2>Rankings</h2>${serverNote()}<section class="your-standing"><div><span>YOUR ${boardTab === "week" ? "WEEKLY" : "DAILY"} RANK</span><strong>${rank ? "#" + rank : "—"}</strong><small>${rank ? "Nice!" : waiting}</small></div><div class="standing-stats"><span><b>${ownWeek?.points || 0}</b>This week</span><span><b>${pending ? "+" + pending : "0"}</b>Pending tonight</span><span><b>${me?.points || 0}</b>Lifetime</span></div></section>${rankingPeriodPicker()}${boardTab === "daily" ? `<label class="field-label" for="board-game">Game</label><select class="destination-select" id="board-game">${gameIds.map((g) => `<option value="${g}" ${g === boardGame ? "selected" : ""}>${games[g].name}</option>`).join("")}</select><p class="fine-print">${games[boardGame].name}${boardGame === "coast" ? " · Fastest three-lap time wins" : ""} · Your best today: <b>${formatScore(boardGame, ownDay?.score || 0)}</b> · Each player’s best score of the day is listed, so a lower replay does not replace it. Medals are pending until 00:00 SGT.</p>` : `<p class="fine-print">Week of ${shared?.week || "Monday"} · resets Monday 00:00 SGT</p>`}<div class="podium-cards">${podium.length ? podium.map((p) => `<article class="podium-card medal-${p.rank} ${p.id === shared?.me ? "is-you" : ""}"><span class="podium-medal">${["🥇", "🥈", "🥉"][p.rank - 1]}</span><small>RANK ${p.rank}${p.id === shared?.me ? " · YOU" : ""}</small><h3>${escapeText(p.name)}</h3><strong>${p.value}</strong><small>${unit}${boardTab === "daily" ? ` · +${4 - p.rank} PENDING` : ""}</small></article>`).join("") : `<div class="board-empty"><span>✦</span><h3>${guest ? "Nothing yet!" : boardTab !== "week" ? "Be the first!" : playedToday ? "Medals land at midnight" : "Nothing yet!"}</h3><p>${guest ? "Guest rounds earn XP and are not ranked. Top 3 daily scores win medals at midnight." : boardTab !== "week" ? "Finish a round to claim #1." : pending ? `Your scores today are worth +${pending} medal points so far. ${awarded}` : playedToday ? "Your rounds today are on Today’s scores. Top 3 in a game win medals at midnight." : "Top 3 daily scores win medals at midnight."}</p>${boardTab === "week" && playedToday ? '<button class="primary" data-board-tab="daily">See today’s scores →</button>' : `<button class="primary" data-game="${boardGame}">Play ${games[boardGame].name} →</button>`}</div>`}</div>${list.length ? `<div class="leaderboard">${list.map((p) => `<div class="${p.id === shared?.me ? "you-row" : ""}"><b>#${p.rank}</b><span>${escapeText(p.name)}${p.id === shared?.me ? " · You" : ""}</span><strong>${p.value}<small>${unit}</small></strong></div>`).join("")}</div>` : ""}${boardTab === "daily" && ownDay && board[0] ? `<div class="score-target"><label>${boardGame === "coast" ? "Your time / today’s fastest" : "Your score compared with today’s leader"} <b>${formatScore(boardGame, ownDay.score)} / ${formatScore(boardGame, board[0].score)}</b></label><progress value="${ownDay.score}" max="${Math.max(1, board[0].score)}"></progress></div>` : ""}${boardTab === "daily" && podium.length ? `<button class="primary" data-game="${boardGame}">Play ${games[boardGame].name}</button>` : ""}${challenge}<details class="scoring-guide"><summary>How scores become medals</summary><div class="medal-rule"><span>🥇<b>+3</b>Gold</span><span>🥈<b>+2</b>Silver</span><span>🥉<b>+1</b>Bronze</span></div><p>1. Play any of the five daily games. Your best positive score counts. Coast Rush ranks fastest three-lap times.</p><p>2. At midnight Singapore time, each game awards its top three ranks. Gold earns 3 Style tokens, silver 2, bronze 1. Medal tokens cap at 3 per day across games.</p><p>3. Daily medals build your weekly total. The weekly board resets Monday; lifetime medals stay.</p><p class="fine-print">Ties share a rank (1, 1, 3). Pending medals can change before midnight. Cosmetic XP levels up your avatar and never affects ranks. Challenges record wins separately.</p></details><details class="scoring-guide"><summary>Last week’s champions</summary><div class="leaderboard">${(shared?.lastWeek || []).map((p) => `<div><b>#${p.rank}</b><span>${escapeText(p.name)}</span><strong>${p.points}<small>MEDAL PTS</small></strong></div>`).join("") || "<p>No completed week yet.</p>"}</div></details>${guest ? '<button class="secondary" data-account>Save with email to be ranked</button>' : !shared?.competitionReady ? '<button class="secondary" data-account>Account & challenges →</button>' : ""}`;
 }
 function challengeButtons(p: SharedPlayer) {
   const best = p.challengeScores

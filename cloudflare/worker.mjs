@@ -127,6 +127,8 @@ export class Neighbourhood extends DurableObject {
     this.community = new CommunityCore(this.store, {
       files: this.files,
       production: true,
+      competitionSeasons: env.COMPETITION_SEASONS || "[]",
+      seasonView: env.SEASON_VIEW === "true",
       origin: env.PUBLIC_ORIGIN,
       legacyOrigin: env.LEGACY_ORIGIN || "",
       mailMode: "resend",

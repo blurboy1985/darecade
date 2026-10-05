@@ -1,5 +1,6 @@
 import { api } from "./social";
 import type { Save } from "./state";
+import type { SeasonProgress } from "./season";
 import { dareHoldCopy } from "./lobby-menu";
 import "./account.css";
 export type Profile = {
@@ -12,6 +13,7 @@ export type Profile = {
   ageBand: string;
   privacyVersion: string;
   progress: Save;
+  season?: SeasonProgress | null;
 };
 type Config = {
   now: number;
@@ -312,7 +314,7 @@ export async function openAccount(
         },
       });
     const render = () => {
-      host.innerHTML = `<span class="eyebrow">ACCOUNT & PRIVACY</span><h2>Your account</h2><p>${p.account ? `Signed in as <strong>${esc(p.account.email)}</strong>. Your avatar and progress follow this account.` : "Playing without email. Add one to use your character and progress on another device."}</p><p>${p.account && p.account.eligibleAt > Date.now() ? `Every round you finish is ranked. ${dareHoldCopy(false, p.account)}` : "Three outgoing challenges per day. No points lost when another player wins."}</p>${!p.account ? '<button class="primary" id="save-account">Save with email →</button>' : ""}${p.account ? `<label class="consent-choice"><input id="medal-email" type="checkbox" ${p.notifications?.medalEmail ? "checked" : ""}> Email my daily medal awards</label><p class="fine-print">One email on days you win medals. Turn off here anytime.</p>` : ""}<div class="account-actions"><button class="secondary" id="read-privacy">Privacy &amp; data</button><button class="secondary" id="logout">Sign out</button></div><p role="status" id="account-status"></p>`;
+      host.innerHTML = `<span class="eyebrow">ACCOUNT & PRIVACY</span><h2>Your account</h2><p>${p.account ? `Signed in as <strong>${esc(p.account.email)}</strong>. Your avatar and progress follow this account.` : "Playing without email. Add one to use your character and progress on another device."}</p><p>${p.account && p.account.eligibleAt > Date.now() ? `Every round you finish is ranked. ${dareHoldCopy(false, p.account)}` : "Three outgoing challenges per day. No points lost when another player wins."}</p>${p.season ? `<p>${esc(p.season.name)} · ${p.season.xp} Season XP · ${p.progress.xp} Lifetime XP</p>` : ""}${!p.account ? '<button class="primary" id="save-account">Save with email →</button>' : ""}${p.account ? `<label class="consent-choice"><input id="medal-email" type="checkbox" ${p.notifications?.medalEmail ? "checked" : ""}> Email my daily medal awards</label><p class="fine-print">One email on days you win medals. Turn off here anytime.</p>` : ""}<div class="account-actions"><button class="secondary" id="read-privacy">Privacy &amp; data</button><button class="secondary" id="logout">Sign out</button></div><p role="status" id="account-status"></p>`;
       host
         .querySelector<HTMLInputElement>("#medal-email")
         ?.addEventListener("change", async (event) => {
