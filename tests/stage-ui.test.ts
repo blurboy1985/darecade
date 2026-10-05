@@ -20,6 +20,7 @@ const compiled = ts.transpileModule(
 ).outputText;
 
 class Element extends EventTarget {
+  scrollIntoView() {}
   innerHTML = "";
   textContent = "";
   className = "";

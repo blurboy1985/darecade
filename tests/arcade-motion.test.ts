@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:http";
 import { once } from "node:events";
-import { spawn } from "node:child_process";
+import { browserDOM } from "./browser-dom.ts";
 
 const chromium = process.env.DARECADE_TEST_CHROMIUM;
 const css = readFileSync(
@@ -67,36 +67,19 @@ for (const systemReduced of [false, true]) {
       await once(server, "listening");
       const address = server.address();
       assert.ok(address && typeof address !== "string");
-      const browser = spawn(
-        chromium,
-        [
-          "--headless",
-          "--disable-gpu",
-          "--no-first-run",
-          "--disable-background-networking",
-          "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1",
-          `--user-data-dir=${directory}`,
-          "--dump-dom",
-          "--virtual-time-budget=1000",
-          ...(systemReduced ? ["--force-prefers-reduced-motion"] : []),
-          `http://127.0.0.1:${address.port}/`,
-        ],
-        { stdio: ["ignore", "pipe", "pipe"] },
-      );
-      let output = "",
-        errors = "";
-      browser.stdout.on("data", (data) => {
-        output += data;
-      });
-      browser.stderr.on("data", (data) => {
-        errors += data;
-      });
       try {
-        const [code] = await once(browser, "exit");
-        assert.equal(code, 0, errors);
+        const output = await browserDOM(
+          chromium,
+          `http://127.0.0.1:${address.port}/`,
+          directory,
+          {
+            virtualTime: 1000,
+            flags: systemReduced ? ["--force-prefers-reduced-motion"] : [],
+          },
+        );
         assert.match(output, /data-result="pass"/, output);
       } finally {
-        browser.kill();
+        server.closeAllConnections();
         await new Promise<void>((resolve, reject) =>
           server.close((error) => (error ? reject(error) : resolve())),
         );

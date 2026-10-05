@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:http";
 import { once } from "node:events";
-import { spawn } from "node:child_process";
+import { browserDOM } from "./browser-dom.ts";
 import { transpileModule, ModuleKind, ScriptTarget } from "typescript";
 
 const account = readFileSync(
@@ -18,6 +18,10 @@ const social = readFileSync(
 );
 const lobbyMenu = readFileSync(
   new URL("../src/lobby-menu.ts", import.meta.url),
+  "utf8",
+);
+const playMedals = readFileSync(
+  new URL("../src/play-medals.ts", import.meta.url),
   "utf8",
 );
 // Browser execution is opt-in because standard test environments may not allow
@@ -237,6 +241,7 @@ try {
         "/account.js": account.replace('import "./account.css";', ""),
         "/social": social,
         "/lobby-menu": lobbyMenu,
+        "/play-medals": playMedals,
       };
       if (modules[path]) {
         response.setHeader("Content-Type", "text/javascript; charset=utf-8");
@@ -291,34 +296,12 @@ try {
     await once(server, "listening");
     const address = server.address();
     assert.ok(address && typeof address !== "string");
-    const browser = spawn(
-      chromium,
-      [
-        "--headless",
-        "--no-sandbox",
-        "--disable-gpu",
-        "--disable-dev-shm-usage",
-        "--disable-background-networking",
-        "--no-first-run",
-        "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1",
-        `--user-data-dir=${directory}`,
-        "--dump-dom",
-        "--virtual-time-budget=10000",
-        `http://127.0.0.1:${address.port}/`,
-      ],
-      { stdio: ["ignore", "pipe", "pipe"] },
-    );
-    let output = "",
-      errors = "";
-    browser.stdout.on("data", (data) => {
-      output += data;
-    });
-    browser.stderr.on("data", (data) => {
-      errors += data;
-    });
     try {
-      const [exit] = await once(browser, "exit");
-      assert.equal(exit, 0, errors);
+      const output = await browserDOM(
+        chromium,
+        `http://127.0.0.1:${address.port}/`,
+        directory,
+      );
       assert.match(output, /data-result="pass"/, output);
       assert.deepEqual(
         requests
@@ -342,7 +325,7 @@ try {
         1,
       );
     } finally {
-      browser.kill();
+      server.closeAllConnections();
       await new Promise<void>((resolve, reject) =>
         server.close((error) => (error ? reject(error) : resolve())),
       );

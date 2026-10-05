@@ -129,6 +129,7 @@ export function mountStage(
     }),
   );
   const finish = async (done: StageShow) => {
+    root.dataset.playing = "false";
     mode.disabled = false;
     if (done.mode === "warmup") {
       lanes.forEach((b) => (b.disabled = true));
@@ -137,6 +138,7 @@ export function mountStage(
       ctx.sound(hits >= STAGE_WARMUP_GOAL ? "win" : "finish");
       start.hidden = false;
       note();
+      status.scrollIntoView({ block: "nearest" });
       return;
     }
     const score = Math.round(done.score),
@@ -159,6 +161,7 @@ export function mountStage(
           : "");
     start.hidden = false;
     note();
+    status.scrollIntoView({ block: "nearest" });
   };
   start.addEventListener("click", () => {
     const seed = Math.floor(Math.random() * 2 ** 31);
@@ -166,6 +169,7 @@ export function mountStage(
     show = new StageShow(seed, selected);
     max = selected === "show" ? stageMaxScore(seed) : 1;
     mode.disabled = true;
+    root.dataset.playing = "true";
     pressed.fill(false);
     judged = 0;
     accumulator = 0;
@@ -178,6 +182,8 @@ export function mountStage(
         (b.disabled = selected === "warmup" && lane !== 0 && lane !== 3),
     );
     ctx.sound("go");
+    root.querySelector(".stage-screen")!.scrollIntoView({ block: "nearest" });
+    root.querySelector(".stage-lanes")!.scrollIntoView({ block: "nearest" });
   });
   const draw = (tick: number) => {
     c.clearRect(0, 0, 360, 220);
