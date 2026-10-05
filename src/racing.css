@@ -925,3 +925,29 @@ dialog.game-modal.racing-modal {
 .coast-game[data-status="ready"] .race-footer > span:first-child {
   visibility: hidden;
 }
+.coast-game .race-cover {
+  overflow-y: auto;
+  justify-content: flex-start;
+}
+.race-cover .game-progress {
+  color: #fff3d2;
+  background: #123e4ddd;
+  border-color: #668c87;
+  max-width: 330px;
+}
+.race-cover .game-progress p {
+  margin: 4px 0;
+  font-size: 11px;
+}
+.race-cover .level-reward progress {
+  accent-color: #d8edaa;
+}
+.race-guide {
+  max-width: 420px;
+  margin-top: 8px;
+}
+.race-guide summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}

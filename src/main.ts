@@ -1040,6 +1040,7 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
             simple: save.twoD,
             target,
             playerName: currentProfile?.name ?? "You",
+            progress: save,
             best: shared?.self?.best.coast ?? save.best.coast,
             assist: !save.coastRecord.timeTicks,
             soundOn: () => save.sound,

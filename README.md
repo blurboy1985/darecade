@@ -28,6 +28,10 @@ The local server uses a **private local test outbox**; the hosted service uses R
 
 Every player has an invite link. A new friend who follows it and finishes a first round earns 30 XP for both players, for up to five friends. See [INVITES.md](INVITES.md).
 
+## Section 4 goals and warm-up draft
+
+Coast Rush now introduces the next personal time goal and existing level/Style token progression. Open Stage offers a slower two-lane warm-up before the original Show, with no warm-up rewards or saved score. Existing Show balance and progression are unchanged. See [per-change browser checks and remaining QA](SECTION4-QA.md). The [Neighbourhood Relay proposal](SECTION4-MODE-PROPOSAL.md) incorporates Daniel's request for more Three.js animation and challenging gameplay; it is not implemented in this draft.
+
 ## Open Stage — 4 October 2026
 
 Simi Plaza, in the middle of the island, now has a stage. A forty-second rhythm show with the player's avatar dancing under the lights earns up to 45 XP a day. See [STAGE.md](STAGE.md).

@@ -4,14 +4,17 @@ import {
   STAGE_GOOD,
   STAGE_LANES,
   STAGE_TICKS,
+  STAGE_WARMUP_GOAL,
   StageShow,
   stageMaxScore,
   stageStars,
+  type StageMode,
 } from "../shared/stage";
 import { STAGE_DAILY_XP, STAGE_STAR_XP, type Save } from "./state";
 import type { Sfx } from "./audio";
 import { loadCharacter } from "./character";
 import type { StageView } from "./stage-view";
+import { stageProgress } from "./progression-guide";
 import "./stage.css";
 
 const COLOURS = ["#ff8fb8", "#7fe3e0", "#ffe27a", "#b9a4ff"];
@@ -42,7 +45,7 @@ export function mountStage(
   root.className = "activity activity-stage";
   host.replaceChildren(root);
   const live = () => root.isConnected && !!root.closest("dialog")?.open;
-  root.innerHTML = `<h2>Open Stage</h2><p class="lead">Hit each arrow as it reaches the line. Keep the crowd's hype up, or the show is booed off.</p><div class="stage-screen"><div class="stage-view"></div><div class="stage-hud"><span>SCORE<b id="stage-score">0</b></span><span>COMBO<b id="stage-combo">0</b></span><span class="stage-hype">HYPE<i><b id="stage-hype"></b></i></span></div><div class="stage-call" role="status" aria-live="polite"></div><canvas class="stage-notes" width="360" height="220" aria-hidden="true"></canvas></div><div class="stage-lanes">${ARROWS.map((a, i) => `<button data-lane="${i}" style="--lane:${COLOURS[i]}" aria-label="Lane ${i + 1}" disabled>${a}</button>`).join("")}</div><p class="activity-status" role="status"></p><button class="primary" id="stage-start">Start the show →</button><p class="fine-print" id="stage-note"></p>`;
+  root.innerHTML = `<h2>Open Stage</h2><div id="stage-progress"></div><label class="field-label" for="stage-mode">Choose your session</label><select class="destination-select" id="stage-mode"><option value="warmup">Warm-up · learn the beat</option><option value="show">Show · stars & XP</option></select><p class="lead" id="stage-goal"></p><div class="stage-screen"><div class="stage-view"></div><div class="stage-hud"><span><span id="stage-score-label">SCORE</span><b id="stage-score">0</b></span><span>COMBO<b id="stage-combo">0</b></span><span class="stage-hype">HYPE<i><b id="stage-hype"></b></i></span></div><div class="stage-call" role="status" aria-live="polite"></div><canvas class="stage-notes" width="360" height="220" aria-hidden="true"></canvas></div><div class="stage-lanes">${ARROWS.map((a, i) => `<button data-lane="${i}" style="--lane:${COLOURS[i]}" aria-label="Lane ${i + 1}" disabled>${a}</button>`).join("")}</div><p class="activity-status" role="status"></p><button class="primary" id="stage-start">Start the show →</button><p class="fine-print" id="stage-note"></p>`;
   const canvas = root.querySelector<HTMLCanvasElement>(".stage-notes")!;
   const c = canvas.getContext("2d")!;
   const call = root.querySelector<HTMLElement>(".stage-call")!;
@@ -59,9 +62,39 @@ export function mountStage(
     judged = 0,
     last = performance.now(),
     accumulator = 0;
-  const note = () =>
-    (root.querySelector("#stage-note")!.textContent =
-      `+${STAGE_STAR_XP} XP a star, up to ${STAGE_DAILY_XP} XP a day. Best show: ${ctx.save.stageBest}. Keys: arrows or D F J K.`);
+  const mode = root.querySelector<HTMLSelectElement>("#stage-mode")!;
+  const goal = root.querySelector<HTMLElement>("#stage-goal")!;
+  mode.value = ctx.save.stageBest === 0 ? "warmup" : "show";
+  const note = () => {
+    const warmup = mode.value === "warmup";
+    root.querySelector("#stage-score-label")!.textContent = warmup
+      ? "NOTES"
+      : "SCORE";
+    root.querySelector<HTMLElement>(".stage-hype")!.hidden = warmup;
+    goal.textContent = warmup
+      ? `Land ${STAGE_WARMUP_GOAL} notes. Use ← / → or D / K. No booing, no XP or saved score.`
+      : "Aim for a star: 30% of a perfect show. Use all four arrows or D F J K.";
+    start.textContent = warmup ? "Start warm-up →" : "Start the show →";
+    root.querySelector("#stage-note")!.textContent = warmup
+      ? "A slower 40-second rehearsal. Choose Show whenever you’re ready."
+      : `+${STAGE_STAR_XP} XP a star, up to ${STAGE_DAILY_XP} XP a day. Hype runs out if too many notes are missed.`;
+    root.querySelector("#stage-progress")!.innerHTML = stageProgress(ctx.save);
+  };
+  const resetHud = () => {
+    root.querySelector("#stage-score")!.textContent =
+      mode.value === "warmup" ? `0 / ${STAGE_WARMUP_GOAL}` : "0";
+    root.querySelector("#stage-combo")!.textContent = "0";
+    delete root.dataset.left;
+    call.textContent = "";
+    delete call.dataset.judgement;
+    status.textContent = "";
+  };
+  mode.addEventListener("change", () => {
+    show = null;
+    resetHud();
+    note();
+  });
+  resetHud();
   note();
   if (!ctx.simple)
     void Promise.all([import("./stage-view"), loadCharacter()])
@@ -77,6 +110,7 @@ export function mountStage(
       .catch(() => {});
   const press = (lane: number) => {
     if (!show || show.ended) return;
+    if (show.mode === "warmup" && lane !== 0 && lane !== 3) return;
     pressed[lane] = true;
     lanes[lane].classList.add("hit");
     setTimeout(() => lanes[lane].classList.remove("hit"), 120);
@@ -95,6 +129,16 @@ export function mountStage(
     }),
   );
   const finish = async (done: StageShow) => {
+    mode.disabled = false;
+    if (done.mode === "warmup") {
+      lanes.forEach((b) => (b.disabled = true));
+      const hits = done.counts.perfect + done.counts.good;
+      status.textContent = `${hits} notes landed · ${hits >= STAGE_WARMUP_GOAL ? "Warm-up goal complete! Ready for the show?" : `Try for ${STAGE_WARMUP_GOAL} next time. You can take your time here.`} No XP or best score changed.`;
+      ctx.sound(hits >= STAGE_WARMUP_GOAL ? "win" : "finish");
+      start.hidden = false;
+      note();
+      return;
+    }
     const score = Math.round(done.score),
       stars = done.booed
         ? Math.min(1, stageStars(score, max))
@@ -107,27 +151,32 @@ export function mountStage(
     if (!live()) return;
     const gain = ctx.save.xp - before;
     status.textContent =
-      `${done.booed ? "Booed off! " : ""}${"★".repeat(stars)}${"☆".repeat(3 - stars)} · ${score} points · best combo ${done.bestCombo}` +
+      `${done.booed ? "The crowd needs a breather. Try Warm-up to find the beat. " : ""}${"★".repeat(stars)}${"☆".repeat(3 - stars)} · ${score} points · best combo ${done.bestCombo}` +
       (gain > 0
         ? ` · +${gain} XP`
         : stars && ctx.save.stageXp >= STAGE_DAILY_XP
           ? " · today's stage XP is all earned"
           : "");
     start.hidden = false;
-    start.textContent = "Another show →";
     note();
   };
   start.addEventListener("click", () => {
     const seed = Math.floor(Math.random() * 2 ** 31);
-    show = new StageShow(seed);
-    max = stageMaxScore(seed);
+    const selected: StageMode = mode.value === "warmup" ? "warmup" : "show";
+    show = new StageShow(seed, selected);
+    max = selected === "show" ? stageMaxScore(seed) : 1;
+    mode.disabled = true;
+    pressed.fill(false);
     judged = 0;
     accumulator = 0;
     last = performance.now();
     start.hidden = true;
-    status.textContent = "";
+    resetHud();
     call.textContent = "Get ready…";
-    lanes.forEach((b) => (b.disabled = false));
+    lanes.forEach(
+      (b, lane) =>
+        (b.disabled = selected === "warmup" && lane !== 0 && lane !== 3),
+    );
     ctx.sound("go");
   });
   const draw = (tick: number) => {
@@ -189,14 +238,17 @@ export function mountStage(
             : j === "good"
               ? "Good"
               : j === "miss"
-                ? "Miss"
+                ? s.mode === "warmup"
+                  ? "Next one!"
+                  : "Miss"
                 : "Too soon";
         call.dataset.judgement = j;
         if (j === "miss" && !reduced) navigator.vibrate?.(30);
       }
-      root.querySelector("#stage-score")!.textContent = String(
-        Math.round(s.score),
-      );
+      root.querySelector("#stage-score")!.textContent =
+        s.mode === "warmup"
+          ? `${s.counts.perfect + s.counts.good} / ${STAGE_WARMUP_GOAL}`
+          : String(Math.round(s.score));
       root.querySelector("#stage-combo")!.textContent =
         s.combo + (s.multiplier > 1 ? ` ×${s.multiplier}` : "");
       const hype = root.querySelector<HTMLElement>("#stage-hype")!;

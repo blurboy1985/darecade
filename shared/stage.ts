@@ -4,6 +4,8 @@ export const STAGE_TICKS = 40 * 60;
 /** Ticks either side of a note that still count. */
 export const STAGE_PERFECT = 4;
 export const STAGE_GOOD = 9;
+export const STAGE_WARMUP_GOAL = 5;
+export type StageMode = "warmup" | "show";
 export type StageJudgement = "perfect" | "good" | "miss" | "stray";
 export type StageNote = {
   tick: number;
@@ -12,7 +14,17 @@ export type StageNote = {
 };
 
 /** The seed decides the song: a beat that quickens, with more off-beats later. */
-export function stageChart(seed: number): StageNote[] {
+export function stageChart(
+  seed: number,
+  mode: StageMode = "show",
+): StageNote[] {
+  if (mode === "warmup") {
+    const notes: StageNote[] = [];
+    // Give the player time to find two controls, then one note every 1.5s.
+    for (let tick = 150; tick < STAGE_TICKS - 60; tick += 90)
+      notes.push({ tick, lane: notes.length % 2 ? 3 : 0, hit: null });
+    return notes;
+  }
   let state = seed >>> 0;
   const random = () => {
     state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
@@ -44,16 +56,18 @@ export class StageShow {
   score = 0;
   combo = 0;
   bestCombo = 0;
-  /** The crowd's mood, 0 to 1. At zero the show is booed off. */
+  /** The crowd's mood, 0 to 1. At zero a Show is booed off. */
   hype = 0.5;
   ended = false;
   booed = false;
   counts = { perfect: 0, good: 0, miss: 0, stray: 0 };
   last: { judgement: StageJudgement; lane: number; tick: number } | null = null;
   readonly notes: StageNote[];
+  readonly mode: StageMode;
   private next = 0;
-  constructor(seed = 0) {
-    this.notes = stageChart(seed);
+  constructor(seed = 0, mode: StageMode = "show") {
+    this.mode = mode;
+    this.notes = stageChart(seed, mode);
   }
   /** Each combo of eight adds half again, up to three times the points. */
   get multiplier() {
@@ -72,11 +86,13 @@ export class StageShow {
       );
     } else {
       this.combo = 0;
-      this.hype -= judgement === "miss" ? 0.12 : 0.05;
-      if (this.hype <= 0) {
-        this.hype = 0;
-        this.booed = true;
-        this.ended = true;
+      if (this.mode === "show") {
+        this.hype -= judgement === "miss" ? 0.12 : 0.05;
+        if (this.hype <= 0) {
+          this.hype = 0;
+          this.booed = true;
+          this.ended = true;
+        }
       }
     }
   }
@@ -116,8 +132,8 @@ export class StageShow {
 }
 
 /** The score of a show with every note hit perfectly. */
-export function stageMaxScore(seed: number) {
-  const show = new StageShow(seed);
+export function stageMaxScore(seed: number, mode: StageMode = "show") {
+  const show = new StageShow(seed, mode);
   const pressed = [false, false, false, false];
   while (!show.ended) {
     pressed.fill(false);

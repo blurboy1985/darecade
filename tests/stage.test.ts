@@ -8,6 +8,7 @@ import {
   STAGE_LANES,
   STAGE_PERFECT,
   STAGE_TICKS,
+  STAGE_WARMUP_GOAL,
   StageShow,
   stageChart,
   stageMaxScore,
@@ -96,6 +97,82 @@ test("misses and stray presses drain the hype until the show is booed off", () =
   // Just outside the window is a miss, not a late hit.
   const late = play(7, STAGE_GOOD + 1);
   assert.equal(late.counts.perfect + late.counts.good, 0);
+});
+
+test("the default and explicit Show retain the original seeded chart and rewards score", () => {
+  assert.deepEqual(stageChart(7), stageChart(7, "show"));
+  assert.equal(stageChart(7).length, 106);
+  assert.equal(stageMaxScore(7), 27800);
+  assert.equal(stageMaxScore(7, "show"), 27800);
+  const original = new StageShow(7),
+    explicit = new StageShow(7, "show");
+  while (!original.ended) {
+    original.advance([false, false, false, false]);
+    explicit.advance([false, false, false, false]);
+  }
+  assert.deepEqual(original, explicit);
+  assert.equal(original.tick, 253);
+  assert.equal(original.counts.miss, 5);
+  assert.equal(original.booed, true);
+});
+
+test("warm-up has a 2.5-second lead-in, two alternating lanes and slower notes without offbeats", () => {
+  const chart = stageChart(7, "warmup");
+  assert.deepEqual(chart, stageChart(42, "warmup"));
+  assert.equal(chart[0].tick, 150);
+  assert.equal(chart.length, 25);
+  for (const [i, note] of chart.entries()) {
+    assert.equal(note.lane, i % 2 ? 3 : 0);
+    if (i) assert.equal(note.tick - chart[i - 1].tick, 90);
+  }
+  assert.ok(chart[chart.length - 1].tick < STAGE_TICKS);
+});
+
+test("an idle warm-up completes all forty seconds without booing", () => {
+  const warmup = new StageShow(7, "warmup");
+  while (!warmup.ended) warmup.advance([false, false, false, false]);
+  assert.equal(warmup.tick, STAGE_TICKS);
+  assert.equal(warmup.mode, "warmup");
+  assert.equal(warmup.booed, false);
+  assert.equal(warmup.score, 0);
+  assert.equal(warmup.counts.miss, warmup.notes.length);
+});
+
+test("five timed warm-up hits meet the practice goal and later misses cannot end it early", () => {
+  const warmup = new StageShow(7, "warmup");
+  while (!warmup.ended) {
+    const pressed = [false, false, false, false];
+    for (const note of warmup.notes.slice(0, STAGE_WARMUP_GOAL))
+      if (note.tick === warmup.tick + 1) pressed[note.lane] = true;
+    warmup.advance(pressed);
+  }
+  assert.equal(warmup.counts.perfect, STAGE_WARMUP_GOAL);
+  assert.equal(warmup.counts.good, 0);
+  assert.equal(warmup.bestCombo, STAGE_WARMUP_GOAL);
+  assert.equal(warmup.score, 500);
+  assert.equal(warmup.counts.miss, warmup.notes.length - STAGE_WARMUP_GOAL);
+  assert.equal(warmup.tick, STAGE_TICKS);
+  assert.equal(warmup.booed, false);
+});
+
+test("warm-up stray taps never end the lesson early, and perfect-score calculation uses its chart", () => {
+  const mash = new StageShow(7, "warmup"),
+    perfect = new StageShow(7, "warmup");
+  while (!mash.ended) mash.advance([true, true, true, true]);
+  assert.equal(mash.tick, STAGE_TICKS);
+  assert.equal(mash.booed, false);
+  assert.ok(mash.counts.stray > 0);
+  while (!perfect.ended) {
+    const pressed = [false, false, false, false];
+    for (const note of perfect.notes)
+      if (note.tick === perfect.tick + 1) pressed[note.lane] = true;
+    perfect.advance(pressed);
+  }
+  assert.equal(perfect.counts.perfect, perfect.notes.length);
+  assert.equal(perfect.score, stageMaxScore(7, "warmup"));
+  const after = perfect.score;
+  perfect.advance([true, true, true, true]);
+  assert.equal(perfect.score, after);
 });
 
 test("the server pays five XP a star, capped per day, and refuses rapid or malformed reports", () => {

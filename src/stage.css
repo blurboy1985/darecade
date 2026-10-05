@@ -130,3 +130,17 @@
     min-height: 48px;
   }
 }
+.stage-hype[hidden] {
+  display: none;
+}
+#stage-progress {
+  width: min(100%, 420px);
+}
+.activity-stage #stage-mode {
+  max-width: 420px;
+}
+.activity-stage #stage-goal {
+  max-width: 420px;
+  font-size: 14px;
+  margin: 4px 0;
+}
