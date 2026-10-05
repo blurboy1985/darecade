@@ -1,0 +1,44 @@
+# Section 1: lobby and arcade bugs
+
+Base: PR29 production commit `b26a8bdc27fcda6f0b712dc56b8a41da5b50e769`.
+Branch: `codex/section1-lobby-race-fixes`, based directly on main, with no PR dependency.
+
+## Baseline
+
+Reproduced with a synthetic local adult guest before its first round:
+
+- World input was deliberately paused, the dock was hidden, and menu/game guards redirected into Coast Rush. HTTP world assignment waited for two failed socket handshakes on the local Node host.
+- The 2D fallback occupied only the left 650px of a 1280px viewport. Its locations and dock were absent; the invitation inherited a positioned Play button.
+- Coast Rush paused after five seconds parked without throttle. Its animation callback also discarded frame time beyond 100ms, so rendering below 10 FPS slowed the authoritative simulation clock.
+- Empty nickname validation returned before displaying an inline error. The welcome invitation was rewritten on unchanged updates; preference changes could unnecessarily rebuild the avatar. The middle dock button changed route beside a building, and generic hitboxes missed visible roofs/signs.
+
+Noodle Run's reported continuing timer after a wall hit did **not** reproduce. Two local browser runs ended at score 20 after two seconds with the wall-hit result, normal verified guest XP and the one-time first-round cap/bonus. Its simulation also refuses subsequent advances once ended. No Noodle gameplay change was made.
+
+## What changed and how to check it
+
+Use this branch's local build or a separately authorized preview. Production has not been changed. For first-visit checks, use a separate browser profile with synthetic age/guest data; do not erase an existing player's save.
+
+| Report | Change | Browser steps and expected result | Verification |
+| --- | --- | --- | --- |
+| 1. Joining / input before first race | Bootstrap the room over HTTP while the socket connects; guard stale transport responses and expose truthful connection status. Release the first-round world/input lock. | Before completing any round, wait for a world name, tap open ground, then a building. The avatar walks and opens the destination. Near Mama Shop, press E or its nearby action. Closing panels restores walking. | Local world assignment, click-to-walk, building arrival and E verified before a round. Socket takeover, stale success/failure, session refresh and stop/start covered by tests. Held WASD and live production transport were not manually tested. |
+| 2. Lightweight lobby | Full-width backdrop, centered flowing content, readable native location selector, separate invitation and Go there button. | Settings → Preferences → Use 2D. Check Play now and all 12 locations; choose Fishing Jetty → Go there. The Fishing panel opens before a first round. Reload after a completed round: the normal lobby and saved best remain. | Verified at 1280×720 and 390×844 before/after first completion. At 844×390 the fallback scrolls to content below the fold. Physical phone and forced WebGL failure were not tested. |
+| 3. Race clock / zero speed | Account for every active frame second in fixed 60Hz simulation, including a frame crossing GO. Parked time continues; Pause/P, blur and background pause deliberately. Visual animation alone remains capped. Existing server replay rules and physics are unchanged. | Games → page 2 → Coast Rush → Race. Without throttle, TIME advances beyond five seconds and TIME LEFT decreases. Tap GO: speed rises and the kart moves. Compare TIME with a stopwatch. Pause, wait, resume: paused seconds are excluded and there is no catch-up. Changing tab/background should pause; resume explicitly. | Local race advanced 37.8167 simulation seconds over 37.8248 real seconds. GO reached 11km/h. Explicit pause held 52.05s. Real loop tests at 144/60/30/6/2 FPS, parked 120s timeout, valid replay and pause exclusion pass. See remaining browser limitation below. |
+| 4. Games reopens last game | Remove the first-round picker redirection. Games consistently opens Pick a game. | Close a game/result and press Games. Page 1 shows Noodle/Brick/Hop; Next shows Swarm/Coast/Hoops; Next shows Fishing. Each card can be selected. | All pages verified before and after a completed Noodle round; Fishing selected through the 2D location route too. |
+| 5. Noodle score 20 / timer | Investigated; no reproduced continuing timer and no speculative gameplay change. Add terminal wall-hit regression coverage. | Start Noodle and keep moving right into the wall. The round ends around two seconds, stops its timer and shows the wall-hit explanation and verified score. The observed runs scored 20; another dumpling ahead can produce a higher score. Replay starts a fresh round. | Two local wall-hit results verified; terminal simulation test passes. Original reported state remains unreproduced. |
+| 6. Empty nickname Next | Display trimmed minimum-length and native validity errors inline, open the name field, mark it invalid and focus it before any save. | Make it yours → clear nickname → Next: save my character. Expect “Choose a nickname with at least 2 characters.” Repeat with one character/whitespace. Enter a valid name and retry: proceed to the optional account step; Skip for now returns to the lobby. | Empty/one-character correction and valid optional step verified locally. Blank/whitespace/minimum length, save failure and cancelled/stale save tests pass. No email was entered or sent. |
+| 7. Sluggish / moving menu targets | Cache unchanged welcome content and limit avatar rebuilds to visual changes. Keep dock targets in place. | Repeatedly open/close Games, Neighbourhood and Menu; walk near/far from a building. The dock routes stay at the same positions and panels open on the first click. Toggle a preference: the unchanged invitation retains its DOM instead of being replaced. | Three local click-to-next-rendered-frame samples: Games 24.7ms, Menu 4.4ms, Neighbourhood 3.4ms. This is a small local sample, not a broad performance benchmark. Nearby dock geometry verified; source cache and reduced avatar signature independently reviewed. |
+| 8. LEFT | Rename to TIME LEFT and include seconds. | Start Coast Rush. Expect TIME LEFT 120s, counting down alongside the existing elapsed TIME and lap count. | Verified in local race; no race limit/balance change. |
+| 9. Clicking buildings | Register visible building meshes, batched within each facility, as navigation targets. Keep existing pathfinding/arrival, arcade cabinets and accessible location menu. | Click Mama Shop's roof/sign, Arcade Row's roof or Wardrobe's facade. The avatar follows the path and the appropriate panel opens on arrival. Cabinet clicks still select their game; Neighbourhood → Go there remains available. | Mama Shop roof and Simi Plaza arrival verified before a round. Visible facility target ownership/batching and cabinet preservation independently reviewed. Not every building surface was manually clicked. |
+| 10. Middle control changes meaning | Keep Neighbourhood as the permanent middle control. Put the contextual place/E action above the dock. | Walk close to Mama Shop, then away. Middle always says Neighbourhood and opens the list. The separate Mama Shop E action appears only nearby. | Verified near Simi Plaza and Mama Shop; dock structure regression tests pass. |
+
+## Validation and remaining limits
+
+- `npm run build`: passed (existing large Three.js chunk warning).
+- `npm test`: 293 passed, 9 browser-only tests skipped, 0 failed (302 total).
+- `npm run test:cloudflare`: dry-run bundle passed; 12 Miniflare tests passed. No deploy.
+- Independent read-only review found two transport races and the GO-frame remainder issue; fixes and original independent reproducers now pass. No remaining confirmed regression in that review.
+- Supported Codex in-app browser was used with synthetic local guests. A final unthrottled race reached exactly `2:00.00` and the server accepted its replay with “Verified round · +20 XP”. No real accounts, email, production player data or reward ledgers were touched. Seasons, server physics/rules, reward balance and privacy/age gates were not changed.
+- Automated cadence/pause tests replace only scheduling/DOM/graphics boundaries and run the actual race animation loop with the real shared physics/replay. Native OS background timing, held keyboard driving, physical touch devices and actual low-performance hardware still need a human/device check. Switching automation tabs did not hide/blur the in-app page (`document.hidden=false`, `document.hasFocus()=true`), so that attempt cannot validate native background behavior. Browser viewport tests simulate screen size rather than a physical phone.
+- Noodle's original report is unresolved as a reproduction, not claimed fixed. Capture the exact game state/console/browser if it happens again; the verified wall-hit path currently ends correctly.
+
+Section 2–4 work is not included in this PR.

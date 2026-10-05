@@ -23,12 +23,7 @@ import type { FxEvent } from "./arcade-fx";
 import type { RaceView } from "./race-view";
 import { RaceMotion } from "./race-motion";
 import { kartSteeringInput } from "./kart-motion";
-import {
-  IDLE_PAUSE_TICKS,
-  edgeAssist,
-  idleTicks,
-  latchThrottle,
-} from "./race-assist";
+import { edgeAssist, latchThrottle } from "./race-assist";
 import "./racing.css";
 
 const SHELLS = pickups.length * RACE_LAPS;
@@ -67,9 +62,6 @@ export class RacingGame {
   private paused = false;
   /** Touch throttle stays on after a tap on GO, until BRAKE. */
   private cruise = false;
-  /** Ticks parked with no throttle; at the limit the clock stops. */
-  private idle = 0;
-  private idlePaused = false;
   private assistSteer = 0;
   private readonly assist: boolean;
   private disposed = false;
@@ -130,13 +122,13 @@ export class RacingGame {
       <div class="race-head"><span>PALM BAY <b>3 LAPS · 8 KARTS</b></span><span>7 GAME CHARACTERS</span></div>
       <div class="race-screen">
         <div class="race-view"></div>
-        <div class="race-hud"><span class="stat-pill place-pill"><small>PLACE</small><b id="race-place">8th / 8</b></span><span class="stat-pill score-pill"><small>TIME</small><b id="run-score">0:00.00</b></span><span id="run-state">LAP <b id="race-lap">1 / 3</b></span><span class="stat-pill time-pill"><small>LEFT</small><b id="run-time">120</b></span></div>
+        <div class="race-hud"><span class="stat-pill place-pill"><small>PLACE</small><b id="race-place">8th / 8</b></span><span class="stat-pill score-pill"><small>TIME</small><b id="run-score">0:00.00</b></span><span id="run-state">LAP <b id="race-lap">1 / 3</b></span><span class="stat-pill time-pill"><small>TIME LEFT</small><b id="run-time">120s</b></span></div>
         <div class="game-pops" aria-hidden="true"></div>
         <canvas class="race-map" width="180" height="130" aria-label="All eight karts. You are coral with a white ring. Seven coloured dots are game characters. Red squares are missiles and brown squares are coconuts."></canvas>
         <div class="race-speed"><b id="race-speed">0</b><span>KM/H</span></div>
         <div class="race-item"><span id="race-item-label">ITEM</span><b id="race-item">Empty</b><small id="race-pickups">🐚 0 / ${SHELLS}</small></div><div class="race-notice" role="status" aria-live="polite">Loading your driver…</div>
         <div class="race-finish" role="status" hidden></div>
-        <div class="race-cover"><span class="eyebrow">PLAY SIMI / ISLAND CIRCUIT</span><h3>COAST<br><em>RUSH</em></h3><p>Your avatar. Seven rivals. Three laps.</p><button class="primary" id="start-game" disabled>Getting your kart ready…</button><button class="race-sound" data-race-sound></button><div class="race-instructions">${touch ? "<span>STEER<br><b>← →</b></span><span>DRIVE<br><b>Tap GO</b></span><span>DRIFT<br><b>Hold, then release</b></span>" : "<span>DRIVE<br><b>W A S D</b></span><span>DRIFT<br><b>Hold SPACE</b></span><span>ITEM<br><b>Tap E</b></span>"}</div><ul class="race-legend"><li><b>🎁 Crates</b>Each gives one of five items at random. ${use} to use it.</li><li class="race-items"><span><b>🛡 Shield</b>blocks hits for 3s</span><span><b>⚡ Turbo</b>2s speed burst</span><span><b>🚀 Missile</b>spins the kart in front</span><span><b>🌩 Storm</b>slows every kart ahead</span><span><b>🥥 Coconut</b>dropped behind you; spins a chaser</span></li><li><b>🐚 Shells</b>Bonus pickups, 12 a lap. They never change your time or medals.</li></ul><p class="race-tip">${touch ? "Tap GO once and the kart keeps driving; BRAKE lets go. Hold DRIFT through a bend, then let go for a Mini, Super or Ultra turbo." : "Hold W to go. A/D steer, S brakes. Hold Space through a bend, then release for a Mini, Super or Ultra turbo."} At turbo speed the tight bends push you wide unless you drift. A hit costs a 0.75s stop.${options.assist ? " Until your first finish, the kart steers itself back from the road edge when you are not steering." : ""}</p><small>Same kart for everyone · 2 minute limit<br>7 rivals are game characters, not real players.</small></div>
+        <div class="race-cover"><span class="eyebrow">PLAY SIMI / ISLAND CIRCUIT</span><h3>COAST<br><em>RUSH</em></h3><p>Your avatar. Seven rivals. Three laps.</p><button class="primary" id="start-game" disabled>Getting your kart ready…</button><button class="race-sound" data-race-sound></button><div class="race-instructions">${touch ? "<span>STEER<br><b>← →</b></span><span>DRIVE<br><b>Tap GO</b></span><span>DRIFT<br><b>Hold, then release</b></span>" : "<span>DRIVE<br><b>W A S D</b></span><span>DRIFT<br><b>Hold SPACE</b></span><span>ITEM<br><b>Tap E</b></span>"}</div><ul class="race-legend"><li><b>🎁 Crates</b>Each gives one of five items at random. ${use} to use it.</li><li class="race-items"><span><b>🛡 Shield</b>blocks hits for 3s</span><span><b>⚡ Turbo</b>2s speed burst</span><span><b>🚀 Missile</b>spins the kart in front</span><span><b>🌩 Storm</b>slows every kart ahead</span><span><b>🥥 Coconut</b>dropped behind you; spins a chaser</span></li><li><b>🐚 Shells</b>Bonus pickups, 12 a lap. They never change your time or medals.</li></ul><p class="race-tip">${touch ? "Tap GO once and the kart keeps driving; BRAKE lets go. Hold DRIFT through a bend, then let go for a Mini, Super or Ultra turbo." : "Hold W to go. A/D steer, S brakes. Hold Space through a bend, then release for a Mini, Super or Ultra turbo."} At turbo speed the tight bends push you wide unless you drift. A hit costs a 0.75s stop.${options.assist ? " Until your first finish, the kart steers itself back from the road edge when you are not steering." : ""}</p><small>Same kart for everyone · 2 minute limit · Pause or P stops the clock<br>7 rivals are game characters, not real players.</small></div>
       </div>
       <div class="race-charge"><label for="drift-charge">DRIFT TURBO <span id="drift-label">Hold ${touch ? "DRIFT" : "Space"} while moving</span></label><meter id="drift-charge" min="0" max="1" low=".333" optimum="1" value="0">0</meter></div>
       <div class="race-touch" aria-label="Driving controls"><div class="race-steer"><button data-race-control="left" aria-label="Steer left">←</button><button data-race-control="right" aria-label="Steer right">→</button></div><div class="race-pedals"><button data-race-control="item">ITEM</button><button data-race-control="brake">BRAKE</button><button data-race-control="drift">DRIFT</button><button data-race-control="gas" aria-pressed="false">GO</button></div></div>
@@ -266,7 +258,6 @@ export class RacingGame {
    * releases the throttle. False while the race is not taking input.
    */
   private press(control: string) {
-    if (this.idlePaused) this.togglePause();
     if (this.paused || !["racing", "countdown"].includes(this.status))
       return false;
     this.cruise = latchThrottle(this.cruise, control);
@@ -354,7 +345,6 @@ export class RacingGame {
       ].includes(key)
     ) {
       e.preventDefault();
-      if (this.idlePaused && !e.repeat) this.togglePause();
       if (!this.paused && ["racing", "countdown"].includes(this.status)) {
         this.keys.add(key);
         if (key === "s" || key === "arrowdown") this.cruise = false;
@@ -395,8 +385,6 @@ export class RacingGame {
   private togglePause() {
     if (!["racing", "countdown"].includes(this.status)) return;
     this.paused = !this.paused;
-    this.idlePaused = false;
-    this.idle = 0;
     this.clearInput();
     this.accumulator = 0;
     this.last = performance.now();
@@ -407,12 +395,6 @@ export class RacingGame {
     this.stats.dataset.paused = String(this.paused);
     this.container.classList.toggle("is-paused", this.paused);
     this.onPause?.(this.paused);
-  }
-  /** The kart sat parked: stop the clock rather than time the race out. */
-  private idlePause() {
-    this.togglePause();
-    this.idlePaused = true;
-    this.notice.textContent = `Clock stopped · ${this.touch ? "tap GO" : "hold W or tap GO"} to drive`;
   }
   private controls(): Input {
     const touch = new Set(this.pointers.values());
@@ -450,7 +432,9 @@ export class RacingGame {
   private loop = (now: number) => {
     if (this.disposed) return;
     this.frame = requestAnimationFrame(this.loop);
-    const dt = this.last ? Math.min(0.1, (now - this.last) / 1000) : 0;
+    // Rendering may be slow. Every active second still gets 60 replayable ticks.
+    const dt = this.last ? Math.max(0, (now - this.last) / 1000) : 0;
+    let activeDt = dt;
     this.last = now;
     const race = this.sim.race!;
     const input = this.controls();
@@ -461,6 +445,7 @@ export class RacingGame {
       if (next !== prev && next > 0) this.sound("count");
       this.notice.textContent = String(Math.max(1, next));
       if (this.countdown <= 0) {
+        activeDt = -this.countdown;
         this.status = "racing";
         this.sound("go");
         this.notice.textContent = "GO!";
@@ -474,8 +459,9 @@ export class RacingGame {
           1100,
         );
       }
-    } else if (!this.paused && this.status === "racing") {
-      this.accumulator += dt;
+    }
+    if (!this.paused && this.status === "racing") {
+      this.accumulator += activeDt;
       while (this.accumulator >= 1 / 60 && !this.sim.ended) {
         const stamp = JSON.stringify(input);
         if (stamp !== this.previous) {
@@ -497,11 +483,6 @@ export class RacingGame {
         this.sim.advance(input);
         this.cue(before, now);
         this.accumulator -= 1 / 60;
-        this.idle = idleTicks(this.idle, input[1], race.speed);
-        if (this.idle >= IDLE_PAUSE_TICKS && !this.sim.ended) {
-          this.idlePause();
-          break;
-        }
       }
       const message = this.sim.ended
         ? ""
@@ -533,8 +514,8 @@ export class RacingGame {
     this.timer.textContent = raceTime(race.ticks);
     const left = Math.max(0, Math.ceil((RACE_TICKS - race.ticks) / 60));
     const time = this.container.querySelector("#run-time")!;
-    if (time.textContent !== String(left)) {
-      time.textContent = String(left);
+    if (time.textContent !== `${left}s`) {
+      time.textContent = `${left}s`;
       time.parentElement!.classList.toggle("hurry", left <= 10);
       if (left <= 10 && left > 0 && this.status === "racing")
         this.sound("tick");
@@ -576,7 +557,7 @@ export class RacingGame {
       now / 1000,
       finished ? 0 : input[0],
       this.status === "ready",
-      dt,
+      Math.min(dt, 0.1),
       finished ? this.outroTime : -1,
       this.motion.sample(
         race,

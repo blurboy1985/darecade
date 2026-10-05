@@ -50,7 +50,7 @@ Run `npm run load:test` after building to test 150 synthetic players for five mi
 
 ### First-round welcome quest
 
-The first Play opens Coast Rush after the age and consent checks. A world is assigned automatically in the background, with no room picker before the first game. Completing a first round at any score unlocks the Lilac cap and grants +35 bonus cosmetic XP once, alongside the normal +20 round XP. “Make it yours” opens the optional character setup. “Play again” and “Explore” remain available. Skipping, interrupted walks and reloads retain progress. The 2D fallback offers the same reward. The reward is issued once per server profile after a verified round; existing preview saves are archived during the server-progression migration.
+The welcome Play opens Coast Rush after the age and consent checks. A world is assigned automatically through HTTP while the live socket connects, with no room picker before the first game. Walking, nearby interactions and the three permanent Games / Neighbourhood / Menu routes are available immediately. Games always opens the three-page picker. Completing a first round at any score unlocks the Lilac cap and grants +35 bonus cosmetic XP once, alongside the normal +20 round XP. “Make it yours” opens the optional character setup. “Play again” and “Explore” remain available. Skipping, interrupted walks and reloads retain progress. The 2D fallback offers the same reward and a location selector. The reward is issued once per server profile after a verified round; existing preview saves are archived during the server-progression migration.
 
 ### Real-phone playtest
 
@@ -97,13 +97,13 @@ The production site is emitted to `dist/`. `npm run preview` serves it at http:/
 
 ## Short onboarding and three-action menus
 
-Games, Neighbourhood and Menu are the three persistent primary world actions. A nearby interaction replaces Neighbourhood while available. Stop and I’m back replace the third world action during an activity or away state. An unobtrusive upfront camera button toggles bird's-eye/third-person view; Menu uses a gear. Player inspection hides the dock and offers three actions plus Close.
+Games, Neighbourhood and Menu are the three persistent primary world actions. A separate nearby place/E button appears above the dock. Stop and I’m back remain separate activity/away controls. An unobtrusive upfront camera button toggles bird's-eye/third-person view; Menu uses a gear. Player inspection hides the dock and offers three actions plus Close.
 
 Menu pages have at most three main action buttons. Larger game, activity, emote and quest lists use three-item pages. Wardrobe choices, rankings filters, neighbours and world destinations use labelled native form inputs. Back, Close, pagination are navigation controls; text fields, dropdowns and checkboxes are form inputs. These do not count as additional main actions. Game movement controls remain available during play.
 
 The age check and explicit consent are unchanged. The first privacy screen has a short summary and an expandable full notice. Email saving stays optional; Skip for now returns straight to the world. Account data export, consent withdrawal, deletion and player reporting remain available.
 
-The changes have automated structural and request-flow coverage. New browser-only tests can run with `DARECADE_TEST_CHROMIUM=/path/to/chromium npm test`. They are skipped by default. Visual phone and desktop verification is still required; the current test environment cannot launch Chromium or reach the local preview from its browser.
+The changes have automated structural and request-flow coverage. Browser-only tests can run with `DARECADE_TEST_CHROMIUM=/path/to/chromium npm test`; they are skipped by default. [Section 1 browser checks](SECTION1-QA.md) record supported in-app browser results, viewport checks and remaining physical-device limits.
 
 ## Controls
 

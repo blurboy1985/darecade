@@ -5,7 +5,7 @@ Coast Rush is Play Simi's original three-lap race around Palm Bay, on a winding 
 ## Playing
 
 - W/up or the touch GO button accelerates. A/D or left/right steers. S/down brakes. On the keyboard the throttle is held. A tap on GO latches the throttle until BRAKE, so a tap, a short hold and a long press all drive; the long-press browser menu is suppressed over the race.
-- A kart parked for five seconds with no throttle pauses the race with "Clock stopped". GO, W or Resume continues. Lapping rivals hit a parked kart, so an untouched race used to end as No finish after two minutes of hit stops.
+- The race clock runs for every active second after the countdown, even with no throttle. Pause or P, losing focus, and backgrounding stop the clock until Resume. Slow rendering still advances the same 60 replayable physics ticks per active second. TIME LEFT shows seconds remaining in the two-minute limit.
 - Until a player's first finished race, the kart steers itself back from the road edge when the player is not steering. The player's own steering always wins, and the help ends with the first finish. It only shapes the inputs sent to the server; physics, replay checks and the rules version are unchanged.
 - On touch screens, steering sits under the left thumb and a 2×2 pad (ITEM, BRAKE, DRIFT, GO) under the right. Holding DRIFT or ITEM also holds the throttle, and a thumb can slide between neighbouring buttons without lifting, so drifting needs one right-hand finger. The cover and prompts use touch wording on touch devices.
 - Hold Space or DRIFT while moving, then release for Mini (0.8 seconds held), Super (1.6 seconds) or Ultra (2.4 seconds). The meter names the available tier. Turbos last 0.8, 1.4 or 2.1 seconds respectively.

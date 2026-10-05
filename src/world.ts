@@ -408,6 +408,22 @@ export class LobbyWorld {
     }
     this.addHitAreas();
     this.setLighting(save.light);
+    // Batch each clickable building inside its own boundary, retaining its
+    // cabinets and moving lights. Its roof, walls and signs keep the same id.
+    for (const target of this.targets.filter(
+      (t) =>
+        ["arcade", "shop", "wardrobe", "board"].includes(t.id) &&
+        t.mesh instanceof T.Group,
+    ))
+      batchStatic(
+        target.mesh,
+        new Set([
+          ...this.targets
+            .filter((t) => t.mesh !== target.mesh)
+            .map((t) => t.mesh),
+          ...this.lamps,
+        ]),
+      );
     batchStatic(
       this.root,
       new Set<T.Object3D>([
@@ -538,6 +554,8 @@ export class LobbyWorld {
   }
   private buildArcade() {
     const g = new T.Group();
+    g.userData.id = "arcade";
+    this.targets.push({ mesh: g, id: "arcade" });
     g.position.set(-5, 0, -9.5);
     this.root.add(g);
     this.obstacle(-5, -10, 18, 5, 6);
@@ -617,6 +635,8 @@ export class LobbyWorld {
   }
   private buildShop() {
     const g = new T.Group();
+    g.userData.id = "shop";
+    this.targets.push({ mesh: g, id: "shop" });
     g.position.set(12, 0, -8);
     this.root.add(g);
     this.obstacle(12, -8, 7, 6, 5.4);
@@ -697,6 +717,8 @@ export class LobbyWorld {
   }
   private buildWardrobe() {
     const g = new T.Group();
+    g.userData.id = "wardrobe";
+    this.targets.push({ mesh: g, id: "wardrobe" });
     g.position.set(15, 0, 3);
     this.root.add(g);
     this.obstacle(15, 3, 3, 3.2, 4);
@@ -814,6 +836,8 @@ export class LobbyWorld {
   }
   private buildBoard() {
     const g = new T.Group();
+    g.userData.id = "board";
+    this.targets.push({ mesh: g, id: "board" });
     g.position.set(-15, 0, -2.5);
     g.rotation.y = 0.25;
     this.root.add(g);

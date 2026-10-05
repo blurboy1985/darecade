@@ -251,7 +251,7 @@ app.innerHTML = `
   <div id="joystick" class="joystick" role="group" aria-label="Drag to walk"><span></span></div>
   <div id="fallback" class="fallback" hidden></div>
   </main>
-  <footer class="bottom-bar"><div class="profile"><span class="avatar-icon" id="avatar-icon"><i></i></span><span><strong id="player-name">New neighbour</strong><small id="medal-points">0 MEDALS</small><span id="level-label">LEVEL 1</span><span class="xp-track"><i id="xp-fill"></i></span></span></div><nav class="dock lobby-dock" aria-label="Main actions"><button class="selected" data-open="arcade" data-main-action>${icon("game")}<span>Games</span></button><button data-open="map" data-main-action>${icon("compass")}<span>Neighbourhood</span></button><button id="interaction" data-main-action hidden>${icon("pin")}<span></span></button><button class="phone-more" data-open="phone-menu" data-main-action>${icon("settings")}<span>Menu</span></button></nav><span class="footer-note" id="quality-note">3D WORLD</span></footer>
+  <footer class="bottom-bar"><div class="profile"><span class="avatar-icon" id="avatar-icon"><i></i></span><span><strong id="player-name">New neighbour</strong><small id="medal-points">0 MEDALS</small><span id="level-label">LEVEL 1</span><span class="xp-track"><i id="xp-fill"></i></span></span></div><nav class="dock lobby-dock" aria-label="Main actions"><button class="selected" data-open="arcade" data-main-action>${icon("game")}<span>Games</span></button><button data-open="map" data-main-action>${icon("compass")}<span>Neighbourhood</span></button><button class="phone-more" data-open="phone-menu" data-main-action>${icon("settings")}<span>Menu</span></button></nav><span class="footer-note" id="quality-note">3D WORLD</span></footer>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <dialog id="modal"><div class="modal-top"><span class="eyebrow" id="modal-kicker">THE NEIGHBOURHOOD</span><button id="close-modal" class="close-button" aria-label="Close panel">×</button></div><div id="modal-body"></div></dialog>
   <div id="loading"><span class="brand-mark">p<span>★</span></span><h2>See you downstairs.</h2><p>Loading…</p><span class="loading-line"></span></div>
@@ -260,7 +260,7 @@ document
   .querySelector(".hud")!
   .insertAdjacentHTML(
     "beforeend",
-    `<aside id="inspector" class="inspector" aria-label="Neighbour inspection" hidden></aside><div id="away-banner" class="away-banner" hidden><span></span><button data-action="return-lobby">I’m back</button></div><div id="camera-hint" class="camera-hint" hidden></div>`,
+    `<aside id="inspector" class="inspector" aria-label="Neighbour inspection" hidden></aside><div id="away-banner" class="away-banner" hidden><span></span><button data-action="return-lobby">I’m back</button></div><div id="camera-hint" class="camera-hint" hidden></div><button id="interaction" class="nearby-prompt" hidden>${icon("pin")}<span></span><kbd>E</kbd></button>`,
   );
 const modal = document.querySelector<HTMLDialogElement>("#modal")!;
 const body = document.querySelector<HTMLDivElement>("#modal-body")!;
@@ -407,7 +407,7 @@ function close() {
   if (modal.open) beep("close");
   modal.close();
   if (world) {
-    world.paused = firstRacePending();
+    world.paused = false;
     world.keys.clear();
   }
   const returnFocus = lastFocus?.isConnected
@@ -446,22 +446,6 @@ function open(id: string) {
   if (id !== "wardrobe") {
     setupGuide = false;
     tryingLook = null;
-  }
-  if (
-    firstRacePending() &&
-    ![
-      "settings",
-      "support",
-      "preferences",
-      "controls",
-      "safety-menu",
-      "neighbours",
-      "away",
-    ].includes(id) &&
-    !id.startsWith("player:")
-  ) {
-    void startGame("coast");
-    return;
   }
   if (id.startsWith("player:")) {
     showPlayer(id.slice(7));
@@ -592,7 +576,7 @@ function open(id: string) {
     const medals = shared?.self?.points ?? 0;
     const shown = tryingLook?.look ?? save;
     const canEquip = tryingLook && wearable(shown, save, medals);
-    body.innerHTML = `<div class="wardrobe-layout"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${tryingLook ? "Trying on" : escapeText(nickname)}</strong><small>DRAG TO TURN</small><span class="look-caption">${tryingLook?.name ?? clothingNames[save.clothing]}</span><div class="try-actions" role="status">${tryingLook ? `<button class="primary" data-equip-look ${canEquip ? "" : "disabled"}>${canEquip ? "Equip look" : "Locked · preview only"}</button><button class="text-button" data-reset-look>Back to my look</button>` : "<span>Tap a card to try it on</span>"}</div></div><div class="wardrobe-controls">${setupGuide ? '<span class="eyebrow setup-step">STEP 1 OF 2 · NAME & LOOK</span>' : ""}${setupGuide ? "<h2>Create your driver</h2>" : `<span class="eyebrow">YOUR COLLECTION</span><h2>My look</h2><div class="style-wallet"><strong>${tokenSummary(save)}</strong><small>Tokens buy looks. +1 per 100 XP, up to +3 daily from medals.</small></div>`}<details class="look-identity" ${setupGuide ? "open" : ""}><summary>Name, colours & daily hats</summary><form id="nickname-form"><label class="field-label" for="nickname">NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" value="${escapeText(typed)}" minlength="2" maxlength="20" autocomplete="off" placeholder="Choose your nickname" required><button class="secondary" type="submit">Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form><label class="field-label">OUTFIT COLOUR</label><div class="swatches">${outfits.map((c, i) => `<button data-outfit="${i}" style="--swatch:${c}" class="${save.outfit === i ? "active" : ""}" aria-label="${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][i]} outfit" aria-pressed="${save.outfit === i}"></button>`).join("")}</div><p class="fine-print">Legendary outfits use their own signature colours.</p><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">DAILY HATS</label><div class="hat-options">${["No hat", "Bucket", "Cap", "Sprout"].map((n, i) => `<button data-hat="${i}" ${save.unlockedHats.includes(i) ? "" : "disabled"} aria-pressed="${save.hat === i}">${n}${save.unlockedHats.includes(i) ? "" : " · locked"}</button>`).join("")}</div></details>${setupGuide ? `<details class="setup-more" ${moreLooksOpen ? "open" : ""}><summary>More looks & hairstyles</summary>` : ""}<div class="look-tabs" aria-label="Wardrobe sections">${(
+    body.innerHTML = `<div class="wardrobe-layout"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${tryingLook ? "Trying on" : escapeText(nickname)}</strong><small>DRAG TO TURN</small><span class="look-caption">${tryingLook?.name ?? clothingNames[save.clothing]}</span><div class="try-actions" role="status">${tryingLook ? `<button class="primary" data-equip-look ${canEquip ? "" : "disabled"}>${canEquip ? "Equip look" : "Locked · preview only"}</button><button class="text-button" data-reset-look>Back to my look</button>` : "<span>Tap a card to try it on</span>"}</div></div><div class="wardrobe-controls">${setupGuide ? '<span class="eyebrow setup-step">STEP 1 OF 2 · NAME & LOOK</span>' : ""}${setupGuide ? "<h2>Create your driver</h2>" : `<span class="eyebrow">YOUR COLLECTION</span><h2>My look</h2><div class="style-wallet"><strong>${tokenSummary(save)}</strong><small>Tokens buy looks. +1 per 100 XP, up to +3 daily from medals.</small></div>`}<details class="look-identity" ${setupGuide ? "open" : ""}><summary>Name, colours & daily hats</summary><form id="nickname-form" novalidate><label class="field-label" for="nickname">NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" value="${escapeText(typed)}" minlength="2" maxlength="20" autocomplete="off" placeholder="Choose your nickname" aria-describedby="nickname-status" required><button class="secondary" type="submit">Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form><label class="field-label">OUTFIT COLOUR</label><div class="swatches">${outfits.map((c, i) => `<button data-outfit="${i}" style="--swatch:${c}" class="${save.outfit === i ? "active" : ""}" aria-label="${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][i]} outfit" aria-pressed="${save.outfit === i}"></button>`).join("")}</div><p class="fine-print">Legendary outfits use their own signature colours.</p><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">DAILY HATS</label><div class="hat-options">${["No hat", "Bucket", "Cap", "Sprout"].map((n, i) => `<button data-hat="${i}" ${save.unlockedHats.includes(i) ? "" : "disabled"} aria-pressed="${save.hat === i}">${n}${save.unlockedHats.includes(i) ? "" : " · locked"}</button>`).join("")}</div></details>${setupGuide ? `<details class="setup-more" ${moreLooksOpen ? "open" : ""}><summary>More looks & hairstyles</summary>` : ""}<div class="look-tabs" aria-label="Wardrobe sections">${(
       [
         ["clothing", "Outfits"],
         ["hair", "Head"],
@@ -642,7 +626,18 @@ function open(id: string) {
       const button = body.querySelector<HTMLButtonElement>(
         "#nickname-form button",
       )!;
-      const name = body.querySelector<HTMLInputElement>("#nickname")!.value;
+      const input = body.querySelector<HTMLInputElement>("#nickname")!;
+      const name = input.value.trim();
+      if (name.length < 2 || !input.checkValidity()) {
+        status.textContent =
+          name.length < 2
+            ? "Choose a nickname with at least 2 characters."
+            : input.validationMessage;
+        input.setAttribute("aria-invalid", "true");
+        input.focus();
+        return;
+      }
+      input.removeAttribute("aria-invalid");
       button.disabled = true;
       try {
         await profileQueue;
@@ -779,11 +774,6 @@ function openDares(view: typeof dareView = "home") {
   renderSharedDares();
 }
 async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
-  if (firstRacePending() && id !== "coast") {
-    id = "coast";
-    defender = "";
-    dare = "";
-  }
   if (save.away) {
     save.away = false;
     save.awaySince = 0;
@@ -1349,14 +1339,25 @@ document.addEventListener("click", (e) => {
       void (async () => {
         const generation = gameGeneration;
         const input = body.querySelector<HTMLInputElement>("#nickname");
-        if (!input || !input.reportValidity()) return;
+        if (!input) return;
         const name = input.value.trim();
         if (name.length < 2) {
+          body.querySelector<HTMLDetailsElement>(".look-identity")!.open = true;
+          input.setAttribute("aria-invalid", "true");
           body.querySelector("#nickname-status")!.textContent =
             "Choose a nickname with at least 2 characters.";
           input.focus();
           return;
         }
+        if (!input.reportValidity()) {
+          body.querySelector<HTMLDetailsElement>(".look-identity")!.open = true;
+          input.setAttribute("aria-invalid", "true");
+          body.querySelector("#nickname-status")!.textContent =
+            input.validationMessage;
+          input.focus();
+          return;
+        }
+        input.removeAttribute("aria-invalid");
         b.disabled = true;
         try {
           await profileQueue;
@@ -1436,6 +1437,14 @@ document.addEventListener("click", (e) => {
         );
       // Arriving at once opens the place; otherwise say where the walk leads.
       else if (!modal.open) toast(`Heading to ${place}.`);
+      return;
+    }
+    if (a === "fallback-go") {
+      const id = document.querySelector<HTMLSelectElement>(
+        "#fallback-destination",
+      )!.value;
+      visit(id);
+      open(id);
       return;
     }
     if (
@@ -1726,10 +1735,6 @@ document
   );
 function startOutdoor(id: string) {
   dismissStyleReward?.();
-  if (firstRacePending()) {
-    void startGame("coast");
-    return;
-  }
   if (is2d) {
     toast("Switch to 3D in Settings to play with the surroundings.");
     return;
@@ -1898,7 +1903,7 @@ function enable2D() {
   document.body.classList.add("mode-2d");
   const el = document.querySelector<HTMLDivElement>("#fallback")!;
   el.hidden = false;
-  el.innerHTML = `<span class="eyebrow">2D WORLD</span><h1>Meet you downstairs.</h1><p>Pick Games, Neighbourhood or Menu below.</p><section id="fallback-welcome"></section>`;
+  el.innerHTML = `<div class="fallback-content"><span class="eyebrow">2D WORLD</span><h1>Meet you downstairs.</h1><p>Pick Games, Neighbourhood or Menu below.</p><section id="fallback-welcome"></section><label class="field-label" for="fallback-destination">Choose a spot</label><select class="destination-select" id="fallback-destination">${spots.map((spot) => `<option value="${spot.id}">${spot.name}</option>`).join("")}</select><button class="secondary" data-action="fallback-go">Go there →</button></div>`;
   document.querySelector("#quality-note")!.textContent = "2D LOBBY";
   renderCameraUI();
   renderWelcome();
@@ -1991,7 +1996,8 @@ window.addEventListener("account-profile", ((event: CustomEvent<Profile>) => {
   if (!profileReady) return;
   const away = save.away,
     awaySince = save.awaySince;
-  const look = (s: typeof save) => preferenceKeys.map((k) => s[k]).join();
+  const look = (s: typeof save) =>
+    [s.outfit, s.skin, s.hat, s.clothing, s.hair, s.pet, s.accessory].join();
   const before = look(save);
   Object.assign(save, event.detail.progress, { away, awaySince });
   writeSave(save);
@@ -2058,13 +2064,6 @@ requestAnimationFrame(async () => {
     renderCameraUI();
     renderAway();
     world.paused = modal.open;
-    if (firstRacePending() && !modal.open) {
-      // Paint the neighbourhood once behind the invitation before pausing input.
-      const lobby = world;
-      requestAnimationFrame(() => {
-        if (world === lobby && firstRacePending()) lobby.paused = true;
-      });
-    }
   } catch (error) {
     if (!profileReady) {
       const loading = document.querySelector("#loading")!;
@@ -2442,6 +2441,18 @@ const worldConnection = new WorldConnection(
     document.querySelector("#current-world")!.textContent =
       `World ${name.slice(6)} · ${worldCode(name)}`;
   },
+  (status) => {
+    const label = document.querySelector("#current-world")!;
+    const room = currentWorld
+      ? `World ${currentWorld.slice(6)} · ${worldCode(currentWorld)}`
+      : "World";
+    label.textContent =
+      status === "connected"
+        ? room
+        : status === "joining"
+          ? "Joining world…"
+          : `${room} · ${status === "offline" ? "offline" : "reconnecting…"}`;
+  },
 );
 const worldPicker = new WorldPicker(
   body,
@@ -2463,15 +2474,24 @@ function firstRacePending() {
 function renderWelcome() {
   const firstRace = firstRacePending();
   document.body.classList.toggle("first-race", firstRace);
-  if (world && firstRace) world.paused = true;
   document.body.classList.toggle("welcome-active", firstRace);
   document.body.classList.toggle("welcome-played", save.welcome === "played");
   const invitation = `<div class="eyebrow">${firstVisitCopy.kicker}</div><h1>${firstVisitCopy.title}</h1><p>${firstVisitCopy.detail}</p><button class="primary" data-action="welcome-start" data-main-action>Play now ${icon("arrow")}</button><div class="welcome-options"><button class="text-button" data-open="settings">Settings</button><button class="text-button" data-account>Account & privacy</button></div>`;
   const el = document.querySelector<HTMLElement>(".welcome-panel")!;
   el.hidden = !firstRace;
-  el.innerHTML = firstRace ? invitation : "";
+  const html = firstRace ? invitation : "";
+  if (el.dataset.welcome !== String(firstRace)) {
+    el.innerHTML = html;
+    el.dataset.welcome = String(firstRace);
+  }
   const fallback = document.querySelector("#fallback-welcome");
-  if (fallback) fallback.innerHTML = firstRace ? invitation : "";
+  if (
+    fallback instanceof HTMLElement &&
+    fallback.dataset.welcome !== String(firstRace)
+  ) {
+    fallback.innerHTML = html;
+    fallback.dataset.welcome = String(firstRace);
+  }
 }
 
 renderWelcome();

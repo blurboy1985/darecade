@@ -31,6 +31,54 @@ const compiled = ts.transpileModule(`const handle = ${handler}`, {
 }).outputText;
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 
+for (const name of ["", "   ", "x", " x "]) {
+  test(`setup-save gives a visible nickname error for ${JSON.stringify(name)}`, () => {
+    let apiCalls = 0;
+    let focused = false;
+    let invalid = "";
+    const identity = { open: false };
+    const status = { textContent: "" };
+    const input = {
+      value: name,
+      reportValidity: () => {
+        throw new Error("trimmed minimum length is checked first");
+      },
+      setAttribute: (_key: string, value: string) => (invalid = value),
+      focus: () => (focused = true),
+    };
+    const context = vm.createContext({
+      gameGeneration: 1,
+      body: {
+        querySelector: (selector: string) =>
+          selector === "#nickname"
+            ? input
+            : selector === ".look-identity"
+              ? identity
+              : status,
+      },
+      api: () => apiCalls++,
+      event: {
+        target: {
+          closest: () => ({
+            disabled: false,
+            dataset: { action: "setup-save" },
+            hasAttribute: () => false,
+          }),
+        },
+      },
+    });
+    vm.runInContext(`${compiled}\nhandle(event);`, context);
+    assert.equal(
+      status.textContent,
+      "Choose a nickname with at least 2 characters.",
+    );
+    assert.equal(identity.open, true);
+    assert.equal(invalid, "true");
+    assert.equal(focused, true);
+    assert.equal(apiCalls, 0);
+  });
+}
+
 for (const outcome of [
   "success",
   "failure",
@@ -57,6 +105,7 @@ for (const outcome of [
     const input = {
       value: "newname",
       reportValidity: () => true,
+      removeAttribute: () => {},
       focus: () => focusCalls++,
     };
     const body = {

@@ -33,20 +33,35 @@
 .lobby-dock > button[hidden] {
   display: none;
 }
-.has-nearby:not(.mode-2d):not(.first-race) .lobby-dock > [data-open="map"],
-.is-interacting .lobby-dock > [data-open="map"],
-.is-interacting .lobby-dock > #interaction,
-.is-away .lobby-dock > [data-open="map"] {
+/* Nearby actions live above the dock; its three targets never swap places. */
+.nearby-prompt {
+  position: absolute;
+  right: 24px;
+  bottom: 112px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  max-width: min(330px, calc(100vw - 48px));
+  padding: 12px 16px;
+  border: 1px solid #a6bd82;
+  border-radius: 16px;
+  background: #dcf28b;
+  color: #254735;
+  pointer-events: auto;
+}
+.nearby-prompt[hidden],
+.is-interacting .nearby-prompt,
+.is-away .nearby-prompt {
   display: none;
 }
-.lobby-dock > #interaction {
-  color: #254735;
-  background: #dcf28b;
-  white-space: normal;
+.nearby-prompt svg {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
 }
-.is-away .lobby-dock,
-.is-interacting .lobby-dock {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.nearby-prompt kbd {
+  font-size: 12px;
 }
 .topbar > .demo-tag {
   font-size: 10px;
@@ -159,7 +174,7 @@
   font: inherit;
 }
 .mode-2d .fallback {
-  max-width: 650px;
+  max-width: none;
   padding: 35px;
 }
 .mode-2d.first-race .fallback > h1,
@@ -383,4 +398,34 @@
     flex-basis: 65px;
     height: 95px;
   }
+}
+
+.mode-2d .fallback-content {
+  max-width: 650px;
+  margin: 0 auto;
+}
+.mode-2d #fallback-welcome {
+  position: static;
+  margin: 16px auto 24px;
+}
+.mode-2d #fallback-welcome .primary {
+  position: static;
+  margin: 16px auto 0;
+}
+.mode-2d #fallback-welcome .welcome-options {
+  justify-content: center;
+}
+.mode-2d.first-race .fallback-content > h1,
+.mode-2d.first-race .fallback-content > p,
+.mode-2d.first-race .fallback-content > .eyebrow {
+  display: none;
+}
+.mode-2d .fallback-content > .field-label {
+  margin-top: 28px;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+}
+.mode-2d .fallback-content > .secondary {
+  margin-top: 12px;
+  min-height: 48px;
 }
