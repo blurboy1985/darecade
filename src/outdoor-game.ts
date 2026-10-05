@@ -42,6 +42,7 @@ export class OutdoorGame {
   private last = 0;
   private accumulator = 0;
   private held = false;
+  private pendingPress = false;
   private started = false;
   private paused = false;
   private disposed = false;
@@ -94,16 +95,30 @@ export class OutdoorGame {
       if (!this.started || this.paused) return;
       e.preventDefault();
       this.held = true;
+      // A quick press and release can both happen between animation frames.
+      this.pendingPress = true;
     };
     const up = () => (this.held = false);
+    const cancel = () => {
+      this.held = false;
+      this.pendingPress = false;
+    };
     for (const target of [
       this.action,
       container.querySelector<HTMLElement>(".outdoor-view")!,
     ]) {
       target.addEventListener("pointerdown", down, listener);
       target.addEventListener("pointerup", up, listener);
-      target.addEventListener("pointercancel", up, listener);
-      target.addEventListener("pointerleave", up, listener);
+      target.addEventListener("pointercancel", cancel, listener);
+      target.addEventListener(
+        "pointerleave",
+        () => {
+          // Touch release can leave the button before the next animation frame.
+          // Keep a completed tap; cancel only a still-held gesture dragged away.
+          if (this.held) cancel();
+        },
+        listener,
+      );
     }
     window.addEventListener(
       "keydown",
@@ -121,7 +136,7 @@ export class OutdoorGame {
       listener,
     );
     const away = () => {
-      this.held = false;
+      cancel();
       if (this.started && !this.paused && !this.sim.ended) this.togglePause();
     };
     window.addEventListener("blur", away, listener);
@@ -179,6 +194,7 @@ export class OutdoorGame {
     if (!this.started || this.sim.ended) return;
     this.paused = !this.paused;
     this.held = false;
+    this.pendingPress = false;
     this.accumulator = 0;
     this.last = performance.now();
     this.container.querySelector("#pause-game")!.textContent = this.paused
@@ -196,7 +212,15 @@ export class OutdoorGame {
     if (this.started && !this.paused && !this.sim.ended) {
       this.accumulator += dt;
       while (this.accumulator >= 1 / 60 && !this.sim.ended) {
-        const input: Input = [0, 0, -1, Number(this.held), -1, -1];
+        const input: Input = [
+          0,
+          0,
+          -1,
+          Number(this.held || this.pendingPress),
+          -1,
+          -1,
+        ];
+        this.pendingPress = false;
         const stamp = String(input[3]);
         if (stamp !== this.previous) {
           this.events.push([this.sim.ticks, ...input]);
@@ -320,6 +344,7 @@ export class OutdoorGame {
   }
   private end() {
     this.held = false;
+    this.pendingPress = false;
     this.action.disabled = true;
     this.root.dataset.status = "finished";
     this.finish(this.sim.score, {
@@ -353,6 +378,8 @@ export class OutdoorGame {
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
+    this.held = false;
+    this.pendingPress = false;
     cancelAnimationFrame(this.frame);
     this.abort.abort();
     this.view?.dispose();

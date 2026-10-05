@@ -2,6 +2,7 @@ import { CoastRace, RACE_TICKS } from "./racing.ts";
 import { HopRun, StarFlight, type EndReason } from "../src/action-games.ts";
 export type { EndReason } from "../src/action-games.ts";
 import { FishingRound, HoopsRound } from "./outdoor.ts";
+import { qualifiesForPlayMedal } from "./play-medals.ts";
 export const RULES_VERSION = 1;
 /** 3: winding route and five seeded items. 2: three laps on the old loop. */
 export const COAST_RULES_VERSION = 3;
@@ -382,18 +383,64 @@ export function replayRun(game: string, seed: number, replay: Replay) {
     previous = e[0];
   }
   const sim = new Simulation(game, seed);
+  const movementSeconds = new Set<number>();
   let input: Input = [0, 0, -1, 0, -1, -1],
     cursor = 0;
   for (let tick = 0; tick < replay.ticks; tick++) {
     if (sim.ended) throw Error("Replay continues after game over.");
     if (replay.events[cursor]?.[0] === tick)
       input = replay.events[cursor++].slice(1) as Input;
+    const paddle = sim.paddle;
+    const ship =
+      sim.action instanceof StarFlight
+        ? { x: sim.action.x, y: sim.action.y }
+        : null;
     sim.advance(input);
+    // Width capsules may clamp an idle paddle. Only movement toward a
+    // requested direction counts as participation, never that automatic clamp.
+    const paddleDirection =
+      input[4] >= 0 ? Math.sign(input[4] - paddle) : input[0];
+    if (
+      (game === "brick" && paddleDirection * (sim.paddle - paddle) > 0.001) ||
+      (ship &&
+        sim.action instanceof StarFlight &&
+        Math.hypot(sim.action.x - ship.x, sim.action.y - ship.y) > 0.001)
+    )
+      movementSeconds.add(Math.floor(tick / TICK_RATE));
   }
   if (!sim.ended) throw Error("Finish the round before submitting.");
+  const played = { seconds: sim.ticks / TICK_RATE, score: sim.score };
+  let playMedalEligible = false;
+  if (sim.race)
+    playMedalEligible = qualifiesForPlayMedal({
+      game: "coast",
+      finished: sim.race.result().finished,
+    });
+  else if (sim.outdoor instanceof FishingRound)
+    playMedalEligible = qualifiesForPlayMedal({
+      game: "fishing",
+      completed: sim.outdoor.ended,
+      catches: sim.outdoor.catches.length,
+    });
+  else if (sim.outdoor instanceof HoopsRound)
+    playMedalEligible = qualifiesForPlayMedal({
+      game: "hoops",
+      completed: sim.outdoor.ended,
+      attempts: sim.outdoor.attempts,
+      made: sim.outdoor.made,
+    });
+  else if (game === "noodle" || game === "hop")
+    playMedalEligible = qualifiesForPlayMedal({ game, ...played });
+  else if (game === "brick" || game === "swarm")
+    playMedalEligible = qualifiesForPlayMedal({
+      game,
+      ...played,
+      movementSeconds: movementSeconds.size,
+    });
   return {
     score: sim.score,
     ticks: sim.ticks,
+    playMedalEligible,
     ...(sim.race ? { race: sim.race.result() } : {}),
     ...(sim.outdoor ? { outdoor: sim.outdoor.result() } : {}),
   };

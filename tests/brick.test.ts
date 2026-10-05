@@ -140,7 +140,7 @@ test("a full Brick Bash round drops capsules, meets the boss, and replays to the
         ticks: sim.ticks,
         events,
       }),
-      { score: sim.score, ticks: sim.ticks },
+      { score: sim.score, ticks: sim.ticks, playMedalEligible: true },
     );
   }
   assert.ok(capsules > 0, "capsules fell");

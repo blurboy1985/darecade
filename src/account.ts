@@ -1,9 +1,12 @@
 import { api } from "./social";
 import type { Save } from "./state";
 import type { SeasonProgress } from "./season";
+import type { PlayMedalProgress } from "../shared/play-medals";
 import { dareHoldCopy } from "./lobby-menu";
 import "./account.css";
+import { guestSaveCopy, emailSaveCopy, latestPlayMedals } from "./play-medals";
 export type Profile = {
+  playMedals?: PlayMedalProgress;
   xpTokens?: number;
   styleRewards?: number;
   notifications?: { medalEmail: boolean };
@@ -48,6 +51,8 @@ function shell(closable = true) {
   return { d, host: d.querySelector<HTMLElement>("#account-content")! };
 }
 export function acceptProfile(p: Profile) {
+  if (currentProfile?.id === p.id)
+    p.playMedals = latestPlayMedals(currentProfile.playMedals, p.playMedals);
   currentProfile = p;
   window.dispatchEvent(new CustomEvent("account-profile", { detail: p }));
 }
@@ -83,7 +88,7 @@ function emailForm(host: HTMLElement, path: string, flow: EmailFlow) {
   const signIn = path === "auth/login-code";
   host.innerHTML = signIn
     ? `<span class="eyebrow">WELCOME BACK</span><h2>Sign in</h2><p>Enter your email. We'll send a 6-digit code. No password.</p><form id="email-form"><label>Email<input name="email" type="email" autocomplete="email" maxlength="254" required></label><button class="primary">Send code →</button><p role="status" id="account-status"></p></form><button class="secondary" id="account-back">Back</button><details class="account-details"><summary>Played without email?</summary><p>Open Play Simi in the browser you used. Choose Account &amp; privacy → Save with email first.</p></details>`
-    : `<span class="eyebrow">${flow.guided ? "STEP 2 OF 2 · OPTIONAL" : "OPTIONAL"}</span><h2>Save with email?</h2><p>Keep your character and scores on any device. We'll send a 6-digit code. No password.</p><form id="email-form"><label>Email<input name="email" type="email" autocomplete="email" maxlength="254" required></label><button class="primary">Send code →</button><p role="status" id="account-status"></p></form><button class="secondary" id="account-back">${flow.guided ? "Skip for now" : "Back"}</button><p class="fine-print">You can keep playing without an email.</p>`;
+    : `<span class="eyebrow">${flow.guided ? "STEP 2 OF 2 · OPTIONAL" : "OPTIONAL"}</span><h2>Save with email?</h2><p>Keep this character across devices. We'll send a 6-digit code. No password.</p><details class="account-details"><summary>What is already saved?</summary><p>${guestSaveCopy}</p><p>${emailSaveCopy}</p></details><form id="email-form"><label>Email<input name="email" type="email" autocomplete="email" maxlength="254" required></label><button class="primary">Send code →</button><p role="status" id="account-status"></p></form><button class="secondary" id="account-back">${flow.guided ? "Skip for now" : "Back"}</button><p class="fine-print">You can keep playing without an email.</p>`;
   host.querySelector("#account-back")!.addEventListener("click", flow.back);
   host.querySelector("form")!.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -314,7 +319,7 @@ export async function openAccount(
         },
       });
     const render = () => {
-      host.innerHTML = `<span class="eyebrow">ACCOUNT & PRIVACY</span><h2>Your account</h2><p>${p.account ? `Signed in as <strong>${esc(p.account.email)}</strong>. Your avatar and progress follow this account.` : "Playing without email. Add one to use your character and progress on another device."}</p><p>${p.account && p.account.eligibleAt > Date.now() ? `Every round you finish is ranked. ${dareHoldCopy(false, p.account)}` : "Three outgoing challenges per day. No points lost when another player wins."}</p>${p.season ? `<p>${esc(p.season.name)} · ${p.season.xp} Season XP · ${p.progress.xp} Lifetime XP</p>` : ""}${!p.account ? '<button class="primary" id="save-account">Save with email →</button>' : ""}${p.account ? `<label class="consent-choice"><input id="medal-email" type="checkbox" ${p.notifications?.medalEmail ? "checked" : ""}> Email my daily medal awards</label><p class="fine-print">One email on days you win medals. Turn off here anytime.</p>` : ""}<div class="account-actions"><button class="secondary" id="read-privacy">Privacy &amp; data</button><button class="secondary" id="logout">Sign out</button></div><p role="status" id="account-status"></p>`;
+      host.innerHTML = `<span class="eyebrow">ACCOUNT & PRIVACY</span><h2>Your account</h2><p>${p.account ? `Signed in as <strong>${esc(p.account.email)}</strong>. Your avatar and progress follow this account.` : "Playing without email. Your guest profile is saved for this browser session."}</p>${!p.account ? `<details class="account-details"><summary>Your guest progress</summary><p>${guestSaveCopy}</p><p>${emailSaveCopy}</p></details>` : ""}<p>${p.account && p.account.eligibleAt > Date.now() ? `Every round you finish is ranked. ${dareHoldCopy(false, p.account)}` : p.account ? "Three outgoing challenges per day. No points lost when another player wins." : "Play together and use emotes now. Email is optional."}</p>${p.season ? `<p>${esc(p.season.name)} · ${p.season.xp} Season XP · ${p.progress.xp} Lifetime XP</p>` : ""}${!p.account ? '<button class="primary" id="save-account">Save with email →</button>' : ""}${p.account ? `<label class="consent-choice"><input id="medal-email" type="checkbox" ${p.notifications?.medalEmail ? "checked" : ""}> Email my daily medal awards</label><p class="fine-print">One email on days you win medals. Turn off here anytime.</p>` : ""}<div class="account-actions"><button class="secondary" id="read-privacy">Privacy &amp; data</button><button class="secondary" id="logout">Sign out</button></div><p role="status" id="account-status"></p>`;
       host
         .querySelector<HTMLInputElement>("#medal-email")
         ?.addEventListener("change", async (event) => {
