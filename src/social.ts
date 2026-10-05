@@ -1,5 +1,6 @@
 import type { GameId, ActivityId } from "./catalog";
 import type { Profile } from "./account";
+import type { SeasonStanding } from "./season";
 export type SharedPlayer = {
   id: string;
   name: string;
@@ -27,6 +28,8 @@ export type SharedPlayer = {
   wins: number;
 };
 export type SharedState = {
+  season?: SeasonStanding | null;
+  seasonHistory?: SeasonStanding[];
   profile: Profile;
   competitionReady: boolean;
   week: string;

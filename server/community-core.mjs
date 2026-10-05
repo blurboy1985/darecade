@@ -8,6 +8,7 @@ import {
 import { randomBytes, randomInt, randomUUID, createHash } from "node:crypto";
 import { day, gameIds } from "./store-core.mjs";
 import { MedalRewards } from "./medal-rewards.mjs";
+import { Seasons } from "./seasons.mjs";
 import { playIds } from "../src/catalog.ts";
 import {
   fresh,
@@ -84,6 +85,8 @@ export class CommunityCore {
       mailKey = "",
       mailFrom = "",
       production = false,
+      competitionSeasons = "[]",
+      seasonView = false,
       privacyContact = "",
       storageNotice = "This local test stores data on the arcade operator’s computer.",
     } = {},
@@ -173,6 +176,8 @@ export class CommunityCore {
     this.store.onSnapshot = () => this.snapshot();
     this.medalRewards = new MedalRewards(this);
     this.store.onSettleDay = (date) => this.medalRewards.settle(date);
+    this.seasons = new Seasons(store, competitionSeasons, seasonView);
+    this.store.competitionAfter = (at) => this.seasons.targetAfter(at);
   }
   config() {
     return {
@@ -348,6 +353,7 @@ export class CommunityCore {
           .get(id)?.tokens || 0,
       ageBand: p.age_band,
       privacyVersion: p.consent,
+      season: this.seasons.profile(id),
       progress,
     };
   }
@@ -363,7 +369,7 @@ export class CommunityCore {
       return { tokens };
     });
   }
-  save(id, progress, { active = true } = {}) {
+  save(id, progress, { active = true, at = this.now() } = {}) {
     // XP-changing callers already hold the progression/finish transaction.
     const old = this.db
       .prepare("SELECT progress FROM profiles WHERE player=?")
@@ -375,6 +381,8 @@ export class CommunityCore {
             Math.floor(JSON.parse(old.progress).xp / 100),
         )
       : 0;
+    if (old)
+      this.seasons.recordXp(id, JSON.parse(old.progress).xp, progress.xp, at);
     if (count)
       this.db
         .prepare(
@@ -385,7 +393,7 @@ export class CommunityCore {
       .prepare(
         "UPDATE profiles SET progress=?,last_active=CASE WHEN ? THEN ? ELSE last_active END WHERE player=?",
       )
-      .run(JSON.stringify(progress), active ? 1 : 0, this.now(), id);
+      .run(JSON.stringify(progress), active ? 1 : 0, at, id);
   }
   patch(id, patch) {
     if (!patch || typeof patch !== "object") throw Error("Choose a setting.");
@@ -434,6 +442,7 @@ export class CommunityCore {
     return this.privateProfile(id);
   }
   progression(id, event, value) {
+    const at = this.now();
     return this.store.transaction(() => {
       const p = this.privateProfile(id).progress;
       const xpBefore = p.xp;
@@ -446,7 +455,7 @@ export class CommunityCore {
         p.wardrobeUnlocked.push(set.id);
         p.wardrobeSpent += set.cost;
       } else if (event === "gift") {
-        if (!claimGift(p, value, day(this.now())))
+        if (!claimGift(p, value, day(at)))
           throw Error("This daily gift is already claimed or unavailable.");
       } else if (event === "visit") {
         if (
@@ -477,7 +486,7 @@ export class CommunityCore {
         }
       } else if (event === "coin") {
         if (!/^coin[0-4]$/.test(value)) throw Error("Unknown coin.");
-        const week = singaporeWeek(new Date(this.now()));
+        const week = singaporeWeek(new Date(at));
         if (p.week !== week) {
           p.week = week;
           p.coins = [];
@@ -501,22 +510,21 @@ export class CommunityCore {
         p.claims.push(value);
         p.xp += m.xp;
       } else if (event === "perform") {
-        if (performShow(p, value, this.now(), day(this.now())) === null)
+        if (performShow(p, value, at, day(at)) === null)
           throw Error("Take a breath before the next show.");
       } else if (event === "plant") {
-        if (!plantCrop(p, value, this.now()))
+        if (!plantCrop(p, value, at))
           throw Error("This plot is already growing something.");
       } else if (event === "water") {
-        if (!waterCrop(p, this.now()))
+        if (!waterCrop(p, at))
           throw Error("There is nothing to water right now.");
       } else if (event === "tend") {
-        if (!tendCrop(p, value, this.now()))
+        if (!tendCrop(p, value, at))
           throw Error(
             "This trail is not ready, or this crop was already watered. Reload the page to refresh your plot.",
           );
       } else if (event === "harvest") {
-        if (!harvestCrop(p, this.now()))
-          throw Error("This crop is not ready yet.");
+        if (!harvestCrop(p, at)) throw Error("This crop is not ready yet.");
       } else if (event === "setup-complete") {
         if (!p.nameChosen || p.rounds < 1)
           throw Error("Finish a round and choose your nickname first.");
@@ -527,7 +535,7 @@ export class CommunityCore {
         p.hat = 2;
         p.welcome = "complete";
       } else throw Error("Unknown progression event.");
-      this.save(id, p);
+      this.save(id, p, { at });
       this.db
         .prepare("UPDATE players SET look=? WHERE id=?")
         .run(
@@ -770,19 +778,24 @@ export class CommunityCore {
     return !!this.db.prepare("SELECT 1 FROM accounts WHERE player=?").get(id);
   }
   begin(id, game, target = null, dareId = null, targetRun = null) {
+    const at = this.now(),
+      targetAfter = this.seasons.targetAfter(at);
     if (!playIds.includes(game)) throw Error("Choose an arcade game.");
-    let seed = seedFor(game, day(this.now())),
+    let seed = seedFor(game, day(at)),
       score = 0,
       dare = null;
     if (dareId) {
       dare = this.db
         .prepare("SELECT * FROM dares WHERE id=? AND expires>?")
-        .get(dareId, this.now());
+        .get(dareId, at);
       if (
         !dare ||
         dare.game !== game ||
-        this.db.prepare("SELECT version FROM runs WHERE id=?").get(dare.run)
-          ?.version !== rulesVersion(game)
+        !this.db
+          .prepare(
+            "SELECT 1 FROM runs WHERE id=? AND version=? AND finished>=?",
+          )
+          .get(dare.run, rulesVersion(game), targetAfter)
       )
         throw Error("This challenge has closed.");
       if (
@@ -817,12 +830,13 @@ export class CommunityCore {
       if (!dare) {
         const best = this.db
           .prepare(
-            `SELECT id,score,seed FROM runs WHERE player=? AND game=? AND verified=1 AND eligible=1 AND seed IS NOT NULL AND version=? AND status='finished' AND score>0 ${targetRun ? "AND id=?" : ""} ORDER BY score DESC,finished ASC LIMIT 1`,
+            `SELECT id,score,seed FROM runs WHERE player=? AND game=? AND verified=1 AND eligible=1 AND seed IS NOT NULL AND version=? AND status='finished' AND score>0 AND finished>=? ${targetRun ? "AND id=?" : ""} ORDER BY score DESC,finished ASC LIMIT 1`,
           )
           .get(
             target,
             game,
             rulesVersion(game),
+            targetAfter,
             ...(targetRun ? [targetRun] : []),
           );
         if (!best) throw Error("This neighbour has no validated score yet.");
@@ -838,6 +852,7 @@ export class CommunityCore {
         throw Error("You already played this saved score. Try a new score.");
     }
     const run = this.store.begin(id, game, target, {
+      at,
       allowOnline: !!dare,
       targetScore: target ? score : undefined,
       prepareRun: (run) =>
@@ -853,10 +868,11 @@ export class CommunityCore {
       seed,
       version: rulesVersion(game),
       ranked: this.rankedAccount(id),
-      dailySeed: seed === seedFor(game, day(this.now())),
+      dailySeed: seed === seedFor(game, day(at)),
     };
   }
   finish(id, data) {
+    const at = this.now();
     const r = this.db
       .prepare("SELECT * FROM runs WHERE id=? AND player=?")
       .get(data.id, id);
@@ -878,7 +894,7 @@ export class CommunityCore {
     }
     if (
       r.status !== "started" ||
-      this.now() - r.started > 600000 ||
+      at - r.started > 600000 ||
       r.version !== rulesVersion(r.game)
     )
       throw Error("This round has expired. Start a new round.");
@@ -887,7 +903,7 @@ export class CommunityCore {
       throw Error(
         "The replay does not match this score. No rewards were saved.",
       );
-    if ((result.ticks / 60) * 1000 > this.now() - r.started + 250)
+    if ((result.ticks / 60) * 1000 > at - r.started + 250)
       throw Error(
         "This replay was submitted faster than the round could be played.",
       );
@@ -899,7 +915,7 @@ export class CommunityCore {
         )
         .run(
           result.score,
-          this.now(),
+          at,
           ranked ? 1 : 0,
           JSON.stringify(data.replay),
           digest,
@@ -937,11 +953,11 @@ export class CommunityCore {
       if (result.outdoor && "made" in result.outdoor)
         scoreHoops(p, result.outdoor.made);
       const welcome = completeWelcomeRound(p);
-      const invite = p.rounds === 0 ? this.payInvite(id, p) : null;
+      const invite = p.rounds === 0 ? this.payInvite(id, p, at) : null;
       p.rounds++;
       p.xp += 20;
       p.best[r.game] = Math.max(p.best[r.game], result.score);
-      this.save(id, p);
+      this.save(id, p, { at });
       return {
         score: result.score,
         won: !!r.target && result.score > r.targetScore,
@@ -998,9 +1014,9 @@ export class CommunityCore {
         .prepare(
           `SELECT d.*,p.name FROM dares d JOIN players p ON p.id=d.host
         JOIN runs r ON r.id=d.run WHERE r.version=CASE WHEN d.game='coast' THEN ${COAST_RULES_VERSION} ELSE 1 END
-        AND d.expires>? ORDER BY d.created DESC LIMIT 100`,
+        AND d.expires>? AND r.finished>=? ORDER BY d.created DESC LIMIT 100`,
         )
-        .all(this.now()),
+        .all(this.now(), this.seasons.targetAfter()),
     });
   }
   presence(id) {
@@ -1059,6 +1075,7 @@ export class CommunityCore {
         .filter((d) => d.expires > this.now() && allowed(d.host))
         .map((d) => ({ ...d })),
       profile,
+      ...this.seasons.state(id, allowed, !!profile.account),
       competitionReady: this.eligibleAccount(id),
       recentRuns: this.db
         .prepare(
@@ -1222,7 +1239,7 @@ export class CommunityCore {
     });
   }
   /** Called inside finish(): pays both players once, on the invitee's first round. */
-  payInvite(id, progress) {
+  payInvite(id, progress, at = this.now()) {
     const join = this.db
       .prepare(
         "SELECT inviter FROM invite_joins WHERE invitee=? AND rewarded=0",
@@ -1245,7 +1262,7 @@ export class CommunityCore {
       const theirs = normalise(JSON.parse(host.progress), fresh());
       theirs.xp += INVITE_XP;
       // Their last-active time is left alone: they did nothing just now.
-      this.save(join.inviter, theirs, { active: false });
+      this.save(join.inviter, theirs, { active: false, at });
     }
     return { xp: INVITE_XP };
   }
@@ -1263,6 +1280,7 @@ export class CommunityCore {
           .get(id),
       },
       exportedAt: new Date(this.now()).toISOString(),
+      seasons: this.seasons.export(id),
       payments: this.db
         .prepare(
           "SELECT id,product,kind,amount,currency,status,created FROM payment_orders WHERE player=?",
@@ -1370,6 +1388,7 @@ export class CommunityCore {
         .run(id, email);
       for (const f of this.playtests(id)) this.files.removePlaytest(f.path);
       for (const table of [
+        "season_xp",
         "medal_email_outbox",
         "medal_rewards",
         "notification_preferences",

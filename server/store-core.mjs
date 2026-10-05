@@ -281,6 +281,7 @@ export class StoreCore {
     if (refresh) this.refreshSnapshot();
   }
   begin(id, game, target = null, options = {}) {
+    const at = options.at ?? this.now();
     this.settle();
     if (!playIds.includes(game)) throw Error("Choose an arcade game.");
     return this.transaction(() => {
@@ -298,7 +299,7 @@ export class StoreCore {
           .prepare(
             "SELECT count(*) n FROM runs WHERE player=? AND target IS NOT NULL AND day=?",
           )
-          .get(id, day(this.now())).n;
+          .get(id, day(at)).n;
         if (used >= 3)
           throw Error(
             "You have used your three challenges today. Play regular rounds or return after midnight SGT.",
@@ -306,7 +307,7 @@ export class StoreCore {
         if (
           this.db
             .prepare("SELECT 1 FROM runs WHERE player=? AND target=? AND day=?")
-            .get(id, target, day(this.now()))
+            .get(id, target, day(at))
         )
           throw Error(
             "You already challenged this neighbour today. Choose someone different.",
@@ -328,16 +329,7 @@ export class StoreCore {
         .prepare(
           "INSERT INTO runs(id,player,game,started,target,targetScore,day,status) VALUES(?,?,?,?,?,?,?,?)",
         )
-        .run(
-          run.id,
-          id,
-          game,
-          this.now(),
-          target,
-          targetScore,
-          day(this.now()),
-          "started",
-        );
+        .run(run.id, id, game, at, target, targetScore, day(at), "started");
       this.db
         .prepare("UPDATE runs SET version=? WHERE id=?")
         .run(game === "coast" ? COAST_RULES_VERSION : 1, run.id);
@@ -382,7 +374,8 @@ export class StoreCore {
   }
   snapshot() {
     const now = this.now(),
-      today = day(now);
+      today = day(now),
+      competitionAfter = this.competitionAfter?.(now) ?? 0;
     const revision = this.db
       .prepare("SELECT revision FROM snapshot_revision WHERE id=1")
       .get().revision;
@@ -390,6 +383,7 @@ export class StoreCore {
       this.cachedSnapshot &&
       this.cachedSnapshot.revision === revision &&
       this.cachedSnapshot.day === today &&
+      this.cachedSnapshot.competitionAfter === competitionAfter &&
       now - this.cachedSnapshot.built < 30000
     )
       return this.cachedSnapshot;
@@ -438,10 +432,10 @@ export class StoreCore {
         `WITH chosen AS (
       SELECT id,player,game,score,ROW_NUMBER() OVER (PARTITION BY player,game ORDER BY score DESC,finished ASC,id ASC) choice
       FROM runs WHERE status='finished' AND verified=1 AND eligible=1 AND seed IS NOT NULL AND score>0
-      AND version=CASE WHEN game='coast' THEN ${COAST_RULES_VERSION} ELSE 1 END)
+      AND version=CASE WHEN game='coast' THEN ${COAST_RULES_VERSION} ELSE 1 END AND finished>=?)
       SELECT id,player,game,score FROM chosen WHERE choice=1`,
       )
-      .all()) {
+      .all(competitionAfter)) {
       const card = cards.get(r.player);
       if (card) card.challengeScores[r.game] = { score: r.score, runId: r.id };
     }
@@ -464,6 +458,7 @@ export class StoreCore {
       }
     this.cachedSnapshot = {
       built: now,
+      competitionAfter,
       day: today,
       nextReset: boundary(today) + DAY,
       cards,
