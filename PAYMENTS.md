@@ -91,6 +91,22 @@ tokens or ranking advantages. There are no subscriptions or random paid rewards.
 
 ## Catalogue
 
+### Six new sets — 5 October 2026
+
+- Sandbox: products and S$1.99 one-time SGD prices exist for all six and are in
+  `stripe-sandbox-catalog.json`. The server's catalogue check accepts all 16.
+  No sandbox checkout of a new set has been run.
+- Live: **not created.** The `Darecade server` restricted key can read Products
+  and Prices but not write them, so `scripts/stripe-add-sets.mjs live` is
+  refused. Until live prices exist and are added to `stripe-live-catalog.json`
+  and to `STRIPE_CATALOG` in `wrangler.jsonc`, the six sets are sold for Style
+  tokens only.
+- To finish: either copy the six sandbox products to live mode in the Stripe
+  Dashboard, as was done for the first ten, or give a key Products and Prices
+  write for one run of `node --experimental-strip-types
+  scripts/stripe-add-sets.mjs live`, then remove the permission. Then copy the
+  six entries into `STRIPE_CATALOG` and deploy.
+
 Sandbox set prices are in `stripe-sandbox-catalog.json`; live set and donation
 prices are in `stripe-live-catalog.json`.
 
@@ -109,7 +125,8 @@ publishable key is not needed for hosted Checkout.
 | `PUBLIC_ORIGIN` | The canonical game origin. Stripe return and cancellation URLs use this value, never a client-supplied URL. |
 
 Set IDs: `solar`, `moon`, `storm`, `sakura`, `nova`, `abyss`, `tide`, `phoenix`,
-`frost`, `galaxy`. Donation IDs start with `donation-`, such as `donation-small`.
+`frost`, `galaxy`, and from 5 October 2026 `candy`, `boba`, `pixel`, `witch`,
+`garden`, `dino`. Donation IDs start with `donation-`, such as `donation-small`.
 Each product accepts `{ "priceId": "price_ID_FROM_STRIPE", "amount": 199 }`.
 The owner approved S$1.99 for each complete cosmetic set. The server
 checks the configured amount, SGD currency, one-time price type and test/live
