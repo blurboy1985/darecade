@@ -30,3 +30,9 @@ art/characters/source-import.blend
 
 # KayKit Adventurers source characters (~18 MB). See scripts/build_kaykit_character.mjs.
 art/characters/kaykit/*.glb
+
+# Sketchfab download for the current avatar (about 50 MB unpacked). The build
+# steps are in art/characters/sketchfab-chibi-girl/README.md.
+art/characters/sketchfab-chibi-girl/*.zip
+art/characters/sketchfab-chibi-girl/source/
+art/characters/sketchfab-chibi-girl/textures/

@@ -1,8 +1,18 @@
 # Character asset credits
 
-## Current avatars: original Play Simi chibi art
+## Current avatar: "Chibi Girl Character" by Syed's Creation
 
-Every visible mesh and atlas pixel in `public/models/neighbour-chibi.glb` was authored for Play Simi using Blender. The editable source, builders, and measured budgets are documented in [chibi/README.md](chibi/README.md). Public Unity dancer, Mamehinata, and MapleStory previews informed proportions, face quality and outfit readability; no preview pixels or purchased meshes are included. Reference links are recorded in [face-research.md](face-research.md).
+`public/models/neighbour-chibi2.glb` is a modified version of **Chibi Girl Character** by Syed's Creation (@Dawood3D), used under the Creative Commons Attribution 4.0 licence:
+https://sketchfab.com/3d-models/chibi-girl-character-3e795731d68d416eb0b8770a6b363e65
+https://creativecommons.org/licenses/by/4.0/
+
+It was reduced, split into parts, rigged, recoloured and extended with a boy version and extra garments. The changes and the rebuild steps are in [sketchfab-chibi-girl/README.md](sketchfab-chibi-girl/README.md). This credit must stay visible to players (Menu, Settings, Preferences).
+
+The wizard hat, knight helmet and bear hat come from the earlier original avatar below. The skeleton is the CC0 KayKit one.
+
+## Earlier avatar (retired): original Play Simi chibi art
+
+Every visible mesh and atlas pixel in `art/characters/chibi/neighbour-chibi.glb` was authored for Play Simi using Blender. It is no longer shipped; the current builder reads its skeleton and three hats. The editable source, builders, and measured budgets are documented in [chibi/README.md](chibi/README.md). Public Unity dancer, Mamehinata, and MapleStory previews informed proportions, face quality and outfit readability; no preview pixels or purchased meshes are included. Reference links are recorded in [face-research.md](face-research.md).
 
 Only the compatible rest skeleton from the following CC0 source is reused.
 
@@ -16,7 +26,7 @@ Credit is not required by CC0; it is given here as thanks. The licence text is k
 
 The free pack's Knight, Barbarian, Mage, Rogue and hooded Rogue share one rig. `scripts/build_kaykit_character.mjs` merges their body, head, headwear and cape parts onto one skeleton, removes all weapons, props and the 76 baked clips, and quantizes the result.
 
-Builder input: `public/models/neighbour-kaykit.glb` (714,452 bytes). The game loads the new original chibi GLB instead.
+Builder input: `public/models/neighbour-kaykit.glb` (714,452 bytes). The game does not load it.
 Sources (not committed): place the five Character GLBs in `art/characters/kaykit/`, then run `node scripts/build_kaykit_character.mjs`.
 
 At runtime Play Simi tints the skin swatch and the main outfit swatches of each texture, maps its own arm/leg/head controls onto the KayKit bones, and lifts the hips while seated so the existing Blender bench, swing and slide scenes still line up.

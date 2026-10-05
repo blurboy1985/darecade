@@ -1,5 +1,10 @@
 import { createHmac, timingSafeEqual, randomUUID } from "node:crypto";
-import { legendarySets, ownsSet, setStarts } from "../src/collections.ts";
+import {
+  legendarySets,
+  ownsSet,
+  setItemIndex,
+  setStarts,
+} from "../src/collections.ts";
 
 const fail = (message, status = 400) => {
   throw Object.assign(Error(message), { status });
@@ -285,8 +290,8 @@ export class Payments {
     const index = legendarySets.findIndex((s) => s.id === product);
     if (index < 0) return;
     const patch = {};
-    for (const [slot, start] of Object.entries(setStarts))
-      if (p[slot] === start + index) patch[slot] = 0;
+    for (const slot of Object.keys(setStarts))
+      if (p[slot] === setItemIndex(slot, index)) patch[slot] = 0;
     this.c.patch(player, patch);
   }
   async webhook(raw, signature) {
@@ -296,8 +301,7 @@ export class Payments {
       this.env.STRIPE_WEBHOOK_SECRET,
       this.c.now(),
     );
-    if (event.livemode !== this.liveMode())
-      fail("Wrong payment mode.");
+    if (event.livemode !== this.liveMode()) fail("Wrong payment mode.");
     const object = event.data?.object;
     if (
       [

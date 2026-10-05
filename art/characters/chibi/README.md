@@ -1,10 +1,12 @@
-# Play Simi original avatar wardrobe
+# Play Simi original avatar wardrobe (retired)
+
+The game now uses the avatar described in [../sketchfab-chibi-girl/README.md](../sketchfab-chibi-girl/README.md). This model is kept because that builder takes its skeleton and three hats from `neighbour-chibi.glb` in this folder.
 
 This production model follows the approved compact human face study. The rounded lower face, short eye-to-mouth spacing, dark blue irises and broad highlights are preserved. The skin and hair have rounded profile volume and a small integrated nose. Game eyes conform to a continuous head with tighter open borders. The game mesh avoids the study's dense boolean socket topology.
 
 ## Deliverables
 
-- `../../../public/models/neighbour-chibi.glb`: modular rigged game model.
+- `neighbour-chibi.glb`: modular rigged game model.
 - `simi-chibi.blend`: editable meshes, original packed atlas, expression keys, shared skeleton and studio setup. It opens with the ranger visible in neutral T pose.
 - `palette.png`: original 512 x 512 packed colour and face atlas.
 - `rogue-portrait.png`, `mage-portrait.png`, `knight-portrait.png`, `barbarian-portrait.png`: full body outfit and hair proofs.

@@ -236,7 +236,7 @@ for blocks in [bpy.data.meshes,bpy.data.materials,bpy.data.images,bpy.data.actio
 bpy.ops.object.select_all(action='DESELECT');rig.select_set(True)
 for ob in meshes:ob.select_set(True)
 bpy.context.view_layer.objects.active=rig
-GLB=ROOT/'public/models/neighbour-chibi.glb'
+GLB=ROOT/'art/characters/chibi/neighbour-chibi.glb'
 bpy.ops.export_scene.gltf(filepath=str(GLB),export_format='GLB',use_selection=True,export_animations=False,export_yup=True,export_apply=False,export_extras=True,export_image_format='AUTO',export_materials='EXPORT',export_skins=True,export_morph=True,export_morph_normal=False,export_morph_tangent=False,export_try_sparse_sk=True,export_try_omit_sparse_sk=True)
 def compact_glb(path):
     """Losslessly share repeated buffer bytes across modular wardrobe parts.

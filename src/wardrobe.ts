@@ -18,6 +18,7 @@ import {
   type WardrobeProgress,
 } from "./collections.ts";
 import type { Look } from "./character";
+import { fresh } from "./state.ts";
 
 export type WardrobeTab = LookSlot | "sets";
 export type Collection = "starter" | "discovery" | "mastery" | "legendary";
@@ -40,7 +41,7 @@ export function thumbnailLook(slot: WardrobeTab, index: number): Look {
     skin: 0,
     hat: 0,
     clothing: 0,
-    hair: 0,
+    hair: fresh().hair,
     pet: 0,
     accessory: 0,
   };
@@ -94,8 +95,21 @@ export function wardrobeCards(
             )
           : p[tab] === index;
       const selected = trying?.name === name;
+      // Free, Style-token and premium pieces are told apart on every card.
+      const tier = set
+        ? "Premium"
+        : collectionFor(tab as LookSlot, index) === "starter"
+          ? "Free"
+          : "Style tokens";
+      const state = equipped
+        ? "Equipped"
+        : owned
+          ? tier === "Free"
+            ? "Free"
+            : `${tier} · owned`
+          : `${tier} · preview`;
       const thumb = `${tab}:${index}`;
-      return `<article class="collection-card ${selected ? "is-previewing" : ""}" style="--collection-color:${set?.color ?? "#b4a0f5"}"><button class="try-item" data-try-slot="${tab}" data-try-index="${index}" aria-label="Preview ${name}" aria-pressed="${selected}"><span class="item-art"><img data-thumbnail="${thumb}" src="/wardrobe/${thumb.replace(":", "-")}.png" loading="lazy" alt="${name}" width="240" height="220"></span><span class="item-state">${equipped ? "Equipped" : owned ? "Owned" : "Locked · preview"}</span><strong>${name}</strong>${set ? `<small>${tab === "sets" ? set.theme : set.name}</small>` : ""}</button>${tab === "sets" && set ? `<div class="set-requirement"><small>Outfit + headwear + pet + magic</small>${owned ? `<span>Yours to mix & match</span>` : `<span>${set.cost} Style tokens</span><button class="secondary" data-redeem-set="${set.id}" ${canRedeem(set, p, medals) ? "" : "disabled"}>${canRedeem(set, p, medals) ? "Exchange tokens" : "Keep playing to unlock"}</button><button class="text-button" data-buy-set="${set.id}">Buy set options</button>`}</div>` : ""}</article>`;
+      return `<article class="collection-card ${selected ? "is-previewing" : ""}" style="--collection-color:${set?.color ?? "#b4a0f5"}"><button class="try-item" data-try-slot="${tab}" data-try-index="${index}" aria-label="Preview ${name}" aria-pressed="${selected}"><span class="item-art"><img data-thumbnail="${thumb}" src="/wardrobe/${thumb.replace(":", "-")}.png" loading="lazy" alt="${name}" width="240" height="220"></span><span class="item-state${set ? " is-premium" : ""}">${state}</span><strong>${name}</strong>${set ? `<small>${tab === "sets" ? set.theme : set.name}</small>` : ""}</button>${tab === "sets" && set ? `<div class="set-requirement"><small>Outfit + headwear + pet + magic</small>${owned ? `<span>Yours to mix & match</span>` : `<span>${set.cost} Style tokens</span><button class="secondary" data-redeem-set="${set.id}" ${canRedeem(set, p, medals) ? "" : "disabled"}>${canRedeem(set, p, medals) ? "Exchange tokens" : "Keep playing to unlock"}</button><button class="text-button" data-buy-set="${set.id}">Buy set options</button>`}</div>` : ""}</article>`;
     })
     .join("")}</div>`;
 }
@@ -124,7 +138,7 @@ export function collectionDescription(
   if (collection === "starter")
     return "Your everyday essentials. Tap any item to try it on.";
   if (collection === "legendary")
-    return "Pieces from the 10 Legendary sets. Exchange tokens in Sets to own all four pieces.";
+    return `Premium pieces from the ${legendarySets.length} Legendary sets. Buy a set or exchange tokens in Sets to own all four pieces.`;
   const bundle = lookBundles.find((b) => b.id === collection)!;
   return ownsSet(p, bundle.id)
     ? "Yours! Try a piece, then equip it."

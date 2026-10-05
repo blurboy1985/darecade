@@ -174,6 +174,7 @@ export class StoreCore {
     for (const [key, max] of [
       ["outfit", 5],
       ["skin", 7],
+      ["body", 1],
       ["hat", 3],
       ...Object.entries(appearanceLimits).map(([key, count]) => [
         key,

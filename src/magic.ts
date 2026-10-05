@@ -1,4 +1,4 @@
-import { legendarySets, setStarts } from "./collections.ts";
+import { extraIndexFor, legendarySets, setIndexFor } from "./collections.ts";
 import { legendaryMagic } from "./legendary.ts";
 // "Everyday magic" effects. Each effect mixes a few glowing meshes (wings,
 // halos, crystals) with sparkle particle layers drawn by one small shader.
@@ -374,10 +374,147 @@ export function buildMagic(parent: T.Object3D, kind: number): Magic | null {
       true,
     );
 
-  const special = legendarySets[kind - setStarts.accessory];
+  const setIndex = setIndexFor("accessory", kind);
+  const special = legendarySets[setIndex];
   if (special) {
-    anim.push(legendaryMagic(g, kind - setStarts.accessory));
+    anim.push(legendaryMagic(g, setIndex));
     glowDust([special.color, special.accent], 0.2, 2.4, 0.9, 32);
+  }
+  // Later single effects, in the order of their names in appearance.ts.
+  switch (extraIndexFor("accessory", kind)) {
+    case 0:
+      // Confetti pop: a burst above the head that flutters down.
+      layer(
+        m,
+        "petal",
+        26,
+        0.09,
+        ["#ff7aa8", "#ffd84a", "#7ad7ff", "#9be88a", "#c4a5ff"],
+        (i, t, o) => {
+          const k = life(i, t, 2.6);
+          const a = hash(i) * tau;
+          const r = 0.15 + k * 0.75 * (0.5 + hash(i, 1) * 0.5);
+          o.x = Math.cos(a) * r;
+          o.z = Math.sin(a) * r;
+          o.y = 2.2 + Math.sin(k * Math.PI * 0.6) * 0.5 - k * k * 2;
+          o.r = t * 3 + i;
+          o.a = 1 - k * k;
+        },
+      );
+      break;
+    case 1:
+      // Dandelion drift: seeds carried across on a slow breeze.
+      layer(m, "flake", 16, 0.1, ["#ffffff", "#f3f7e4"], (i, t, o) => {
+        const k = life(i, t, 5);
+        o.x = -0.85 + k * 1.7;
+        o.z = (hash(i, 2) - 0.5) * 1.1;
+        o.y = 0.5 + hash(i) * 1.3 + k * 0.35 + Math.sin(t * 1.4 + i) * 0.08;
+        o.r = t * 0.5 + i;
+        o.a = Math.sin(k * Math.PI) * 0.85;
+      });
+      glowDust(["#fff6c9", "#e9ffd9"], 0.3, 1.6, 0.7, 8);
+      break;
+    case 2: {
+      // Neon hoops: three rings rise from the feet and shrink away.
+      const hoops = ["#ff5c95", "#49e5e2", "#ffd84a"].map((c) =>
+        part(g, "ring", [0, 0, 0], [0.7, 0.7, 0.7], c, {
+          glow: 1,
+          rot: [Math.PI / 2, 0, 0],
+        }),
+      );
+      anim.push((t) =>
+        hoops.forEach((h, i) => {
+          const k = (t * 0.35 + i / 3) % 1;
+          const s = 0.35 + Math.sin(k * Math.PI) * 0.4;
+          h.position.y = 0.15 + k * 1.95;
+          h.scale.set(s, s, s);
+        }),
+      );
+      glowDust(["#ff5c95", "#49e5e2", "#ffd84a"], 0.2, 2.1, 0.6, 12);
+      break;
+    }
+    case 3:
+      // Autumn leaves spiralling to the ground.
+      layer(
+        m,
+        "leaf",
+        16,
+        0.15,
+        ["#e8843c", "#d9542f", "#f2c14e", "#b5651d"],
+        (i, t, o) => {
+          const k = life(i, t, 4.5);
+          const a = hash(i) * tau + t * 0.6;
+          const r = 0.5 + Math.sin(k * 6 + i) * 0.15;
+          o.x = Math.cos(a) * r;
+          o.z = Math.sin(a) * r;
+          o.y = 2.3 - k * 2.2;
+          o.r = t * 1.5 + i;
+          o.a = Math.sin(k * Math.PI);
+        },
+      );
+      break;
+    case 4:
+      // Shooting stars: five streaks cross behind the shoulders.
+      layer(
+        m,
+        "star",
+        30,
+        0.09,
+        ["#fff3b0", "#bfe3ff", "#ffd1f0"],
+        (i, t, o) => {
+          const star = i % 5,
+            lag = Math.floor(i / 5) * 0.05;
+          const u = ((((t - lag) * 0.45 + star * 0.2) % 1) + 1) % 1;
+          o.x = -1 + u * 2;
+          o.y = 2.5 - u * 0.9 - (star % 3) * 0.28;
+          o.z = -0.45 + (hash(star) - 0.5) * 0.5;
+          o.a = Math.sin(u * Math.PI) * (1 - lag * 3.2);
+          o.s = 1.25 - lag * 3.5;
+        },
+        true,
+      );
+      break;
+    case 5: {
+      // Koi spirits: two fish circle the waist, trailing bubbles.
+      const koi = [
+        ["#fff6ee", "#ff8a3c"],
+        ["#ffd9c2", "#f2f2f2"],
+      ].map(([body, mark]) => {
+        const f = node(g, [0, 0, 0], "Koi");
+        ball(f, [0, 0, 0], [0.065, 0.055, 0.16], body, { glow: 0.35 });
+        ball(f, [0, 0.03, 0.04], [0.05, 0.035, 0.07], mark, { glow: 0.35 });
+        ball(f, [0, 0.025, -0.08], [0.035, 0.03, 0.04], mark, { glow: 0.35 });
+        part(f, "cone", [0, 0, -0.21], [0.07, 0.14, 0.02], body, {
+          glow: 0.35,
+          rot: [Math.PI / 2, 0, 0],
+        });
+        for (const side of [-1, 1])
+          ball(f, [side * 0.06, -0.01, 0.03], [0.04, 0.01, 0.03], mark, {
+            glow: 0.35,
+          });
+        return f;
+      });
+      anim.push((t) =>
+        koi.forEach((f, i) => {
+          const a = t * 0.9 + i * Math.PI;
+          f.position.set(
+            Math.cos(a) * 0.62,
+            1 + Math.sin(t * 1.3 + i * 2) * 0.18,
+            Math.sin(a) * 0.62,
+          );
+          f.rotation.y = -a + Math.sin(t * 6 + i) * 0.15;
+        }),
+      );
+      layer(m, "bubble", 10, 0.07, ["#dff6ff", "#ffffff"], (i, t, o) => {
+        const k = life(i, t, 3);
+        const a = hash(i) * tau + t * 0.3;
+        o.x = Math.cos(a) * 0.62;
+        o.z = Math.sin(a) * 0.62;
+        o.y = 0.9 + k * 0.9;
+        o.a = Math.sin(k * Math.PI) * 0.7;
+      });
+      break;
+    }
   }
   switch (kind) {
     case 1: {

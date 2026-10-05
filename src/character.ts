@@ -1,4 +1,4 @@
-import { legendarySets, setStarts } from "./collections.ts";
+import { extraIndexFor, legendarySets, setIndexFor } from "./collections.ts";
 import { legendaryHead, legendaryBody } from "./legendary.ts";
 import * as T from "three";
 import { clone as cloneSkeleton } from "three/addons/utils/SkeletonUtils.js";
@@ -7,7 +7,13 @@ import { outfits, skins } from "./state.ts";
 import { clothingNames } from "./appearance.ts";
 import { makePet, animatePet, type Pet } from "./pets.ts";
 import { buildMagic, disposeMagic, type Magic } from "./magic.ts";
-import { buildHeadgear, animateHeadgear, type Gear } from "./headgear.ts";
+import {
+  buildBeard,
+  buildHeadgear,
+  buildHood,
+  animateHeadgear,
+  type Gear,
+} from "./headgear.ts";
 export {
   clothingNames,
   hairNames,
@@ -18,6 +24,8 @@ export type Look = {
   outfit: number;
   skin: number;
   hat: number;
+  /** 0 girl, 1 boy. */
+  body?: number;
   clothing?: number;
   hair?: number;
   pet?: number;
@@ -57,7 +65,7 @@ export function loadCharacter() {
       parser.textureLoader = new T.TextureLoader(parser.options.manager);
       return { name: "DarecadeEmbeddedImages" };
     })
-    .loadAsync("/models/neighbour-chibi.glb?v=profile-4")
+    .loadAsync("/models/neighbour-chibi2.glb?v=6")
     .then((g) => {
       template = g.scene;
       template.scale.setScalar(CHARACTER_SCALE);
@@ -67,161 +75,187 @@ export function loadCharacter() {
       throw error;
     }));
 }
-// Original Simi chibi art on the CC0 KayKit-compatible skeleton. All four
-// silhouettes share a rig; saved looks still mix named body and head parts.
+// The avatar is built from "Chibi Girl Character" by Syed's Creation (CC BY
+// 4.0) by scripts/build_sketchfab_chibi.py, bound to the CC0 KayKit skeleton.
+// One GLB holds every part; a look shows some of them and colours the rest.
 const CHARACTER_SCALE = 0.86;
-type Who = "Rogue" | "Mage" | "Knight" | "Barbarian";
-// [top & arms, legs, cape or null]. Parts from different adventurers share one
-// rig, so they mix freely. Order matches clothingNames.
-const bodySets: [Who, Who, Who | null][] = [
-  ["Rogue", "Rogue", null],
-  ["Rogue", "Rogue", "Rogue"],
-  ["Mage", "Mage", null],
-  ["Mage", "Mage", "Mage"],
-  ["Knight", "Knight", null],
-  ["Knight", "Knight", "Knight"],
-  ["Barbarian", "Barbarian", null],
-  ["Barbarian", "Barbarian", "Barbarian"],
-  ["Rogue", "Knight", null],
-  ["Rogue", "Rogue", "Knight"],
-  ["Rogue", "Mage", "Mage"],
-  ["Mage", "Rogue", null],
-  ["Mage", "Mage", "Barbarian"],
-  ["Mage", "Knight", "Knight"],
-  ["Knight", "Rogue", null],
-  ["Knight", "Knight", "Mage"],
-  ["Knight", "Barbarian", "Barbarian"],
-  ["Barbarian", "Rogue", "Rogue"],
-  ["Barbarian", "Knight", "Knight"],
-  ["Barbarian", "Mage", "Mage"],
-  ["Rogue", "Barbarian", "Barbarian"],
-  ["Mage", "Rogue", "Rogue"],
-  ["Knight", "Mage", null],
-  ["Barbarian", "Rogue", null],
+const BASE_SKIN = "#ffc8b6";
+type Family = "cardigan" | "vest" | "blazer" | "explorer";
+const tops: Record<
+  Family,
+  { jacket: boolean; paint: (primary: T.Color) => Record<string, T.Color> }
+> = {
+  cardigan: {
+    jacket: true,
+    paint: (primary) => ({
+      jacket: primary,
+      shirt: new T.Color("#e6fbff"),
+      trim: new T.Color("#fbd6a6"),
+    }),
+  },
+  vest: {
+    jacket: false,
+    paint: (primary) => ({ shirt: primary, trim: new T.Color("#ffffff") }),
+  },
+  blazer: {
+    jacket: true,
+    paint: (primary) => ({
+      jacket: primary.clone().lerp(new T.Color("#1f2a44"), 0.7),
+      shirt: new T.Color("#ffffff"),
+      trim: primary,
+    }),
+  },
+  explorer: {
+    jacket: true,
+    paint: (primary) => ({
+      jacket: primary.clone().lerp(new T.Color("#8a6a45"), 0.55),
+      shirt: new T.Color("#f3e6c8"),
+      trim: new T.Color("#6b4a2f"),
+    }),
+  },
+};
+const bottoms: Record<
+  Family,
+  { part: string; color: string; socks: string; shoes: string | null }
+> = {
+  // The girl wears the source skirt; the boy wears shorts in its place.
+  cardigan: { part: "Skirt", color: "#98c2ef", socks: "#1c1c22", shoes: null },
+  vest: {
+    part: "Shorts",
+    color: "#3d4f8f",
+    socks: "#ffffff",
+    shoes: "#ffffff",
+  },
+  blazer: {
+    part: "Trousers",
+    color: "#5b6270",
+    socks: "#1c1c22",
+    shoes: "#2b2b33",
+  },
+  explorer: {
+    part: "Trousers",
+    color: "#b89b6a",
+    socks: "#6b4a2f",
+    shoes: "#6b4a2f",
+  },
+};
+// [top, bottoms, cape]. Order matches clothingNames.
+const bodySets: [Family, Family, boolean][] = [
+  ["cardigan", "cardigan", false],
+  ["cardigan", "cardigan", true],
+  ["vest", "vest", false],
+  ["vest", "vest", true],
+  ["blazer", "blazer", false],
+  ["blazer", "blazer", true],
+  ["explorer", "explorer", false],
+  ["explorer", "explorer", true],
+  ["cardigan", "blazer", false],
+  ["cardigan", "cardigan", true],
+  ["cardigan", "vest", true],
+  ["vest", "cardigan", false],
+  ["vest", "vest", true],
+  ["vest", "blazer", true],
+  ["blazer", "cardigan", false],
+  ["blazer", "blazer", true],
+  ["blazer", "explorer", true],
+  ["explorer", "cardigan", true],
+  ["explorer", "blazer", true],
+  ["explorer", "vest", true],
+  ["cardigan", "explorer", true],
+  ["vest", "cardigan", true],
+  ["blazer", "vest", false],
+  ["explorer", "cardigan", false],
 ];
-const legendaryBodies: [Who, Who, Who | null][] = [
-  ["Knight", "Knight", "Knight"],
-  ["Mage", "Mage", "Mage"],
-  ["Knight", "Rogue", "Barbarian"],
-  ["Mage", "Rogue", "Mage"],
-  ["Knight", "Knight", null],
-  ["Knight", "Knight", "Knight"],
-  ["Mage", "Mage", "Rogue"],
-  ["Barbarian", "Knight", "Barbarian"],
-  ["Knight", "Mage", "Mage"],
-  ["Rogue", "Mage", "Rogue"],
+const legendaryBodies: [Family, Family, boolean][] = [
+  ["blazer", "blazer", true],
+  ["vest", "vest", true],
+  ["blazer", "cardigan", true],
+  ["vest", "cardigan", true],
+  ["blazer", "blazer", false],
+  ["blazer", "blazer", true],
+  ["vest", "vest", true],
+  ["explorer", "blazer", true],
+  ["blazer", "vest", true],
+  ["cardigan", "vest", true],
+  ["cardigan", "cardigan", false],
+  ["vest", "explorer", false],
+  ["cardigan", "blazer", false],
+  ["vest", "cardigan", true],
+  ["vest", "vest", false],
+  ["cardigan", "explorer", false],
 ];
-// [head mesh, model headwear, procedural gear]. Order matches hairNames.
+const hairParts = {
+  short: ["HairShort"],
+  bob: ["Hair"],
+  buns: ["Hair", "Buns", "Beads"],
+};
+const hairLooks: Record<
+  string,
+  { style: keyof typeof hairParts; color: string; beard?: true; hood?: true }
+> = {
+  slate: { style: "short", color: "#4a6274" },
+  brown: { style: "bob", color: "#7a4a3a" },
+  midnight: { style: "buns", color: "#2f2a45" },
+  grey: { style: "short", color: "#9aa3ab", beard: true },
+  hood: { style: "short", color: "#4a6274", hood: true },
+  pink: { style: "buns", color: "#fd7ba6" },
+  blonde: { style: "bob", color: "#f2cf7a" },
+  mint: { style: "buns", color: "#8fdcc4" },
+};
+// [hair, model headwear, procedural gear]. Order matches hairNames.
 const headSets: [string, string | null, Gear | null][] = [
-  ["Rogue_Head", null, null],
-  ["Mage_Head", null, null],
-  ["Knight_Head", null, null],
-  ["Barbarian_Head", null, null],
-  ["Rogue_Head_Hooded", null, null],
-  ["Mage_Head", "Mage_Hat", null],
-  ["Knight_Head", "Knight_Helmet", null],
-  ["Barbarian_Head", "Barbarian_Hat", null],
-  ["Rogue_Head", "Mage_Hat", null],
-  ["Barbarian_Head", "Knight_Helmet", null],
-  ["Rogue_Head", "Barbarian_Hat", null],
-  ["Rogue_Head", null, "cat"],
-  ["Mage_Head", null, "bunny"],
-  ["Knight_Head", null, "fox"],
-  ["Rogue_Head", null, "flowers"],
-  ["Knight_Head", null, "party"],
-  ["Mage_Head", null, "beanie"],
-  ["Barbarian_Head", null, "chef"],
-  ["Mage_Head", null, "grad"],
-  ["Knight_Head", null, "headphones"],
-  ["Rogue_Head", null, "propeller"],
-  ["Barbarian_Head", null, "viking"],
-  ["Mage_Head", null, "tiara"],
-  ["Rogue_Head", null, "mushroom"],
-  ["Knight_Head", null, "antlers"],
-  ["Barbarian_Head", null, "bandana"],
-  ["Knight_Head", null, "straw"],
-  ["Rogue_Head", null, "bow"],
+  ["slate", null, null],
+  ["brown", null, null],
+  ["midnight", null, null],
+  ["grey", null, null],
+  ["hood", null, null],
+  ["brown", "Hat_Wizard", null],
+  ["midnight", "Hat_Knight", null],
+  ["grey", "Hat_Bear", null],
+  ["slate", "Hat_Wizard", null],
+  ["grey", "Hat_Knight", null],
+  ["slate", "Hat_Bear", null],
+  ["slate", null, "cat"],
+  ["brown", null, "bunny"],
+  ["midnight", null, "fox"],
+  ["slate", null, "flowers"],
+  ["midnight", null, "party"],
+  ["brown", null, "beanie"],
+  ["grey", null, "chef"],
+  ["brown", null, "grad"],
+  ["midnight", null, "headphones"],
+  ["slate", null, "propeller"],
+  ["grey", null, "viking"],
+  ["brown", null, "tiara"],
+  ["slate", null, "mushroom"],
+  ["midnight", null, "antlers"],
+  ["grey", null, "bandana"],
+  ["midnight", null, "straw"],
+  ["slate", null, "bow"],
 ];
-const headwear = ["Mage_Hat", "Knight_Helmet", "Barbarian_Hat"];
-// The 512px atlas packs 8 x 4 palette swatches into the upper half, painted
-// skin at lower left, and immutable eye artwork at lower right.
-const tintCache = new Map<string, T.Texture>();
-function releaseTint(texture: T.Texture | null) {
-  if (!texture?.userData.tintKey) return;
-  if (--texture.userData.users > 0) return;
-  tintCache.delete(texture.userData.tintKey);
-  texture.dispose();
-}
-function tintedTexture(src: T.Texture, skin: string, outfit: string) {
-  const key = `${src.uuid}|${skin}|${outfit}`;
-  const hit = tintCache.get(key);
-  if (hit) return hit;
-  const img = src.image as CanvasImageSource & {
-    width: number;
-    height: number;
-  };
-  if (typeof document === "undefined" || !img?.width) return src;
-  const canvas = document.createElement("canvas");
-  // Facial paint must retain its authored resolution through every saved look.
-  canvas.width = img.width;
-  canvas.height = img.height;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
-  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-  const cw = canvas.width / 8,
-    ch = canvas.height / 8;
-  const paint = (col: number, row: number, hex: string, shade = 1) => {
-    const target = new T.Color(hex).convertLinearToSRGB();
-    const want = [target.r, target.g, target.b].map((v) => v * 255 * shade);
-    const data = ctx.getImageData(col * cw, row * ch, cw, ch);
-    const px = data.data;
-    // Keep each swatch's light-to-dark gradient but take the hue from the target.
-    const lum = (i: number) =>
-      0.3 * px[i] + 0.59 * px[i + 1] + 0.11 * px[i + 2];
-    let mean = 0;
-    for (let i = 0; i < px.length; i += 4) mean += lum(i);
-    mean = Math.max(1, mean / (px.length / 4));
-    for (let i = 0; i < px.length; i += 4) {
-      const k = lum(i) / mean;
-      for (let c = 0; c < 3; c++) px[i + c] = Math.min(255, want[c] * k);
-    }
-    ctx.putImageData(data, col * cw, row * ch);
-  };
-  paint(0, 0, skin);
-  paint(0, 1, outfit);
-  paint(1, 1, outfit, 0.82);
-  // Scale the painted skin from its neutral base. This retains blush and soft
-  // cheek shading without changing the eyes, lashes, mouth or hair palette.
-  const face = ctx.getImageData(
-    0,
-    canvas.height / 2,
-    canvas.width / 2,
-    canvas.height / 2,
-  );
-  const target = new T.Color(skin).convertLinearToSRGB();
-  const ratios = [
-    (target.r * 255) / 247,
-    (target.g * 255) / 217,
-    (target.b * 255) / 198,
-  ];
-  for (let i = 0; i < face.data.length; i += 4)
-    for (let channel = 0; channel < 3; channel++)
-      face.data[i + channel] = Math.min(
-        255,
-        face.data[i + channel] * ratios[channel],
-      );
-  ctx.putImageData(face, 0, canvas.height / 2);
-  const tex = new T.CanvasTexture(canvas);
-  tex.flipY = src.flipY;
-  tex.colorSpace = src.colorSpace;
-  tex.magFilter = src.magFilter;
-  tex.minFilter = src.minFilter;
-  tex.wrapS = src.wrapS;
-  tex.wrapT = src.wrapT;
-  tex.userData.tintKey = key;
-  tex.userData.users = 0;
-  tintCache.set(key, tex);
-  return tex;
-}
+// Later single headwear, in the order of its names in appearance.ts.
+const laterHeads: [string, string | null, Gear | null][] = [
+  ["pink", null, null],
+  ["brown", null, "headband"],
+  ["slate", null, "cap"],
+  ["blonde", null, null],
+  ["midnight", null, "frog"],
+  ["brown", null, "beret"],
+  ["mint", null, null],
+  ["slate", null, "astronaut"],
+  ["midnight", null, "unicorn"],
+];
+// Sets take their hair from these four in turn.
+const setHair = ["slate", "brown", "midnight", "pink"];
+const alwaysShown = [
+  "Skin_Top",
+  "Skin_Legs",
+  "Head",
+  "Lashes",
+  "Shirt",
+  "Trim",
+  "Socks",
+];
 const unitBall = new T.SphereGeometry(1, 12, 8);
 const stepGeometry = new T.BoxGeometry(0.78, 0.38, 0.64);
 const mats = new Map<string, T.MeshStandardMaterial>();
@@ -287,13 +321,8 @@ export function createAvatar(
       const original = o.material as T.MeshStandardMaterial;
       let m = materials.get(original.name);
       if (!m) {
+        // Each avatar colours its own copies; the textures stay shared.
         m = original.clone();
-        m.userData.source = original.map;
-        m.addEventListener("dispose", () => {
-          releaseTint(m!.map);
-          m!.map = null;
-          m!.emissiveMap = null;
-        });
         materials.set(original.name, m);
       }
       o.material = m;
@@ -361,45 +390,64 @@ export function applyLook(
   skin = skins[look.skin],
 ) {
   const previous = a.look;
-  const special = legendarySets[(look.clothing ?? 0) - setStarts.clothing];
+  const outfitSet = setIndexFor("clothing", look.clothing ?? 0);
+  const headSet = setIndexFor("hair", look.hair ?? 0);
+  const special = legendarySets[outfitSet];
   if (special) color = special.color;
-  a.look = { clothing: 0, hair: 0, pet: 0, accessory: 0, ...look };
-  for (const m of a.materials.values())
-    if (m.userData.source) {
-      const next = tintedTexture(m.userData.source, skin, color);
-      if (m.map !== next) {
-        if (next.userData.tintKey) next.userData.users++;
-        releaseTint(m.map);
-        m.map = next;
-        // Both slots use the same atlas and share one tint-cache reference.
-        if (m.emissiveMap) m.emissiveMap = next;
-        m.needsUpdate = true;
-      }
-    }
+  a.look = { body: 0, clothing: 0, hair: 0, pet: 0, accessory: 0, ...look };
+  const boy = a.look.body === 1;
   const [top, legs, cape] = special
-    ? legendaryBodies[a.look.clothing! - setStarts.clothing]
+    ? legendaryBodies[outfitSet]
     : bodySets[a.look.clothing! % bodySets.length];
-  const headIndex =
-    a.look.hair! >= setStarts.hair
-      ? (a.look.hair! - setStarts.hair) % 4
-      : a.look.hair!;
-  const [head, wear, gear] = headSets[headIndex % headSets.length];
+  const [hairName, wear, gear] =
+    laterHeads[extraIndexFor("hair", a.look.hair!)] ??
+    (headSet < 0
+      ? headSets[a.look.hair! % headSets.length]
+      : [setHair[headSet % setHair.length], null, null]);
+  const hair = hairLooks[hairName];
+  const below = bottoms[legs];
+  const shown = new Set([
+    ...alwaysShown,
+    ...hairParts[hair.style],
+    boy ? "EyesB" : "Eyes",
+    boy && below.part === "Skirt" ? "Shorts" : below.part,
+  ]);
+  if (tops[top].jacket) shown.add("Jacket");
+  if (cape) shown.add("Cape");
+  if (below.shoes) shown.add("Shoes");
+  if (wear && !look.hat) shown.add(wear);
   a.model.traverse((o) => {
-    if (!(o instanceof T.Mesh)) return;
-    const [who, part] = [
-      o.name.split("_")[0],
-      o.name.slice(o.name.indexOf("_") + 1),
-    ];
-    if (["Body", "ArmLeft", "ArmRight"].includes(part)) o.visible = who === top;
-    else if (["LegLeft", "LegRight"].includes(part)) o.visible = who === legs;
-    else if (part === "Cape") o.visible = who === cape;
-    else if (headwear.includes(o.name))
-      o.visible = o.name === wear && !look.hat;
-    else if (o.name.includes("Head")) o.visible = o.name === head;
+    if (o instanceof T.Mesh) o.visible = shown.has(o.name);
   });
+  const primary = new T.Color(color);
+  const tone = new T.Color(skin),
+    base = new T.Color(BASE_SKIN);
+  const paint: Record<string, T.Color> = {
+    skin: tone,
+    // The face texture is painted in the source skin tone; scale it to this one.
+    face: new T.Color(tone.r / base.r, tone.g / base.g, tone.b / base.b),
+    hair: new T.Color(hair.color),
+    bottom: new T.Color(below.color),
+    socks: new T.Color(below.socks),
+    shoes: new T.Color(below.shoes ?? "#ffffff"),
+    cape: primary.clone().multiplyScalar(0.7),
+    ...tops[top].paint(primary),
+  };
+  if (special) {
+    // Sets wear their two signature colours from collar to hem.
+    const accent = new T.Color(special.accent);
+    paint.shirt = accent.clone().lerp(new T.Color("#ffffff"), 0.45);
+    paint.trim = accent;
+    paint.jacket = primary;
+    paint.cape = accent;
+    paint.bottom = primary.clone().lerp(new T.Color("#20243a"), 0.45);
+  }
+  for (const [name, value] of Object.entries(paint))
+    a.materials.get(name)?.color.copy(value);
   a.costume.clear();
-  if (special)
-    legendaryBody(a.costume, (look.clothing ?? 0) - setStarts.clothing);
+  // Set trim was sized for a broader chest; draw it in to this one.
+  a.costume.scale.setScalar(0.82);
+  if (special) legendaryBody(a.costume, outfitSet);
   a.hat.clear();
   if (look.hat === 1) {
     ellipsoid(a.hat, [0, 1.83, 0], [0.24, 0.12, 0.22], "#e7a769");
@@ -429,9 +477,10 @@ export function applyLook(
     part.scale.z *= 1.85;
     part.scale.y *= 1.25;
   }
+  if (hair.beard) buildBeard(a.hat, hair.color);
+  if (hair.hood && !look.hat) buildHood(a.hat);
   // Wardrobe headgear sits under an earned hat's slot: the earned hat wins.
-  if ((look.hair ?? 0) >= setStarts.hair && !look.hat)
-    legendaryHead(a.hat, (look.hair ?? 0) - setStarts.hair);
+  if (headSet >= 0 && !look.hat) legendaryHead(a.hat, headSet);
   else if (gear && !look.hat) buildHeadgear(a.hat, gear);
   if (previous.accessory !== a.look.accessory || !a.magic) {
     disposeMagic(a.magic);
@@ -887,16 +936,17 @@ export function createCharacterPreview(
       renderer.setPixelRatio(1);
       renderer.setSize(240, 220, false);
       camera.aspect = 240 / 220;
-      camera.position.set(
-        slot === "pet" ? 0.85 : 0.25,
-        slot === "hair" ? 1.7 : slot === "pet" ? 0.8 : 1.5,
-        slot === "hair" ? 2.8 : slot === "pet" ? 2.8 : 5.2,
-      );
-      camera.lookAt(
-        slot === "pet" ? 0.85 : 0.25,
-        slot === "hair" ? 1.65 : slot === "pet" ? 0.5 : 1.15,
-        0,
-      );
+      // [x, camera height, distance, target height] for each kind of card.
+      const [x, y, z, aim] =
+        slot === "hair"
+          ? [0, 1.75, 3.1, 1.68]
+          : slot === "pet"
+            ? [0.85, 0.8, 2.8, 0.5]
+            : slot === "clothing"
+              ? [0, 1.35, 4, 1.02]
+              : [0.25, 1.5, 5.2, 1.15];
+      camera.position.set(x, y, z);
+      camera.lookAt(x, aim, 0);
       camera.updateProjectionMatrix();
       applyLook(a, itemLook);
       a.root.rotation.y = 0.15;

@@ -19,6 +19,7 @@ import {
   type Input,
   type Replay,
 } from "../shared/simulation.ts";
+import { fresh } from "../src/state.ts";
 const DAY = 86400000;
 const consent = {
   month: 1,
@@ -731,8 +732,9 @@ test("nickname and appearance edits validate before writing and never award rank
       accessory: 999,
     });
     assert.equal(Object.hasOwn(invalid.progress, "gender"), false);
+    // Invalid values leave the starting look in place.
     for (const key of ["clothing", "hair", "pet", "accessory"])
-      assert.equal(invalid.progress[key], 0);
+      assert.equal(invalid.progress[key], fresh()[key]);
   } finally {
     s.close();
   }
