@@ -1,17 +1,16 @@
 // Local-only art inspection server. This configuration is never used by builds.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+const port = Number(process.env.ART_REVIEW_PORT || 5176);
+const origin = `http://127.0.0.1:${port}`;
 export default {
-  server: { host: "127.0.0.1", port: 5176, strictPort: true },
+  server: { host: "127.0.0.1", port, strictPort: true },
   plugins: [
     {
       name: "local-art-evidence",
       configureServer(server) {
         server.middlewares.use("/__art-thumbnails", async (req, res) => {
-          if (
-            req.method !== "POST" ||
-            req.headers.origin !== "http://127.0.0.1:5176"
-          ) {
+          if (req.method !== "POST" || req.headers.origin !== origin) {
             res.statusCode = 403;
             res.end();
             return;
@@ -50,8 +49,7 @@ export default {
         server.middlewares.use("/__art-evidence", async (req, res) => {
           if (
             req.method !== "POST" ||
-            (req.headers.origin &&
-              req.headers.origin !== "http://127.0.0.1:5176")
+            (req.headers.origin && req.headers.origin !== origin)
           ) {
             res.statusCode = 403;
             res.end();

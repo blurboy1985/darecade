@@ -37,6 +37,38 @@ const read = (id: number, row: number, col: number) => {
   return a.normalized ? raw / (size === 2 ? 65535 : 255) : raw;
 };
 
+test("every exported face retains rounded profile volume independently of hair", () => {
+  for (const name of [
+    "Rogue_Head",
+    "Rogue_Head_Hooded",
+    "Mage_Head",
+    "Knight_Head",
+    "Barbarian_Head",
+  ]) {
+    const p = gltf.meshes[node(name).mesh].primitives[0];
+    const positions = p.attributes.POSITION;
+    const uv = p.attributes.TEXCOORD_0;
+    const points: number[][] = [];
+    for (let i = 0; i < gltf.accessors[positions].count; i++) {
+      // glTF flips Blender's V coordinate: only the skin-paint rectangle.
+      // Exclude hair, ears, sclera and irises so a large hat cannot hide a flat skull.
+      if (read(uv, i, 0) < 0.5 && read(uv, i, 1) > 0.5)
+        points.push([read(positions, i, 0), read(positions, i, 2)]);
+    }
+    assert.ok(points.length > 500, `${name}: continuous skin surface`);
+    const width =
+      Math.max(...points.map((p) => p[0])) -
+      Math.min(...points.map((p) => p[0]));
+    const depth =
+      Math.max(...points.map((p) => p[1])) -
+      Math.min(...points.map((p) => p[1]));
+    assert.ok(
+      depth / width >= 0.75 && depth / width <= 1.05,
+      `${name}: readable rounded side silhouette (${depth / width})`,
+    );
+  }
+});
+
 test("original chibi character fits the download budget and has one shared rig", (t) => {
   assert.equal(file.toString("utf8", 0, 4), "glTF");
   assert.ok(file.length < 1_500_000, "Character download budget: 1.5MB");
