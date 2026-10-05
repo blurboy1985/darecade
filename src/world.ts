@@ -427,6 +427,7 @@ export class LobbyWorld {
     );
     playerRing.rotation.x = -Math.PI / 2;
     playerRing.name = "PlayerGroundRing";
+    playerRing.userData.avatarDecoration = true;
     playerRing.position.y = 0.05;
     this.player.root.add(playerRing);
     const youCanvas = document.createElement("canvas");
@@ -446,6 +447,7 @@ export class LobbyWorld {
       new T.SpriteMaterial({ map: youTex, depthTest: false }),
     );
     youLabel.position.y = 2.35;
+    youLabel.userData.avatarDecoration = true;
     youLabel.scale.set(0.9, 0.45, 1);
     this.player.root.add(youLabel);
     this.obstacle(-2, 10, 3.2, 1.4);
@@ -1307,22 +1309,6 @@ export class LobbyWorld {
     for (const [id, item] of this.sharedPlayers)
       if (!ids.has(id)) {
         disposeAvatar(item.avatar);
-        const disposeMesh = (object: T.Object3D) => {
-          if (object instanceof T.Mesh) {
-            object.geometry.dispose();
-            const materials = Array.isArray(object.material)
-              ? object.material
-              : [object.material];
-            for (const material of materials) {
-              if (material instanceof T.MeshBasicMaterial)
-                material.map?.dispose();
-              material.dispose();
-            }
-          }
-        };
-        item.simple.traverse(disposeMesh);
-        for (const child of item.avatar.root.children)
-          if (child.userData.playerLabel) disposeMesh(child);
         this.targets = this.targets.filter(
           (target) => target.id !== `player:${id}`,
         );
@@ -1361,6 +1347,7 @@ export class LobbyWorld {
           24,
         );
         label.userData.playerLabel = true;
+        label.userData.avatarDecoration = true;
         const simple = new T.Group();
         const body = new T.Mesh(
           new T.CylinderGeometry(0.24, 0.3, 0.9, 5),
@@ -1374,6 +1361,8 @@ export class LobbyWorld {
           new T.MeshBasicMaterial({ color: skins[p.look.skin] || skins[0] }),
         );
         head.position.y = 1.45;
+        body.userData.avatarDecoration = true;
+        head.userData.avatarDecoration = true;
         simple.add(body, head);
         simple.visible = false;
         a.root.add(simple);
@@ -2428,10 +2417,15 @@ export class LobbyWorld {
     window.removeEventListener("keyup", this.keyUp);
     window.removeEventListener("blur", this.clearKeys);
     document.removeEventListener("visibilitychange", this.visibility);
-    for (const object of this.root.children) {
+    // Remote labels and reduced-detail meshes belong to this world, while the
+    // avatar's shared geometry remains available to the next lobby or preview.
+    this.syncPlayers([], "");
+    const avatars = new Set<Avatar>([this.player]);
+    this.root.traverse((object) => {
       const a = object.userData.avatar as Avatar | undefined;
-      a?.materials.forEach((m) => m.dispose());
-    }
+      if (a) avatars.add(a);
+    });
+    avatars.forEach(disposeAvatar);
     this.renderer.dispose();
   }
 }

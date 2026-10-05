@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  /><title>Play Simi character art review</title>
+  <style>
+    body {
+      margin: 0;
+      background: #f3f0e8;
+      color: #243c45;
+      font: 14px system-ui;
+    }
+    header {
+      padding: 12px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    h1 {
+      font-size: 17px;
+      margin: 0;
+    }
+    button,
+    select {
+      padding: 7px;
+      border: 1px solid #bbc4b1;
+      border-radius: 6px;
+      background: #fff;
+      color: inherit;
+    }
+    main {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      height: 690px;
+    }
+    #world {
+      position: relative;
+      min-width: 0;
+    }
+    #fitting {
+      background: linear-gradient(#eff2ee, #d9e7d9);
+      height: 400px;
+    }
+    aside {
+      padding: 10px;
+    }
+    #report {
+      font-size: 11px;
+      white-space: pre-wrap;
+      max-height: 240px;
+      overflow: auto;
+    }
+    #label {
+      font-size: 18px;
+      font-weight: 650;
+    }
+    canvas {
+      display: block;
+    }
+    @media (max-width: 650px) {
+      main {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+      #world {
+        height: 440px;
+      }
+      aside {
+        height: 660px;
+      }
+      #fitting {
+        height: 340px;
+      }
+    }
+  </style>
+  <header>
+    <h1>Play Simi • original character art review</h1>
+    <select id="look" aria-label="Look">
+      <option value="0">Neighbourhood ranger</option>
+      <option value="1">Star-robed mage</option>
+      <option value="2">Compact knight</option>
+      <option value="3">Cosy explorer</option>
+      <option value="4">Hood and mixed armour</option>
+      <option value="5">Legendary set</option></select
+    ><button id="camera">Third-person</button
+    ><button id="reduced">Reduced motion</button
+    ><button id="crowd">24 remote fixtures</button
+    ><button id="clear">Remove remotes</button
+    ><button id="verify">Verify all cosmetics</button
+    ><button id="thumbnails">Export wardrobe thumbnails</button>
+  </header>
+  <main>
+    <div id="world"></div>
+    <aside>
+      <p id="label">Loading character…</p>
+      <div id="fitting"></div>
+      <pre id="report">Loading…</pre>
+    </aside>
+  </main>
+  <script type="module" src="./art-review.ts"></script>
+</html>

@@ -2,7 +2,11 @@ import { legendarySets, setStarts } from "./collections.ts";
 // Companion pets. Every pet is built from simple primitives so they share the
 // soft, toy-like look of the neighbourhood. Index 0 means "no companion".
 import * as T from "three";
-import { ball, node, part } from "./shapes.ts";
+import {
+  mergeGeometries,
+  mergeVertices,
+} from "three/addons/utils/BufferGeometryUtils.js";
+import { ball, material, node, part } from "./shapes.ts";
 
 export type PetMotion = "walk" | "hop" | "float" | "waddle" | "bounce" | "swim";
 export type Pet = {
@@ -28,6 +32,268 @@ type Quad = {
   tail?: "short" | "fluffy" | "thin" | "none";
   tailColor?: string;
 };
+
+// Original neighbourhood familiars. The editable recipe stays here; a single
+// vertex-colour mesh is cached for each articulated part, shared by all players.
+// These process-lifetime geometries and materials must not be disposed on a swap.
+const familiarShapes = {
+  round: new T.SphereGeometry(1, 10, 7),
+  flat: new T.SphereGeometry(1, 8, 6),
+  ear: new T.ConeGeometry(1, 1, 3),
+  gem: new T.OctahedronGeometry(1),
+};
+const familiarMaterial = new T.MeshStandardMaterial({
+  vertexColors: true,
+  roughness: 0.78,
+});
+const familiarParts = new Map<string, T.BufferGeometry>();
+
+function familiarPart(
+  parent: T.Object3D,
+  shape: keyof typeof familiarShapes,
+  p: number[],
+  s: number[],
+  color: string,
+  rotation?: number[],
+) {
+  const mesh = new T.Mesh(familiarShapes[shape], material(color));
+  mesh.position.set(p[0], p[1], p[2]);
+  mesh.scale.set(s[0], s[1], s[2]);
+  if (rotation) mesh.rotation.set(rotation[0], rotation[1], rotation[2]);
+  mesh.castShadow = true;
+  parent.add(mesh);
+  return mesh;
+}
+
+function bakeFamiliar(group: T.Group, key: string) {
+  const groups = group.children.filter((child) => child instanceof T.Group);
+  groups.forEach((child, i) => bakeFamiliar(child, `${key}/${i}`));
+  const meshes = group.children.filter(
+    (child): child is T.Mesh<T.BufferGeometry, T.MeshStandardMaterial> =>
+      child instanceof T.Mesh &&
+      child.material instanceof T.MeshStandardMaterial,
+  );
+  if (!meshes.length) return;
+  let geometry = familiarParts.get(key);
+  if (!geometry) {
+    const pieces = meshes.map((mesh) => {
+      mesh.updateMatrix();
+      const piece = mesh.geometry.index
+        ? mesh.geometry.toNonIndexed()
+        : mesh.geometry.clone();
+      piece.applyMatrix4(mesh.matrix);
+      const count = piece.getAttribute("position").count;
+      const colors = new Float32Array(count * 3);
+      const color = mesh.material.color;
+      for (let i = 0; i < count; i++)
+        colors.set([color.r, color.g, color.b], i * 3);
+      piece.setAttribute("color", new T.BufferAttribute(colors, 3));
+      return piece;
+    });
+    const merged = mergeGeometries(pieces);
+    pieces.forEach((piece) => piece.dispose());
+    if (!merged)
+      throw new Error("Familiar parts must share geometry attributes");
+    geometry = mergeVertices(merged);
+    merged.dispose();
+    familiarParts.set(key, geometry);
+  }
+  for (const mesh of meshes) {
+    mesh.removeFromParent();
+  }
+  const baked = new T.Mesh(geometry, familiarMaterial);
+  baked.name = "FamiliarPart";
+  baked.castShadow = true;
+  baked.userData.sharedCompanionGeometry = true;
+  group.add(baked);
+}
+
+function familiarFace(body: T.Group, y: number, z: number, spread = 0.09) {
+  for (const side of [-1, 1]) {
+    familiarPart(
+      body,
+      "flat",
+      [side * spread, y, z],
+      [0.033, 0.046, 0.015],
+      "#302d46",
+    );
+    familiarPart(
+      body,
+      "flat",
+      [side * spread - 0.009, y + 0.017, z + 0.012],
+      [0.011, 0.014, 0.007],
+      "#fff9ed",
+    );
+    familiarPart(
+      body,
+      "flat",
+      [side * (spread + 0.052), y - 0.049, z - 0.008],
+      [0.035, 0.014, 0.01],
+      "#eaa7ae",
+    );
+    familiarPart(
+      body,
+      "flat",
+      [side * 0.017, y - 0.076, z + 0.012],
+      [0.02, 0.011, 0.008],
+      "#685166",
+      [0, 0, -side * 0.3],
+    );
+  }
+  familiarPart(
+    body,
+    "ear",
+    [0, y - 0.054, z + 0.027],
+    [0.023, 0.025, 0.016],
+    "#ab7183",
+    [Math.PI, 0, 0],
+  );
+}
+
+function familiarAnimal(pet: Pet, rabbit: boolean) {
+  const b = pet.body;
+  const coat = rabbit ? "#f8e0d2" : "#c7b0cf";
+  const cream = "#fff2dc";
+  familiarPart(b, "round", [0, 0.28, -0.025], [0.18, 0.19, 0.25], coat);
+  familiarPart(b, "round", [0, 0.48, 0.19], [0.235, 0.205, 0.205], coat);
+  familiarPart(b, "flat", [0, 0.265, 0.18], [0.11, 0.14, 0.045], cream);
+  familiarPart(b, "flat", [0, 0.43, 0.35], [0.13, 0.076, 0.056], cream);
+  familiarFace(b, 0.51, 0.371);
+  for (const side of [-1, 1]) {
+    const ear = node(b, [side * 0.145, 0.625, 0.13], "FamiliarEar");
+    ear.rotation.z = -side * (rabbit ? 0.12 : 0.27);
+    if (rabbit) {
+      familiarPart(ear, "round", [0, 0.13, 0], [0.065, 0.19, 0.057], coat);
+      familiarPart(
+        ear,
+        "flat",
+        [0, 0.135, 0.047],
+        [0.033, 0.135, 0.015],
+        "#eaa7ae",
+      );
+      pet.sway.push(ear);
+    } else {
+      familiarPart(ear, "ear", [0, 0.055, 0], [0.11, 0.19, 0.075], coat);
+      familiarPart(
+        ear,
+        "ear",
+        [0, 0.065, 0.039],
+        [0.059, 0.105, 0.012],
+        "#eaa7ae",
+      );
+    }
+  }
+  // A small jade scarf for Mochi and a peach bow for Peaches tie the pets to
+  // the neighbourhood palette without copying a reference character.
+  const trim = rabbit ? "#eaa0a2" : "#76bcae";
+  familiarPart(b, "flat", [0, 0.345, 0.255], [0.15, 0.038, 0.05], trim);
+  for (const side of [-1, 1])
+    familiarPart(
+      b,
+      "gem",
+      [side * 0.05, 0.35, 0.307],
+      [0.055, 0.035, 0.023],
+      trim,
+    );
+  familiarPart(b, "gem", [0, 0.346, 0.329], [0.024, 0.029, 0.012], "#fff1b3");
+  for (const x of [-0.115, 0.115])
+    for (const z of [-0.15, 0.14]) {
+      const paw = node(b, [x, 0.16, z], "FamiliarPaw");
+      familiarPart(
+        paw,
+        "round",
+        [0, -0.055, 0.02],
+        [0.067, 0.105, 0.075],
+        coat,
+      );
+      familiarPart(paw, "flat", [0, -0.11, 0.04], [0.062, 0.042, 0.064], cream);
+      pet.legs.push(paw);
+    }
+  pet.tail.position.set(0, 0.29, -0.24);
+  if (rabbit) {
+    familiarPart(
+      pet.tail,
+      "round",
+      [0, 0.02, -0.04],
+      [0.088, 0.085, 0.08],
+      cream,
+    );
+  } else {
+    familiarPart(
+      pet.tail,
+      "round",
+      [0, 0.08, -0.09],
+      [0.048, 0.19, 0.055],
+      coat,
+      [-0.7, 0, 0],
+    );
+    familiarPart(
+      pet.tail,
+      "round",
+      [0, 0.2, -0.2],
+      [0.057, 0.07, 0.055],
+      cream,
+    );
+  }
+}
+
+function merlionFamiliar(pet: Pet) {
+  const b = pet.body;
+  // Original floating lion-fish familiar, with an orchid-like scalloped mane.
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2;
+    familiarPart(
+      b,
+      "round",
+      [Math.cos(angle) * 0.19, 0.54 + Math.sin(angle) * 0.19, 0.01],
+      [0.094, 0.103, 0.077],
+      i % 2 ? "#e3b665" : "#f3cc82",
+    );
+  }
+  familiarPart(b, "round", [0, 0.535, 0.095], [0.214, 0.205, 0.174], "#fff1d8");
+  familiarPart(b, "flat", [0, 0.47, 0.246], [0.119, 0.081, 0.046], "#fff9ec");
+  familiarFace(b, 0.565, 0.263, 0.083);
+  for (const side of [-1, 1])
+    familiarPart(
+      b,
+      "round",
+      [side * 0.147, 0.71, 0.085],
+      [0.063, 0.064, 0.045],
+      "#fff1d8",
+    );
+  familiarPart(b, "round", [0, 0.3, -0.005], [0.177, 0.196, 0.18], "#7ecbc8");
+  familiarPart(b, "flat", [0, 0.295, 0.149], [0.115, 0.132, 0.035], "#d9f1dd");
+  for (let i = 0; i < 3; i++)
+    familiarPart(
+      b,
+      "gem",
+      [0, 0.36 - i * 0.062, 0.182],
+      [0.071 - i * 0.012, 0.033, 0.014],
+      "#f5dc94",
+    );
+  familiarPart(b, "round", [0, 0.225, -0.178], [0.125, 0.113, 0.16], "#7ecbc8");
+  pet.tail.position.set(0, 0.2, -0.3);
+  for (const side of [-1, 1]) {
+    familiarPart(
+      pet.tail,
+      "flat",
+      [side * 0.087, 0.031, -0.075],
+      [0.114, 0.039, 0.09],
+      "#559eae",
+      [0, side * 0.35, side * 0.32],
+    );
+    const fin = node(b, [side * 0.151, 0.337, 0.018], "PetWing");
+    fin.userData.side = side;
+    familiarPart(
+      fin,
+      "flat",
+      [side * 0.052, -0.014, 0],
+      [0.086, 0.038, 0.08],
+      "#559eae",
+    );
+    pet.wings.push(fin);
+  }
+}
 
 function face(
   body: T.Object3D,
@@ -133,24 +399,11 @@ function bird(
 }
 
 const quads: Record<number, Quad> = {
-  1: {
-    color: "#b2a0bd",
-    ear: [0.075, 0.16, 0.06],
-    earColor: "#aa91b5",
-    earTilt: 0.7,
-    tail: "thin",
-  },
   2: {
     color: "#ca9a69",
     ear: [0.1, 0.2, 0.065],
     earColor: "#8b654c",
     earTilt: 0.7,
-  },
-  4: {
-    color: "#f0d5cd",
-    ear: [0.06, 0.26, 0.055],
-    earColor: "#e8b9b5",
-    tail: "short",
   },
   5: {
     color: "#df9457",
@@ -226,6 +479,12 @@ export function makePet(parent: T.Object3D, kind: number): Pet {
     kind,
   };
   const b = body;
+  if (kind === 1 || kind === 4 || kind === 24) {
+    if (kind === 24) merlionFamiliar(pet);
+    else familiarAnimal(pet, kind === 4);
+    bakeFamiliar(root, String(kind));
+    return pet;
+  }
   if (quads[kind]) quad(pet, quads[kind]);
   const special = legendarySets[kind - setStarts.pet];
   if (special) {
@@ -648,46 +907,6 @@ export function makePet(parent: T.Object3D, kind: number): Pet {
         pet.wings.push(arm);
       }
       ball(b, [0, 0.42, 0.185], [0.03, 0.035, 0.01], "#4a4060");
-      break;
-    }
-    case 24: {
-      // Merlion cub: lion head with a golden mane and a scaly fish tail.
-      ball(b, [0, 0.55, 0.06], [0.17, 0.16, 0.15], "#f1e7d6");
-      for (let i = 0; i < 12; i++) {
-        const a = (i / 12) * Math.PI * 2;
-        ball(
-          b,
-          [Math.cos(a) * 0.17, 0.55 + Math.sin(a) * 0.16, 0.0],
-          [0.07, 0.07, 0.06],
-          "#e2b250",
-        );
-      }
-      ball(b, [0, 0.5, 0.19], [0.08, 0.06, 0.05], "#fff6e8");
-      ball(b, [0, 0.53, 0.235], [0.025, 0.02, 0.015], "#7a4a3a");
-      face(b, 0.6, 0.2, 0.06, 0.025);
-      ball(b, [0, 0.35, 0], [0.15, 0.15, 0.14], "#cfe3ea");
-      for (let i = 0; i < 4; i++)
-        ball(
-          b,
-          [0, 0.32 - i * 0.02, -0.08 - i * 0.07],
-          [0.12 - i * 0.022, 0.1 - i * 0.015, 0.08],
-          i % 2 ? "#9fc6d6" : "#b9d8e4",
-        );
-      pet.tail.position.set(0, 0.22, -0.36);
-      for (const side of [-1, 1])
-        ball(
-          pet.tail,
-          [side * 0.07, 0.02, -0.04],
-          [0.09, 0.025, 0.06],
-          "#86b6ca",
-          { rot: [0, 0, side * 0.4] },
-        );
-      for (const side of [-1, 1]) {
-        const fin = node(b, [side * 0.15, 0.36, 0.04], "PetWing");
-        fin.userData.side = side;
-        ball(fin, [side * 0.05, -0.02, 0], [0.07, 0.03, 0.06], "#86b6ca");
-        pet.wings.push(fin);
-      }
       break;
     }
     case 25: {
