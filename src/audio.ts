@@ -1,10 +1,10 @@
 // Play Simi sound: original background music and sound effects, synthesised
 // live with the Web Audio API. No audio files, samples or licences needed.
 //
-// Music has three moods that cross-fade: "day" (mellow lo-fi city-pop),
-// "night" (soft pads and celesta) and "game" (bright chiptune for the arcade).
-// Coast Rush adds a fourth, "race": a driving surf tune that speeds up on the
-// final lap, plus a continuous engine, tyre and wind loop.
+// Day and night share a nostalgic heartland melody with plucked strings and
+// soft organ. Games use energetic anime-inspired synth pop; Coast Rush has
+// a faster companion theme that accelerates on the final lap. Themes change
+// at bar boundaries. The engine, tyre and wind loops remain separate.
 
 export type Sfx =
   | "click"
@@ -764,353 +764,324 @@ export function petSound(kind: number): Sfx {
 }
 
 // ---------------------------------------------------------------- music
+// Written eight-bar melodies give each place a recognisable hook. Nulls are
+// rests on an eighth-note grid; the second half answers the first half.
+type MelodyBar = readonly [
+  number | null,
+  number | null,
+  number | null,
+  number | null,
+  number | null,
+  number | null,
+  number | null,
+  number | null,
+];
 type Song = {
   bpm: number;
   swing: number;
-  chords: number[][];
-  scale: number[];
-  lead: "epiano" | "celesta" | "chip" | "surf";
-  drums: "lofi" | "soft" | "chip" | "race";
-  density: number;
+  chords: readonly (readonly [number, number, number, ...number[]])[];
+  melody: readonly MelodyBar[];
+  arrangement: "heartland" | "evening" | "anime" | "race";
 };
+const heartlandMelody: readonly MelodyBar[] = [
+  [72, null, 76, 79, 81, null, 79, 76],
+  [74, null, 72, 69, 72, null, null, null],
+  [69, 72, 74, null, 76, 74, 72, null],
+  [67, null, 69, 72, 74, null, null, null],
+  [76, null, 79, 81, 84, null, 81, 79],
+  [76, 74, 72, null, 69, null, 72, 74],
+  [77, null, 76, 74, 72, 69, 67, null],
+  [71, 74, 79, null, 72, null, null, null],
+];
 const songs: Record<Theme, Song> = {
+  // A small tribute to heartland evenings: plucked strings, rounded organ,
+  // pentatonic phrases and a gently lilting old-radio accompaniment.
   day: {
-    bpm: 86,
-    swing: 0.12,
+    bpm: 92,
+    swing: 0.16,
+    arrangement: "heartland",
     chords: [
+      [48, 52, 55, 59],
+      [45, 48, 52, 55],
       [53, 57, 60, 64],
-      [57, 60, 64, 67],
-      [58, 62, 65, 69],
-      [55, 60, 62, 65],
+      [43, 47, 50, 53],
+      [48, 52, 55, 59],
+      [45, 48, 52, 55],
       [50, 53, 57, 60],
-      [57, 60, 64, 67],
-      [58, 62, 65, 69],
-      [48, 55, 58, 64],
+      [43, 47, 50, 53],
     ],
-    scale: [65, 67, 69, 72, 74, 77, 79, 81],
-    lead: "epiano",
-    drums: "lofi",
-    density: 0.42,
+    melody: heartlandMelody,
   },
   night: {
-    bpm: 68,
-    swing: 0.08,
+    bpm: 76,
+    swing: 0.12,
+    arrangement: "evening",
     chords: [
-      [49, 53, 56, 60],
-      [46, 49, 53, 56],
-      [54, 58, 61, 65],
-      [44, 48, 51, 55],
+      [48, 52, 55, 59],
+      [45, 48, 52, 55],
+      [53, 57, 60, 64],
+      [43, 47, 50, 53],
+      [52, 55, 59, 62],
+      [45, 48, 52, 55],
+      [50, 53, 57, 60],
+      [43, 47, 50, 53],
     ],
-    scale: [73, 75, 77, 80, 82, 85, 87, 89],
-    lead: "celesta",
-    drums: "soft",
-    density: 0.3,
+    melody: heartlandMelody,
   },
+  // Original anime-opening-inspired pop: IV-V-iii-vi lift, answered hooks,
+  // octave bass, bright synth strings and a full backbeat.
   game: {
-    bpm: 132,
+    bpm: 160,
     swing: 0,
+    arrangement: "anime",
     chords: [
-      [57, 60, 64],
-      [53, 57, 60],
-      [48, 52, 55],
-      [55, 59, 62],
+      [53, 57, 60, 64],
+      [55, 59, 62, 65],
+      [52, 55, 59, 62],
+      [57, 60, 64, 67],
+      [53, 57, 60, 64],
+      [55, 59, 62, 65],
+      [48, 52, 55, 59],
+      [57, 60, 64, 67],
     ],
-    scale: [69, 72, 74, 76, 79, 81, 84],
-    lead: "chip",
-    drums: "chip",
-    density: 0.62,
+    melody: [
+      [77, 76, 72, 76, 79, null, 81, 79],
+      [79, 74, 77, 79, 83, null, 81, 79],
+      [76, 79, 83, null, 86, 83, 79, 76],
+      [81, null, 84, 83, 81, 76, 79, null],
+      [81, 79, 77, 76, 77, 81, 84, null],
+      [83, 81, 79, 77, 79, 83, 86, null],
+      [84, null, 79, 76, 79, 84, 83, 79],
+      [81, 79, 76, null, 72, 76, 79, 76],
+    ],
   },
   race: {
-    bpm: 148,
+    bpm: 172,
     swing: 0,
+    arrangement: "race",
     chords: [
+      [50, 53, 57],
+      [46, 50, 53],
+      [53, 57, 60],
       [48, 52, 55],
-      [53, 57, 60],
-      [55, 59, 62],
-      [53, 57, 60],
-      [45, 48, 52],
-      [53, 57, 60],
-      [55, 59, 62],
-      [55, 59, 62],
+      [46, 50, 53],
+      [48, 52, 55],
+      [50, 53, 57],
+      [45, 49, 52],
     ],
-    scale: [72, 74, 76, 79, 81, 84, 86],
-    lead: "surf",
-    drums: "race",
-    density: 0.68,
+    melody: [
+      [74, 77, 81, 77, 84, 81, 77, 81],
+      [82, null, 81, 77, 74, 77, 81, 82],
+      [81, 84, 89, null, 88, 84, 81, 77],
+      [79, 84, 88, 84, 91, null, 88, 84],
+      [86, 84, 82, 81, 82, null, 77, 74],
+      [84, 83, 79, 76, 79, 84, 88, null],
+      [86, 81, 77, 74, 77, 81, 86, 89],
+      [85, null, 81, 76, 73, 76, 81, 73],
+    ],
   },
 };
 let tempo = 1;
 let timer = 0,
   step = 0,
-  nextAt = 0,
-  phrase = 0,
-  melodyNote = 3;
+  nextAt = 0;
 
-function seeded(n: number) {
-  const v = Math.sin(n * 91.7 + phrase * 13.1) * 43758.5453;
-  return v - Math.floor(v);
-}
 function scheduleStep(s: Song, i: number, at: number, spb: number) {
   const out = musicBus;
   const bar = Math.floor(i / 16);
   const pos = i % 16;
   const chord = s.chords[bar % s.chords.length];
+  const energetic = s.arrangement === "anime" || s.arrangement === "race";
+  const evening = s.arrangement === "evening";
+  const race = s.arrangement === "race";
   const root = chord[0] - 12;
-  // Harmony
-  if (pos === 0) {
-    if (s.lead === "chip") {
-      // fast arpeggio handled per 16th below
-    } else if (s.lead === "surf") {
+
+  if (energetic) {
+    // Sustained strings under short guitar-like offbeat strums.
+    if (pos === 0)
       chord.forEach((n) =>
         tone({
           type: "sawtooth",
           f: midi(n),
           at,
           dur: spb * 15,
-          vol: 0.008,
-          attack: 0.03,
-          filter: 1200,
+          vol: 0.009,
+          attack: 0.035,
+          filter: 1800,
           out,
         }),
       );
-    } else if (s.lead === "celesta") {
-      chord.forEach((n) => {
+    if (pos % 4 === 2)
+      chord.forEach((n, k) =>
         tone({
           type: "sawtooth",
-          f: midi(n),
-          at,
-          dur: spb * 16,
-          vol: 0.012,
-          attack: 0.8,
-          filter: 900,
-          out,
-          send: 0.5,
-          detune: -6,
-        });
-        tone({
-          type: "sawtooth",
-          f: midi(n),
-          at,
-          dur: spb * 16,
-          vol: 0.012,
-          attack: 0.8,
-          filter: 900,
-          out,
-          send: 0.5,
-          detune: 6,
-        });
-      });
-    } else
-      chord.forEach((n, k) => {
-        const t = at + k * 0.012;
-        tone({
-          f: midi(n),
-          at: t,
-          dur: spb * 7,
-          vol: 0.035,
-          attack: 0.01,
-          out,
-          send: 0.25,
-        });
-        tone({
-          type: "triangle",
           f: midi(n + 12),
-          at: t,
-          dur: spb * 3,
-          vol: 0.008,
+          at: at + k * 0.006,
+          dur: spb * 1.4,
+          vol: 0.009,
+          filter: 2400,
           out,
-        });
-      });
-  }
-  if (s.lead === "epiano" && pos === 10)
-    chord.forEach((n) =>
-      tone({ f: midi(n), at, dur: spb * 5, vol: 0.022, out, send: 0.25 }),
-    );
-  if (s.lead === "chip")
-    tone({
-      type: "square",
-      f: midi(chord[pos % chord.length] + 12),
-      at,
-      dur: spb * 0.6,
-      vol: 0.012,
-      out,
-    });
-  // Off-beat chord stabs give the race tune its bounce.
-  if (s.lead === "surf" && pos % 4 === 2)
-    chord.forEach((n) =>
-      tone({
-        type: "triangle",
-        f: midi(n + 12),
-        at,
-        dur: spb * 1.2,
-        vol: 0.016,
-        out,
-        send: 0.1,
-      }),
-    );
-  // Bass
-  const bassHits =
-    s.drums === "chip" || s.drums === "race"
-      ? [0, 2, 4, 6, 8, 10, 12, 14]
-      : s.drums === "lofi"
-        ? [0, 7, 10]
-        : [0];
-  if (bassHits.includes(pos)) {
-    const note =
-      s.drums === "race"
-        ? root + [0, 0, 12, 0, 7, 0, 12, 7][pos / 2]
-        : s.drums === "chip" && pos % 4 === 2
-          ? root + 12
-          : pos === 10
-            ? root + 7
-            : root;
-    tone({
-      type:
-        s.drums === "race"
-          ? "sawtooth"
-          : s.drums === "chip"
-            ? "triangle"
-            : "sine",
-      f: midi(note),
-      at,
-      dur: spb * (s.drums === "soft" ? 14 : 1.8),
-      vol: s.drums === "race" ? 0.05 : s.drums === "chip" ? 0.06 : 0.09,
-      attack: 0.01,
-      out,
-      filter: 700,
-    });
-  }
-  // Drums
-  if (s.drums === "lofi") {
-    if (pos === 0 || pos === 8 || (pos === 11 && seeded(bar) > 0.6)) {
-      tone({ f: 110, to: 45, at, dur: 0.22, vol: 0.12, out });
-    }
-    if (pos === 4 || pos === 12)
-      hiss(at, 0.09, 0.04, "bandpass", 1900, undefined, out, 1.2);
-    if (pos % 2 === 0)
-      hiss(
-        at,
-        0.035,
-        pos % 4 === 2 ? 0.02 : 0.012,
-        "highpass",
-        7000,
-        undefined,
-        out,
+        }),
       );
-  } else if (s.drums === "soft") {
-    if (pos % 4 === 2) hiss(at, 0.06, 0.008, "highpass", 6000, undefined, out);
-  } else if (s.drums === "race") {
-    if (pos % 4 === 0) tone({ f: 150, to: 45, at, dur: 0.13, vol: 0.11, out });
-    if (pos === 4 || pos === 12) {
-      hiss(at, 0.11, 0.05, "bandpass", 1900, undefined, out, 1.1);
+    // Quieter sixteenths keep the pulse moving beneath the lead.
+    if (pos % 2 === 1)
       tone({
         type: "triangle",
-        f: 220,
-        to: 160,
+        f: midi(chord[(pos >> 1) % chord.length] + 24),
         at,
-        dur: 0.07,
-        vol: 0.03,
+        dur: spb * 0.7,
+        vol: 0.012,
+        out,
+      });
+    if (pos % 2 === 0)
+      tone({
+        type: "sawtooth",
+        f: midi(root + (pos % 4 === 2 ? 12 : 0)),
+        at,
+        dur: spb * 1.7,
+        vol: 0.047,
+        attack: 0.008,
+        filter: 650,
+        out,
+      });
+    if (pos % 4 === 0 || (race && pos === 14))
+      tone({ f: 145, to: 43, at, dur: 0.14, vol: 0.11, out });
+    if (pos === 4 || pos === 12 || (bar % 4 === 3 && pos >= 14)) {
+      hiss(at, 0.12, 0.045, "bandpass", 2200, undefined, out, 0.8);
+      tone({
+        type: "triangle",
+        f: 190,
+        to: 125,
+        at,
+        dur: 0.09,
+        vol: 0.035,
         out,
       });
     }
     hiss(
       at,
-      pos % 4 === 2 ? 0.07 : 0.025,
-      pos % 2 ? 0.01 : 0.018,
+      pos % 4 === 2 ? 0.075 : 0.025,
+      pos % 2 ? 0.009 : 0.017,
       "highpass",
-      8000,
+      7500,
       undefined,
       out,
     );
+    if (pos === 0 && bar % 4 === 0)
+      hiss(at, 0.55, 0.027, "highpass", 5500, undefined, out);
   } else {
-    if (pos === 0 || pos === 8 || pos === 10)
-      tone({ type: "square", f: 140, to: 50, at, dur: 0.08, vol: 0.05, out });
-    if (pos === 4 || pos === 12)
-      hiss(at, 0.1, 0.05, "bandpass", 1800, undefined, out);
-    if (pos % 2 === 1) hiss(at, 0.02, 0.018, "highpass", 8000, undefined, out);
-  }
-  // Melody: a seeded walk over the scale, landing on chord tones on the beat.
-  const grid = s.lead === "chip" ? 2 : 2;
-  if (
-    pos % grid === 0 &&
-    seeded(i) < s.density &&
-    !(s.lead !== "chip" && bar % 8 >= 6 && pos > 8)
-  ) {
-    melodyNote = Math.max(
-      0,
-      Math.min(
-        s.scale.length - 1,
-        melodyNote + Math.round((seeded(i + 0.5) - 0.5) * 4),
-      ),
-    );
-    let n = s.scale[melodyNote];
-    if (pos % 8 === 0) {
-      const tones = chord.map((c) => c + 12 * Math.round((n - c) / 12));
-      n = tones.reduce(
-        (a, b) => (Math.abs(b - n) < Math.abs(a - n) ? b : a),
-        n,
+    // Alternating bass and lightly brushed rhythm leave room for the tune.
+    if (pos === 0 || pos === 8)
+      tone({
+        f: midi(root + (pos === 8 ? 7 : 0)),
+        at,
+        dur: spb * 5,
+        vol: evening ? 0.065 : 0.08,
+        attack: 0.012,
+        out,
+      });
+    if (pos === 0 || pos === 6 || pos === 10)
+      chord.forEach((n, k) => {
+        tone({
+          type: "triangle",
+          f: midi(n + 12),
+          at: at + k * 0.018,
+          dur: spb * (evening ? 6 : 3),
+          vol: evening ? 0.014 : 0.021,
+          filter: 1900,
+          out,
+          send: 0.12,
+        });
+      });
+    if (pos === 0)
+      chord.forEach((n) =>
+        tone({
+          f: midi(n),
+          at,
+          dur: spb * 15,
+          vol: evening ? 0.017 : 0.012,
+          attack: 0.16,
+          out,
+          send: 0.12,
+        }),
       );
+    if (pos === 4 || pos === 12) {
+      hiss(at, 0.12, evening ? 0.008 : 0.016, "bandpass", 2400, undefined, out);
+      tone({
+        f: 720,
+        to: 480,
+        at,
+        dur: 0.035,
+        vol: evening ? 0.008 : 0.016,
+        out,
+      });
     }
-    const len = spb * (seeded(i + 2) > 0.7 ? 4 : 2);
-    if (s.lead === "epiano") {
-      tone({ f: midi(n), at, dur: len * 1.4, vol: 0.05, out, send: 0.35 });
-      tone({
-        type: "triangle",
-        f: midi(n + 12),
+    if (pos % 2 === 0)
+      hiss(
         at,
-        dur: len * 0.5,
-        vol: 0.01,
+        0.035,
+        evening ? 0.004 : 0.009,
+        "highpass",
+        6500,
+        undefined,
         out,
-      });
-    } else if (s.lead === "celesta") {
-      tone({ f: midi(n), at, dur: 1.2, vol: 0.04, out, send: 0.6 });
-      tone({ f: midi(n + 19), at, dur: 0.5, vol: 0.01, out, send: 0.6 });
-    } else if (s.lead === "surf") {
-      tone({
-        type: "sawtooth",
-        f: midi(n),
-        at,
-        dur: len * 0.85,
-        vol: 0.02,
-        out,
-        filter: 2600,
-        send: 0.2,
-      });
-      tone({
-        type: "triangle",
-        f: midi(n + 12),
-        at,
-        dur: len * 0.4,
-        vol: 0.008,
-        out,
-      });
-    } else
-      tone({
-        type: "square",
-        f: midi(n),
-        at,
-        dur: len * 0.8,
-        vol: 0.022,
-        out,
-        filter: 3500,
-      });
+      );
+  }
+
+  if (pos % 2 !== 0) return;
+  const melody = s.melody[bar % s.melody.length];
+  const note = melody[pos / 2];
+  if (note === null) return;
+  const dur = spb * (melody[pos / 2 + 1] === null ? 3.6 : 1.8);
+  if (energetic) {
+    tone({
+      type: "sawtooth",
+      f: midi(note),
+      at,
+      dur,
+      vol: 0.026,
+      attack: 0.012,
+      filter: 3200,
+      out,
+      send: 0.08,
+    });
+    tone({
+      type: "triangle",
+      f: midi(note + 12),
+      at,
+      dur: dur * 0.75,
+      vol: 0.012,
+      out,
+    });
+  } else {
+    const n = note - (evening ? 12 : 0);
+    tone({
+      type: "triangle",
+      f: midi(n),
+      at,
+      dur: dur * 1.4,
+      vol: evening ? 0.045 : 0.052,
+      filter: 2400,
+      out,
+      send: 0.18,
+    });
+    // A quick upper partial gives the rounded pluck a small metallic attack.
+    tone({ f: midi(n + 19), at, dur: 0.09, vol: 0.008, out });
   }
 }
 function scheduler() {
   if (!ctx) return;
-  const s = songs[theme];
-  const spb = 60 / (s.bpm * tempo) / 4;
   while (nextAt < ctx.currentTime + 0.15) {
+    const s = songs[theme];
+    const spb = 60 / (s.bpm * tempo) / 4;
     const swing = step % 2 ? s.swing * spb : 0;
     scheduleStep(s, step, nextAt + swing, spb);
     nextAt += spb;
     step++;
-    if (step % 128 === 0) phrase++;
     // Change mood only on a bar line so chords never cut off mid-bar.
     if (step % 16 === 0 && nextTheme !== theme) {
       theme = nextTheme;
       step = 0;
-      melodyNote = 3;
     }
   }
 }
@@ -1253,17 +1224,28 @@ if (typeof document !== "undefined")
 /** Renders a few seconds of one mood offline (for previews and checks). */
 export async function renderMusic(mood: Theme, seconds: number, rate = 44100) {
   const offline = new OfflineAudioContext(2, rate * seconds, rate);
-  const saved = { ctx, master, musicBus, sfxBus, reverb, wet, noise };
+  const saved = {
+    ctx,
+    master,
+    musicBus,
+    sfxBus,
+    reverb,
+    wet,
+    noise,
+    theme,
+    nextTheme,
+  };
   setup(offline);
   musicBus.gain.value = 1.3;
   theme = nextTheme = mood;
   const s = songs[mood];
   const spb = 60 / s.bpm / 4;
-  phrase = 0;
-  melodyNote = 3;
   for (let i = 0, at = 0.05; at < seconds - 0.2; i++, at += spb)
     scheduleStep(s, i, at + (i % 2 ? s.swing * spb : 0), spb);
-  const buffer = await offline.startRendering();
-  ({ ctx, master, musicBus, sfxBus, reverb, wet, noise } = saved);
-  return buffer;
+  try {
+    return await offline.startRendering();
+  } finally {
+    ({ ctx, master, musicBus, sfxBus, reverb, wet, noise, theme, nextTheme } =
+      saved);
+  }
 }
