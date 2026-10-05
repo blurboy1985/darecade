@@ -273,7 +273,6 @@ test("real menu renders have at most three primary actions with populated social
   ];
   h.context.shared.recentRuns = [{ id: "r1", game: "hop", score: 100 }];
   for (const id of [
-    ...Object.keys(menus.menuPages),
     "arcade",
     "map",
     "surroundings",
@@ -401,7 +400,6 @@ test("first-visit settings paths never start a race and Back returns to welcome"
     "settings",
     "preferences",
     "controls",
-    "safety-menu",
     "neighbours",
     "away",
   ]) {
@@ -409,12 +407,19 @@ test("first-visit settings paths never start a race and Back returns to welcome"
     assert.match(h.body.innerHTML, /<h2>/, id);
     assert.equal(races, 0, id);
   }
-  h.run('open("settings")');
-  assert.match(h.body.innerHTML, /data-action="close">← Back/);
-  assert.doesNotMatch(h.body.innerHTML, /data-open="phone-menu"/);
-  h.context.save.unlockedHats.push(2);
-  h.run('open("settings")');
+  h.run('open("preferences")');
   assert.match(h.body.innerHTML, /data-open="phone-menu">← Back/);
+  h.run('open("phone-menu")');
+  for (const action of menus.menuPages["phone-menu"].actions) {
+    assert.ok(
+      h.body.innerHTML.includes(
+        action.target === "account"
+          ? "data-account"
+          : `data-open="${action.target}"`,
+      ),
+      action.target,
+    );
+  }
 });
 
 // The remaining tests cover bugs from the 4 October 2026 playtest.

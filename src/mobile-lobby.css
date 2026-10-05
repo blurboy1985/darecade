@@ -1,0 +1,238 @@
+/* Shared compact lobby layout. Keep the scene center free for movement. */
+.topbar .world-utilities {
+  pointer-events: auto;
+}
+#camera-toggle {
+  min-width: 44px;
+  min-height: 44px;
+  touch-action: manipulation;
+}
+.profile .profile-identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.profile #player-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 0;
+  font-size: 13px;
+}
+#player-account {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: #e0e8d5;
+  color: #374d3d;
+  font-size: 10px;
+}
+.profile #level-label,
+.profile #medal-points {
+  font-size: 11px;
+  line-height: 1.45;
+  letter-spacing: 0;
+  color: #3e5142;
+}
+.profile .xp-track {
+  width: 100%;
+  margin-top: 3px;
+}
+.menu-directory {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.menu-directory h3 {
+  grid-column: 1 / -1;
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: #60705c;
+}
+.menu-directory .menu-choice {
+  min-height: 48px;
+  padding: 10px;
+  gap: 8px;
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.2;
+}
+.menu-directory .menu-choice svg {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+}
+.first-race:not(.mode-2d) .welcome-panel,
+.mode-2d #fallback-welcome {
+  width: min(350px, calc(100vw - 24px)) !important;
+  max-width: 350px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid #e0e4d2;
+  border-radius: 12px;
+  background: #fffdf3f2;
+  backdrop-filter: blur(8px);
+}
+.welcome-active:not(.welcome-played):not(.is-interacting):not(.mode-2d)
+  .welcome-panel {
+  display: flex;
+}
+.first-race:not(.mode-2d) .welcome-panel {
+  top: 104px;
+  left: 24px;
+}
+.cap-goal-copy {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  text-align: left;
+}
+.cap-goal-copy strong {
+  font-size: 13px;
+  line-height: 1.2;
+}
+.cap-goal-copy span {
+  font-size: 11px;
+  line-height: 1.3;
+}
+.first-race .welcome-panel .primary,
+.mode-2d #fallback-welcome .primary {
+  position: static;
+  width: auto !important;
+  min-width: 48px;
+  flex-shrink: 0;
+  min-height: 44px;
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.cap-goal-dismiss {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #50634c;
+  font-size: 23px;
+}
+.cap-goal-dismiss:hover {
+  background: #e9efde;
+}
+#fallback-welcome[hidden] {
+  display: none;
+}
+@media (max-width: 1000px) {
+  .bottom-bar {
+    height: auto;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 12px max(8px, env(safe-area-inset-bottom));
+  }
+  .bottom-bar > .profile {
+    position: static;
+    display: flex !important;
+    width: min(440px, 100%);
+    gap: 10px;
+  }
+  .profile-summary {
+    flex: 1;
+    min-width: 0;
+  }
+  .profile .avatar-icon {
+    flex: 0 0 36px;
+    transform: scale(0.7);
+    transform-origin: left center;
+    margin-right: -10px;
+  }
+  .lobby-dock > button {
+    min-height: 48px;
+    padding: 6px;
+  }
+  .lobby-dock > button svg {
+    width: 20px;
+    height: 20px;
+  }
+  .lobby-dock > button span {
+    font-size: 12px;
+  }
+  .joystick {
+    bottom: calc(144px + env(safe-area-inset-bottom));
+  }
+  .nearby-prompt,
+  .style-reward {
+    bottom: calc(144px + env(safe-area-inset-bottom));
+  }
+  .mode-2d .fallback {
+    bottom: calc(136px + env(safe-area-inset-bottom));
+  }
+  .toast {
+    bottom: calc(144px + env(safe-area-inset-bottom));
+  }
+}
+@media (max-width: 760px) {
+  .topbar {
+    padding: max(10px, env(safe-area-inset-top)) 12px 8px;
+    gap: 6px;
+  }
+  .topbar .brand {
+    gap: 6px;
+    font-size: 14px;
+  }
+  .topbar .brand-mark {
+    width: 32px;
+    height: 34px;
+    font-size: 32px;
+  }
+  .topbar .location-pill {
+    padding: 8px;
+    font-size: 10px;
+  }
+  .topbar > .demo-tag {
+    top: calc(60px + env(safe-area-inset-top));
+    right: 12px;
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+  .first-race:not(.mode-2d) .welcome-panel {
+    top: calc(96px + env(safe-area-inset-top));
+    left: 12px;
+    padding: 8px;
+  }
+  .menu-directory {
+    gap: 6px;
+  }
+  .menu-directory .menu-choice {
+    font-size: 12px;
+    padding: 8px;
+  }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .bottom-bar {
+    flex-direction: row;
+    gap: 14px;
+  }
+  .bottom-bar > .profile {
+    width: 43%;
+    flex-shrink: 0;
+  }
+  .lobby-dock {
+    width: 55%;
+  }
+  .joystick,
+  .nearby-prompt,
+  .style-reward,
+  .toast {
+    bottom: calc(92px + env(safe-area-inset-bottom));
+  }
+  .mode-2d .fallback {
+    bottom: calc(84px + env(safe-area-inset-bottom));
+  }
+  .first-race:not(.mode-2d) .welcome-panel {
+    top: 72px;
+  }
+}

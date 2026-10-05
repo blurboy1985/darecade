@@ -10,16 +10,18 @@ import {
 
 const source = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
 
-test("every menu page makes exactly three short choices", () => {
-  for (const page of Object.values(menuPages)) {
-    assert.equal(page.actions.length, 3, page.title);
-    for (const action of page.actions) {
-      assert.ok(action.label.length <= 20, action.label);
-      assert.ok(action.target && action.icon);
-    }
-    if (page.back) assert.ok(isMenuPage(page.back));
-  }
-  assert.ok(isMenuPage("phone-menu"));
+test("Menu exposes every destination directly without duplicate category screens", () => {
+  assert.deepEqual(Object.keys(menuPages), ["phone-menu"]);
+  const actions = menuPages["phone-menu"].actions;
+  assert.equal(
+    new Set(actions.map((action) => action.target)).size,
+    actions.length,
+  );
+  assert.ok(
+    actions.every(
+      (action) => action.label && action.group && !isMenuPage(action.target),
+    ),
+  );
   assert.equal(isMenuPage("toString"), false);
   assert.equal(isMenuPage("__proto__"), false);
 });
@@ -40,7 +42,10 @@ test("menu routes preserve rewards, social play and account access", () => {
     "quests",
     "album",
     "account",
-    "settings",
+    "preferences",
+    "controls",
+    "invite",
+    "away",
     "neighbours",
     "dares",
     "board",
@@ -79,10 +84,19 @@ test("world keeps three stable routes and a separate nearby action", () => {
 
 test("first visit and 2D retain privacy and player reporting routes", () => {
   assert.match(source, /data-open="phone-menu"/);
-  assert.equal(menuPages["safety-menu"].actions[1].target, "neighbours");
+  assert.ok(
+    menuPages["phone-menu"].actions.some(
+      (action) => action.target === "neighbours",
+    ),
+  );
+  assert.ok(
+    menuPages["phone-menu"].actions.some(
+      (action) => action.target === "account",
+    ),
+  );
   const invitation =
     source.match(/const invitation =[\s\S]*?;\r?\n/)?.[0] || "";
-  assert.match(invitation, /data-account>Account & privacy/);
+  assert.match(invitation, /data-action="welcome-skip"/);
   const playerPanel = source.slice(
     source.indexOf("function showPlayer("),
     source.indexOf(

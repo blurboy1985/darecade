@@ -79,6 +79,7 @@ import {
 import "./arcade-theme.css";
 import "./wardrobe.css";
 import "./lobby-ui.css";
+import "./mobile-lobby.css";
 import {
   menuPages,
   isMenuPage,
@@ -263,7 +264,7 @@ app.innerHTML = `
   <div id="joystick" class="joystick" role="group" aria-label="Drag to walk"><span></span></div>
   <div id="fallback" class="fallback" hidden></div>
   </main>
-  <footer class="bottom-bar"><div class="profile"><span class="avatar-icon" id="avatar-icon"><i></i></span><span><strong id="player-name">New neighbour</strong><small id="medal-points">0 MEDALS</small><span id="level-label">LEVEL 1</span><span class="xp-track"><i id="xp-fill"></i></span></span></div><nav class="dock lobby-dock" aria-label="Main actions"><button class="selected" data-open="arcade" data-main-action>${icon("game")}<span>Games</span></button><button data-open="map" data-main-action>${icon("compass")}<span>Neighbourhood</span></button><button class="phone-more" data-open="phone-menu" data-main-action>${icon("settings")}<span>Menu</span></button></nav><span class="footer-note" id="quality-note">3D WORLD</span></footer>
+  <footer class="bottom-bar"><div class="profile"><span class="avatar-icon" id="avatar-icon"><i></i></span><span class="profile-summary"><span class="profile-identity"><strong id="player-name">New neighbour</strong><span id="player-account">Guest mode</span></span><span id="level-label">Level 1 · 0 XP</span><small id="medal-points">0 Play medals · 0 Ranked</small><span class="xp-track" role="progressbar" aria-label="XP towards next level" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="xp-fill"></i></span></span></div><nav class="dock lobby-dock" aria-label="Main actions"><button class="selected" data-open="arcade" data-main-action>${icon("game")}<span>Games</span></button><button data-open="map" data-main-action>${icon("compass")}<span>Neighbourhood</span></button><button class="phone-more" data-open="phone-menu" data-main-action>${icon("settings")}<span>Menu</span></button></nav><span class="footer-note" id="quality-note">3D WORLD</span></footer>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <dialog id="modal"><div class="modal-top"><span class="eyebrow" id="modal-kicker">THE NEIGHBOURHOOD</span><button id="close-modal" class="close-button" aria-label="Close panel">×</button></div><div id="modal-body"></div></dialog>
   <div id="loading"><span class="brand-mark">p<span>★</span></span><h2>See you downstairs.</h2><p>Loading…</p><span class="loading-line"></span></div>
@@ -334,7 +335,12 @@ function renderStats() {
   if (shownLevel && level > shownLevel) beep("levelup");
   shownLevel = level;
   document.querySelector("#level-label")!.textContent =
-    `LEVEL ${1 + Math.floor(save.xp / 100)}`;
+    `Level ${level} · ${save.xp} XP`;
+  document.querySelector("#player-account")!.textContent =
+    currentProfile?.account ? "Saved account" : "Guest mode";
+  document
+    .querySelector(".xp-track")!
+    .setAttribute("aria-valuenow", String(save.xp % 100));
   (document.querySelector("#xp-fill") as HTMLElement).style.width =
     `${save.xp % 100}%`;
   (document.querySelector("#avatar-icon") as HTMLElement).style.setProperty(
@@ -425,7 +431,7 @@ function close() {
   const returnFocus = lastFocus?.isConnected
     ? lastFocus
     : document.querySelector<HTMLElement>(
-        firstRoundGoalPending(save)
+        firstRoundGoalPending(save) && !save.welcomeDismissed
           ? `${is2d ? "#fallback-welcome" : ".welcome-panel"} [data-action="welcome-start"]`
           : '.lobby-dock [data-open="phone-menu"]',
       );
@@ -454,6 +460,7 @@ function cards() {
   return `<div class="game-grid compact-games">${choices.items.map((id) => `<button class="game-card ${id}" data-game="${id}"><div class="game-art ${id}-art">${art[id]}</div><span class="eyebrow">${games[id].genre}</span><h3>${games[id].name}</h3><div><span>${id === "coast" ? "3 laps" : id === "hoops" ? "10 shots" : "60s"} · BEST ${formatScore(id, shared?.self.best[id] ?? 0)}</span>${icon("arrow")}</div></button>`).join("")}</div>${pager(choices.page, choices.total, "games")}`;
 }
 function open(id: string) {
+  if (id === "settings") id = "preferences";
   dismissStyleReward?.();
   if (id !== "wardrobe") {
     setupGuide = false;
@@ -575,7 +582,7 @@ function open(id: string) {
     void worldPicker.open();
   } else if (isMenuPage(id)) {
     const page = menuPages[id];
-    body.innerHTML = `${page.back ? (firstRoundGoalPending(save) && id === "settings" ? '<button class="text-button menu-back" data-action="close">← Back</button>' : `<button class="text-button menu-back" data-open="${page.back}">← Back</button>`) : ""}<h2>${page.title}</h2><div class="simple-menu" aria-label="${page.title}">${page.actions.map((action) => `<button class="menu-choice" ${action.target === "account" ? "data-account" : `data-open="${action.target}"`} data-main-action>${icon(action.icon)}<span>${action.label}</span>${icon("arrow")}</button>`).join("")}</div>`;
+    body.innerHTML = `<h2>${page.title}</h2><div class="menu-directory" aria-label="${page.title}">${page.actions.map((action, index) => `${index === 0 || page.actions[index - 1].group !== action.group ? `<h3>${action.group}</h3>` : ""}<button class="menu-choice" ${action.target === "account" ? "data-account" : `data-open="${action.target}"`}>${icon(action.icon)}<span>${action.label}</span></button>`).join("")}</div>`;
   } else if (id === "arcade") {
     body.innerHTML = `<h2>Pick a game!</h2>${cards()}<p class="fine-print">Play medals reward qualifying finishes. Ranked arcade medals land at midnight.</p>`;
   } else if (id === "shop") {
@@ -735,7 +742,7 @@ function open(id: string) {
         "",
       )}</select><div class="button-row">${actionButton("start-away", "Step away")}${actionButton("save-away", "Save choice", "secondary")}</div><p class="fine-print">Away time earns no XP.</p>`;
   } else if (id === "preferences") {
-    body.innerHTML = `<button class="text-button menu-back" data-open="settings">← Back</button><h2>Preferences</h2><label class="settings-row"><span><strong>Sound effects</strong><small>Blips and sparkles</small></span><input id="setting-sound" type="checkbox" ${save.sound ? "checked" : ""}></label><label class="settings-row"><span><strong>Background music</strong><small>Lo-fi, pads and chiptune</small></span><input id="setting-music" type="checkbox" ${save.music ? "checked" : ""} ${save.sound ? "" : "disabled"}></label><label class="settings-row"><span><strong>Reduce motion</strong><small>Calmer effects</small></span><input id="setting-reduced" type="checkbox" ${save.reduced ? "checked" : ""}></label><label class="settings-row"><span><strong>Time of day</strong><small>SGT or pick a mood</small></span><select id="setting-light">${[
+    body.innerHTML = `<button class="text-button menu-back" data-open="phone-menu">← Back</button><h2>Preferences</h2><label class="settings-row"><span><strong>Sound effects</strong><small>Blips and sparkles</small></span><input id="setting-sound" type="checkbox" ${save.sound ? "checked" : ""}></label><label class="settings-row"><span><strong>Background music</strong><small>Lo-fi, pads and chiptune</small></span><input id="setting-music" type="checkbox" ${save.music ? "checked" : ""} ${save.sound ? "" : "disabled"}></label><label class="settings-row"><span><strong>Reduce motion</strong><small>Calmer effects</small></span><input id="setting-reduced" type="checkbox" ${save.reduced ? "checked" : ""}></label><label class="settings-row"><span><strong>Time of day</strong><small>SGT or pick a mood</small></span><select id="setting-light">${[
       ["auto", "Follow SGT"],
       ["day", "Daylight"],
       ["dusk", "Golden hour"],
@@ -749,7 +756,7 @@ function open(id: string) {
         "",
       )}</select></label><div class="settings-row"><span><strong>Lightweight lobby</strong><small>No 3D world</small></span>${actionButton("2d", is2d ? "Return to 3D" : "Use 2D", "secondary")}</div>${playtestEnabled ? '<details class="menu-details"><summary>Phone test</summary><button class="secondary" data-action="phone-test">Give feedback</button></details>' : ""}<p class="fine-print">Character model based on “Chibi Girl Character” by Syed’s Creation, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>, modified. <a href="https://sketchfab.com/3d-models/chibi-girl-character-3e795731d68d416eb0b8770a6b363e65" target="_blank" rel="noopener">Source</a>.</p>`;
   } else if (id === "controls") {
-    body.innerHTML = `<button class="text-button menu-back" data-open="settings">← Back</button><h2>Camera & controls</h2><p>WASD or tap to walk. E to interact. Space to jump.</p><label class="settings-row"><span>View</span><select id="setting-camera"><option value="third" ${save.cameraMode === "third" ? "selected" : ""}>Third person</option><option value="isometric" ${save.cameraMode === "isometric" ? "selected" : ""}>Bird’s-eye</option></select></label><label class="settings-row"><span>Zoom</span><input id="setting-zoom" type="range" min="0" max="100" value="50" data-previous="50" aria-label="Camera zoom"></label><div class="camera-buttons"><button class="secondary" data-action="rotate-left" aria-label="Rotate view left">↶</button><button class="secondary" data-action="reset-view">Reset view</button><button class="secondary" data-action="rotate-right" aria-label="Rotate view right">↷</button></div>`;
+    body.innerHTML = `<button class="text-button menu-back" data-open="phone-menu">← Back</button><h2>Camera & controls</h2><p>WASD or tap to walk. E to interact. Space to jump.</p><label class="settings-row"><span>View</span><select id="setting-camera"><option value="third" ${save.cameraMode === "third" ? "selected" : ""}>Third person</option><option value="isometric" ${save.cameraMode === "isometric" ? "selected" : ""}>Bird’s-eye</option></select></label><label class="settings-row"><span>Zoom</span><input id="setting-zoom" type="range" min="0" max="100" value="50" data-previous="50" aria-label="Camera zoom"></label><div class="camera-buttons"><button class="secondary" data-action="rotate-left" aria-label="Rotate view left">↶</button><button class="secondary" data-action="reset-view">Reset view</button><button class="secondary" data-action="rotate-right" aria-label="Rotate view right">↷</button></div>`;
   } else if (id === "surroundings") {
     const options = [
       {
@@ -1358,6 +1365,9 @@ document.addEventListener("click", (e) => {
     if (a === "welcome-skip") {
       save.welcomeDismissed = true;
       persist();
+      document
+        .querySelector<HTMLButtonElement>('.lobby-dock [data-open="arcade"]')
+        ?.focus({ preventScroll: true });
       return;
     }
     if (a === "setup-look") {
@@ -2228,7 +2238,7 @@ async function syncSocial() {
     const me = shared.self;
     document.querySelector("#player-name")!.textContent = me.name;
     document.querySelector("#medal-points")!.textContent =
-      `${shared.profile.playMedals?.total ?? 0} PLAY MEDAL POINTS · ${me.points} RANKED`;
+      `${shared.profile.playMedals?.total ?? 0} Play medals · ${me.points} Ranked`;
     savedNeighbours = shared.players;
     hiddenNeighbours.clear();
     applyWorldPlayers();
@@ -2548,18 +2558,25 @@ function firstRacePending() {
 }
 function renderWelcome() {
   const firstRace = firstRoundGoalPending(save);
-  document.body.classList.toggle("first-race", firstRace);
-  document.body.classList.toggle("welcome-active", firstRace);
+  document.body.classList.toggle(
+    "first-race",
+    firstRace && !save.welcomeDismissed,
+  );
+  document.body.classList.toggle(
+    "welcome-active",
+    firstRace && !save.welcomeDismissed,
+  );
   document.body.classList.toggle("welcome-played", save.welcome === "played");
-  const invitation = `<div class="eyebrow">${firstVisitCopy.kicker}</div><h1>${firstVisitCopy.title}</h1><p>${firstVisitCopy.detail}</p><p class="welcome-explore">${firstVisitCopy.explore}</p><button class="primary" data-action="welcome-start" data-main-action>Play now ${icon("arrow")}</button><div class="welcome-options"><button class="text-button" data-open="settings">Settings</button><button class="text-button" data-account>Account & privacy</button></div>`;
+  const invitation = `<div class="cap-goal-copy"><strong>${firstVisitCopy.title}</strong><span>${firstVisitCopy.detail}</span></div><button class="primary" data-action="welcome-start" aria-label="Race at Palm Bay for your cap">Race</button><button class="cap-goal-dismiss" data-action="welcome-skip" aria-label="Dismiss cap goal" title="Explore first">×</button>`;
   const el = document.querySelector<HTMLElement>(".welcome-panel")!;
-  el.hidden = !firstRace;
+  el.hidden = !firstRace || save.welcomeDismissed;
   const html = firstRace ? invitation : "";
   if (el.dataset.welcome !== String(firstRace)) {
     el.innerHTML = html;
     el.dataset.welcome = String(firstRace);
   }
   const fallback = document.querySelector("#fallback-welcome");
+  if (fallback instanceof HTMLElement) fallback.hidden = el.hidden;
   if (
     fallback instanceof HTMLElement &&
     fallback.dataset.welcome !== String(firstRace)

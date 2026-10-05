@@ -1,77 +1,83 @@
-type MenuAction = { label: string; target: string; icon: string };
-type ThreeActions = readonly [MenuAction, MenuAction, MenuAction];
-type MenuPage = { title: string; back: string | null; actions: ThreeActions };
+type MenuAction = {
+  label: string;
+  target: string;
+  icon: string;
+  group: string;
+};
 
-// Keep each navigation decision to three routes, including on desktop.
+// Every destination is one tap from Menu. Groups are headings, not extra pages.
 export const menuPages = {
   "phone-menu": {
     title: "Menu",
-    back: null,
     actions: [
-      { label: "My stuff", target: "my-stuff", icon: "shirt" },
-      { label: "Friends", target: "friends-menu", icon: "smile" },
-      { label: "Settings", target: "settings", icon: "settings" },
-    ],
-  },
-  settings: {
-    title: "Settings",
-    back: "phone-menu",
-    actions: [
-      { label: "Preferences", target: "preferences", icon: "sound" },
-      { label: "Camera & controls", target: "controls", icon: "camera" },
-      { label: "Account & safety", target: "safety-menu", icon: "settings" },
-    ],
-  },
-  "safety-menu": {
-    title: "Account & safety",
-    back: "settings",
-    actions: [
-      { label: "Account & privacy", target: "account", icon: "settings" },
-      { label: "Report a player", target: "neighbours", icon: "smile" },
-      { label: "Step away", target: "away", icon: "leaf" },
-    ],
-  },
-  "my-stuff": {
-    title: "My stuff",
-    back: "phone-menu",
-    actions: [
-      { label: "My look", target: "wardrobe", icon: "shirt" },
-      { label: "Rewards", target: "rewards-menu", icon: "gift" },
-      { label: "Support & purchases", target: "support", icon: "gift" },
-    ],
-  },
-  "friends-menu": {
-    title: "Friends",
-    back: "phone-menu",
-    actions: [
-      { label: "Neighbours", target: "neighbours", icon: "smile" },
-      { label: "Emotes", target: "emotes", icon: "smile" },
+      { label: "My look", target: "wardrobe", icon: "shirt", group: "You" },
+      { label: "Stickers", target: "album", icon: "book", group: "You" },
+      { label: "Daily gift", target: "shop", icon: "gift", group: "You" },
+      { label: "Quests", target: "quests", icon: "compass", group: "You" },
       {
-        label: "Worlds & scores",
-        target: "competition-menu",
-        icon: "trophy",
+        label: "Challenges",
+        target: "dares",
+        icon: "game",
+        group: "Play together",
       },
-    ],
+      {
+        label: "Rankings",
+        target: "board",
+        icon: "trophy",
+        group: "Play together",
+      },
+      {
+        label: "Worlds",
+        target: "worlds",
+        icon: "compass",
+        group: "Play together",
+      },
+      {
+        label: "Emotes",
+        target: "emotes",
+        icon: "smile",
+        group: "Play together",
+      },
+      {
+        label: "Neighbours & report",
+        target: "neighbours",
+        icon: "smile",
+        group: "People",
+      },
+      {
+        label: "Invite a friend",
+        target: "invite",
+        icon: "smile",
+        group: "People",
+      },
+      { label: "Step away", target: "away", icon: "leaf", group: "People" },
+      {
+        label: "Account & privacy",
+        target: "account",
+        icon: "settings",
+        group: "People",
+      },
+      {
+        label: "Sound & display",
+        target: "preferences",
+        icon: "sound",
+        group: "Settings & support",
+      },
+      {
+        label: "Camera & controls",
+        target: "controls",
+        icon: "camera",
+        group: "Settings & support",
+      },
+      {
+        label: "Support & purchases",
+        target: "support",
+        icon: "gift",
+        group: "Settings & support",
+      },
+    ] satisfies MenuAction[],
   },
-  "competition-menu": {
-    title: "Play together",
-    back: "friends-menu",
-    actions: [
-      { label: "Challenges", target: "dares", icon: "game" },
-      { label: "Rankings", target: "board", icon: "trophy" },
-      { label: "Worlds", target: "worlds", icon: "compass" },
-    ],
-  },
-  "rewards-menu": {
-    title: "Rewards",
-    back: "my-stuff",
-    actions: [
-      { label: "Daily gift", target: "shop", icon: "gift" },
-      { label: "Quests", target: "quests", icon: "compass" },
-      { label: "Stickers", target: "album", icon: "book" },
-    ],
-  },
-} satisfies Record<string, MenuPage>;
+};
 
 export function isMenuPage(id: string): id is keyof typeof menuPages {
   return Object.hasOwn(menuPages, id);
@@ -79,8 +85,8 @@ export function isMenuPage(id: string): id is keyof typeof menuPages {
 
 export const firstVisitCopy = {
   kicker: "YOUR FIRST RACE",
-  title: "Race for your cap.",
-  detail: "Finish a round at Palm Bay to unlock your lilac cap.",
+  title: "Earn your lilac cap",
+  detail: "Finish a round at Palm Bay.",
   explore: "The town is open to explore.",
 } as const;
 

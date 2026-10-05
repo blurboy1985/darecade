@@ -659,7 +659,7 @@ export class CommunityCore {
       await this.sendEmail(
         normal,
         "Your Play Simi sign-in request",
-        `Someone asked to sign in to Play Simi with this email address, but no Play Simi account uses it yet.\n\nPlayed as a guest? Your guest profile is saved on the server and accessed through your original browser session. Open Play Simi there, choose Menu → Settings → Account & safety → Account & privacy → Save with email, and enter this email. After linking, you can sign in on another device. Clearing cookies, signing out or session expiry can leave an unlinked guest profile inaccessible.\n\nNew to Play Simi? Start here: ${this.origin}\n\nIf you did not ask for this, ignore this email. We will not email this address again for at least an hour.`,
+        `Someone asked to sign in to Play Simi with this email address, but no Play Simi account uses it yet.\n\nPlayed as a guest? Your guest profile is saved on the server and accessed through your original browser session. Open Play Simi there, choose Menu → Account & privacy → Save with email, and enter this email. After linking, you can sign in on another device. Clearing cookies, signing out or session expiry can leave an unlinked guest profile inaccessible.\n\nNew to Play Simi? Start here: ${this.origin}\n\nIf you did not ask for this, ignore this email. We will not email this address again for at least an hour.`,
         hash(randomBytes(32)),
         { notice: true },
       );
