@@ -57,7 +57,7 @@ export function loadCharacter() {
       parser.textureLoader = new T.TextureLoader(parser.options.manager);
       return { name: "DarecadeEmbeddedImages" };
     })
-    .loadAsync("/models/neighbour-chibi.glb?v=face-3")
+    .loadAsync("/models/neighbour-chibi.glb?v=profile-4")
     .then((g) => {
       template = g.scene;
       template.scale.setScalar(CHARACTER_SCALE);

@@ -1,6 +1,6 @@
 # Play Simi original avatar wardrobe
 
-This production model follows the approved compact human face study. The rounded lower face, short eye-to-mouth spacing, dark blue irises and broad highlights are preserved. Game eyes are shallow conforming surfaces on a continuous head. The game mesh avoids the study's dense boolean socket topology.
+This production model follows the approved compact human face study. The rounded lower face, short eye-to-mouth spacing, dark blue irises and broad highlights are preserved. The skin and hair have rounded profile volume and a small integrated nose. Game eyes conform to a continuous head with tighter open borders. The game mesh avoids the study's dense boolean socket topology.
 
 ## Deliverables
 
@@ -53,11 +53,13 @@ Only the rest skeleton of the existing KayKit Adventurers model by Kay Lousberg 
 
 | Measurement | Existing KayKit model | Original Simi model |
 | --- | ---: | ---: |
-| GLB bytes | 714,452 | 1,129,444 |
-| Whole wardrobe triangles | 19,118 | 46,045 |
+| GLB bytes | 714,452 | 1,183,428 |
+| Whole wardrobe triangles | 19,118 | 48,773 |
 | Packed source images | 1 | 1 at 512 x 512 |
 | Shared rest bones | 41 | 41 |
 
-The entire wardrobe is loaded once. Only the selected parts are rendered. Including a cape, ranger is 9,168 triangles, academy is 10,058, knight is 10,477, and sporting adventurer is 9,476. Each uses seven mesh primitives. Without a cape each uses six. The most expensive mixed selection, including the largest optional model hat and a cape, is 11,514 triangles in eight primitives. The five exported heads have neutral `Blink = 0` and `Smile = 0` values.
+The entire wardrobe is loaded once. Only the selected parts are rendered. Including a cape, ranger is 9,552 triangles, academy is 10,882, knight is 10,861, and sporting adventurer is 10,180. Each uses seven mesh primitives. Without a cape each uses six. The most expensive mixed selection, including the largest optional model hat and a cape, is 11,946 triangles in eight primitives. The five exported heads have neutral `Blink = 0` and `Smile = 0` values.
 
 The file reduction comes from sparse facial position deltas and exact binary buffer reuse, including shared all-head skinning data. Vertices, weights, colours and morph values remain unchanged by the repacker.
+
+The follow-up profile correction, public references, comparison cameras and verification evidence are documented in [profile review](../profile-review/README.md). Use `CHIBI_SKIP_PORTRAITS=1` for a fast export and `scripts/render_chibi_profiles.py` for a separate angle matrix.

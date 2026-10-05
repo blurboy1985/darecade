@@ -97,7 +97,7 @@ def make_head(who,style,hood=False):
     if style==1: # rounded bob, broad curved masses rather than striped strands
         for s in [-1,1]:
             soft_lock(p,[(s*.29,.075,1.73),(s*.363,.06,1.59),(s*.372,.04,1.41),(s*.33,.04,1.28)],[.01,.067,.066,.01],[.025,.10,.10,.04],17)
-        rings(p,[(1.26,.32,.19,.09),(1.36,.355,.22,.09),(1.60,.38,.235,.07),(1.74,.31,.23,.07)],17,'head',n=20)
+        rings(p,[(1.26,.32,.24,.11),(1.36,.355,.28,.11),(1.48,.39,.32,.11),(1.60,.38,.33,.11),(1.68,.355,.300,.11),(1.72,.326,.277,.11),(1.74,.31,.265,.11),(1.77,.275,.236,.11),(1.79,.25,.215,.11),(1.81,.224,.192,.11),(1.83,.186,.16,.11),(1.84,.161,.139,.11),(1.85,.13,.115,.11),(1.86,.095,.081,.11),(1.87,.005,.005,.11)],17,'head',n=20)
         # The rear shell is hidden by the face in front and gives a clean back view.
         p.f=p.f[:-2] # remove ring end caps from the bob extension
     if style==2:
@@ -107,12 +107,22 @@ def make_head(who,style,hood=False):
             rings(p,[(1.57,.092,.081,.12),(1.60,.092,.081,.12)],14,'head',n=12,cx=s*.37)
     if style==3:
         # Cropped textured curls, clear forehead, compact round silhouette.
-        for z,rx,ry,count in [(1.76,.32,.24,10),(1.84,.22,.17,8),(1.60,.365,.27,12)]:
+        # A continuous low-poly base prevents bald gaps between the curl masses.
+        vs=[];fs=[];n=20;rows=8
+        for j in range(rows+1):
+            for i in range(n):
+                a=2*pi*i/n;end=1.27+.40*max(0,cos(a))**2
+                theta=math.acos((end-1.48)/.37)*j/rows
+                vs.append((.405*sin(theta)*sin(a),.082-.332*sin(theta)*cos(a),1.48+.37*cos(theta)))
+        for j in range(rows):
+            for i in range(n):fs.append((j*n+i,j*n+(i+1)%n,(j+1)*n+(i+1)%n,(j+1)*n+i))
+        p.add(vs,fs,22)
+        for z,rx,ry,count in [(1.76,.32,.30,10),(1.84,.22,.23,8),(1.60,.365,.32,12)]:
             for i in range(count):
-                a=2*pi*i/count;x=rx*cos(a);y=.05+ry*sin(a)
+                a=2*pi*i/count;x=rx*cos(a);y=.10+ry*sin(a)
                 if z==1.60 and y<-.10:continue
                 ell(p,(x,y,z),(.085,.075,.073),22,n=8,m=5)
-        ell(p,(0,.05,1.82),(.30,.22,.09),22,n=16,m=8)
+        ell(p,(0,.10,1.82),(.30,.29,.09),22,n=16,m=8)
         # Restrained grey beard preserves the saved inclusive older option.
         vs=[];fs=[];cols=20;rows=5
         for j in range(rows+1):
@@ -126,7 +136,7 @@ def make_head(who,style,hood=False):
         p.add(vs,fs,22)
     if hood:
         # Original ranger folded hood rests behind the open hair and face.
-        sweep(p,[(-.39,.17,1.44),(-.38,.25,1.78),(0,.26,1.95),(.38,.25,1.78),(.39,.17,1.44)],[.035,.040,.042,.040,.035],[.045]*5,9,n=8)
+        sweep(p,[(-.39,.22,1.44),(-.38,.36,1.78),(0,.36,1.95),(.38,.36,1.78),(.39,.22,1.44)],[.035,.040,.042,.040,.035],[.045]*5,9,n=8)
     return finish(p)
 
 def outfit(who,kind):
@@ -204,14 +214,14 @@ def hats():
     rings(p,[(1.84,.307,.239,.027),(1.87,.287,.222,.029)],14,'head',n=20);finish(p)
     p=Part('Knight_Helmet','Knight')
     # Open-face polished cap and ear guards. Forehead and eyes stay readable.
-    rings(p,[(1.765,.389,.28,.065),(1.83,.36,.264,.065),(1.91,.24,.21,.065),(1.94,.025,.04,.065)],13,'head',n=24)
-    rings(p,[(1.765,.395,.286,.066),(1.789,.393,.285,.066)],10,'head',n=24)
-    for s in [-1,1]:ell(p,(s*.37,.055,1.66),(.048,.125,.12),13,n=12,m=8)
+    rings(p,[(1.765,.42,.405,.115),(1.83,.395,.365,.115),(1.91,.31,.33,.115),(1.98,.14,.17,.115),(2.00,.02,.03,.115)],13,'head',n=24)
+    rings(p,[(1.765,.426,.411,.116),(1.789,.417,.40,.116)],10,'head',n=24)
+    for s in [-1,1]:ell(p,(s*.445,-.020,1.66),(.052,.125,.12),13,n=12,m=8)
     finish(p)
     p=Part('Barbarian_Hat','Barbarian')
     # Compact bucket cap appropriate for a neighbourhood sporting adventure.
-    rings(p,[(1.78,.42,.31,.04),(1.804,.421,.312,.04),(1.83,.34,.255,.04),(1.95,.23,.19,.04),(1.975,.03,.04,.04)],8,'head',n=24)
-    rings(p,[(1.831,.345,.26,.04),(1.865,.326,.248,.04)],30,'head',n=24);finish(p)
+    rings(p,[(1.78,.42,.39,.11),(1.804,.421,.392,.11),(1.83,.34,.36,.11),(1.95,.23,.28,.11),(1.975,.03,.04,.11)],8,'head',n=24)
+    rings(p,[(1.831,.345,.365,.11),(1.865,.326,.341,.11)],30,'head',n=24);finish(p)
 
 families=[('Rogue',0),('Mage',1),('Knight',2),('Barbarian',3)]
 for who,kind in families:outfit(who,kind);make_head(who,kind)
@@ -280,16 +290,18 @@ def area(name,loc,power,size):
 area('Large key',(-3,-5,6),130,5);area('Gentle rim',(3,2,4),110,4)
 bpy.ops.object.camera_add(location=(2.4,-7,2.4));cam=bpy.context.object;cam.name='Avatar proof camera';cam.data.type='ORTHO';cam.data.ortho_scale=2.29;cam.rotation_euler=(Vector((0,0,.96))-cam.location).to_track_quat('-Z','Y').to_euler();scene.camera=cam
 bpy.ops.wm.save_as_mainfile(filepath=str(OUT/'simi-chibi.blend'))
-for side,angle in [('l',-1.18),('r',1.18)]:
-    pb=rig.pose.bones['upperarm.'+side];pb.rotation_mode='QUATERNION';rest=pb.bone.matrix_local.to_quaternion();pb.rotation_quaternion=rest.inverted()@Quaternion((0,1,0),-angle)@rest
-scene.render.filepath=str(OUT/'rogue-portrait.png');bpy.ops.render.render(write_still=True)
-cam.location=(.3,-6,1.73);cam.rotation_euler=(Vector((0,0,1.47))-cam.location).to_track_quat('-Z','Y').to_euler();cam.data.ortho_scale=1.10;scene.render.resolution_x=1000;scene.render.resolution_y=1000;scene.render.filepath=str(OUT/'face-detail.png');bpy.ops.render.render(write_still=True)
-if os.environ.get('CHIBI_RENDER_ALL'):
-    cam.location=(2.4,-7,2.4);cam.rotation_euler=(Vector((0,0,.96))-cam.location).to_track_quat('-Z','Y').to_euler();cam.data.ortho_scale=2.29;scene.render.resolution_x=900;scene.render.resolution_y=1100
-    for who,_ in families[1:]:show(who);scene.render.filepath=str(OUT/(who.lower()+'-portrait.png'));bpy.ops.render.render(write_still=True)
-    show('Rogue');cam.location=(0,-6,1.73);cam.rotation_euler=(Vector((0,0,1.47))-cam.location).to_track_quat('-Z','Y').to_euler();cam.data.ortho_scale=1.10;scene.render.resolution_x=1000;scene.render.resolution_y=1000
-    for name in ['Blink','Smile']:
-        key=bpy.data.objects['Rogue_Head'].data.shape_keys.key_blocks[name];key.value=1;scene.render.filepath=str(OUT/(name.lower()+'-face.png'));bpy.ops.render.render(write_still=True);key.value=0
+if not os.environ.get('CHIBI_SKIP_PORTRAITS'):
+    for side,angle in [('l',-1.18),('r',1.18)]:
+        pb=rig.pose.bones['upperarm.'+side];pb.rotation_mode='QUATERNION';rest=pb.bone.matrix_local.to_quaternion();pb.rotation_quaternion=rest.inverted()@Quaternion((0,1,0),-angle)@rest
+    scene.render.filepath=str(OUT/'rogue-portrait.png');bpy.ops.render.render(write_still=True)
+    cam.location=(.3,-6,1.73);cam.rotation_euler=(Vector((0,0,1.47))-cam.location).to_track_quat('-Z','Y').to_euler();cam.data.ortho_scale=1.10;scene.render.resolution_x=1000;scene.render.resolution_y=1000;scene.render.filepath=str(OUT/'face-detail.png');bpy.ops.render.render(write_still=True)
+    if os.environ.get('CHIBI_RENDER_ALL'):
+        cam.location=(2.4,-7,2.4);cam.rotation_euler=(Vector((0,0,.96))-cam.location).to_track_quat('-Z','Y').to_euler();cam.data.ortho_scale=2.29;scene.render.resolution_x=900;scene.render.resolution_y=1100
+        for who,_ in families[1:]:show(who);scene.render.filepath=str(OUT/(who.lower()+'-portrait.png'));bpy.ops.render.render(write_still=True)
+        show('Rogue');cam.location=(0,-6,1.73);cam.rotation_euler=(Vector((0,0,1.47))-cam.location).to_track_quat('-Z','Y').to_euler();cam.data.ortho_scale=1.10;scene.render.resolution_x=1000;scene.render.resolution_y=1000
+        for name in ['Blink','Smile']:
+            key=bpy.data.objects['Rogue_Head'].data.shape_keys.key_blocks[name];key.value=1;scene.render.filepath=str(OUT/(name.lower()+'-face.png'));bpy.ops.render.render(write_still=True);key.value=0
+
 # GLB measurements include actual glTF accessor duplication.
 def measure(path):
     data=path.read_bytes();j=json.loads(data[20:20+int.from_bytes(data[12:16],'little')]);parts={}

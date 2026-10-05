@@ -1,9 +1,9 @@
 {
-  "glb_bytes": 1129444,
+  "glb_bytes": 1183428,
   "mesh_count": 32,
   "material_count": 4,
   "texture_count": 8,
-  "total_triangles": 46045,
+  "total_triangles": 48773,
   "parts": {
     "Barbarian_ArmLeft": {
       "vertices": 350,
@@ -31,8 +31,8 @@
       "draws": 1
     },
     "Barbarian_Head": {
-      "vertices": 3461,
-      "triangles": 5982,
+      "vertices": 3833,
+      "triangles": 6686,
       "draws": 1
     },
     "Barbarian_LegLeft": {
@@ -66,13 +66,13 @@
       "draws": 1
     },
     "Knight_Head": {
-      "vertices": 3743,
-      "triangles": 6666,
+      "vertices": 3935,
+      "triangles": 7050,
       "draws": 1
     },
     "Knight_Helmet": {
-      "vertices": 360,
-      "triangles": 664,
+      "vertices": 384,
+      "triangles": 712,
       "draws": 1
     },
     "Knight_LegLeft": {
@@ -111,8 +111,8 @@
       "draws": 1
     },
     "Mage_Head": {
-      "vertices": 3463,
-      "triangles": 6122,
+      "vertices": 3875,
+      "triangles": 6946,
       "draws": 1
     },
     "Mage_LegLeft": {
@@ -146,13 +146,13 @@
       "draws": 1
     },
     "Rogue_Head": {
-      "vertices": 3071,
-      "triangles": 5386,
+      "vertices": 3263,
+      "triangles": 5770,
       "draws": 1
     },
     "Rogue_Head_Hooded": {
-      "vertices": 3111,
-      "triangles": 5462,
+      "vertices": 3303,
+      "triangles": 5846,
       "draws": 1
     },
     "Rogue_LegLeft": {
@@ -337,26 +337,31 @@
   },
   "visible_base_styles": {
     "Rogue": {
-      "vertices": 5169,
-      "triangles": 9168,
+      "vertices": 5361,
+      "triangles": 9552,
       "draws": 7
     },
     "Mage": {
-      "vertices": 5671,
-      "triangles": 10058,
+      "vertices": 6083,
+      "triangles": 10882,
       "draws": 7
     },
     "Knight": {
-      "vertices": 5852,
-      "triangles": 10477,
+      "vertices": 6044,
+      "triangles": 10861,
       "draws": 7
     },
     "Barbarian": {
-      "vertices": 5403,
-      "triangles": 9476,
+      "vertices": 5775,
+      "triangles": 10180,
       "draws": 7
     }
   },
+  "worst_mixed_selection": {
+    "triangles": 11946,
+    "draws": 8
+  },
+  "image_count": 1,
   "atlas": {
     "size": [
       512,
@@ -390,10 +395,5 @@
     "Blink",
     "Smile"
   ],
-  "bones": 41,
-  "worst_mixed_selection": {
-    "triangles": 11514,
-    "draws": 8
-  },
-  "image_count": 1
+  "bones": 41
 }

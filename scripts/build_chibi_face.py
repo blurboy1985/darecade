@@ -82,14 +82,20 @@ def line(name,pts,r,mat):
 
 # The lower head occupies only 0.15m below the eye apertures. Cheeks are rounded
 # and broad near the eye baseline, narrowing immediately into the small chin.
-RS=[(1.25,.035,.035,.035),(1.263,.15,.102,.025),(1.289,.285,.176,.018),(1.325,.374,.219,.015),(1.385,.438,.249,.018),(1.46,.47,.274,.023),(1.555,.472,.290,.028),(1.675,.455,.297,.032),(1.79,.40,.276,.034),(1.89,.30,.222,.034),(1.975,.14,.12,.034),(2.00,.018,.018,.034)]
+RS=[(1.25,.035,.035,.035),(1.263,.15,.112,.025),(1.289,.285,.206,.028),(1.325,.374,.264,.037),(1.385,.438,.305,.052),(1.412,.452,.316,.056),(1.435,.463,.325,.059),(1.46,.47,.333,.062),(1.555,.472,.350,.070),(1.675,.455,.360,.082),(1.79,.40,.335,.085),(1.89,.30,.270,.085),(1.975,.14,.145,.070),(2.00,.018,.018,.060)]
+def nose_projection(x,z):
+    # A small continuous nose and soft muzzle give the profile a readable break.
+    # This is part of the skin mesh, not another floating facial ornament.
+    return .100*math.exp(-((x/.058)**2+((z-1.415)/.043)**2))+.012*math.exp(-((x/.12)**2+((z-1.348)/.045)**2))
 def surf(x,z):
     rx=float(np.interp(z,[r[0] for r in RS],[r[1] for r in RS]));ry=float(np.interp(z,[r[0] for r in RS],[r[2] for r in RS]));cy=float(np.interp(z,[r[0] for r in RS],[r[3] for r in RS]));q=max(.015,1-(x/max(rx,.01))**2)
-    return cy-ry*q**.35
+    return cy-ry*q**.48-nose_projection(x,z)
 vs=[];fs=[];n=24
 for z,rx,ry,cy in RS:
     for i in range(n):
-        a=2*pi*i/n;ca=cos(a);vs.append((rx*sin(a),cy-ry*math.copysign(abs(ca)**.70,ca),z))
+        a=2*pi*i/n;ca=cos(a);x=rx*sin(a);y=cy-ry*math.copysign(abs(ca)**.96,ca)
+        if ca>0:y-=nose_projection(x,z)
+        vs.append((x,y,z))
 for j in range(len(RS)-1):
     for i in range(n):fs.append((j*n+i,(j+1)*n+i,(j+1)*n+(i+1)%n,j*n+(i+1)%n))
 fs += [tuple(reversed(range(n))),tuple((len(RS)-1)*n+i for i in range(n))]
@@ -191,7 +197,7 @@ for side in [-1,1]:
                 z=edge+(.006 if upper else -.004)*(1-t)
                 cz=edge*(1-t)+shut*t
                 # A shallow outward bow keeps the lid outside the curved eyeball.
-                yy=surf(x,z)-.023;cy=surf(x,cz)-.026
+                yy=surf(x,z)-.012;cy=surf(x,cz)-.026
                 vs.append((x,yy,z));closed.append((x,cy,cz))
         for j in range(rows):
             for i in range(columns):fs.append((j*(columns+1)+i,j*(columns+1)+i+1,(j+1)*(columns+1)+i+1,(j+1)*(columns+1)+i))
@@ -206,7 +212,7 @@ for side in [-1,1]:
         q=i/steps*2-1;x=cx+RX*q;hi,lo=bounds(x,cx,side);width=.006+.009*sqrt(max(0,1-q*q))+.004*max(0,q*side)
         close=EYE_Z-.023+.012*(1-q*q)
         for sign in [-1,1]:
-            z=hi+sign*width*.5;vs.append((x,surf(x,z)-.027,z));shut.append((x,surf(x,close)-.031,close+sign*.005))
+            z=hi+sign*width*.5;vs.append((x,surf(x,z)-.016,z));shut.append((x,surf(x,close)-.031,close+sign*.005))
         if i<steps:fs.append((i*2,i*2+1,i*2+3,i*2+2))
     lash=mesh('Strong upper lash '+str(side),vs,fs,ink)
     lash.shape_key_add(name='Open');key=lash.shape_key_add(name='Blink')
@@ -236,7 +242,7 @@ for i in range(49):
 ob=mesh('Smile tongue',closed,[tuple(range(48))],tonguemat);ob.shape_key_add(name='Hidden');key=ob.shape_key_add(name='Smile')
 for v,p in zip(key.data,vs):v.co=p
 drive(key,'smile')
-for side in [-1,1]:ell('Small human ear '+str(side),(side*.46,.022,1.48),(.055,.044,.074),neckmat)
+for side in [-1,1]:ell('Small human ear '+str(side),(side*.46,.080,1.48),(.055,.044,.074),neckmat)
 # Short, asymmetrical slate hair is an original neutral framing shape, without
 # animal ears, visor, collar, hairpins or any Mamehinata costume identifiers.
 vs=[];fs=[];n=40;rows=14
@@ -244,7 +250,7 @@ for j in range(rows+1):
     t=j/rows
     for i in range(n):
         a=2*pi*i/n;front=max(0,cos(a));end=1.40+.385*front**2;theta=math.acos((end-1.65)/.414)*t
-        vs.append((.504*sin(theta)*sin(a),.048-.331*sin(theta)*cos(a),1.65+.414*cos(theta)))
+        vs.append((.504*sin(theta)*sin(a),.100-.410*sin(theta)*cos(a),1.65+.414*cos(theta)))
 for j in range(rows):
     for i in range(n):fs.append((j*n+i,j*n+(i+1)%n,(j+1)*n+(i+1)%n,(j+1)*n+i))
 mesh('Continuous short hair cap',vs,fs,hair,0)
@@ -255,7 +261,7 @@ def fringe(name,a,b,c,d,w):
     for j,p in enumerate(path):
         t=j/(len(path)-1);tan=path[min(j+1,len(path)-1)]-path[max(0,j-1)];across=Vector((-tan.z,0,tan.x)).normalized();width=w*(.04+.96*sin(pi*t*.75))*(1-t**4*.994)
         for k in range(cross+1):
-            u=k/cross*2-1;v=p+across*width*u;v.z=min(v.z,1.65+.414*sqrt(max(.018,1-(v.x/.504)**2))-.002);yy=.048-.331*sqrt(max(.018,1-(v.x/.504)**2-((v.z-1.65)/.414)**2))
+            u=k/cross*2-1;v=p+across*width*u;v.z=min(v.z,1.65+.414*sqrt(max(.018,1-(v.x/.504)**2))-.002);yy=.100-.410*sqrt(max(.018,1-(v.x/.504)**2-((v.z-1.65)/.414)**2))
             vs.append((v.x,yy-.004-.008*(1-u*u)*sin(pi*t),v.z))
     for j in range(len(path)-1):
         for k in range(cross):fs.append((j*(cross+1)+k,j*(cross+1)+k+1,(j+1)*(cross+1)+k+1,(j+1)*(cross+1)+k))
