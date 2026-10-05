@@ -60,6 +60,7 @@ export const seedFor = (game, date) =>
 const lookKeys = [
   "outfit",
   "skin",
+  "body",
   "hat",
   "clothing",
   "hair",

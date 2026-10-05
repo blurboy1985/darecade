@@ -18,13 +18,12 @@ let source: T.Group;
 // omitted, since Node has no browser Image implementation.
 async function parseCharacter() {
   const file = readFileSync(
-    new URL("../public/models/neighbour-chibi.glb", import.meta.url),
+    new URL("../public/models/neighbour-chibi2.glb", import.meta.url),
   );
   const jsonLength = file.readUInt32LE(12);
   const json = JSON.parse(file.toString("utf8", 20, 20 + jsonLength));
   for (const material of json.materials) {
-    delete material.pbrMetallicRoughness.baseColorTexture;
-    delete material.emissiveTexture;
+    delete material.pbrMetallicRoughness?.baseColorTexture;
   }
   delete json.images;
   delete json.textures;
@@ -221,18 +220,14 @@ test("facial morphs blink independently and stay open with reduced animation", (
   const remote = createAvatar(new T.Group(), 0, 0, outfits[0]);
   assert.equal(
     local.expressions.length,
-    5,
-    "All saved head families have expressions",
+    3,
+    "Both pairs of eyes and the lashes blink",
   );
   animateDetails(local, 0.09, "wave");
   for (const mesh of local.expressions) {
     assert.equal(
       mesh.morphTargetInfluences![mesh.morphTargetDictionary!.Blink],
       1,
-    );
-    assert.equal(
-      mesh.morphTargetInfluences![mesh.morphTargetDictionary!.Smile],
-      0.35,
     );
   }
   for (const mesh of remote.expressions)
@@ -242,138 +237,77 @@ test("facial morphs blink independently and stay open with reduced animation", (
     );
   animateDetails(local, 9.29, "idle", true);
   for (const mesh of local.expressions)
-    assert.deepEqual(mesh.morphTargetInfluences, [0, 0]);
+    assert.deepEqual(mesh.morphTargetInfluences, [0]);
   disposeAvatar(local);
   disposeAvatar(remote);
 });
 
-// A small in-memory Canvas implementation tests pixel ownership in Node. It
-// copies the image and rectangles exactly, without faking the tint functions.
-class RasterCanvas {
-  width = 0;
-  height = 0;
-  pixels = new Uint8ClampedArray();
-  getContext() {
-    return {
-      drawImage: (image: { pixels: Uint8ClampedArray }) => {
-        this.pixels = image.pixels.slice();
-      },
-      getImageData: (x: number, y: number, width: number, height: number) => {
-        const data = new Uint8ClampedArray(width * height * 4);
-        for (let row = 0; row < height; row++)
-          data.set(
-            this.pixels.subarray(
-              ((y + row) * this.width + x) * 4,
-              ((y + row) * this.width + x + width) * 4,
-            ),
-            row * width * 4,
-          );
-        return { data, width, height };
-      },
-      putImageData: (
-        image: { data: Uint8ClampedArray; width: number; height: number },
-        x: number,
-        y: number,
-      ) => {
-        for (let row = 0; row < image.height; row++)
-          this.pixels.set(
-            image.data.subarray(
-              row * image.width * 4,
-              (row + 1) * image.width * 4,
-            ),
-            ((y + row) * this.width + x) * 4,
-          );
-      },
-    };
-  }
-}
-
-test("skin tint preserves eye paint and releases cached textures only after their last avatar", () => {
-  const image = new RasterCanvas();
-  image.width = image.height = 512;
-  image.pixels = new Uint8ClampedArray(512 * 512 * 4);
-  for (let i = 0; i < image.pixels.length; i += 4)
-    image.pixels.set([247, 217, 198, 255], i);
-  // Eye highlights and iris detail must survive every palette and skin swap.
-  for (let y = 256; y < 512; y++)
-    for (let x = 256; x < 512; x++)
-      image.pixels.set(
-        [x % 256, y % 256, (x + y) % 256, 255],
-        (y * 512 + x) * 4,
-      );
-  const originalTexture = new T.Texture(image);
-  originalTexture.colorSpace = T.SRGBColorSpace;
-  const originals = new Set<T.MeshStandardMaterial>();
+test("skin and outfit colours belong to each avatar and leave the shared eye paint alone", () => {
+  // Stand-in for the painted eyes, which Node cannot decode.
+  const eyePaint = new T.Texture();
+  const eyeMaterials = new Set<T.MeshStandardMaterial>();
   source.traverse((object) => {
     if (
       object instanceof T.Mesh &&
-      object.material instanceof T.MeshStandardMaterial
+      object.material instanceof T.MeshStandardMaterial &&
+      object.material.name.startsWith("eyes")
     )
-      originals.add(object.material);
+      eyeMaterials.add(object.material);
   });
-  originals.forEach((material) => {
-    material.map = originalTexture;
-    material.emissiveMap = originalTexture;
-  });
-  const originalDocument = Object.getOwnPropertyDescriptor(
-    globalThis,
-    "document",
-  );
-  Object.defineProperty(globalThis, "document", {
-    configurable: true,
-    value: { createElement: () => new RasterCanvas() },
-  });
-  let sourceDisposed = 0;
-  originalTexture.addEventListener("dispose", () => sourceDisposed++);
+  assert.equal(eyeMaterials.size, 2, "Girl and boy eyes");
+  eyeMaterials.forEach((material) => (material.map = eyePaint));
+  let paintDisposed = 0;
+  eyePaint.addEventListener("dispose", () => paintDisposed++);
   try {
     const scene = new T.Group();
     const remote = createAvatar(scene, 0, 0, outfits[0], skins[6]);
-    const local = createAvatar(scene, 0, 0, outfits[0], skins[6]);
-    const sharedMap = remote.materials.values().next().value!.map!;
-    let sharedDisposed = 0;
-    sharedMap.addEventListener("dispose", () => sharedDisposed++);
-    assert.equal(local.materials.values().next().value!.map, sharedMap);
+    const local = createAvatar(scene, 0, 0, outfits[1], skins[0]);
+    assert.notEqual(local.materials.get("skin"), remote.materials.get("skin"));
+    const hex = (avatar: typeof local, name: string) =>
+      "#" + avatar.materials.get(name)!.color.getHexString();
+    assert.equal(hex(remote, "skin"), skins[6]);
+    assert.equal(hex(local, "skin"), skins[0]);
+    assert.equal(hex(local, "jacket"), outfits[1]);
+    const base = new T.Color("#ffc8b6");
     for (let i = 0; i < 30; i++) {
       applyLook(local, {
         outfit: i % outfits.length,
         skin: i % skins.length,
         hat: 0,
+        body: i % 2,
+        clothing: i % 24,
       });
-      for (const material of local.materials.values()) {
-        assert.equal(
-          material.map,
-          material.emissiveMap,
-          "Emission follows the selected skin",
-        );
-        const painted = material.map!.image;
-        assert.equal(painted.width, 512);
-        assert.equal(painted.height, 512);
-        const iris = painted.getContext().getImageData(256, 256, 256, 256).data;
-        assert.deepEqual(
-          iris,
-          image.getContext().getImageData(256, 256, 256, 256).data,
-        );
+      for (const name of ["eyes", "eyes_b"]) {
+        const eye = local.materials.get(name)!;
+        assert.equal(eye.map, eyePaint, "Eye paint is shared, never redrawn");
+        assert.equal(eye.color.getHexString(), "ffffff");
       }
+      // The face texture is painted in the source tone and scaled to this one.
+      const tone = new T.Color(skins[i % skins.length]);
+      const face = local.materials.get("face")!.color;
+      for (const channel of ["r", "g", "b"] as const)
+        assert.ok(
+          Math.abs(face[channel] * base[channel] - tone[channel]) < 1e-6,
+        );
+      const visible: string[] = [];
+      local.model.traverse((object) => {
+        if (object instanceof T.Mesh && object.visible)
+          visible.push(object.name);
+      });
+      assert.equal(visible.includes("EyesB"), i % 2 === 1);
+      assert.equal(visible.includes("Eyes"), i % 2 === 0);
+      assert.ok(!(i % 2 && visible.includes("Skirt")), "The boy wears shorts");
+      assert.equal(
+        visible.filter((n) => ["Skirt", "Shorts", "Trousers"].includes(n))
+          .length,
+        1,
+      );
     }
-    const dark = sharedMap.image.getContext().getImageData(0, 256, 1, 1).data;
-    assert.deepEqual(
-      Array.from(dark),
-      [105, 69, 54, 255],
-      "Dark painted skin follows the saved skin index",
-    );
+    assert.equal(hex(remote, "skin"), skins[6], "Other avatars are untouched");
     disposeAvatar(local);
-    assert.equal(sharedDisposed, 0, "A remote avatar still owns the tint");
     disposeAvatar(remote);
-    disposeAvatar(remote);
-    assert.equal(sharedDisposed, 1);
-    assert.equal(sourceDisposed, 0, "The template atlas stays alive");
+    assert.equal(paintDisposed, 0, "The shared paint outlives its avatars");
   } finally {
-    if (originalDocument)
-      Object.defineProperty(globalThis, "document", originalDocument);
-    else Reflect.deleteProperty(globalThis, "document");
-    originals.forEach((material) => {
-      material.map = null;
-      material.emissiveMap = null;
-    });
+    eyeMaterials.forEach((material) => (material.map = null));
   }
 });

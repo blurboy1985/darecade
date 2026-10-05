@@ -11,6 +11,33 @@ the actual 3D assets, including locked pieces and complete sets. Selecting a
 card changes only the fitting-room preview. Equip saves the look; closing or
 resetting the preview discards it. The lightweight lobby uses the same PNGs.
 
+## Avatar and tiers
+
+The avatar is built from the CC BY "Chibi Girl Character" model; see
+`art/characters/sketchfab-chibi-girl/README.md`. My look has a Girl / Boy
+switch (saved as `body`, 0 or 1). It changes the eyes and swaps the skirt for
+shorts; every hairstyle and outfit works on both.
+
+Every card says how the piece is had: **Free**, **Style tokens** or
+**Premium** (a complete set: buy it, or exchange tokens).
+
+| Slot | Free | Style tokens | Premium (in sets) |
+| --- | ---: | ---: | ---: |
+| Outfits | 8 | 16 | 16 |
+| Head | 11 | 26 | 16 |
+| Pets | 10 | 22 | 16 |
+| Magic | 10 | 23 | 16 |
+
+Six sets were added on 5 October 2026: Candy Pop (22 tokens), Boba Dream (26),
+Pixel Champion (30), Dream Witch (34), Garden Sprite (38) and Dino Explorer
+(42). They cannot be bought with money until their S$1.99 prices exist in
+Stripe and their IDs are added to `STRIPE_CATALOG` (ids `candy`, `boba`,
+`pixel`, `witch`, `garden`, `dino`). See PAYMENTS.md.
+
+Saved indices never move. Each slot is laid out as the original items, the
+first ten sets, later single items, then later sets; `src/collections.ts`
+(`setIndexFor`, `extraIndexFor`) is the only place that knows this.
+
 ## Collections and progression
 
 - Everyday: the original first eight choices in each category, available immediately.
@@ -65,7 +92,7 @@ desktop, 320px phone layout, locked previews, explicit equip, server persistence
 token exchange and the 2D fallback. Browser testing used a separate local test
 database in `.browser/wardrobe-qa-data`.
 
-The 155 previews in `public/wardrobe` cover every individual item and all ten
+The 206 previews in `public/wardrobe` cover every individual item and all 16
 complete sets. To regenerate them, run `scripts/render-wardrobe-thumbnails.js`
 in a browser on the local Vite page and save the returned name-to-data-URL map
 as PNGs. Windows PowerShell can pass the script to `agent-browser eval -b`

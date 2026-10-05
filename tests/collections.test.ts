@@ -7,20 +7,33 @@ import { Store } from "../server/store.mjs";
 import { Community, PRIVACY_VERSION } from "../server/community.mjs";
 import {
   canWear,
+  collectionFor,
+  extraCounts,
+  extraIndexFor,
+  extraItemIndex,
   legendarySets,
+  setIndexFor,
+  setItemIndex,
   setStarts,
   setLook,
+  slotSize,
   styleTokens,
 } from "../src/collections.ts";
-import { appearanceLimits } from "../src/appearance.ts";
+import {
+  accessoryNames,
+  appearanceLimits,
+  clothingNames,
+  hairNames,
+  petNames,
+} from "../src/appearance.ts";
 import { fresh, normalise } from "../src/state.ts";
 import { legendaryBody, legendaryHead } from "../src/legendary.ts";
 import * as T from "three";
 
-test("ten complete sets retain old indices and have distinct visible geometry", () => {
-  assert.equal(legendarySets.length, 10);
+test("complete sets retain old indices and have distinct visible geometry", () => {
+  assert.equal(legendarySets.length, 16);
   const silhouettes = new Set<string>();
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < legendarySets.length; i++) {
     const root = new T.Group();
     legendaryBody(root, i);
     legendaryHead(root, i);
@@ -34,9 +47,9 @@ test("ten complete sets retain old indices and have distinct visible geometry", 
     });
     silhouettes.add(parts.join("|"));
   }
-  assert.equal(silhouettes.size, 10);
+  assert.equal(silhouettes.size, legendarySets.length);
   for (const slot of ["clothing", "hair", "pet", "accessory"] as const) {
-    assert.equal(appearanceLimits[slot], setStarts[slot] + 10);
+    assert.equal(appearanceLimits[slot], slotSize(slot));
     assert.equal(canWear(slot, setStarts[slot], fresh(), 100), false);
     assert.equal(canWear(slot, 0, fresh(), 0), true);
     assert.equal(canWear(slot, 8, fresh(), 0), false);
@@ -138,4 +151,71 @@ test("exchanges enforce server progress, debit once, survive reload and protect 
     store.close();
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("later items and sets are appended without moving any saved index", () => {
+  // The names saved looks already point at.
+  assert.equal(clothingNames[24], "Solar armour & comet cape");
+  assert.equal(hairNames[37], "Shooting star headphones");
+  assert.equal(petNames[35], "Encore the star sprite");
+  assert.equal(accessoryNames[36], "Starlight encore");
+  const names = {
+    clothing: clothingNames,
+    hair: hairNames,
+    pet: petNames,
+    accessory: accessoryNames,
+  };
+  const piece = {
+    clothing: "outfit",
+    hair: "head",
+    pet: "pet",
+    accessory: "magic",
+  } as const;
+  for (const slot of ["clothing", "hair", "pet", "accessory"] as const) {
+    const seen = new Set<string>();
+    for (let index = 0; index < slotSize(slot); index++) {
+      const set = setIndexFor(slot, index);
+      const extra = extraIndexFor(slot, index);
+      assert.ok(set < 0 || extra < 0);
+      if (set >= 0) {
+        assert.equal(setItemIndex(slot, set), index);
+        assert.equal(names[slot][index], legendarySets[set][piece[slot]]);
+        assert.equal(collectionFor(slot, index), "legendary");
+        seen.add(`set${set}`);
+      }
+      if (extra >= 0) {
+        assert.equal(extraItemIndex(slot, extra), index);
+        assert.notEqual(collectionFor(slot, index), "legendary");
+        seen.add(`extra${extra}`);
+      }
+    }
+    assert.equal(seen.size, legendarySets.length + extraCounts[slot]);
+    assert.equal(setIndexFor(slot, slotSize(slot)), -1);
+    if (!extraCounts[slot]) continue;
+    // A third of the later single items are free, the rest cost tokens.
+    const tiers = Array.from({ length: extraCounts[slot] }, (_, i) =>
+      collectionFor(slot, extraItemIndex(slot, i)),
+    );
+    for (const tier of ["starter", "discovery", "mastery"])
+      assert.equal(
+        tiers.filter((t) => t === tier).length,
+        extraCounts[slot] / 3,
+      );
+    assert.equal(canWear(slot, extraItemIndex(slot, 0), fresh(), 0), true);
+    assert.equal(
+      canWear(slot, extraItemIndex(slot, extraCounts[slot] / 3), fresh(), 0),
+      false,
+    );
+  }
+  assert.equal(setLook(10).pet, setStarts.pet + 16);
+  assert.equal(canWear("pet", setLook(10).pet, fresh(), 0), false);
+  assert.equal(
+    canWear(
+      "pet",
+      setLook(10).pet,
+      { ...fresh(), wardrobePurchased: ["candy"] },
+      0,
+    ),
+    true,
+  );
 });

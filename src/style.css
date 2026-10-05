@@ -1338,6 +1338,22 @@ dialog::backdrop {
   color: #8c9382;
   margin: 22px 0 12px;
 }
+.body-options {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.body-options button {
+  padding: 8px 18px;
+  border: 2px solid #dedcce;
+  border-radius: 999px;
+  background: #fffdf7;
+  font-weight: 700;
+}
+.body-options button.active {
+  border-color: #7660b3;
+  background: #efe9ff;
+}
 .swatches {
   display: flex;
   gap: 8px;

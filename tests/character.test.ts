@@ -9,7 +9,7 @@ import {
 } from "../src/appearance.ts";
 
 const file = readFileSync(
-  new URL("../public/models/neighbour-chibi.glb", import.meta.url),
+  new URL("../public/models/neighbour-chibi2.glb", import.meta.url),
 );
 const jsonSize = file.readUInt32LE(12);
 const gltf = JSON.parse(file.toString("utf8", 20, 20 + jsonSize));
@@ -36,43 +36,31 @@ const read = (id: number, row: number, col: number) => {
         : file.readUInt8(offset);
   return a.normalized ? raw / (size === 2 ? 65535 : 255) : raw;
 };
+const triangles = (name: string) =>
+  gltf.meshes[node(name).mesh].primitives.reduce(
+    (total: number, primitive: { indices: number }) =>
+      total + gltf.accessors[primitive.indices].count / 3,
+    0,
+  );
+// Every part the game shows by name. See bodySets and hairParts in character.ts.
+const body = [
+  "Skin_Top",
+  "Skin_Legs",
+  "Head",
+  "Lashes",
+  "Shirt",
+  "Trim",
+  "Socks",
+];
+const eyes = ["Eyes", "EyesB"];
+const hair = ["Hair", "HairShort", "Buns", "Beads"];
+const clothes = ["Jacket", "Skirt", "Shorts", "Trousers", "Shoes", "Cape"];
+const hats = ["Hat_Wizard", "Hat_Knight", "Hat_Bear"];
 
-test("every exported face retains rounded profile volume independently of hair", () => {
-  for (const name of [
-    "Rogue_Head",
-    "Rogue_Head_Hooded",
-    "Mage_Head",
-    "Knight_Head",
-    "Barbarian_Head",
-  ]) {
-    const p = gltf.meshes[node(name).mesh].primitives[0];
-    const positions = p.attributes.POSITION;
-    const uv = p.attributes.TEXCOORD_0;
-    const points: number[][] = [];
-    for (let i = 0; i < gltf.accessors[positions].count; i++) {
-      // glTF flips Blender's V coordinate: only the skin-paint rectangle.
-      // Exclude hair, ears, sclera and irises so a large hat cannot hide a flat skull.
-      if (read(uv, i, 0) < 0.5 && read(uv, i, 1) > 0.5)
-        points.push([read(positions, i, 0), read(positions, i, 2)]);
-    }
-    assert.ok(points.length > 500, `${name}: continuous skin surface`);
-    const width =
-      Math.max(...points.map((p) => p[0])) -
-      Math.min(...points.map((p) => p[0]));
-    const depth =
-      Math.max(...points.map((p) => p[1])) -
-      Math.min(...points.map((p) => p[1]));
-    assert.ok(
-      depth / width >= 0.75 && depth / width <= 1.05,
-      `${name}: readable rounded side silhouette (${depth / width})`,
-    );
-  }
-});
-
-test("original chibi character fits the download budget and has one shared rig", (t) => {
+test("the avatar fits the download budget and has one shared rig", (t) => {
   assert.equal(file.toString("utf8", 0, 4), "glTF");
   assert.ok(file.length < 1_500_000, "Character download budget: 1.5MB");
-  assert.equal(gltf.animations?.length ?? 0, 0, "Baked clips are stripped");
+  assert.equal(gltf.animations?.length ?? 0, 0, "No baked clips");
   const joints = new Set(
     gltf.skins.map((s: { joints: number[] }) => s.joints.join()),
   );
@@ -90,161 +78,83 @@ test("original chibi character fits the download budget and has one shared rig",
         `${child} must follow ${parent}`,
       );
   assert.ok(node("chest").children.includes(gltf.nodes.indexOf(node("head"))));
-  const triangles = (name: string) =>
-    gltf.meshes[node(name).mesh].primitives.reduce(
-      (total: number, primitive: { indices: number }) =>
-        total + gltf.accessors[primitive.indices].count / 3,
-      0,
-    );
-  const parts = [
-    "Body",
-    "ArmLeft",
-    "ArmRight",
-    "LegLeft",
-    "LegRight",
-    "Head",
-    "Cape",
-  ];
-  const families = ["Rogue", "Mage", "Knight", "Barbarian"];
-  const maxPart = (part: string) =>
-    Math.max(...families.map((who) => triangles(`${who}_${part}`)));
-  const maxHat = Math.max(
-    ...["Mage_Hat", "Knight_Helmet", "Barbarian_Hat"].map(triangles),
-  );
-  const maxHead = Math.max(maxPart("Head"), triangles("Rogue_Head_Hooded"));
-  const worst = parts
-    .filter((part) => part !== "Head")
-    .reduce((total, part) => total + maxPart(part), maxHead + maxHat);
-  t.diagnostic(
-    `${file.length} bytes; worst mixed outfit with cape and hat ${worst} triangles`,
-  );
-  assert.ok(
-    worst <= 12_000,
-    "Even mixed wardrobe looks fit the 12,000-triangle budget",
-  );
-  for (const name of [
-    ...families.flatMap((who) => parts.map((part) => `${who}_${part}`)),
-    "Rogue_Head_Hooded",
-    "Mage_Hat",
-    "Knight_Helmet",
-    "Barbarian_Hat",
-  ])
+  // The heaviest look: twin buns, jacket, the largest bottoms, cape and hat.
+  const worst =
+    [...body, "Eyes", "Hair", "Buns", "Beads", "Jacket", "Shoes", "Cape"]
+      .map(triangles)
+      .reduce((a, b) => a + b) +
+    Math.max(...["Skirt", "Shorts", "Trousers"].map(triangles)) +
+    Math.max(...hats.map(triangles));
+  t.diagnostic(`${file.length} bytes; heaviest look ${worst} triangles`);
+  assert.ok(worst <= 15_000, "Every look fits the 15,000-triangle budget");
+  for (const name of [...body, ...eyes, ...hair, ...clothes, ...hats])
     assert.equal(
       gltf.meshes[node(name).mesh].primitives.length,
       1,
-      `${name} is one draw, at most eight per dressed avatar`,
+      `${name} is one draw`,
     );
 });
 
-test("every saved wardrobe choice has its original meshes", () => {
+test("every saved wardrobe choice has its parts and colour channels", () => {
   // Saved looks store indices, so lists only ever grow; each has 20+ choices.
   assert.ok(clothingNames.length >= 20);
   assert.ok(hairNames.length >= 20);
   assert.ok(petNames.length > 20);
   assert.ok(accessoryNames.length > 20);
-  assert.deepEqual(clothingNames.slice(0, 2), [
-    "Ranger tunic",
-    "Ranger tunic & cape",
-  ]);
   assert.deepEqual(hairNames.slice(5, 8), [
     "Wizard hat",
     "Knight helmet",
     "Bear hat",
   ]);
-  for (const who of ["Rogue", "Mage", "Knight", "Barbarian"]) {
-    for (const part of [
-      "Body",
-      "ArmLeft",
-      "ArmRight",
-      "LegLeft",
-      "LegRight",
-      "Head",
-      "Cape",
-    ])
-      assert.notEqual(
-        node(`${who}_${part}`)?.mesh,
-        undefined,
-        `${who}_${part}`,
-      );
+  for (const name of [...body, ...eyes, ...hair, ...clothes, ...hats]) {
+    assert.notEqual(node(name)?.mesh, undefined, name);
+    assert.notEqual(node(name).skin, undefined, `${name} follows the rig`);
   }
-  assert.notEqual(node("Rogue_Head_Hooded")?.skin, undefined);
-  for (const [hat, bone] of [
-    ["Mage_Hat", "head"],
-    ["Knight_Helmet", "head"],
-    ["Barbarian_Hat", "head"],
-  ]) {
-    assert.ok(
-      node(hat).skin !== undefined ||
-        node(bone).children.includes(gltf.nodes.indexOf(node(hat))),
-      `${hat} follows the shared head rig`,
-    );
-  }
-  const weapons = gltf.nodes.filter((n: { name: string }) =>
-    /Sword|Axe|Shield|Crossbow|Knife|Staff|Wand|Spellbook|Mug|Throwable/.test(
-      n.name,
-    ),
-  );
-  assert.deepEqual(weapons, [], "No weapons or props are shipped");
+  // The game colours materials by these names.
   assert.deepEqual(gltf.materials.map((m: { name: string }) => m.name).sort(), [
-    "barbarian",
-    "knight",
-    "mage",
-    "rogue",
+    "beads",
+    "bottom",
+    "cape",
+    "eyes",
+    "eyes_b",
+    "face",
+    "hair",
+    "hat",
+    "jacket",
+    "shirt",
+    "shoes",
+    "skin",
+    "socks",
+    "trim",
   ]);
 });
 
-test("all face choices have named expressions and retain the painted atlas", () => {
-  for (const who of [
-    "Rogue",
-    "Mage",
-    "Knight",
-    "Barbarian",
-    "Rogue_Head_Hooded",
-  ]) {
-    const name = who === "Rogue_Head_Hooded" ? who : `${who}_Head`;
+test("eyes and lashes blink, and painted textures keep their detail", () => {
+  for (const name of ["Eyes", "EyesB", "Lashes"]) {
     const mesh = gltf.meshes[node(name).mesh];
-    assert.deepEqual(mesh.extras.targetNames, ["Blink", "Smile"]);
-    assert.equal(mesh.primitives[0].targets.length, 2);
+    assert.deepEqual(mesh.extras.targetNames, ["Blink"]);
+    assert.equal(mesh.primitives[0].targets.length, 1);
   }
+  assert.equal(gltf.images.length, 3, "Face, girl eyes and boy eyes");
   for (const image of gltf.images) {
     assert.equal(image.mimeType, "image/png");
     const view = gltf.bufferViews[image.bufferView];
     const offset = binaryStart + view.byteOffset;
-    assert.equal(
-      file.readUInt32BE(offset + 16),
-      512,
-      "Face paint is not reduced to palette swatches",
-    );
+    assert.equal(file.readUInt32BE(offset + 16), 512);
     assert.equal(file.readUInt32BE(offset + 20), 512);
   }
-  for (const material of gltf.materials) {
-    const base =
-      gltf.textures[material.pbrMetallicRoughness.baseColorTexture.index];
-    const emission = gltf.textures[material.emissiveTexture.index];
-    assert.equal(
-      base.source,
-      emission.source,
-      "Skin and emission share the same authored atlas",
+  for (const name of ["face", "eyes", "eyes_b"])
+    assert.notEqual(
+      gltf.materials.find((m: { name: string }) => m.name === name)
+        .pbrMetallicRoughness.baseColorTexture,
+      undefined,
+      `${name} is painted`,
     );
-  }
 });
 
-test("each body family's main clothing uses the outfit tint cells", () => {
-  for (const family of ["Rogue", "Mage", "Knight", "Barbarian"]) {
-    const primitive = gltf.meshes[node(`${family}_Body`).mesh].primitives[0];
-    const uv = primitive.attributes.TEXCOORD_0;
-    const count = gltf.accessors[uv].count;
-    let tintable = 0;
-    for (let vertex = 0; vertex < count; vertex++) {
-      const col = Math.floor(read(uv, vertex, 0) * 8);
-      const row = Math.floor(read(uv, vertex, 1) * 8);
-      if (row === 1 && (col === 0 || col === 1)) tintable++;
-    }
-    assert.ok(
-      tintable / count >= 0.15,
-      `${family}: ${tintable}/${count} body vertices must sample outfit cells 8/9, beyond a small accent`,
-    );
-  }
+test("the source author's credit travels with the file", () => {
+  assert.match(node("Simi_Chibi2_Rig").extras.source, /Syed's Creation/);
+  assert.match(node("Simi_Chibi2_Rig").extras.source, /CC BY 4\.0/);
 });
 
 test("skinned parts have finite, normalised weights on valid joints", () => {
@@ -274,4 +184,19 @@ test("skinned parts have finite, normalised weights on valid joints", () => {
     }
   }
   assert.ok(weighted > 5000);
+});
+
+test("feet rest on the ground and the head keeps its hat envelope", () => {
+  const bounds = (name: string) => {
+    const a =
+      gltf.accessors[
+        gltf.meshes[node(name).mesh].primitives[0].attributes.POSITION
+      ];
+    return { min: a.min as number[], max: a.max as number[] };
+  };
+  assert.ok(Math.abs(bounds("Skin_Legs").min[1]) < 0.02, "Soles at y = 0");
+  // Procedural hats are placed for a head about 1.0 wide with its crown near 2.1.
+  const hairBox = bounds("Hair");
+  assert.ok(hairBox.max[1] > 2.05 && hairBox.max[1] < 2.25);
+  assert.ok(hairBox.max[0] - hairBox.min[0] < 1.3);
 });

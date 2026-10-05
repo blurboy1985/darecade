@@ -1,6 +1,10 @@
 // Stable indices are shared by save validation, the wardrobe and all renderers.
+// Each slot is laid out as: original items, the first ten sets, later single
+// items ("extras"), then every later set. Append sets freely; never reorder.
 export const setStarts = { clothing: 24, hair: 28, pet: 26, accessory: 27 };
 export type LookSlot = keyof typeof setStarts;
+const firstSets = 10;
+export const extraCounts = { clothing: 0, hair: 9, pet: 6, accessory: 6 };
 export const legendarySets = [
   {
     id: "solar",
@@ -142,6 +146,90 @@ export const legendarySets = [
     pet: "Encore the star sprite",
     magic: "Starlight encore",
   },
+  {
+    id: "candy",
+    name: "Candy Pop",
+    theme: "Sweet-shop pop star",
+    color: "#ff9ecb",
+    accent: "#8ff0e0",
+    cost: 22,
+    medals: 8,
+    rounds: 70,
+    outfit: "Candy pop streetwear",
+    head: "Lollipop swirl clips",
+    pet: "Sprinkle the cupcake cat",
+    magic: "Sugar rush swirl",
+  },
+  {
+    id: "boba",
+    name: "Boba Dream",
+    theme: "Bubble tea barista",
+    color: "#c98a5a",
+    accent: "#ffe9c9",
+    cost: 26,
+    medals: 10,
+    rounds: 85,
+    outfit: "Milk tea barista apron",
+    head: "Boba straw beret",
+    pet: "Pearl the tapioca slime",
+    magic: "Bubble tea whirl",
+  },
+  {
+    id: "pixel",
+    name: "Pixel Champion",
+    theme: "Arcade Row high scorer",
+    color: "#6ee06e",
+    accent: "#ffd84a",
+    cost: 30,
+    medals: 12,
+    rounds: 100,
+    outfit: "High score jacket",
+    head: "8-bit crown",
+    pet: "Bit the pixel pup",
+    magic: "Coin shower",
+  },
+  {
+    id: "witch",
+    name: "Dream Witch",
+    theme: "Midnight spell caster",
+    color: "#7a6cf0",
+    accent: "#ffd9f5",
+    cost: 34,
+    medals: 14,
+    rounds: 120,
+    outfit: "Dream witch cloak",
+    head: "Crescent witch hat",
+    pet: "Hex the little bat",
+    magic: "Moonlit spell circle",
+  },
+  {
+    id: "garden",
+    name: "Garden Sprite",
+    theme: "Flower meadow fairy",
+    color: "#7fd48a",
+    accent: "#ffb3d1",
+    cost: 38,
+    medals: 16,
+    rounds: 140,
+    outfit: "Petal sprite tunic",
+    head: "Tulip bud hood",
+    pet: "Clover the bumblebee",
+    magic: "Petal whirl",
+  },
+  {
+    id: "dino",
+    name: "Dino Explorer",
+    theme: "Prehistoric adventurer",
+    color: "#5fc8a0",
+    accent: "#ffd166",
+    cost: 42,
+    medals: 18,
+    rounds: 160,
+    outfit: "Dino explorer onesie",
+    head: "Dino hood",
+    pet: "Rex the tiny dino",
+    magic: "Fossil fireworks",
+  },
 ];
 export type WardrobeProgress = {
   xp: number;
@@ -160,13 +248,35 @@ export const lookBundles = [
   { id: "mastery", name: "Weekend looks", cost: 3 },
 ] as const;
 export const tokenLooks = [...legendarySets, ...lookBundles];
+export const slotSize = (slot: LookSlot) =>
+  setStarts[slot] + legendarySets.length + extraCounts[slot];
+/** Position of an item among the sets, or -1 for a single item. */
+export function setIndexFor(slot: LookSlot, index: number) {
+  const i = index - setStarts[slot];
+  if (i < 0 || index >= slotSize(slot)) return -1;
+  if (i < firstSets) return i;
+  return i < firstSets + extraCounts[slot] ? -1 : i - extraCounts[slot];
+}
+/** Position of an item among the later single items, or -1. */
+export function extraIndexFor(slot: LookSlot, index: number) {
+  const i = index - setStarts[slot] - firstSets;
+  return i >= 0 && i < extraCounts[slot] ? i : -1;
+}
+export const setItemIndex = (slot: LookSlot, set: number) =>
+  setStarts[slot] + set + (set < firstSets ? 0 : extraCounts[slot]);
+export const extraItemIndex = (slot: LookSlot, extra: number) =>
+  setStarts[slot] + firstSets + extra;
 export function setForItem(slot: LookSlot, index: number) {
-  return legendarySets[index - setStarts[slot]];
+  return legendarySets[setIndexFor(slot, index)];
 }
 export function collectionFor(slot: LookSlot, index: number) {
-  if (index >= setStarts[slot]) return "legendary";
-  if (index < 8) return "starter";
-  return index < 16 ? "discovery" : "mastery";
+  const extra = extraIndexFor(slot, index);
+  // Later single items: a third each are free, Street and Weekend.
+  const tier =
+    extra < 0 ? index : Math.floor((extra * 3) / extraCounts[slot]) * 8;
+  if (extra < 0 && index >= setStarts[slot]) return "legendary";
+  if (tier < 8) return "starter";
+  return tier < 16 ? "discovery" : "mastery";
 }
 export function canWear(
   slot: LookSlot,
@@ -174,11 +284,7 @@ export function canWear(
   p: WardrobeProgress,
   medals: number,
 ) {
-  if (
-    !Number.isInteger(index) ||
-    index < 0 ||
-    index >= setStarts[slot] + legendarySets.length
-  )
+  if (!Number.isInteger(index) || index < 0 || index >= slotSize(slot))
     return false;
   const set = setForItem(slot, index);
   if (set) return ownsSet(p, set.id);
@@ -194,10 +300,10 @@ export function canRedeem(
 }
 export function setLook(index: number) {
   return {
-    clothing: setStarts.clothing + index,
-    hair: setStarts.hair + index,
-    pet: setStarts.pet + index,
-    accessory: setStarts.accessory + index,
+    clothing: setItemIndex("clothing", index),
+    hair: setItemIndex("hair", index),
+    pet: setItemIndex("pet", index),
+    accessory: setItemIndex("accessory", index),
     hat: 0,
   };
 }

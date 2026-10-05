@@ -1,4 +1,4 @@
-import { legendarySets, setStarts } from "./collections.ts";
+import { extraIndexFor, legendarySets, setIndexFor } from "./collections.ts";
 // Companion pets. Every pet is built from simple primitives so they share the
 // soft, toy-like look of the neighbourhood. Index 0 means "no companion".
 import * as T from "three";
@@ -464,6 +464,272 @@ const motions: Record<number, PetMotion> = {
   25: "float",
 };
 
+function bee(pet: Pet, body: string, stripe: string) {
+  const b = pet.body;
+  pet.motion = "float";
+  ball(b, [0, 0.5, 0], [0.17, 0.17, 0.22], body);
+  for (const [z, r] of [
+    [-0.03, 0.172],
+    [-0.11, 0.152],
+  ])
+    part(b, "cyl", [0, 0.5, z], [r, 0.045, r], stripe, {
+      rot: [Math.PI / 2, 0, 0],
+    });
+  face(b, 0.53, 0.19, 0.07, 0.03);
+  for (const side of [-1, 1]) {
+    ball(b, [side * 0.11, 0.47, 0.17], [0.035, 0.018, 0.01], "#ffb3c9");
+    const wing = node(b, [side * 0.07, 0.64, -0.03], "PetWing");
+    wing.userData.side = side;
+    ball(wing, [side * 0.1, 0.03, 0], [0.12, 0.025, 0.08], "#e8f7ff", {
+      opacity: 0.7,
+    });
+    pet.wings.push(wing);
+    const feeler = part(
+      b,
+      "cyl",
+      [side * 0.06, 0.7, 0.14],
+      [0.01, 0.12, 0.01],
+      stripe,
+    );
+    feeler.rotation.z = -side * 0.35;
+    ball(b, [side * 0.08, 0.77, 0.14], [0.025, 0.025, 0.025], stripe);
+  }
+  part(b, "cone", [0, 0.5, -0.25], [0.04, 0.09, 0.04], stripe, {
+    rot: [-Math.PI / 2, 0, 0],
+  });
+}
+
+// Later companions: six single pets, then the pets of every set after the
+// first ten. Ids match laterPets below and the set ids in collections.ts.
+function laterPet(pet: Pet, id: string, color: string, accent: string) {
+  const b = pet.body;
+  switch (id) {
+    case "chick":
+      bird(pet, "#ffe27a", "#fff3b8", "#ff9d3c", "#ffd24f");
+      ball(b, [0, 0.75, 0.01], [0.03, 0.06, 0.03], "#ffd24f");
+      pet.motion = "waddle";
+      break;
+    case "shiba":
+      quad(pet, {
+        color: "#e0a45c",
+        muzzle: "#fff6e6",
+        ear: [0.07, 0.13, 0.05],
+        earColor: "#c98a45",
+        tail: "fluffy",
+        tailColor: "#fff6e6",
+      });
+      for (const side of [-1, 1])
+        ball(b, [side * 0.13, 0.47, 0.33], [0.06, 0.05, 0.04], "#fff6e6");
+      break;
+    case "koala":
+      quad(pet, {
+        color: "#a9adb8",
+        muzzle: "#e9e9ee",
+        ear: [0.11, 0.11, 0.06],
+        earColor: "#8f93a0",
+        earTilt: 0.5,
+        bodyScale: [0.22, 0.22, 0.28],
+        tail: "none",
+      });
+      ball(b, [0, 0.47, 0.42], [0.05, 0.065, 0.035], "#3b3b45");
+      break;
+    case "bee":
+      bee(pet, "#ffd447", "#3b2f2f");
+      break;
+    case "octopus": {
+      pet.motion = "bounce";
+      ball(b, [0, 0.32, 0], [0.22, 0.22, 0.21], "#b98cf2");
+      face(b, 0.3, 0.19, 0.08, 0.032);
+      for (const side of [-1, 1])
+        ball(b, [side * 0.14, 0.24, 0.16], [0.04, 0.02, 0.012], "#ffb3c9");
+      ball(b, [0, 0.23, 0.2], [0.03, 0.03, 0.02], "#8a5fd0");
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + 0.52;
+        const arm = node(b, [Math.cos(a) * 0.15, 0.15, Math.sin(a) * 0.15]);
+        ball(
+          arm,
+          [Math.cos(a) * 0.05, -0.06, Math.sin(a) * 0.05],
+          [0.06, 0.09, 0.06],
+          i % 2 ? "#b98cf2" : "#a476e6",
+        );
+        pet.sway.push(arm);
+      }
+      break;
+    }
+    case "whale": {
+      pet.motion = "float";
+      ball(b, [0, 0.5, 0], [0.2, 0.17, 0.3], "#7cb8f2");
+      ball(b, [0, 0.455, 0.03], [0.175, 0.13, 0.27], "#e9f6ff");
+      face(b, 0.53, 0.25, 0.11, 0.028);
+      pet.tail.position.set(0, 0.5, -0.27);
+      for (const side of [-1, 1]) {
+        const fluke = ball(
+          pet.tail,
+          [side * 0.08, 0.04, -0.1],
+          [0.09, 0.025, 0.07],
+          "#7cb8f2",
+        );
+        fluke.rotation.y = side * 0.5;
+        const fin = node(b, [side * 0.18, 0.44, 0.08], "PetWing");
+        fin.userData.side = side;
+        ball(fin, [side * 0.07, -0.02, 0], [0.09, 0.02, 0.06], "#5fa0e0");
+        pet.wings.push(fin);
+      }
+      ball(pet.tail, [0, 0.02, -0.04], [0.05, 0.04, 0.09], "#7cb8f2");
+      for (const [x, y, s] of [
+        [0, 0.74, 0.035],
+        [-0.06, 0.82, 0.022],
+        [0.06, 0.86, 0.018],
+      ])
+        ball(b, [x, y, 0.05], [s, s, s], "#fff3b0", { glow: 0.9 });
+      break;
+    }
+    case "candy": {
+      quad(pet, {
+        color: "#fff1f6",
+        muzzle: "#ffffff",
+        ear: [0.08, 0.14, 0.05],
+        earColor: color,
+        tail: "thin",
+        tailColor: color,
+      });
+      ball(b, [0, 0.5, -0.05], [0.15, 0.07, 0.2], color);
+      ball(b, [0, 0.56, -0.05], [0.1, 0.06, 0.13], accent);
+      ball(b, [0, 0.63, -0.05], [0.04, 0.04, 0.04], "#ff4d6d");
+      for (let i = 0; i < 7; i++)
+        part(
+          b,
+          "box",
+          [Math.sin(i * 2.4) * 0.11, 0.565, -0.05 + Math.cos(i * 2.4) * 0.15],
+          [0.012, 0.012, 0.04],
+          ["#ffe27a", "#8fb8ff", "#ffffff"][i % 3],
+          { rot: [0, i, 0] },
+        );
+      break;
+    }
+    case "boba": {
+      pet.motion = "bounce";
+      ball(b, [0, 0.19, 0], [0.24, 0.19, 0.24], accent, { opacity: 0.85 });
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        ball(
+          b,
+          [Math.cos(a) * 0.11, 0.08 + (i % 2) * 0.03, Math.sin(a) * 0.11],
+          [0.045, 0.045, 0.045],
+          "#3a2418",
+        );
+      }
+      face(b, 0.24, 0.215, 0.07, 0.03);
+      for (const side of [-1, 1])
+        ball(b, [side * 0.12, 0.19, 0.2], [0.035, 0.018, 0.01], "#ffb3c9");
+      part(b, "cyl", [0.07, 0.42, -0.02], [0.028, 0.3, 0.028], "#ff8fb1", {
+        rot: [0, 0, -0.25],
+      });
+      ball(b, [0, 0.34, 0], [0.16, 0.035, 0.16], color, { opacity: 0.9 });
+      break;
+    }
+    case "pixel": {
+      part(b, "box", [0, 0.3, -0.03], [0.3, 0.24, 0.4], color);
+      part(b, "box", [0, 0.52, 0.2], [0.32, 0.28, 0.28], color);
+      part(b, "box", [0, 0.46, 0.36], [0.16, 0.12, 0.08], "#f4ffe9");
+      part(b, "box", [0, 0.5, 0.41], [0.06, 0.05, 0.03], "#243c45");
+      for (const side of [-1, 1]) {
+        part(b, "box", [side * 0.13, 0.7, 0.18], [0.08, 0.12, 0.08], accent);
+        part(
+          b,
+          "box",
+          [side * 0.08, 0.57, 0.345],
+          [0.05, 0.06, 0.02],
+          "#243c45",
+        );
+        for (const z of [-0.16, 0.12]) {
+          const leg = node(b, [side * 0.1, 0.2, z]);
+          part(leg, "box", [0, -0.1, 0], [0.09, 0.2, 0.09], color);
+          pet.legs.push(leg);
+        }
+      }
+      pet.tail.position.set(0, 0.36, -0.23);
+      part(pet.tail, "box", [0, 0.08, 0], [0.07, 0.18, 0.07], accent);
+      break;
+    }
+    case "witch": {
+      pet.motion = "float";
+      ball(b, [0, 0.5, 0], [0.17, 0.18, 0.16], color);
+      face(b, 0.52, 0.14, 0.065, 0.03);
+      for (const side of [-1, 1]) {
+        part(b, "cone", [side * 0.1, 0.7, 0], [0.06, 0.14, 0.04], color, {
+          rot: [0, 0, -side * 0.3],
+        });
+        part(
+          b,
+          "cone",
+          [side * 0.03, 0.44, 0.15],
+          [0.012, 0.035, 0.012],
+          "#ffffff",
+          { rot: [Math.PI, 0, 0] },
+        );
+        const wing = node(b, [side * 0.13, 0.52, -0.02], "PetWing");
+        wing.userData.side = side;
+        for (let n = 0; n < 3; n++)
+          part(
+            wing,
+            "cone",
+            [side * (0.08 + n * 0.09), -0.02 - n * 0.015, 0],
+            [0.07, 0.24 - n * 0.04, 0.012],
+            n % 2 ? "#5b4fc4" : "#4b3f9e",
+            { rot: [Math.PI, 0, 0] },
+          );
+        pet.wings.push(wing);
+      }
+      part(b, "cyl", [0, 0.68, 0.02], [0.11, 0.015, 0.11], accent);
+      part(b, "cone", [0, 0.78, 0.02], [0.065, 0.2, 0.065], accent);
+      break;
+    }
+    case "garden":
+      bee(pet, "#fff0a8", color);
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2;
+        ball(
+          b,
+          [Math.cos(a) * 0.05, 0.69, 0.02 + Math.sin(a) * 0.05],
+          [0.045, 0.02, 0.045],
+          accent,
+        );
+      }
+      ball(b, [0, 0.7, 0.02], [0.03, 0.025, 0.03], "#ffe27a");
+      break;
+    case "dino": {
+      ball(b, [0, 0.3, -0.02], [0.2, 0.23, 0.23], color);
+      ball(b, [0, 0.27, 0.07], [0.15, 0.17, 0.17], "#f4f7d8");
+      ball(b, [0, 0.58, 0.1], [0.19, 0.17, 0.19], color);
+      ball(b, [0, 0.53, 0.25], [0.13, 0.1, 0.11], color);
+      face(b, 0.63, 0.24, 0.1, 0.03);
+      for (const side of [-1, 1]) {
+        ball(b, [side * 0.05, 0.56, 0.35], [0.012, 0.012, 0.008], "#2c6b55");
+        ball(b, [side * 0.15, 0.36, 0.16], [0.04, 0.07, 0.04], color);
+        const leg = node(b, [side * 0.11, 0.14, 0]);
+        ball(leg, [0, -0.07, 0.03], [0.075, 0.07, 0.11], color);
+        pet.legs.push(leg);
+      }
+      for (let i = 0; i < 4; i++)
+        part(
+          b,
+          "cone",
+          [0, 0.74 - i * 0.13, -0.02 - i * 0.07],
+          [0.04, 0.09, 0.04],
+          accent,
+          { rot: [-0.5 - i * 0.2, 0, 0] },
+        );
+      pet.tail.position.set(0, 0.2, -0.2);
+      part(pet.tail, "cone", [0, 0, -0.13], [0.09, 0.3, 0.09], color, {
+        rot: [-Math.PI / 2, 0, 0],
+      });
+      break;
+    }
+  }
+}
+const laterPets = ["chick", "shiba", "koala", "bee", "octopus", "whale"];
+
 export function makePet(parent: T.Object3D, kind: number): Pet {
   const root = node(parent);
   root.userData.companion = true;
@@ -486,9 +752,18 @@ export function makePet(parent: T.Object3D, kind: number): Pet {
     return pet;
   }
   if (quads[kind]) quad(pet, quads[kind]);
-  const special = legendarySets[kind - setStarts.pet];
+  const i = setIndexFor("pet", kind);
+  const extra = laterPets[extraIndexFor("pet", kind)];
+  if (extra) laterPet(pet, extra, "", "");
+  else if (i >= 10)
+    laterPet(
+      pet,
+      legendarySets[i].id,
+      legendarySets[i].color,
+      legendarySets[i].accent,
+    );
+  const special = i < 10 ? legendarySets[i] : undefined;
   if (special) {
-    const i = kind - setStarts.pet;
     if ([4, 6, 9].includes(i)) {
       pet.motion = "float";
       ball(

@@ -206,6 +206,9 @@ dialog:has(.wardrobe-layout) {
   letter-spacing: 0.04em;
   color: #59516b;
 }
+.item-state.is-premium {
+  color: #8a5a00;
+}
 .set-requirement {
   padding: 0 10px 12px;
   display: flex;

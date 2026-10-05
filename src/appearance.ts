@@ -1,38 +1,45 @@
-import { legendarySets } from "./collections.ts";
+import { legendarySets, slotSize, type LookSlot } from "./collections.ts";
+type SetPiece = "outfit" | "head" | "pet" | "magic";
+// Mirrors the slot layout in collections.ts: ten sets, later items, later sets.
+const later = (piece: SetPiece, extras: string[]) => [
+  ...legendarySets.slice(0, 10).map((set) => set[piece]),
+  ...extras,
+  ...legendarySets.slice(10).map((set) => set[piece]),
+];
 // Shared by the renderer and server validation; indices remain stable for saved looks.
 // Each list keeps its first eight entries in their original order so saved
 // looks keep their meaning; later entries are additions.
 export const clothingNames = [
-  "Ranger tunic",
-  "Ranger tunic & cape",
-  "Wizard robe",
-  "Wizard robe & cape",
-  "Knight armour",
-  "Knight armour & cape",
-  "Explorer furs",
-  "Explorer furs & cloak",
-  "Ranger in steel greaves",
-  "Royal ranger",
-  "Starcloak ranger",
-  "Wandering wizard",
-  "Frost wizard",
-  "Battle mage",
-  "Swift knight",
-  "Spellblade",
-  "Northern knight",
-  "Trailblazer",
-  "Champion",
-  "Storm shaman",
-  "Wolf hunter",
-  "Forest druid",
-  "Squire",
-  "Scout",
-  ...legendarySets.map((set) => set.outfit),
+  "Everyday cardigan",
+  "Everyday cardigan & cape",
+  "Summer vest & shorts",
+  "Summer vest & cape",
+  "School blazer",
+  "School blazer & cape",
+  "Explorer jacket",
+  "Explorer jacket & cloak",
+  "Cardigan & smart trousers",
+  "Caped cardigan",
+  "Cardigan, shorts & cape",
+  "Vest & everyday blues",
+  "Caped vest",
+  "Vest, trousers & cape",
+  "Blazer & everyday blues",
+  "Caped blazer",
+  "Blazer, khakis & cloak",
+  "Explorer jacket, blues & cape",
+  "Explorer jacket, greys & cape",
+  "Explorer jacket, shorts & cape",
+  "Cardigan, khakis & cloak",
+  "Vest, blues & cape",
+  "Blazer & shorts",
+  "Explorer jacket & everyday blues",
+  ...later("outfit", []),
 ];
 export const hairNames = [
   "Slate short cut",
   "Warm brown bob",
-  "Midnight twin tails",
+  "Midnight twin buns",
   "Grey beard",
   "Green hood",
   "Wizard hat",
@@ -58,7 +65,17 @@ export const hairNames = [
   "Pirate bandana",
   "Straw hat",
   "Big bow",
-  ...legendarySets.map((set) => set.head),
+  ...later("head", [
+    "Pink twin buns",
+    "Ribbon headband",
+    "Baseball cap",
+    "Honey blonde bob",
+    "Frog hat",
+    "Strawberry beret",
+    "Mint twin buns",
+    "Astronaut bubble",
+    "Unicorn horn",
+  ]),
 ];
 export const petNames = [
   "No companion",
@@ -87,7 +104,14 @@ export const petNames = [
   "Boo the ghost",
   "Mer the merlion cub",
   "Glow the jellyfish",
-  ...legendarySets.map((set) => set.pet),
+  ...later("pet", [
+    "Pip the chick",
+    "Mango the shiba",
+    "Coco the koala",
+    "Sunny the bee",
+    "Inky the octopus",
+    "Comet the sky whale",
+  ]),
 ];
 export const accessoryNames = [
   "Keep it simple",
@@ -117,7 +141,14 @@ export const accessoryNames = [
   "Rainbow comet",
   "Moonbeam",
   "Forest spirits",
-  ...legendarySets.map((set) => set.magic),
+  ...later("magic", [
+    "Confetti pop",
+    "Dandelion drift",
+    "Neon hoops",
+    "Autumn leaves",
+    "Shooting stars",
+    "Koi spirits",
+  ]),
 ];
 export const appearanceLimits = {
   clothing: clothingNames.length,
@@ -125,3 +156,6 @@ export const appearanceLimits = {
   pet: petNames.length,
   accessory: accessoryNames.length,
 };
+for (const slot of Object.keys(appearanceLimits) as LookSlot[])
+  if (appearanceLimits[slot] !== slotSize(slot))
+    throw Error(`${slot} names are out of step with the catalogue`);

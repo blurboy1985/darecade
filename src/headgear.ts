@@ -2,7 +2,7 @@
 // the head spans roughly y 0.90–1.78, ±0.44 wide and ±0.47 deep, face at +z.
 // Parts are added to the avatar's hat group, which follows the head bone.
 import * as T from "three";
-import { ball, node, part } from "./shapes.ts";
+import { ball, material, node, part } from "./shapes.ts";
 
 export type Gear =
   | "cat"
@@ -21,7 +21,13 @@ export type Gear =
   | "antlers"
   | "bandana"
   | "straw"
-  | "bow";
+  | "bow"
+  | "headband"
+  | "cap"
+  | "frog"
+  | "beret"
+  | "astronaut"
+  | "unicorn";
 
 const TOP = 1.76;
 const up = new T.Vector3(0, 1, 0);
@@ -312,7 +318,148 @@ export function buildHeadgear(g: T.Object3D, gear: Gear) {
       }
       ball(g, [0, TOP + 0.08 + 0.01, 0.07], [0.07, 0.07, 0.06], "#e85590");
       break;
+    case "headband":
+      // An arc of beads from ear to ear; a full ring would cut the chin.
+      for (let i = 0; i <= 12; i++) {
+        const a = Math.PI * (0.1 + (0.8 * i) / 12);
+        ball(
+          g,
+          [Math.cos(a) * 0.45, 1.33 + Math.sin(a) * 0.46, 0.06],
+          [0.07, 0.07, 0.08],
+          "#ff8fb1",
+        );
+      }
+      for (const side of [-1, 1]) {
+        const loop = ball(
+          g,
+          [0.27 + side * 0.1, TOP - 0.03, 0.1],
+          [0.11, 0.08, 0.05],
+          "#ff8fb1",
+        );
+        loop.rotation.z = side * 0.4 - 0.5;
+      }
+      ball(g, [0.27, TOP - 0.03, 0.12], [0.045, 0.045, 0.045], "#e85590");
+      break;
+    case "cap":
+      ball(g, [0, TOP - 0.2, -0.01], [0.47, 0.32, 0.5], "#3f7fd9");
+      part(g, "cyl", [0, TOP - 0.22, 0.52], [0.3, 0.03, 0.28], "#2f63b3");
+      ball(g, [0, TOP + 0.11, -0.01], [0.05, 0.03, 0.05], "#ffffff");
+      ball(g, [0, TOP - 0.08, 0.44], [0.09, 0.09, 0.03], "#ffd84a");
+      break;
+    case "frog":
+      ball(g, [0, TOP - 0.2, -0.01], [0.47, 0.31, 0.5], "#7ccf6b");
+      for (const side of [-1, 1]) {
+        ball(g, [side * 0.2, TOP + 0.12, 0.16], [0.13, 0.13, 0.12], "#7ccf6b");
+        ball(g, [side * 0.2, TOP + 0.13, 0.25], [0.09, 0.09, 0.05], "#ffffff");
+        ball(g, [side * 0.2, TOP + 0.13, 0.29], [0.045, 0.05, 0.02], "#243c45");
+        ball(g, [side * 0.3, TOP - 0.12, 0.38], [0.05, 0.03, 0.02], "#ffb3c9");
+      }
+      break;
+    case "beret":
+      ball(g, [0.05, TOP - 0.04, -0.03], [0.5, 0.15, 0.5], "#f0506e");
+      part(g, "cyl", [0, TOP - 0.12, 0], [0.4, 0.05, 0.42], "#d93c5c");
+      for (const [x, z] of [
+        [0.25, 0.2],
+        [-0.2, 0.25],
+        [0.3, -0.2],
+        [-0.25, -0.2],
+        [0, 0.38],
+        [0.05, -0.38],
+      ])
+        ball(
+          g,
+          [0.05 + x, TOP + 0.05, -0.03 + z],
+          [0.02, 0.012, 0.03],
+          "#ffe9a8",
+        );
+      ball(g, [0.05, TOP + 0.12, -0.03], [0.07, 0.03, 0.07], "#6fbf5a");
+      part(
+        g,
+        "cyl",
+        [0.05, TOP + 0.17, -0.03],
+        [0.012, 0.08, 0.012],
+        "#4f9b45",
+      );
+      break;
+    case "astronaut":
+      ball(g, [0, TOP - 0.42, 0], [0.62, 0.62, 0.62], "#dff4ff", {
+        opacity: 0.28,
+      });
+      part(g, "torus", [0, TOP - 0.95, 0], [0.4, 0.4, 0.5], "#f4f6fb", {
+        rot: [Math.PI / 2, 0, 0],
+      });
+      ball(g, [-0.2, TOP - 0.1, 0.42], [0.1, 0.05, 0.03], "#ffffff", {
+        opacity: 0.7,
+      });
+      part(g, "cyl", [0.4, TOP + 0.12, -0.1], [0.012, 0.22, 0.012], "#c9ced9");
+      ball(g, [0.4, TOP + 0.25, -0.1], [0.04, 0.04, 0.04], "#ff5d5d", {
+        glow: 0.8,
+      });
+      break;
+    case "unicorn": {
+      const horn = node(g, [0, TOP - 0.02, 0.3]);
+      horn.rotation.x = 0.35;
+      part(horn, "cone", [0, 0.17, 0], [0.07, 0.36, 0.07], "#fff1c9", {
+        glow: 0.25,
+      });
+      for (let i = 0; i < 4; i++)
+        part(
+          horn,
+          "torus",
+          [0, 0.03 + i * 0.075, 0],
+          [0.068 - i * 0.013, 0.068 - i * 0.013, 0.08],
+          "#ffc8e6",
+          { rot: [Math.PI / 2 + 0.25, 0, 0] },
+        );
+      for (const side of [-1, 1]) {
+        const ear = part(
+          g,
+          "cone",
+          [side * 0.27, TOP + 0.06, 0.05],
+          [0.09, 0.2, 0.06],
+          "#fbf6ff",
+        );
+        aim(ear, [side * 0.4, 1, 0]);
+      }
+      ["#ff9db8", "#ffe07a", "#9be8c8", "#a5c8ff", "#c4a5ff"].forEach((c, i) =>
+        ball(
+          g,
+          [0, TOP - 0.03 - i * 0.12, -0.34 - Math.sin(i * 0.7) * 0.12],
+          [0.11, 0.1, 0.09],
+          c,
+        ),
+      );
+      break;
+    }
   }
+}
+
+/** A short beard along the jaw, for the two bearded hairstyles. */
+export function buildBeard(g: T.Object3D, color: string) {
+  ball(g, [0, 1.09, 0.2], [0.17, 0.1, 0.09], color);
+  for (const side of [-1, 1]) {
+    ball(g, [side * 0.2, 1.14, 0.15], [0.1, 0.1, 0.09], color);
+    ball(g, [side * 0.3, 1.24, 0.06], [0.07, 0.1, 0.08], color);
+  }
+}
+
+// A sphere left open towards the face.
+const hoodShape = new T.SphereGeometry(
+  1,
+  20,
+  14,
+  Math.PI / 2 + 0.62,
+  Math.PI * 2 - 1.24,
+);
+export function buildHood(g: T.Object3D) {
+  const hood = new T.Mesh(hoodShape, material("#5d9b6a"));
+  hood.position.set(0, 1.4, -0.06);
+  hood.scale.set(0.61, 0.56, 0.6);
+  hood.castShadow = true;
+  g.add(hood);
+  part(g, "cone", [0, 1.95, -0.25], [0.1, 0.2, 0.1], "#5d9b6a", {
+    rot: [-0.9, 0, 0],
+  });
 }
 
 export function animateHeadgear(g: T.Object3D, t: number) {
