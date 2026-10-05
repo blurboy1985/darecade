@@ -326,7 +326,7 @@ export class LobbyWorld {
     host.append(this.renderer.domElement);
     this.renderer.domElement.setAttribute(
       "aria-label",
-      "Interactive 3D neighbourhood. Click a spot to walk, or use WASD. Accessible locations are in the Explore menu.",
+      "Interactive 3D neighbourhood. Click a spot to walk, or use WASD. Accessible locations are in the Neighbourhood menu.",
     );
     this.renderer.domElement.tabIndex = 0;
     this.renderer.domElement.addEventListener("webglcontextlost", (e) => {

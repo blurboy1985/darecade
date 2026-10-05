@@ -267,8 +267,10 @@ test("outdoor rounds can be dared, pay album and hoops XP from the replay, and n
       );
       assert.equal(dare.result.won, false);
     }
-    const posted = community.postDare(host, hoops.session.id);
-    assert.ok(posted);
+    assert.throws(
+      () => community.postDare(host, hoops.session.id),
+      /saved score/,
+    );
     now = Date.parse("2026-10-07T00:10:00+08:00");
     const settled = community.state(host);
     assert.equal(settled.weekly.length, 0, "no medals from outdoor rounds");

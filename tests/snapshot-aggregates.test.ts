@@ -41,6 +41,10 @@ function baselineCards(store: Store) {
         {
           best: Object.fromEntries(playIds.map((game) => [game, 0])),
           guestBest: Object.fromEntries(playIds.map((game) => [game, 0])),
+          challengeScores: {} as Record<
+            string,
+            { score: number; runId: string }
+          >,
           points: 0,
           wins: 0,
           incoming: 0,
@@ -84,6 +88,17 @@ function baselineCards(store: Store) {
       const card = cards.get(row.player);
       if (card) card[field] = row.n;
     }
+  for (const [id, card] of cards) {
+    for (const game of playIds) {
+      const best = db
+        .prepare(
+          "SELECT id,score FROM runs WHERE player=? AND game=? AND status='finished' AND verified=1 AND eligible=1 AND seed IS NOT NULL AND score>0 AND version=? ORDER BY score DESC,finished ASC,id ASC LIMIT 1",
+        )
+        .get(id, game, game === "coast" ? 3 : 1);
+      if (best)
+        card.challengeScores[game] = { score: best.score, runId: best.id };
+    }
+  }
   return cards;
 }
 

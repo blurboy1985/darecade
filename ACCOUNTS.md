@@ -47,8 +47,33 @@ Configured delivery: `MAIL_MODE=resend`, `RESEND_API_KEY`, a verified `MAIL_FROM
 - Every round an email account finishes is ranked; there is no practice mode and no waiting period. Shared challenges open 24 hours after email verification; until then the challenge screens show the exact opening time and no daily count. This is a modest barrier to throwaway-account abuse, not proof of one human per account. Guest rounds save XP and personal bests but stay off the boards until the guest saves an account.
 - Each day's regular rounds use the same seed for everyone; challenge rounds replay the host's seed. Every positive, verified score finished that day by an email account enters daily medals. At Singapore midnight, shared ranks earn gold +3, silver +2 and bronze +1; ties share rank and skip places (1, 1, 3). Maximum 15 medal points per player per day. No purchase or outfit improves scores.
 - The weekly board sums that week's settled daily medals. It starts fresh Monday at 00:00 Asia/Singapore. Last week's results remain visible; lifetime medals and cosmetics stay saved. Today's medals are pending until midnight. There is no inactivity penalty or streak loss.
-- A player may post three positive verified rounds per Singapore day. Posts last 24 hours. A challenger receives the host's exact seed and target score, even when the host is online. Resting/offline avatars can also be challenged against their validated personal best.
-- Each challenger gets **three outgoing attempts per day**, to different neighbours across all games. Starting uses a slot, including abandoning. Each posted challenge gets at most one attempt per challenger, including across midnight. Incoming challenges are unlimited and never deduct the defender's points. Wins/draws are recorded separately, with no farmable extra medal points. Every verified round by an email account counts towards daily medals, including challenges with an older seed.
+- Manual challenge posting is retired. Players select a saved board score or a friend's current validated best. Save a verified friend by exact nickname, including people outside the top 50 or recent roster. Duplicate nicknames require a unique nickname rather than guessing a person. Up to 100 saved friends are supported. Direct score challenges require a resting/offline target; legacy posted rounds remain playable until their existing expiry.
+- Each challenger gets **three outgoing attempts per Singapore day**, to different neighbours across all games. Starting uses a slot, including abandoning. The selected run ID, seed and target score freeze at start; later records cannot change them. Each saved run can be attempted once per challenger, including across midnight. Incoming challenges never deduct the defender's points. Wins/draws remain separate. Verified arcade challenge rounds still count towards daily medals.
+- Daily medals additionally grant gold 3, silver 2 or bronze 1 Style tokens, capped at 3 medal tokens per player per Singapore day across games. XP still grants 1 token per 100 XP independently. Settlement, the token ledger and email queue commit together. Existing medals/balances remain; days before this feature's saved cutover receive no token windfall.
+
+## Optional daily medal email
+
+Verified accounts can explicitly choose **Email my daily medal awards** in Account
+& privacy. It defaults off for existing and new players. Each email consolidates
+the actual awarded medals for one Singapore day and states the capped token total.
+Guests, accounts without current privacy consent, suspended players and opt-outs
+receive none. Opt-out cancels queued jobs; recipient eligibility is checked again
+immediately before sending. Preferences, reward ledger, queued emails and pending
+XP notices are included in private export and account erasure.
+
+Delivery uses the existing Resend transport and configuration. Development tests
+use synthetic addresses, the private local outbox or an intercepted fake transport;
+they never send real player mail. A durable `(day, player)` outbox key, persisted
+leases, exponential retries and a deterministic provider idempotency key prevent
+duplicate delivery across overlapping work, process eviction or a lost response.
+The Node timer and Cloudflare alarm both recover due jobs after restart.
+
+Resend idempotency keys expire after 24 hours ([provider documentation](https://resend.com/changelog/idempotency-keys)).
+An uncertain job stops automatic retries after 23 hours and becomes `needs_review`.
+The operator must reconcile that job with provider delivery records before deciding
+what to do; blindly resetting/resending it risks a duplicate. This conservative
+hold can leave an email undelivered during a long provider outage. Tokens remain
+awarded. No new credential or production mail/security configuration is required.
 
 The outgoing limit retains the prior fairness revision: a receiver limit could let other players exhaust someone's three slots. Cosmetic exploration events are bounded and idempotent, but are not position-proofed by a server world simulation. Replay validation rejects impossible/altered scores; it does not prevent bots that generate valid inputs, account sharing, or all forms of collusion. Do not attach cash prizes without stronger abuse controls and review.
 
@@ -56,7 +81,7 @@ The outgoing limit retains the prior fairness revision: a receiver limit could l
 
 - Under-13 or declined-consent requests create no profile/account. This is self-declared age screening, not age verification. No date of birth is retained or logged by this application.
 - Public: player-chosen nickname, avatar preferences, activity, positions, scores and challenges. Private: email, age band, consent and reports. No free-text chat, photos, advertising tracker, purchases or marketing. Players are asked not to use real names or contact details; nickname moderation remains necessary.
-- **Account & privacy** provides data download, sign-out, and explicit **DELETE** confirmation for consent withdrawal/erasure. Deletion disconnects the player from their world, removes their directory membership, revokes all sessions, removes owned scores/challenges/medals/reports/feedback, removes pending links for the email, and anonymizes references in other players' rounds.
+- **Account & privacy** provides data download, sign-out, and explicit **DELETE** confirmation for consent withdrawal/erasure. Deletion disconnects the player from their world, removes their directory membership, revokes all sessions, removes owned scores/challenges/medals/reports/feedback, removes pending links for the email, and anonymizes references (including frozen target-run IDs) in other players' rounds. The local test transport also removes that player's medal email files on deletion, rather than waiting for temporary-outbox cleanup.
 - Raw game-input replays expire after 30 days. Inactive profiles expire after 12 calendar months. Expired sessions and magic links are cleaned up while the server is running. Offline backups require a separate retention and erasure process; see `PRIVACY-REVIEW.md`.
 - Reports immediately refresh live block lists and hide both players from each other in movement snapshots, room neighbour lists and challenges. Room codes cannot bypass the filter. They do not automatically punish the reported account. The operator reviews them locally. There is no exposed administrative HTTP API.
 

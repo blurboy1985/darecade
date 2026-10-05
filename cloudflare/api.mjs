@@ -186,6 +186,10 @@ export async function handleApi(
     if (method === "POST" && path === "/api/invite") return json(c.invite(id));
     if (method === "POST" && path === "/api/invite/accept")
       return json(c.acceptInvite(id, data.code));
+    if (method === "POST" && path === "/api/style-rewards")
+      return json(c.takeStyleRewards(id));
+    if (method === "POST" && path === "/api/friends")
+      return json(c.saveFriend(id, data.name));
     if (method === "POST" && path === "/api/dares")
       return json(c.postDare(id, data.run));
     if (method === "POST" && path === "/api/report") {
@@ -219,7 +223,9 @@ export async function handleApi(
       return json(path === "/api/leave" ? { ok: true } : c.presence(id));
     }
     if (method === "POST" && path === "/api/run")
-      return json(c.begin(id, data.game, data.target, data.dare));
+      return json(
+        c.begin(id, data.game, data.target, data.dare, data.targetRun),
+      );
     if (method === "POST" && path === "/api/finish")
       return json(c.finish(id, data));
     if (method === "POST" && path === "/api/abandon") {

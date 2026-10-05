@@ -159,7 +159,7 @@ export class Neighbourhood extends DurableObject {
       .get().value;
     ctx.blockConcurrencyWhile(async () => {
       if ((await ctx.storage.getAlarm()) === null)
-        await ctx.storage.setAlarm(this.nextMidnight());
+        await ctx.storage.setAlarm(this.nextWork());
     });
   }
   nextMidnight() {
@@ -170,13 +170,25 @@ export class Neighbourhood extends DurableObject {
       1000
     );
   }
+  nextWork() {
+    return Math.min(
+      this.nextMidnight(),
+      Math.max(
+        Date.now() + 1000,
+        this.community.medalRewards.nextAttempt() ?? Infinity,
+      ),
+    );
+  }
   async alarm() {
     this.store.settle();
     this.community.cleanup();
+    // Schedule recovery before external I/O so eviction cannot lose retries.
+    await this.ctx.storage.setAlarm(Date.now() + 60000);
+    await this.community.medalRewards.deliver();
     this.db
       .prepare("DELETE FROM request_limits WHERE expires<=?")
       .run(Date.now());
-    await this.ctx.storage.setAlarm(this.nextMidnight());
+    await this.ctx.storage.setAlarm(this.nextWork());
   }
   fetch(request) {
     const ip = request.headers.get("x-darecade-client-ip") || "unknown";

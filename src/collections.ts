@@ -145,6 +145,7 @@ export const legendarySets = [
 ];
 export type WardrobeProgress = {
   xp: number;
+  medalTokens?: number;
   rounds: number;
   wardrobeSpent: number;
   wardrobeUnlocked: string[];
@@ -153,7 +154,12 @@ export type WardrobeProgress = {
 export const ownsSet = (p: WardrobeProgress, id: string) =>
   p.wardrobeUnlocked.includes(id) || p.wardrobePurchased.includes(id);
 export const styleTokens = (p: WardrobeProgress) =>
-  Math.max(0, Math.floor(p.xp / 100) - p.wardrobeSpent);
+  Math.max(0, Math.floor(p.xp / 100) + (p.medalTokens ?? 0) - p.wardrobeSpent);
+export const lookBundles = [
+  { id: "discovery", name: "Street looks", cost: 1 },
+  { id: "mastery", name: "Weekend looks", cost: 3 },
+] as const;
+export const tokenLooks = [...legendarySets, ...lookBundles];
 export function setForItem(slot: LookSlot, index: number) {
   return legendarySets[index - setStarts[slot]];
 }
@@ -177,22 +183,14 @@ export function canWear(
   const set = setForItem(slot, index);
   if (set) return ownsSet(p, set.id);
   const group = collectionFor(slot, index);
-  return (
-    group === "starter" ||
-    (group === "discovery"
-      ? p.xp >= 300 || medals >= 1
-      : p.xp >= 1000 || medals >= 3)
-  );
+  return group === "starter" || ownsSet(p, group);
 }
 export function canRedeem(
   set: (typeof legendarySets)[number],
   p: WardrobeProgress,
   medals: number,
 ) {
-  return (
-    styleTokens(p) >= set.cost &&
-    (medals >= set.medals || p.rounds >= set.rounds)
-  );
+  return styleTokens(p) >= set.cost;
 }
 export function setLook(index: number) {
   return {

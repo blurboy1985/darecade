@@ -107,6 +107,23 @@ test("an invite pays both players once the friend plays, with a cap, and cannot 
     assert.equal(summary.joined, INVITE_CAP + 1);
     assert.equal(summary.played, INVITE_CAP + 1);
     assert.equal(summary.xp, INVITE_CAP * INVITE_XP);
+    assert.equal(
+      community.privateProfile(host).styleRewards,
+      Math.floor(summary.xp / 100),
+      "passive invite XP also announces earned tokens",
+    );
+    const lastActive = store.db
+      .prepare("SELECT last_active FROM profiles WHERE player=?")
+      .get(host).last_active;
+    assert.ok(
+      lastActive < now,
+      "invite rewards do not mark the inviter active",
+    );
+    assert.equal(
+      community.takeStyleRewards(host).tokens,
+      Math.floor(summary.xp / 100),
+    );
+    assert.equal(community.takeStyleRewards(host).tokens, 0);
     assert.equal(community.export(host).invite.friendsJoined, INVITE_CAP + 1);
     assert.equal(community.export(friend).invite.joinedByInvite, true);
     assert.equal(community.export(friend).invite.code, null);

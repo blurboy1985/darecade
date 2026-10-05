@@ -1,8 +1,10 @@
 # Menu and wardrobe
 
-The dock has three main actions: Play, Explore and Menu. Menu groups My stuff,
+The dock has three main actions: Games, Neighbourhood and Menu. Menu groups My stuff,
 Friends and Settings. My stuff contains My look, Rewards and Support & purchases.
-Camera and account options are in Settings; social tools are under Friends.
+An upfront camera button switches bird's-eye/third-person view. Menu uses a settings
+gear; lighting, additional camera controls and account options remain in Settings.
+Fishing and Hoops are included in Games. Social tools are under Friends.
 
 My look separates browsing from equipping. Every card has a PNG rendered from
 the actual 3D assets, including locked pieces and complete sets. Selecting a
@@ -12,40 +14,52 @@ resetting the preview discards it. The lightweight lobby uses the same PNGs.
 ## Collections and progression
 
 - Everyday: the original first eight choices in each category, available immediately.
-- Discovery: 300 XP or 1 lifetime medal point.
-- Mastery: 1,000 XP or 3 lifetime medal points.
+- Street looks (existing Discovery pieces): 1 Style token for the collection.
+- Weekend looks (existing Mastery pieces): 3 Style tokens for the collection.
 - Legendary: redeem a full set, then mix its four pieces separately.
 
 Each 100 lifetime XP earns one Style token. Available tokens equal
-`floor(XP / 100) - tokens already exchanged`. Exchanges preserve XP, level,
+`floor(XP / 100) + medal tokens - tokens already exchanged`. Gold adds 3 medal
+tokens, silver 2 and bronze 1, capped at 3 per player per Singapore day across
+the five daily arcade games. XP tokens are separate. Medals remain prestige.
+Exchanges preserve XP, level,
 medals and rankings. Tokens cannot be bought with money. Optional Stripe payments can buy complete
 sets directly for S$1.99; production checkout is enabled. See PAYMENTS.md. Existing saved appearance indices keep their meanings. An
 already-worn older item remains wearable when other slots change.
 
-Each Legendary set costs tokens AND requires the listed lifetime medal points
-OR completed rounds. The sets use original superhero, anime and fantasy themes.
+Token prices are the only progression requirement. Existing Legendary prices and
+owned sets remain unchanged. Existing Street/Weekend unlocks are grandfathered
+without charging tokens, and old medals do not produce retroactive token rewards.
+The sets use original superhero, anime and fantasy themes.
 
-| Set | Style tokens | Medal points OR rounds |
-| --- | ---: | --- |
-| Solar Sentinel | 12 | 3 OR 30 |
-| Moon Prism | 15 | 4 OR 40 |
-| Storm Ronin | 18 | 5 OR 50 |
-| Sakura Kitsune | 20 | 6 OR 60 |
-| Nova Mecha | 24 | 8 OR 75 |
-| Abyss Monarch | 28 | 10 OR 90 |
-| Tidal Empress | 32 | 12 OR 110 |
-| Phoenix Ascendant | 36 | 15 OR 130 |
-| Frost Seraph | 40 | 18 OR 150 |
-| Galaxy Idol | 45 | 21 OR 180 |
+| Set | Style tokens |
+| --- | ---: |
+| Solar Sentinel | 12 |
+| Moon Prism | 15 |
+| Storm Ronin | 18 |
+| Sakura Kitsune | 20 |
+| Nova Mecha | 24 |
+| Abyss Monarch | 28 |
+| Tidal Empress | 32 |
+| Phoenix Ascendant | 36 |
+| Frost Seraph | 40 |
+| Galaxy Idol | 45 |
 
 Each includes an outfit, headwear, companion and animated magic effect.
 The server checks progression and ownership, exchanges tokens transactionally,
 and treats repeated requests for an owned set as a no-op. Profile patches cannot
 grant XP, tokens or ownership. Presence updates cannot equip an unowned look.
 
+Crossing XP token thresholds creates a durable notice with the exact number earned,
+including passive invite awards. The browser consumes it once before showing a
+brief Three.js coin reveal and “Style tokens buy outfits and looks.” Reconnecting
+does not repeat an acknowledged notice. Reduced motion, 2D and WebGL failure use
+the static card; closing, navigation and hiding the tab dispose the animation.
+
 ## Verification
 
-Validated with the TypeScript/Vite build, 166 Node tests and 8 Cloudflare
+See QA.md for the current simplification checks. The earlier release was
+validated with the TypeScript/Vite build, 166 Node tests and 8 Cloudflare
 integration tests, including the deployment dry run. Browser checks covered
 desktop, 320px phone layout, locked previews, explicit equip, server persistence,
 token exchange and the 2D fallback. Browser testing used a separate local test

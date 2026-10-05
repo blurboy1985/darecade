@@ -321,12 +321,24 @@ function runtime(ready = true, paymentOptions = {}) {
     convertV4MiniflareOptions({
       name: "darecade-test",
       unsafeInspectDurableObjects: true,
-      modules: true,
-      scriptPath: ".browser/cloudflare-bundle/worker.js",
+      modules: paymentOptions.awards
+        ? [
+            { type: "ESModule", path: "tests/awards-worker.mjs" },
+            { type: "ESModule", path: ".browser/cloudflare-bundle/worker.js" },
+          ]
+        : true,
+      scriptPath: paymentOptions.awards
+        ? "tests/awards-worker.mjs"
+        : ".browser/cloudflare-bundle/worker.js",
       compatibilityDate: "2026-10-03",
       compatibilityFlags: ["nodejs_compat"],
       durableObjects: {
-        NEIGHBOURHOOD: { className: "Neighbourhood", useSQLite: true },
+        NEIGHBOURHOOD: {
+          className: paymentOptions.awards
+            ? "AwardsNeighbourhood"
+            : "Neighbourhood",
+          useSQLite: true,
+        },
         WORLD: { className: "World", useSQLite: true },
       },
       bindings: {
@@ -347,6 +359,7 @@ function runtime(ready = true, paymentOptions = {}) {
         )
           return paymentOptions.request(request);
         assert.equal(request.url, "https://api.resend.com/emails");
+        if (paymentOptions.mail) return paymentOptions.mail(request);
         messages.push(await request.json());
         return Response.json({ id: "synthetic-mail" });
       },
@@ -1296,6 +1309,106 @@ test(
         200,
       );
       assert.equal((await api("auth/me", undefined, guest.cookie)).status, 401);
+    } finally {
+      await mf.dispose();
+    }
+  },
+);
+
+test(
+  "Cloudflare midnight alarm durably awards capped tokens, retries consolidated email and acknowledges XP notices once",
+  { timeout: 30000 },
+  async () => {
+    const sends = new Map();
+    let requests = 0;
+    const { mf, api } = runtime(true, {
+      awards: true,
+      mail: async (request) => {
+        requests++;
+        const key = request.headers.get("Idempotency-Key");
+        assert.ok(key);
+        const payload = await request.text();
+        if (sends.has(key)) assert.equal(sends.get(key), payload);
+        sends.set(key, payload);
+        if (requests === 1)
+          return new Response("temporary failure", { status: 503 });
+        return Response.json({ id: "fake-medal-mail" });
+      },
+    });
+    try {
+      const p = await api("auth/join", {
+        month: 1,
+        year: 2000,
+        consent: true,
+        privacyVersion: PRIVACY_VERSION,
+      });
+      assert.equal(p.status, 200);
+      const sql = await mf.unsafeGetDurableObjectStorage(
+        "darecade-test",
+        "AwardsNeighbourhood",
+        { name: "darecade-main-v1" },
+      );
+      const now = Date.now(),
+        date = new Date(now + 8 * 3600000).toISOString().slice(0, 10),
+        midnight = Date.parse(date + "T00:00:00+08:00") + 86400000;
+      await sql.exec(
+        "INSERT INTO accounts VALUES(?,?,?)",
+        p.data.id,
+        "awards@example.test",
+        now - 86400000,
+      );
+      assert.equal(
+        (await api("profile", { medalEmail: true }, p.cookie)).status,
+        200,
+      );
+      for (const game of ["noodle", "hop"])
+        await sql.exec(
+          "INSERT INTO runs(id,player,game,started,finished,score,day,status,verified,eligible,seed,version) VALUES(?,?,?,?,?,?,?,'finished',1,1,123,1)",
+          game,
+          p.data.id,
+          game,
+          now - 1000,
+          now,
+          100,
+          date,
+        );
+      const namespace = await mf.getDurableObjectNamespace("NEIGHBOURHOOD"),
+        stub = namespace.get(namespace.idFromName("darecade-main-v1"));
+      await stub.runAwardAlarm(midnight + 1000);
+      assert.equal(
+        (await api("auth/me", undefined, p.cookie)).data.progress.medalTokens,
+        3,
+      );
+      assert.equal(
+        (await sql.exec("SELECT status FROM medal_email_outbox"))[0].status,
+        "pending",
+      );
+      await stub.runAwardAlarm(midnight + 61000);
+      await stub.runAwardAlarm(midnight + 62000);
+      assert.equal(requests, 2);
+      assert.equal(sends.size, 1);
+      assert.equal(
+        (await sql.exec("SELECT status FROM medal_email_outbox"))[0].status,
+        "sent",
+      );
+      assert.equal(
+        (await sql.exec("SELECT COUNT(*) n FROM medal_rewards"))[0].n,
+        1,
+      );
+      await sql.exec("INSERT INTO style_reward_notices VALUES(?,2)", p.data.id);
+      const results = await Promise.all([
+        api("style-rewards", {}, p.cookie),
+        api("style-rewards", {}, p.cookie),
+      ]);
+      assert.deepEqual(results.map((r) => r.data.tokens).sort(), [0, 2]);
+      assert.equal(
+        (await api("auth/me", undefined, p.cookie)).data.styleRewards,
+        0,
+      );
+      assert.equal((await api("dares", { run: "hop" }, p.cookie)).status, 400);
+      const exported = await api("privacy/export", undefined, p.cookie);
+      assert.equal(exported.data.medalRewards[0].tokens, 3);
+      assert.equal(exported.data.medalEmails[0].status, "sent");
     } finally {
       await mf.dispose();
     }

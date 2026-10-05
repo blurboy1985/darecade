@@ -114,7 +114,7 @@ test("1. a locked account is given the real time its dares open, and they open t
       () => s.community.begin(me.me.id, "noodle", host.me.id),
       opens,
     );
-    assert.throws(() => s.community.postDare(me.me.id, "none"), opens);
+    assert.throws(() => s.community.postDare(me.me.id, "none"), /saved score/);
     // A guest is told to save first, not given a time that does not exist.
     const guest = s.community.join(consent);
     assert.throws(

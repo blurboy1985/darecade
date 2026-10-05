@@ -20,6 +20,7 @@ export type SharedPlayer = {
   emote?: string;
   status: "online" | "resting" | "offline";
   best: Record<GameId, number>;
+  challengeScores?: Partial<Record<GameId, { score: number; runId: string }>>;
   points: number;
   incoming: number;
   outgoing: number;
@@ -45,10 +46,11 @@ export type SharedState = {
   day: string;
   nextReset: number;
   players: SharedPlayer[];
+  friends: SharedPlayer[];
   challenged: string[];
   boards: Record<
     GameId,
-    { id: string; name: string; score: number; rank: number }[]
+    { id: string; name: string; score: number; rank: number; runId: string }[]
   >;
   history: {
     id: string;

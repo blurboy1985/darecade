@@ -168,6 +168,8 @@ function harness() {
     escapeText: (value: string) => value,
     firstRacePending: () => false,
     openShell: noop,
+    dismissStyleReward: noop,
+    boardTarget: "",
     currentProfile: { name: "Review player", account: {} },
     shared: {
       self: { best: {}, outgoing: 0, points: 0 },
@@ -278,9 +280,8 @@ test("real menu renders have at most three primary actions with populated social
     "settings",
     "neighbours",
     "dares",
-    "dares-open",
+    "dares-find",
     "dares-neighbour",
-    "dares-post",
     "board",
   ]) {
     h.run(`open(${JSON.stringify(id)})`);
@@ -313,14 +314,14 @@ test("wardrobe renders previews before selection without equipping them", () => 
 test("all paginated choices remain reachable, including later games and quests", () => {
   const h = harness();
   const games = new Set<string>();
-  for (let page = 0; page < 2; page++) {
+  for (let page = 0; page < 3; page++) {
     h.context.gamePage = page;
     h.run('open("arcade")');
     checkActions(h.body.innerHTML, `games page ${page}`);
     for (const match of h.body.innerHTML.matchAll(/data-game="([^"]+)"/g))
       games.add(match[1]);
   }
-  assert.deepEqual([...games].sort(), [...catalog.gameIds].sort());
+  assert.deepEqual([...games].sort(), [...catalog.playIds].sort());
   const quests = new Set<string>();
   for (let page = 0; page < 2; page++) {
     h.context.questPage = page;
@@ -431,7 +432,7 @@ test("locked dares show their real opening time and never promise dares for toda
     [...html.matchAll(/<button\b[^>]*>(?:Play|Post) challenge<\/button>/g)].map(
       ([button]) => button,
     );
-  for (const view of ["home", "open", "neighbour", "post"]) {
+  for (const view of ["home", "neighbour"]) {
     h.context.dareView = view;
     h.run("renderSharedDares()");
     const html = h.body.innerHTML;
