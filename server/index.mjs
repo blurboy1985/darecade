@@ -179,6 +179,29 @@ const handler = async (req, res) => {
         return;
       }
       const session = { id: player };
+      if (url.pathname.startsWith("/api/relay/")) {
+        if (req.method !== "POST") {
+          res.writeHead(405);
+          res.end();
+          return;
+        }
+        const action = url.pathname.slice("/api/relay/".length);
+        rate(
+          req,
+          "relay:" + action,
+          action === "tick"
+            ? 300
+            : action === "create"
+              ? 6
+              : action === "join"
+                ? 12
+                : 30,
+          60000,
+          player,
+        );
+        respond(community.relay.request(player, action, data, token));
+        return;
+      }
       if (req.method === "GET" && url.pathname === "/api/worlds") {
         respond(worlds.directory(player));
         return;

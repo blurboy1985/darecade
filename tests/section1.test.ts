@@ -168,7 +168,7 @@ const connectionSource = readFileSync(
 );
 const connectionCompiled = ts.transpileModule(
   connectionSource
-    .replace(/^import .*;\n/gm, "")
+    .replace(/^import .*;\r?\n/gm, "")
     .replace("export class", "class") + "\nthis.Connection = WorldConnection;",
   { compilerOptions: { target: ts.ScriptTarget.ES2022 } },
 ).outputText;
