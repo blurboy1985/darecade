@@ -1,0 +1,154 @@
+import { createServer } from "node:http";
+import { readFileSync, existsSync } from "node:fs";
+import { resolve, extname, sep } from "node:path";
+import { fresh } from "../src/state.ts";
+import { menuPages } from "../src/lobby-menu.ts";
+
+export function mobileLobbyFixture(
+  width: number,
+  height: number,
+  account = false,
+  twoD = false,
+  automated = true,
+) {
+  const root = resolve("dist");
+  const profile = {
+    id: "mobile-qa",
+    name: "LongNeighbourNameTest",
+    ageBand: "adult",
+    privacyVersion: "fixture",
+    account: account
+      ? { email: "qa@example.test", created: 1, eligibleAt: 1 }
+      : null,
+    playMedals: {
+      day: "2026-10-05",
+      today: 1,
+      total: 4,
+      games: ["noodle"],
+      limit: 3,
+    },
+    progress: {
+      ...fresh(),
+      xp: 235,
+      twoD,
+      sound: false,
+      music: false,
+      light: "day",
+    },
+  };
+  const script = `<script>
+  const profile = ${JSON.stringify(profile)};
+  const baseFetch = window.fetch;
+  localStorage.setItem('darecade-v1', JSON.stringify(profile.progress));
+  window.fetch = async (input, init) => {
+    const url = new URL(String(input), location.href);
+    if (!url.pathname.startsWith('/api/')) return baseFetch(input, init);
+    const path = url.pathname.slice(5);
+    let result = {};
+    if (path === 'auth/config') result = { now: Date.now(), privacyVersion: 'fixture', mailMode: 'outbox', origin: location.origin, storageNotice: 'Synthetic local fixture' };
+    else if (path === 'profile') { Object.assign(profile.progress, JSON.parse(init.body)); result = profile; }
+    else if (path === 'auth/me') result = profile;
+    else if (path === 'state') result = { profile, competitionReady: false, me: profile.id, self: {id: profile.id, name: profile.name, look: {}, activity: 'lobby', status: 'online', best: profile.progress.best, points: ${account ? 12 : 0}}, day:'2026-10-05', nextReset:Date.now()+86400000, week:'', weekly:[], lastWeek:[], dares:[], recentRuns:[], players:[], friends:[], challenged:[], boards:{noodle:[],hop:[],brick:[],swarm:[],coast:[]}, history:[] };
+    else if (path === 'world/poll') result = {t:'sync',at:Date.now(),world:'qa',p:[],d:[],gone:[]};
+    return new Response(JSON.stringify(result), {headers:{'Content-Type':'application/json'}});
+  };
+  ${
+    automated
+      ? `
+  addEventListener('load', async () => {
+    const checks = [];
+    const check = (value, message) => { if (!value) throw Error(message); checks.push(message); };
+    const find = selector => document.querySelector(selector);
+    const wait = async predicate => { for(let i=0; i<250; i++){ if(predicate()) return; await new Promise(r=>setTimeout(r,100)); } throw Error('UI load timeout'); };
+    const visible = el => { const r=el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.top >=0 && r.bottom <=innerHeight && r.left >=0 && r.right <=innerWidth; };
+    const hit = el => { const r=el.getBoundingClientRect(); return el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)); };
+    try {
+      await wait(()=>!find('#loading') && find('#player-name')?.textContent===profile.name);
+      check(innerWidth===${width} && innerHeight===${height}, 'exact test viewport');
+      check(document.documentElement.scrollWidth<=innerWidth, 'no horizontal overflow');
+      for(const id of ['player-name','player-account','level-label','medal-points']) check(visible(find('#'+id)),id+' visible upfront');
+      check(find('#player-account').textContent===${JSON.stringify(account ? "Saved account" : "Guest mode")}, 'correct account status');
+      check(find('#level-label').textContent.includes('235 XP') && find('#level-label').textContent.includes('Level 3'), 'level and total XP visible');
+      check(find('#medal-points').textContent.includes('4 Play medals') && find('#medal-points').textContent.includes('Ranked'), 'both medal types visible');
+      const goal = find('${twoD ? "#fallback-welcome" : ".welcome-panel"}');
+      check(visible(goal), 'first-round goal visible');
+      check(goal.getBoundingClientRect().height<=90, 'cap prompt no taller than 90px');
+      const dismiss=goal.querySelector('[data-action="welcome-skip"]');
+      check(hit(dismiss) && dismiss.getBoundingClientRect().height>=44, 'dismiss target reachable');
+      ${
+        twoD
+          ? `check(find('#camera-toggle').hidden, '2D hides unavailable camera');`
+          : `
+      const camera=find('#camera-toggle');
+      check(visible(camera) && hit(camera), 'camera target unobstructed');
+      check(camera.getBoundingClientRect().width>=44 && camera.getBoundingClientRect().height>=44, 'camera touch target at least 44px');
+      const initial=camera.getAttribute('aria-pressed');
+      camera.click(); check(camera.getAttribute('aria-pressed')!==initial, 'camera toggles to birds eye');
+      camera.click(); check(camera.getAttribute('aria-pressed')===initial, 'camera toggles back to third person');
+      `
+      }
+      dismiss.click();
+      check(goal.hidden, 'dismiss clears the scene');
+      check(JSON.parse(localStorage.getItem('darecade-v1')).welcomeDismissed, 'dismiss survives saving');
+      check(profile.progress.rounds===0 && !profile.progress.unlockedHats.includes(2), 'dismiss does not complete or grant reward');
+      const menu=find('.lobby-dock [data-open="phone-menu"]');
+      check(visible(menu) && hit(menu), 'Menu touch target unobstructed');
+      menu.focus(); menu.click();
+      const items=[...document.querySelectorAll('.menu-directory .menu-choice')];
+      check(items.length===${menuPages["phone-menu"].actions.length}, 'all destinations on first menu page');
+      check(!find('.menu-directory details') && !find('.menu-directory .choice-pager'), 'no category gates or paging');
+      for(const item of items){ item.scrollIntoView({block:'center'}); check(visible(item)&&hit(item)&&item.getBoundingClientRect().height>=44,'reachable menu item: '+item.textContent.trim()); }
+      const controls=find('.menu-directory [data-open="controls"]'); controls.click();
+      check(!!find('#setting-camera'), 'camera settings open directly');
+      find('.menu-back').click();
+      find('.menu-directory [data-open="preferences"]').click();
+      check(!!find('#setting-sound'), 'preferences open directly');
+      find('.menu-back').click();
+      find('.menu-directory [data-account]').click();
+      check(find('#account-dialog')?.open, 'account privacy opens directly');
+      find('#account-close')?.click();
+      find('#close-modal').click();
+      check(!find('#modal').open && document.activeElement===menu, 'closing menu restores dock focus after dismiss');
+      parent.postMessage({result:'pass',report:{width:${width},height:${height},account:${account},twoD:${twoD},checks}},location.origin);
+    } catch(error) { parent.postMessage({result:'fail',report:{checks,error:error.stack}},location.origin); }
+  });`
+      : ""
+  }
+  </script>`;
+  const html = readFileSync(resolve(root, "index.html"), "utf8").replace(
+    "<head>",
+    "<head>" + script,
+  );
+  return createServer((req, res) => {
+    const path = new URL(req.url || "/", "http://localhost").pathname;
+    if (path === "/fixture" || (!automated && path === "/")) {
+      res.setHeader("Content-Type", "text/html");
+      res.end(html);
+      return;
+    }
+    if (path === "/") {
+      res.setHeader("Content-Type", "text/html");
+      res.end(
+        `<!doctype html><html><head><script>addEventListener('message', e=>{if(e.origin!==location.origin||e.source!==document.querySelector('iframe').contentWindow)return;document.body.dataset.result=e.data.result;document.querySelector('pre').textContent=JSON.stringify(e.data.report);});</script></head><body style="margin:0"><iframe src="/fixture" style="width:${width}px;height:${height}px;border:0;display:block"></iframe><pre></pre></body></html>`,
+      );
+      return;
+    }
+    const file = resolve(root, "." + path);
+    if (!file.startsWith(root + sep) || !existsSync(file)) {
+      res.writeHead(404).end();
+      return;
+    }
+    const mime: Record<string, string> = {
+      ".js": "text/javascript",
+      ".css": "text/css",
+      ".glb": "model/gltf-binary",
+      ".svg": "image/svg+xml",
+      ".woff2": "font/woff2",
+    };
+    res.setHeader(
+      "Content-Type",
+      mime[extname(file)] || "application/octet-stream",
+    );
+    res.end(readFileSync(file));
+  });
+}

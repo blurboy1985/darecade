@@ -38,13 +38,18 @@ export async function browserDOM(
   chromium: string,
   url: string,
   directory: string,
-  { virtualTime = 10000, flags = [] as string[], timeout = 15000 } = {},
+  {
+    virtualTime = 10000,
+    flags = [] as string[],
+    timeout = 15000,
+    gpu = false,
+  } = {},
 ) {
   const browser = spawn(
     chromium,
     [
       "--headless",
-      "--disable-gpu",
+      ...(gpu ? [] : ["--disable-gpu"]),
       "--no-first-run",
       "--disable-background-networking",
       "--use-mock-keychain",

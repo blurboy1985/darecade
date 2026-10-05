@@ -52,7 +52,8 @@ test("presence counts live people including self, deduplicates and never counts 
 });
 
 test("the first-race goal names the real cap reward and town access without changing rewards", () => {
-  assert.match(firstVisitCopy.detail, /Finish a round.*lilac cap/);
+  assert.match(firstVisitCopy.title, /lilac cap/);
+  assert.match(firstVisitCopy.detail, /Finish a round.*Palm Bay/);
   assert.match(firstVisitCopy.explore, /town is open/);
   assert.doesNotMatch(JSON.stringify(firstVisitCopy), /open the town/);
   const progress = fresh();
