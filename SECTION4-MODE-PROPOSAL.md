@@ -1,6 +1,6 @@
 # Neighbourhood Relay
 
-Daniel reviewed the initial Relay concept and requested more Three.js animation and challenging gameplay. This specification incorporates that direction for implementation. The mode is not implemented in this PR; do not request approval of the same concept again.
+Daniel reviewed the initial Relay concept and requested more Three.js animation and challenging gameplay. This specification incorporates that direction for implementation. The original Section 4 PR contains this proposal; the dependent Relay draft implements the first playable version. See `RELAY-QA.md` for actual scope, evidence and remaining playtests. Do not request approval of the same concept again.
 
 ## The round
 
@@ -32,6 +32,6 @@ The first prototype awards no currency, XP or Play medals. Any future rewards ne
 
 ## Review and browser acceptance
 
-The parent task should use this specification for the next implementation after completing the pending Coast Rush/Open Stage browser checks. Nothing from this new mode has been built in this draft. Material changes to this scope, especially any removal of existing features, still require Daniel's approval.
+Coast Rush/Open Stage browser checks are complete in PR33. The dependent Relay draft implements this direction, with prototype limits recorded in `RELAY-QA.md`. Material changes to this scope, especially any removal of existing features, still require Daniel's approval.
 
 The eventual browser acceptance checks are: finish solo on keyboard and touch; recover a missed catch; distinguish safe route from shortcut; finish with two actual synthetic guests; disconnect the carrier and recover; reject impossible checkpoint/handoff requests; respect blocks and reduced motion; verify no reward ledger changes. Measure frame/input timing on desktop and a real phone. No claim of tested multiplayer or phone performance is made for this proposal.

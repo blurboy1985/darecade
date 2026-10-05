@@ -7,6 +7,7 @@ import { DurableSqlite, privateStorage } from "./sqlite.mjs";
 import { handleApi, json } from "./api.mjs";
 import { sessionKey, sessionToken } from "./world-auth.mjs";
 import { PRIVACY_VERSION } from "../server/community-core.mjs";
+import { queueRelayExpiryAlarm } from "./relay-alarm.mjs";
 export { World } from "./world.mjs";
 
 function ready(env) {
@@ -137,6 +138,8 @@ export class Neighbourhood extends DurableObject {
       privacyContact: env.PRIVACY_CONTACT,
       storageNotice: env.STORAGE_NOTICE,
     });
+    this.relayAlarmAt = Infinity;
+    this.community.relay.onChange = () => queueRelayExpiryAlarm(this);
     this.db
       .exec(`CREATE TABLE IF NOT EXISTS request_limits(key TEXT PRIMARY KEY,n INTEGER NOT NULL,expires INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS private_settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);
@@ -177,6 +180,10 @@ export class Neighbourhood extends DurableObject {
       this.nextMidnight(),
       Math.max(
         Date.now() + 1000,
+        this.community.relay.nextExpiry() ?? Infinity,
+      ),
+      Math.max(
+        Date.now() + 1000,
         this.community.medalRewards.nextAttempt() ?? Infinity,
       ),
     );
@@ -184,6 +191,7 @@ export class Neighbourhood extends DurableObject {
   async alarm() {
     this.store.settle();
     this.community.cleanup();
+    this.relayAlarmAt = Infinity;
     // Schedule recovery before external I/O so eviction cannot lose retries.
     await this.ctx.storage.setAlarm(Date.now() + 60000);
     await this.community.medalRewards.deliver();

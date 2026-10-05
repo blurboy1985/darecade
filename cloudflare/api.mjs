@@ -143,6 +143,23 @@ export async function handleApi(
         { error: "Please complete the welcome check or sign in." },
         401,
       );
+    if (path.startsWith("/api/relay/")) {
+      if (method !== "POST") return json({ error: "Method not allowed." }, 405);
+      const action = path.slice("/api/relay/".length);
+      rate(
+        "relay:" + action,
+        action === "tick"
+          ? 300
+          : action === "create"
+            ? 6
+            : action === "join"
+              ? 12
+              : 30,
+        60000,
+        id,
+      );
+      return json(c.relay.request(id, action, data, token));
+    }
     if (method === "GET" && path === "/api/payments/config")
       return json(payments.config());
     if (method === "GET" && path === "/api/payments/history")

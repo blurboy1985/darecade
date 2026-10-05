@@ -1,0 +1,194 @@
+.relay {
+  gap: 12px;
+}
+.relay [hidden] {
+  display: none !important;
+}
+.relay-intro {
+  margin: 0;
+}
+.relay-setup,
+.relay-room {
+  width: 100%;
+  min-width: 0;
+}
+.relay label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  margin: 10px 0 6px;
+}
+.relay select,
+.relay input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px;
+  border: 1px solid #a8b997;
+  border-radius: 10px;
+  background: #fffdf4;
+  color: #29453d;
+  font: inherit;
+}
+.relay-choices,
+#relay-join > div,
+.relay-lobby-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+}
+#relay-join input {
+  width: min(190px, 100%);
+}
+.relay-players {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0;
+  margin: 8px 0;
+}
+.relay-players li {
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: #edf0df;
+  font-size: 12px;
+}
+.relay-players small {
+  display: block;
+  color: #566c53;
+}
+.relay-room-code {
+  font-weight: 700;
+  letter-spacing: 1px;
+  overflow-wrap: anywhere;
+}
+.relay-status,
+.relay-error,
+.relay-cue {
+  font-size: 13px;
+  line-height: 1.4;
+}
+.relay-status:empty,
+.relay-error:empty {
+  display: none;
+}
+.relay-error {
+  color: #9c3830;
+}
+.relay-graphics {
+  font-size: 11px;
+  line-height: 1.4;
+  margin: 0;
+}
+.relay-graphics:empty {
+  display: none;
+}
+.relay-hud {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  margin: 6px 0;
+  font-variant-numeric: tabular-nums;
+}
+.relay-scene {
+  width: 100%;
+  height: clamp(180px, calc(100dvh - 360px), 440px);
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #d8e5c9;
+}
+.relay-scene canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.relay-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  touch-action: none;
+}
+.relay-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 48px);
+  grid-template-rows: repeat(2, 44px);
+  gap: 5px;
+}
+.relay-pad button {
+  border: 1px solid #acc197;
+  border-radius: 10px;
+  background: #e2eccb;
+  color: #29453d;
+  font-size: 24px;
+  touch-action: none;
+  user-select: none;
+}
+.relay-pad button:first-child {
+  grid-column: 2;
+}
+.relay-pad button:nth-child(2) {
+  grid-column: 1;
+}
+.activity.relay .relay-action {
+  width: 110px;
+  min-width: 0;
+  flex: 0 0 110px;
+  min-height: 68px;
+  touch-action: none;
+}
+.relay-help {
+  width: 100%;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.relay-help summary {
+  cursor: pointer;
+  font-weight: 700;
+  padding: 8px 0;
+}
+.relay[data-phase="running"] > h2,
+.relay[data-phase="running"] .relay-intro,
+.relay[data-phase="running"] .relay-room-code,
+.relay[data-phase="running"] .relay-players {
+  display: none;
+}
+.relay[data-phase="running"] .relay-scene {
+  height: clamp(160px, calc(100dvh - 320px), 440px);
+}
+@media (max-height: 550px) and (min-width: 600px) {
+  .relay-play {
+    display: grid;
+    grid-template-columns: 1fr 180px;
+    gap: 6px 12px;
+  }
+  .relay-hud {
+    grid-column: 1 / -1;
+  }
+  .relay-scene {
+    grid-column: 1;
+    grid-row: 2 / 5;
+  }
+  .relay[data-phase="running"] .relay-scene {
+    height: 180px;
+  }
+  .relay-controls {
+    flex-direction: column;
+    gap: 5px;
+  }
+  .relay-pad {
+    grid-template-columns: repeat(3, 42px);
+    grid-template-rows: repeat(2, 36px);
+  }
+  .activity.relay .relay-action {
+    min-height: 44px;
+    width: 144px;
+    flex: 0 0 auto;
+    padding: 10px 14px;
+  }
+}

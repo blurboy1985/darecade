@@ -47,6 +47,7 @@ import { RacingGame } from "./racing-game";
 import { raceComparison } from "./race-results";
 import { mountFishing, mountHoops, mountPlots } from "./activities";
 import { mountStage } from "./stage-game";
+import { mountRelay } from "./relay-game";
 
 import { OutdoorGame } from "./outdoor-game";
 import { acceptPendingInvite, captureInvite, mountInvite } from "./invite";
@@ -528,6 +529,10 @@ function open(id: string) {
               : "PLAY SIMI",
     id === "wardrobe" && !is2d,
   );
+  if (id === "relay") {
+    mountRelay(body, { save, simple: is2d });
+    return;
+  }
   if (id === "stage") {
     mountStage(body, {
       save,
@@ -746,6 +751,13 @@ function open(id: string) {
     body.innerHTML = `<button class="text-button menu-back" data-open="settings">← Back</button><h2>Camera & controls</h2><p>WASD or tap to walk. E to interact. Space to jump.</p><label class="settings-row"><span>View</span><select id="setting-camera"><option value="third" ${save.cameraMode === "third" ? "selected" : ""}>Third person</option><option value="isometric" ${save.cameraMode === "isometric" ? "selected" : ""}>Bird’s-eye</option></select></label><label class="settings-row"><span>Zoom</span><input id="setting-zoom" type="range" min="0" max="100" value="50" data-previous="50" aria-label="Camera zoom"></label><div class="camera-buttons"><button class="secondary" data-action="rotate-left" aria-label="Rotate view left">↶</button><button class="secondary" data-action="reset-view">Reset view</button><button class="secondary" data-action="rotate-right" aria-label="Rotate view right">↷</button></div>`;
   } else if (id === "surroundings") {
     const options = [
+      {
+        id: "relay",
+        label: "Neighbourhood Relay",
+        emoji: "🎒",
+        walk: false,
+        open: true,
+      },
       { id: "dragon", label: "Dragon slide", emoji: "🐉", walk: false },
       { id: "swing", label: "Swings", emoji: "✦", walk: false },
       { id: "pet", label: "Pet Kopi", emoji: "🐈", walk: false },
@@ -760,13 +772,13 @@ function open(id: string) {
     const choices = pageChoices(
       is2d
         ? [
-            ...options.filter((choice) => choice.walk),
-            ...options.filter((choice) => !choice.walk),
+            ...options.filter((choice) => choice.walk || choice.open),
+            ...options.filter((choice) => !choice.walk && !choice.open),
           ]
         : options,
       outdoorPage,
     );
-    body.innerHTML = `<h2>Play outside</h2><div class="outdoor-grid">${choices.items.map((choice) => `<button ${choice.walk ? "data-walk" : "data-environment"}="${choice.id}" ${is2d && !choice.walk ? "disabled" : ""}><span>${choice.emoji}</span><strong>${choice.label}</strong></button>`).join("")}</div>${pager(choices.page, choices.total, "outside")}${is2d ? '<p class="fine-print">Some activities need 3D. Fishing, hoops and plots work here.</p>' : ""}`;
+    body.innerHTML = `<h2>Play outside</h2><div class="outdoor-grid">${choices.items.map((choice) => `<button ${choice.open ? "data-open" : choice.walk ? "data-walk" : "data-environment"}="${choice.id}" ${is2d && !choice.walk && !choice.open ? "disabled" : ""}><span>${choice.emoji}</span><strong>${choice.label}</strong></button>`).join("")}</div>${pager(choices.page, choices.total, "outside")}${is2d ? '<p class="fine-print">Some activities need 3D. Relay, fishing, hoops and plots work here.</p>' : ""}`;
   } else if (id === "garden") {
     body.innerHTML = `<div class="garden-portrait">${icon("leaf")}</div><h2>Pocket Garden</h2><p class="lead">Nothing to chase. Just breathe.</p><button class="primary" data-environment="bench0">Sit & read →</button>`;
   } else if (id === "playground") {

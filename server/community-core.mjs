@@ -9,6 +9,7 @@ import { randomBytes, randomInt, randomUUID, createHash } from "node:crypto";
 import { day, gameIds } from "./store-core.mjs";
 import { MedalRewards } from "./medal-rewards.mjs";
 import { PlayMedals } from "./play-medals.mjs";
+import { RelayRooms } from "./relay.mjs";
 import { Seasons } from "./seasons.mjs";
 import { playIds } from "../src/catalog.ts";
 import {
@@ -180,6 +181,7 @@ export class CommunityCore {
     this.store.onSettleDay = (date) => this.medalRewards.settle(date);
     this.seasons = new Seasons(store, competitionSeasons, seasonView);
     this.store.competitionAfter = (at) => this.seasons.targetAfter(at);
+    this.relay = new RelayRooms(this, PRIVACY_VERSION);
   }
   config() {
     return {
@@ -748,8 +750,12 @@ export class CommunityCore {
     return result;
   }
   logout(id, token) {
-    this.db.prepare("DELETE FROM sessions WHERE token=?").run(hash(token));
-    this.db.prepare("DELETE FROM presence WHERE player=?").run(id);
+    this.store.transaction(() => {
+      this.relay.removeRaw(id);
+      this.db.prepare("DELETE FROM sessions WHERE token=?").run(hash(token));
+      this.db.prepare("DELETE FROM presence WHERE player=?").run(id);
+    });
+    this.relay.onChange?.();
     return { ok: true };
   }
   eligibleAccount(id) {
@@ -1166,12 +1172,18 @@ export class CommunityCore {
       throw Error(
         "Your reports have been received. Please wait before sending more.",
       );
-    this.db
-      .prepare(
-        "INSERT INTO reports(id,reporter,target,reason,created) VALUES(?,?,?,?,?)",
-      )
-      .run(randomUUID(), id, target, reason, this.now());
-    this.db.prepare("INSERT OR IGNORE INTO blocks VALUES(?,?)").run(id, target);
+    this.store.transaction(() => {
+      this.db
+        .prepare(
+          "INSERT INTO reports(id,reporter,target,reason,created) VALUES(?,?,?,?,?)",
+        )
+        .run(randomUUID(), id, target, reason, this.now());
+      this.db
+        .prepare("INSERT OR IGNORE INTO blocks VALUES(?,?)")
+        .run(id, target);
+      this.relay.cancelPairRaw(id, target);
+    });
+    this.relay.onChange?.();
     return { ok: true };
   }
   playtests(id) {
@@ -1292,6 +1304,7 @@ export class CommunityCore {
           .get(id),
       },
       exportedAt: new Date(this.now()).toISOString(),
+      relay: this.relay.export(id),
       seasons: this.seasons.export(id),
       payments: this.db
         .prepare(
@@ -1349,6 +1362,7 @@ export class CommunityCore {
   }
   delete(id) {
     const saved = this.store.transaction(() => {
+      this.relay.removeRaw(id);
       this.db
         .prepare("UPDATE payment_orders SET player=NULL WHERE player=?")
         .run(id);
@@ -1425,9 +1439,11 @@ export class CommunityCore {
       return { ok: true };
     });
     this.store.refreshSnapshot();
+    this.relay.onChange?.();
     return saved;
   }
   cleanup() {
+    this.relay.cleanup();
     this.db.prepare("DELETE FROM sessions WHERE expires<=?").run(this.now());
     this.db.prepare("DELETE FROM moves WHERE expires<=?").run(this.now());
     this.db.prepare("DELETE FROM magic_links WHERE expires<=?").run(this.now());
