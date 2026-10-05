@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:http";
 import { once } from "node:events";
-import { spawn } from "node:child_process";
+import { browserDOM } from "./browser-dom.ts";
 import { runInNewContext } from "node:vm";
 import { transpileModule, ModuleKind, ScriptTarget } from "typescript";
 
@@ -367,37 +367,15 @@ try {
     await once(server, "listening");
     const address = server.address();
     assert.ok(address && typeof address !== "string");
-    const browser = spawn(
-      chromium,
-      [
-        "--headless",
-        "--no-sandbox",
-        "--disable-gpu",
-        "--disable-dev-shm-usage",
-        "--disable-background-networking",
-        "--no-first-run",
-        "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1",
-        `--user-data-dir=${directory}`,
-        "--dump-dom",
-        "--virtual-time-budget=10000",
-        `http://127.0.0.1:${address.port}/`,
-      ],
-      { stdio: ["ignore", "pipe", "pipe"] },
-    );
-    let output = "",
-      errors = "";
-    browser.stdout.on("data", (data) => {
-      output += data;
-    });
-    browser.stderr.on("data", (data) => {
-      errors += data;
-    });
     try {
-      const [exit] = await once(browser, "exit");
-      assert.equal(exit, 0, errors);
+      const output = await browserDOM(
+        chromium,
+        `http://127.0.0.1:${address.port}/`,
+        directory,
+      );
       assert.match(output, /data-result="pass"/, output);
     } finally {
-      browser.kill();
+      server.closeAllConnections();
       await new Promise<void>((resolve, reject) =>
         server.close((error) => (error ? reject(error) : resolve())),
       );

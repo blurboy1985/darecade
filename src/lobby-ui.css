@@ -539,3 +539,36 @@
   margin-top: 5px;
   font-size: 13px;
 }
+.game-progress {
+  padding: 12px 14px;
+  border: 1px solid #d8ddcb;
+  border-radius: 12px;
+  background: #f4f7e9;
+}
+.game-progress > strong {
+  display: block;
+  font-size: 15px;
+}
+.game-progress p {
+  margin: 5px 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.level-reward {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 12px;
+}
+.level-reward strong {
+  font-size: 13px;
+}
+.level-reward progress {
+  width: 100%;
+  height: 8px;
+  accent-color: #61764b;
+}
+.level-reward small {
+  font-size: 10px;
+  line-height: 1.3;
+}

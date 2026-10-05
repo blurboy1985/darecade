@@ -130,3 +130,36 @@
     min-height: 48px;
   }
 }
+.stage-hype[hidden] {
+  display: none;
+}
+.activity-stage[data-playing="true"] #stage-progress,
+.activity-stage[data-playing="true"] .field-label,
+.activity-stage[data-playing="true"] #stage-mode,
+.activity-stage[data-playing="true"] #stage-goal,
+.activity-stage[data-playing="true"] #stage-note,
+.activity-stage[data-playing="true"] .activity-status:empty {
+  display: none;
+}
+.activity-stage[data-playing="true"] h2 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.activity-stage[data-playing="true"] .stage-screen {
+  height: clamp(140px, calc(100dvh - 210px), 380px);
+  min-height: 140px;
+}
+#stage-progress {
+  width: min(100%, 420px);
+}
+.activity-stage #stage-mode {
+  max-width: 420px;
+}
+.activity-stage #stage-goal {
+  max-width: 420px;
+  font-size: 14px;
+  margin: 4px 0;
+}
