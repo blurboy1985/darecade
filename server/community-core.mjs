@@ -1333,7 +1333,7 @@ export class CommunityCore {
         .run(id, id);
       this.db
         .prepare(
-          "UPDATE runs SET target=NULL,dare=NULL,targetScore=0 WHERE target=?",
+          "UPDATE runs SET target=NULL,dare=NULL,target_run=NULL,targetScore=0 WHERE target=?",
         )
         .run(id);
       const email =
@@ -1358,6 +1358,12 @@ export class CommunityCore {
         .all(id, email))
         try {
           this.files.removeOutbox(link.token);
+        } catch {}
+      for (const mail of this.db
+        .prepare("SELECT day FROM medal_email_outbox WHERE player=?")
+        .all(id))
+        try {
+          this.files.removeOutbox(`medals-${mail.day}-${id}`);
         } catch {}
       this.db
         .prepare("DELETE FROM magic_links WHERE candidate=? OR email=?")

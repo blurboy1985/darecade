@@ -114,7 +114,8 @@ export function showStyleReward(
   const lastDialog = Array.from(document.querySelectorAll("dialog[open]")).at(
     -1,
   );
-  (activeDialog || lastDialog || document.body).append(panel);
+  const parent = activeDialog || lastDialog || document.body;
+  parent.append(panel);
   if (typeof panel.showPopover === "function") {
     panel.showPopover();
   }
@@ -136,6 +137,7 @@ export function showStyleReward(
     disposeAnimation?.();
     motion.removeEventListener("change", stopMotion);
     document.removeEventListener("visibilitychange", onVisibility);
+    parent.removeEventListener("close", dismiss);
     if (panel.contains(document.activeElement))
       previousFocus?.focus({ preventScroll: true });
     panel.remove();
@@ -145,6 +147,7 @@ export function showStyleReward(
   };
   const timer = window.setTimeout(dismiss, 6500);
   document.addEventListener("visibilitychange", onVisibility);
+  parent.addEventListener("close", dismiss);
   panel.querySelector(".primary")!.addEventListener("click", () => {
     dismiss();
     viewLooks();

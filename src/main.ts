@@ -1883,11 +1883,15 @@ function enable2D() {
   world = null;
   previousWorld?.dispose();
   if (modal.open) close();
+  nearId = "";
+  document.body.classList.remove("has-nearby");
+  document.querySelector<HTMLButtonElement>("#interaction")!.hidden = true;
   document.body.classList.add("mode-2d");
   const el = document.querySelector<HTMLDivElement>("#fallback")!;
   el.hidden = false;
   el.innerHTML = `<span class="eyebrow">2D WORLD</span><h1>Meet you downstairs.</h1><p>Pick Games, Neighbourhood or Menu below.</p><section id="fallback-welcome"></section>`;
   document.querySelector("#quality-note")!.textContent = "2D LOBBY";
+  renderCameraUI();
   renderWelcome();
 }
 const stick = document.querySelector<HTMLDivElement>("#joystick")!,

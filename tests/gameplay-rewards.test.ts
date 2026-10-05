@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Store, day } from "../server/store.mjs";
@@ -313,6 +313,54 @@ test("opt-out before delivery cancels durable job but preserves tokens", async (
     s.community.sendEmail = async () => assert.fail("must not send");
     await s.community.medalRewards.deliver();
     assert.equal(s.community.privateProfile(a).progress.medalTokens, 3);
+  } finally {
+    s.close();
+  }
+});
+test("profile erasure removes delivered local medal mail and anonymises frozen targets", async () => {
+  const s = fixture();
+  try {
+    const a = s.player("Erase"),
+      b = s.player("Keep");
+    s.community.patch(a, { medalEmail: true });
+    const target = s.score(a, "hop", 20);
+    const challenge = s.community.begin(b, "hop", a, null, target);
+    s.tick(60000);
+    s.store.settle();
+    await s.community.medalRewards.deliver();
+    const path = join(
+      s.directory,
+      "mail-outbox",
+      `medals-${day(s.now() - 60000)}-${a}.json`,
+    );
+    assert.ok(
+      existsSync(path),
+      "test transport wrote the actual award message",
+    );
+    s.community.delete(a);
+    assert.equal(existsSync(path), false);
+    assert.deepEqual(
+      {
+        ...s.store.db
+          .prepare(
+            "SELECT target,target_run,dare,targetScore FROM runs WHERE id=?",
+          )
+          .get(challenge.id),
+      },
+      { target: null, target_run: null, dare: null, targetScore: 0 },
+    );
+    assert.equal(
+      s.store.db
+        .prepare("SELECT COUNT(*) n FROM medal_email_outbox WHERE player=?")
+        .get(a).n,
+      0,
+    );
+    // Missing test-outbox files also must not block deletion.
+    s.community.patch(b, { medalEmail: true });
+    s.score(b, "noodle", 10);
+    s.tick(DAY);
+    s.store.settle();
+    assert.doesNotThrow(() => s.community.delete(b));
   } finally {
     s.close();
   }
