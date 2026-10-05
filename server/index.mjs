@@ -1,3 +1,4 @@
+import { RELAY_TICK_BUDGET } from "../shared/relay-protocol.ts";
 import { Payments, paymentBody } from "./payments.mjs";
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
@@ -190,7 +191,7 @@ const handler = async (req, res) => {
           req,
           "relay:" + action,
           action === "tick"
-            ? 300
+            ? RELAY_TICK_BUDGET
             : action === "create"
               ? 6
               : action === "join"
