@@ -180,8 +180,7 @@ test("snapshots expire at 30 seconds and midnight, refresh after events, and iso
     store.finish("p11", run.id, 999);
     assert.equal(community.cachedSnapshot.base.boards.noodle[0].score, 999);
     db.prepare("UPDATE runs SET seed=1 WHERE id=?").run(run.id);
-    community.postDare("p11", run.id);
-    assert.equal(community.cachedSnapshot.dares.length, 1);
+    assert.throws(() => community.postDare("p11", run.id), /saved score/);
     community.report("p10", "p11", "suspected-cheating");
     assert.ok(
       !community.state("p10").boards.noodle.some((p) => p.id === "p11"),

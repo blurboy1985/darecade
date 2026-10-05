@@ -120,9 +120,6 @@ test("choice pages never expose more than three and never lose an item", () => {
   }
 });
 
-test("first reward cannot grow a fourth action through share disclosure", () => {
-  assert.match(
-    source,
-    /run &&[\s\S]*?shared\?\.competitionReady &&[\s\S]*?!reward/,
-  );
+test("manual challenge posting is absent from the interface", () => {
+  assert.doesNotMatch(source, /data-post-dare|Post a challenge|dares-post/);
 });

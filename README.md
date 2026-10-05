@@ -6,7 +6,7 @@ A working shared 3D neighbourhood with persistent accounts, saved avatars, serve
 
 ## Integrated release — 4 October 2026
 
-The menu has three main actions: Play, Explore and Menu. Find grouped,
+The current menu has three main actions: Games, Neighbourhood and Menu. Find grouped,
 preview-first cosmetics under Menu → My stuff → My look. Ten original themed
 sets can be earned through play or bought for S$1.99 each. Support & purchases
 also offers one-time S$2, S$5, S$10 and S$50 donations in SGD. Donations grant
@@ -20,7 +20,7 @@ The game is live at **https://playsimi.danielquek.com** (moved on 5 October 2026
 
 ## Connected progression — 3 October 2026
 
-The welcome check, age/privacy consent, guest-to-email account linking, saved avatar and progression, input-replay score validation, posted challenges, weekly medals, reports, data download and deletion are connected to the server. See [ACCOUNTS.md](ACCOUNTS.md) for setup, fairness rules and recovery, and [PRIVACY-REVIEW.md](PRIVACY-REVIEW.md) for the pre-launch review.
+The welcome check, age/privacy consent, guest-to-email account linking, saved avatar and progression, input-replay score validation, saved-score challenges, weekly medals, reports, data download and deletion are connected to the server. See [ACCOUNTS.md](ACCOUNTS.md) for setup, fairness rules, optional daily award emails and recovery, and [PRIVACY-REVIEW.md](PRIVACY-REVIEW.md) for the pre-launch review.
 
 The local server uses a **private local test outbox**; the hosted service uses Resend for live email. New verified progress starts fresh; previous browser saves are archived locally and legacy medal totals are preserved. The 3 October launch checks passed **65/65 Node tests and 3/3 Cloudflare runtime tests**, plus local browser-verified arcade, shared challenge and account/privacy journeys and the live launch checks above.
 
@@ -42,7 +42,7 @@ A second district east of the island adds three facilities with non-arcade activ
 
 Records keeps accounts, scores, medals, challenges and moderation in the existing `Neighbourhood` Durable Object named `darecade-main-v1`. Shared results are cached for 30 seconds and refreshed on relevant events. The new SQLite `World` class uses the `WORLD` binding and additive `v2` migration; `v1` stays unchanged. Each world has hibernating WebSockets, compact movement updates up to 5 Hz, interpolation, and a two-second HTTP fallback. Empty rooms stop scheduling work and hibernate.
 
-Your first visit auto-joins the fullest world below 25 players without adding a picker before the first game. The top bar shows your world and short room code. Choose Explore → Change world, enter a code such as W3, or use Join friend to visit a neighbour, up to a hard cap of 30. Accounts and results follow you between worlds. Blocks, suspensions and deletion apply across all worlds. Node preview uses HTTP polling for rooms.
+Your first visit auto-joins the fullest world below 25 players without adding a picker before the first game. The top bar shows your world and short room code. Choose Neighbourhood → Change world, enter a code such as W3, or use Join friend to visit a neighbour, up to a hard cap of 30. Accounts and results follow you between worlds. Blocks, suspensions and deletion apply across all worlds. Node preview uses HTTP polling for rooms.
 
 Capacity is about 25 players per world. The original Free-plan estimate of roughly 100 player-hours/day is an optimistic light-use target, not a guarantee. Twenty incoming WebSocket messages bill as one request, while SQL reads, writes, HTTP/RPC calls and active duration have separate quotas. The 150-player load run with 20,000 stored runs exceeded the SQL budget when extrapolated to 100 player-hours; that target is not supported by this workload on Free. Workers Paid starts at US$5/month with possible overages; upgrading is the owner's decision. [HOSTING.md](HOSTING.md#capacity-and-cost) explains the architecture, migration, current pricing sources and quota limits.
 
@@ -58,7 +58,7 @@ The current phone link is `http://192.168.1.109:4173/?playtest=1&revision=look12
 
 Explore for roughly two minutes, then tap **Menu → Settings → Preferences → Phone test** on the phone. Only an explicit Save sends the report. It includes device/browser details, movement/readability/performance observations, clarity of the next step, desire for another round, optional notes, quest timings and sampled world FPS. Reports save in `data/playtests/`, outside the public files. Desktop synthetic reports use isolated QA storage and are never physical-device or human-fun evidence. Replay desire is self-reported; replay clicks are recorded independently.
 
-The first physical iPhone test found easy movement and smooth rendering but crowded controls, small text and an unclear next action. The current HUD uses Play, Explore and Menu on desktop and phone. Menu groups have three choices; games, outdoor activities, emotes and quests show up to three choices per page. First-round results place the next action above score details. See QA.md for the measured findings and remaining device-test limits.
+The first physical iPhone test found easy movement and smooth rendering but crowded controls, small text and an unclear next action. The current HUD uses Games, Neighbourhood and Menu on desktop and phone. Menu groups have three choices; games, outdoor activities, emotes and quests show up to three choices per page. First-round results place the next action above score details. See QA.md for the measured findings and remaining device-test limits.
 
 A successful local HTTP check does not establish phone reachability. Windows denied adding a firewall rule during setup; existing Node inbound allow rules were present and left unchanged. Wi-Fi isolation or firewall settings may still affect the phone connection.
 
@@ -97,7 +97,7 @@ The production site is emitted to `dist/`. `npm run preview` serves it at http:/
 
 ## Short onboarding and three-action menus
 
-Play, Explore and Menu are the only persistent world actions. A nearby interaction replaces Explore while available. Stop and I’m back replace the third world action during an activity or away state. Player inspection hides the dock and offers three actions plus Close.
+Games, Neighbourhood and Menu are the three persistent primary world actions. A nearby interaction replaces Neighbourhood while available. Stop and I’m back replace the third world action during an activity or away state. An unobtrusive upfront camera button toggles bird's-eye/third-person view; Menu uses a gear. Player inspection hides the dock and offers three actions plus Close.
 
 Menu pages have at most three main action buttons. Larger game, activity, emote and quest lists use three-item pages. Wardrobe choices, rankings filters, neighbours and world destinations use labelled native form inputs. Back, Close, pagination are navigation controls; text fields, dropdowns and checkboxes are form inputs. These do not count as additional main actions. Game movement controls remain available during play.
 
@@ -110,10 +110,10 @@ The changes have automated structural and request-flow coverage. New browser-onl
 | Action                 | Control                                                            |
 | ---------------------- | ------------------------------------------------------------------ |
 | Walk                   | WASD, arrows, tap the ground, or mobile joystick                   |
-| Walk to a destination  | Explore → choose a spot                                            |
+| Walk to a destination  | Neighbourhood → choose a spot                                            |
 | Nearby interaction     | E or the on-screen location button                                 |
 | Jump                   | Space                                                              |
-| Change the view        | Menu → Settings → Camera & controls               |
+| Change the view        | Upfront camera button; also Menu → Settings → Camera & controls |
 | Third-person view      | V or Camera & controls; drag to orbit; scroll/pinch to zoom        |
 | Inspect an outfit      | Menu → Friends → Neighbours, or click one in the world; Esc returns    |
 | Away activity          | Menu → Settings → Account & safety → Step away                  |
@@ -234,4 +234,3 @@ My Look has a server-saved nickname (2–20 letters/numbers/spaces/hyphens), eig
 Seven companions include a bunny, fox, small dragon and owl; seven magic choices include a moon halo, crystal crown, rainbow ribbon and bubbles. A lightweight Three.js star burst celebrates completed rounds, releases its GPU resources, and respects reduced motion and 2D mode. The three decorative podium mannequins have been removed from the central plaza; actual shared players remain.
 
 Rankings have separate weekly and daily views, tied-rank podium cards and a personal summary showing awarded weekly medals, pending midnight medals and lifetime medals. Round results distinguish game score, cosmetic XP and daily rank. Existing server scoring and Singapore reset rules are unchanged. Nicknames are public; email, link and phone-like strings are rejected, and inappropriate-name reporting uses the existing private report/hide flow. Free-form names still require operator moderation before a public launch.
-

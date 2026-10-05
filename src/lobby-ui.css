@@ -293,3 +293,94 @@
 .wardrobe-controls .destination-select {
   margin-bottom: 18px;
 }
+
+.world-utilities {
+  margin-left: auto;
+}
+.world-utilities button {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.7rem;
+  background: #fffdf1ee;
+  border: 1px solid #d9dfcf;
+  border-radius: 14px;
+  color: #33493e;
+  font-size: 0.75rem;
+}
+.world-utilities svg {
+  width: 20px;
+  height: 20px;
+}
+.style-reward {
+  position: fixed;
+  inset: auto 16px 100px auto;
+  margin: 0;
+  width: min(420px, calc(100vw - 32px));
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid #f1d888;
+  border-radius: 24px;
+  background: #fffdf4;
+  color: #253d32;
+  box-shadow: 0 16px 60px #1e293b33;
+  z-index: 10000;
+}
+.style-reward h2 {
+  font-size: 1.2rem;
+  margin: 5px 0;
+}
+.style-reward p {
+  font-size: 0.9rem;
+  margin: 8px 0 14px;
+}
+.style-reward small {
+  font-size: 0.65rem;
+  letter-spacing: 0.13em;
+  color: #876718;
+}
+.style-reward button {
+  font-size: 0.8rem;
+  padding: 10px 13px;
+}
+.token-reveal {
+  position: relative;
+  flex: 0 0 88px;
+  height: 112px;
+  display: grid;
+  place-items: center;
+}
+.token-reveal span {
+  background: #ffd26f;
+  color: #fffbea;
+  border: 5px double #df9b29;
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  display: grid;
+  place-items: center;
+  font-size: 34px;
+}
+.token-reveal canvas {
+  position: absolute;
+  inset: 0;
+}
+.token-reveal:has(canvas) span {
+  opacity: 0;
+}
+@media (max-width: 600px) {
+  .world-utilities button span {
+    display: none;
+  }
+  .style-reward {
+    bottom: 112px;
+    padding: 14px;
+    gap: 6px;
+  }
+  .token-reveal {
+    flex-basis: 65px;
+    height: 95px;
+  }
+}

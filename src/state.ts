@@ -1,4 +1,4 @@
-import { legendarySets } from "./collections.ts";
+import { legendarySets, tokenLooks } from "./collections.ts";
 import { validWaterTrail } from "../shared/plot-trail.ts";
 import { appearanceLimits } from "./appearance.ts";
 export const outfits = [
@@ -37,6 +37,7 @@ export type Save = {
   hat: number;
   unlockedHats: number[];
   xp: number;
+  medalTokens: number;
   wardrobeSpent: number;
   wardrobeUnlocked: string[];
   wardrobePurchased: string[];
@@ -101,6 +102,7 @@ export function fresh(): Save {
     hat: 0,
     unlockedHats: [0],
     xp: 0,
+    medalTokens: 0,
     wardrobeSpent: 0,
     wardrobeUnlocked: [],
     wardrobePurchased: [],
@@ -187,14 +189,14 @@ export function normalise(raw: unknown, fallback: Save): Save {
         }[key]
     )
       s[key] = r[key]!;
-  s.wardrobePurchased = legendarySets
+  s.wardrobePurchased = tokenLooks
     .filter(
       (set) =>
         Array.isArray(r.wardrobePurchased) &&
         r.wardrobePurchased.includes(set.id),
     )
     .map((set) => set.id);
-  s.wardrobeUnlocked = legendarySets
+  s.wardrobeUnlocked = tokenLooks
     .filter(
       (set) =>
         Array.isArray(r.wardrobeUnlocked) &&
@@ -202,10 +204,10 @@ export function normalise(raw: unknown, fallback: Save): Save {
     )
     .map((set) => set.id);
   s.wardrobeSpent = s.wardrobeUnlocked.reduce(
-    (sum, id) => sum + legendarySets.find((set) => set.id === id)!.cost,
+    (sum, id) => sum + tokenLooks.find((set) => set.id === id)!.cost,
     0,
   );
-  for (const key of ["xp", "rounds"] as const)
+  for (const key of ["xp", "rounds", "medalTokens"] as const)
     if (Number.isFinite(r[key]) && r[key]! >= 0)
       s[key] = Math.floor(Math.min(r[key]!, 1e8));
   for (const key of ["sound", "music", "reduced", "cat", "twoD"] as const)

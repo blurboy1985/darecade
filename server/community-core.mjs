@@ -1,12 +1,13 @@
 import {
   ownsSet,
+  styleTokens,
   canWear,
-  canRedeem,
-  legendarySets,
+  tokenLooks,
   setStarts,
 } from "../src/collections.ts";
 import { randomBytes, randomInt, randomUUID, createHash } from "node:crypto";
 import { day, gameIds } from "./store-core.mjs";
+import { MedalRewards } from "./medal-rewards.mjs";
 import { playIds } from "../src/catalog.ts";
 import {
   fresh,
@@ -130,6 +131,7 @@ export class CommunityCore {
   CREATE TABLE IF NOT EXISTS blocks(player TEXT REFERENCES players(id),target TEXT REFERENCES players(id),PRIMARY KEY(player,target));
   CREATE TABLE IF NOT EXISTS suspensions(player TEXT PRIMARY KEY REFERENCES players(id),created INTEGER);
   CREATE TABLE IF NOT EXISTS invites(code TEXT PRIMARY KEY,player TEXT UNIQUE NOT NULL,created INTEGER NOT NULL);
+  CREATE TABLE IF NOT EXISTS style_reward_notices(player TEXT PRIMARY KEY REFERENCES players(id),tokens INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS invite_joins(invitee TEXT PRIMARY KEY,inviter TEXT NOT NULL,created INTEGER NOT NULL,rewarded INTEGER NOT NULL DEFAULT 0);`);
     // Retire the unused preference without changing avatars or earned progress.
     this.store.transaction(() => {
@@ -154,9 +156,23 @@ export class CommunityCore {
         table === "profiles" ? "consent" : undefined,
       );
     this.db.exec(
-      "CREATE INDEX IF NOT EXISTS blocks_target ON blocks(target,player)",
+      "CREATE TABLE IF NOT EXISTS saved_friends(player TEXT REFERENCES players(id),target TEXT REFERENCES players(id),PRIMARY KEY(player,target)); CREATE INDEX IF NOT EXISTS blocks_target ON blocks(target,player)",
     );
+    this.store.transaction(() => {
+      if (
+        this.db
+          .prepare("SELECT 1 FROM rules WHERE key='saved_score_targets_v1'")
+          .get()
+      )
+        return;
+      this.db
+        .exec(`UPDATE runs SET target_run=(SELECT run FROM dares WHERE id=runs.dare)
+        WHERE dare IS NOT NULL AND target_run IS NULL AND EXISTS(SELECT 1 FROM dares WHERE id=runs.dare);
+        INSERT INTO rules VALUES('saved_score_targets_v1','1');`);
+    });
     this.store.onSnapshot = () => this.snapshot();
+    this.medalRewards = new MedalRewards(this);
+    this.store.onSettleDay = (date) => this.medalRewards.settle(date);
   }
   config() {
     return {
@@ -314,6 +330,7 @@ export class CommunityCore {
       .prepare("SELECT email,created FROM accounts WHERE player=?")
       .get(id);
     const progress = normalise(JSON.parse(p.progress), fresh());
+    progress.medalTokens = this.medalRewards.tokens(id);
     return {
       id,
       name: this.db.prepare("SELECT name FROM players WHERE id=?").get(id).name,
@@ -324,18 +341,59 @@ export class CommunityCore {
             eligibleAt: account.created + DAY,
           }
         : null,
+      notifications: { medalEmail: this.medalRewards.optedIn(id) },
+      styleRewards:
+        this.db
+          .prepare("SELECT tokens FROM style_reward_notices WHERE player=?")
+          .get(id)?.tokens || 0,
       ageBand: p.age_band,
       privacyVersion: p.consent,
       progress,
     };
   }
-  save(id, progress) {
+  takeStyleRewards(id) {
+    return this.store.transaction(() => {
+      const tokens =
+        this.db
+          .prepare("SELECT tokens FROM style_reward_notices WHERE player=?")
+          .get(id)?.tokens || 0;
+      this.db
+        .prepare("UPDATE style_reward_notices SET tokens=0 WHERE player=?")
+        .run(id);
+      return { tokens };
+    });
+  }
+  save(id, progress, { active = true } = {}) {
+    // XP-changing callers already hold the progression/finish transaction.
+    const old = this.db
+      .prepare("SELECT progress FROM profiles WHERE player=?")
+      .get(id);
+    const count = old
+      ? Math.max(
+          0,
+          Math.floor(progress.xp / 100) -
+            Math.floor(JSON.parse(old.progress).xp / 100),
+        )
+      : 0;
+    if (count)
+      this.db
+        .prepare(
+          "INSERT INTO style_reward_notices VALUES(?,?) ON CONFLICT(player) DO UPDATE SET tokens=tokens+excluded.tokens",
+        )
+        .run(id, count);
     this.db
-      .prepare("UPDATE profiles SET progress=?,last_active=? WHERE player=?")
-      .run(JSON.stringify(progress), this.now(), id);
+      .prepare(
+        "UPDATE profiles SET progress=?,last_active=CASE WHEN ? THEN ? ELSE last_active END WHERE player=?",
+      )
+      .run(JSON.stringify(progress), active ? 1 : 0, this.now(), id);
   }
   patch(id, patch) {
     if (!patch || typeof patch !== "object") throw Error("Choose a setting.");
+    if (
+      Object.hasOwn(patch, "medalEmail") &&
+      (typeof patch.medalEmail !== "boolean" || !this.rankedAccount(id))
+    )
+      throw Error("Verify your email and choose an email preference.");
     let name;
     if (Object.hasOwn(patch, "name")) {
       if (typeof patch.name !== "string") throw Error("Choose a nickname.");
@@ -361,6 +419,8 @@ export class CommunityCore {
         !canWear(slot, candidate[slot], p, medals)
       )
         throw Error("Unlock this collection before equipping it.");
+    if (Object.hasOwn(patch, "medalEmail"))
+      this.medalRewards.preference(id, patch.medalEmail);
     for (const k of [...lookKeys, ...prefs]) p[k] = candidate[k];
     if (name !== undefined) {
       this.db.prepare("UPDATE players SET name=? WHERE id=?").run(name, id);
@@ -376,17 +436,13 @@ export class CommunityCore {
   progression(id, event, value) {
     return this.store.transaction(() => {
       const p = this.privateProfile(id).progress;
+      const xpBefore = p.xp;
       if (event === "redeem-style") {
-        const set = legendarySets.find((s) => s.id === value);
+        const set = tokenLooks.find((s) => s.id === value);
         if (!set) throw Error("Unknown style set.");
         if (ownsSet(p, set.id)) return this.privateProfile(id);
-        const medals = this.db
-          .prepare(
-            "SELECT COALESCE(SUM(points),0) n FROM medals WHERE player=?",
-          )
-          .get(id).n;
-        if (!canRedeem(set, p, medals))
-          throw Error("Earn the tokens and medal or round requirement first.");
+        if (styleTokens(p) < set.cost)
+          throw Error("Earn enough Style tokens first.");
         p.wardrobeUnlocked.push(set.id);
         p.wardrobeSpent += set.cost;
       } else if (event === "gift") {
@@ -478,7 +534,10 @@ export class CommunityCore {
           JSON.stringify(Object.fromEntries(lookKeys.map((k) => [k, p[k]]))),
           id,
         );
-      return this.privateProfile(id);
+      return {
+        ...this.privateProfile(id),
+        xpTokens: Math.floor(p.xp / 100) - Math.floor(xpBefore / 100),
+      };
     });
   }
   normaliseEmail(email) {
@@ -488,13 +547,21 @@ export class CommunityCore {
     return email;
   }
   /** Sends one transactional email, or writes it to the local test outbox. */
-  async sendEmail(email, subject, text, outboxId, outbox) {
+  async sendEmail(
+    email,
+    subject,
+    text,
+    outboxId,
+    outbox,
+    idempotencyKey = null,
+  ) {
     if (this.mailMode === "resend") {
       const response = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${this.mailKey}`,
           "Content-Type": "application/json",
+          ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
         },
         body: JSON.stringify({
           from: this.mailFrom,
@@ -702,7 +769,7 @@ export class CommunityCore {
   rankedAccount(id) {
     return !!this.db.prepare("SELECT 1 FROM accounts WHERE player=?").get(id);
   }
-  begin(id, game, target = null, dareId = null) {
+  begin(id, game, target = null, dareId = null, targetRun = null) {
     if (!playIds.includes(game)) throw Error("Choose an arcade game.");
     let seed = seedFor(game, day(this.now())),
       score = 0,
@@ -725,6 +792,7 @@ export class CommunityCore {
       )
         throw Error("You already played this challenge.");
       target = dare.host;
+      targetRun = dare.run;
       seed = dare.seed;
       score = dare.score;
     }
@@ -749,24 +817,37 @@ export class CommunityCore {
       if (!dare) {
         const best = this.db
           .prepare(
-            "SELECT score,seed FROM runs WHERE player=? AND game=? AND verified=1 AND seed IS NOT NULL AND version=? AND status='finished' AND score>0 ORDER BY score DESC,finished ASC LIMIT 1",
+            `SELECT id,score,seed FROM runs WHERE player=? AND game=? AND verified=1 AND eligible=1 AND seed IS NOT NULL AND version=? AND status='finished' AND score>0 ${targetRun ? "AND id=?" : ""} ORDER BY score DESC,finished ASC LIMIT 1`,
           )
-          .get(target, game, rulesVersion(game));
+          .get(
+            target,
+            game,
+            rulesVersion(game),
+            ...(targetRun ? [targetRun] : []),
+          );
         if (!best) throw Error("This neighbour has no validated score yet.");
+        targetRun = best.id;
         seed = best.seed;
         score = best.score;
       }
+      if (
+        this.db
+          .prepare("SELECT 1 FROM runs WHERE player=? AND target_run=?")
+          .get(id, targetRun)
+      )
+        throw Error("You already played this saved score. Try a new score.");
     }
     const run = this.store.begin(id, game, target, {
       allowOnline: !!dare,
       targetScore: target ? score : undefined,
+      prepareRun: (run) =>
+        this.db
+          .prepare(
+            "UPDATE runs SET seed=?,version=?,targetScore=?,dare=?,target_run=? WHERE id=?",
+          )
+          .run(seed, rulesVersion(game), score, dareId, targetRun, run.id),
     });
     if (target) run.targetScore = score;
-    this.db
-      .prepare(
-        "UPDATE runs SET seed=?,version=?,targetScore=?,dare=? WHERE id=?",
-      )
-      .run(seed, rulesVersion(game), score, dareId, run.id);
     return {
       ...run,
       seed,
@@ -825,6 +906,7 @@ export class CommunityCore {
           r.id,
         );
       const p = this.privateProfile(id).progress;
+      const xpBefore = p.xp;
       let race;
       if (result.race) {
         const previous = p.coastRecord;
@@ -866,6 +948,7 @@ export class CommunityCore {
         verified: true,
         ranked,
         welcome,
+        xpTokens: Math.floor(p.xp / 100) - Math.floor(xpBefore / 100),
         invite,
         race,
         profile: this.privateProfile(id),
@@ -875,39 +958,7 @@ export class CommunityCore {
     return saved;
   }
   postDare(id, runId) {
-    if (!this.eligibleAccount(id)) throw Error(this.dareHold(id));
-    const saved = this.store.transaction(() => {
-      const r = this.db
-        .prepare(
-          `SELECT * FROM runs WHERE id=? AND player=? AND verified=1 AND status='finished' AND score>0 AND version=CASE WHEN game='coast' THEN ${COAST_RULES_VERSION} ELSE 1 END`,
-        )
-        .get(runId, id);
-      if (!r) throw Error("Choose a positive, validated round to post.");
-      if (this.db.prepare("SELECT 1 FROM dares WHERE run=?").get(runId))
-        throw Error("This round is already a challenge.");
-      const start = Date.parse(`${day(this.now())}T00:00:00+08:00`);
-      if (
-        this.db
-          .prepare("SELECT COUNT(*) n FROM dares WHERE host=? AND created>=?")
-          .get(id, start).n >= 3
-      )
-        throw Error("You have posted three challenges today.");
-      const d = {
-        id: randomUUID(),
-        host: id,
-        game: r.game,
-        seed: r.seed,
-        score: r.score,
-        created: this.now(),
-        expires: this.now() + DAY,
-      };
-      this.db
-        .prepare("INSERT INTO dares VALUES(?,?,?,?,?,?,?,?)")
-        .run(d.id, id, runId, r.game, r.seed, r.score, d.created, d.expires);
-      return d;
-    });
-    this.store.refreshSnapshot();
-    return saved;
+    throw Error("Choose a saved score from Challenges instead.");
   }
   snapshot() {
     const base = this.store.snapshot();
@@ -978,6 +1029,7 @@ export class CommunityCore {
       day: base.day,
       nextReset: base.nextReset,
       players: this.store.playerList(id, true),
+      friends: this.friends(id),
       history: personal.history.filter(
         (r) => allowed(r.player) && allowed(r.target),
       ),
@@ -1015,6 +1067,42 @@ export class CommunityCore {
         )
         .all(id),
     };
+  }
+  friends(id) {
+    this.store.snapshot();
+    return this.db
+      .prepare(
+        `SELECT p.id,p.name,p.look,p.activity,p.since,p.x,p.z,p.yaw,p.seen FROM saved_friends f JOIN players p ON p.id=f.target JOIN accounts a ON a.player=p.id JOIN profiles q ON q.player=p.id WHERE f.player=? AND q.consent=? AND p.id NOT IN (SELECT player FROM suspensions) AND p.id NOT IN (SELECT target FROM blocks WHERE player=? UNION SELECT player FROM blocks WHERE target=?) ORDER BY p.name`,
+      )
+      .all(id, PRIVACY_VERSION, id, id)
+      .map((p) =>
+        this.store.publicPlayer({ ...p, status: this.store.status(p.id) }),
+      );
+  }
+  saveFriend(id, name) {
+    if (typeof name !== "string" || name.trim().length < 2 || name.length > 20)
+      throw Error("Enter your friend’s exact nickname.");
+    const p = this.db
+      .prepare(
+        `SELECT p.id FROM players p JOIN accounts a ON a.player=p.id JOIN profiles q ON q.player=p.id WHERE p.name=? COLLATE NOCASE AND p.id!=? AND q.consent=? AND p.id NOT IN (SELECT player FROM suspensions) AND p.id NOT IN (SELECT target FROM blocks WHERE player=? UNION SELECT player FROM blocks WHERE target=?) LIMIT 2`,
+      )
+      .all(name.trim(), id, PRIVACY_VERSION, id, id);
+    if (p.length !== 1)
+      throw Error(
+        p.length
+          ? "More than one player uses that nickname. Ask them to choose a unique nickname."
+          : "No saved friend with that nickname.",
+      );
+    if (
+      this.db
+        .prepare("SELECT COUNT(*) n FROM saved_friends WHERE player=?")
+        .get(id).n >= 100
+    )
+      throw Error("Your friend list is full.");
+    this.db
+      .prepare("INSERT OR IGNORE INTO saved_friends VALUES(?,?)")
+      .run(id, p[0].id);
+    return this.friends(id);
   }
   report(id, target, reason) {
     if (
@@ -1157,9 +1245,7 @@ export class CommunityCore {
       const theirs = normalise(JSON.parse(host.progress), fresh());
       theirs.xp += INVITE_XP;
       // Their last-active time is left alone: they did nothing just now.
-      this.db
-        .prepare("UPDATE profiles SET progress=? WHERE player=?")
-        .run(JSON.stringify(theirs), join.inviter);
+      this.save(join.inviter, theirs, { active: false });
     }
     return { xp: INVITE_XP };
   }
@@ -1191,6 +1277,29 @@ export class CommunityCore {
           "SELECT game,started,finished,score,status,verified,replay FROM runs WHERE player=?",
         )
         .all(id),
+      friends: this.db
+        .prepare("SELECT target FROM saved_friends WHERE player=?")
+        .all(id),
+      medalRewards: this.db
+        .prepare(
+          "SELECT day,tokens FROM medal_rewards WHERE player=? ORDER BY day",
+        )
+        .all(id),
+      emailPreference:
+        this.db
+          .prepare(
+            "SELECT medal_email,consented FROM notification_preferences WHERE player=?",
+          )
+          .get(id) || null,
+      medalEmails: this.db
+        .prepare(
+          "SELECT day,payload,status,attempts,first_attempt,next_attempt FROM medal_email_outbox WHERE player=? ORDER BY day",
+        )
+        .all(id),
+      styleRewardNotice:
+        this.db
+          .prepare("SELECT tokens FROM style_reward_notices WHERE player=?")
+          .get(id) || null,
       medals: this.db
         .prepare("SELECT day,game,rank,points,score FROM medals WHERE player=?")
         .all(id),
@@ -1208,6 +1317,9 @@ export class CommunityCore {
       this.db
         .prepare("UPDATE payment_orders SET player=NULL WHERE player=?")
         .run(id);
+      this.db
+        .prepare("DELETE FROM saved_friends WHERE player=? OR target=?")
+        .run(id, id);
       this.db
         .prepare("DELETE FROM blocks WHERE player=? OR target=?")
         .run(id, id);
@@ -1252,6 +1364,10 @@ export class CommunityCore {
         .run(id, email);
       for (const f of this.playtests(id)) this.files.removePlaytest(f.path);
       for (const table of [
+        "medal_email_outbox",
+        "medal_rewards",
+        "notification_preferences",
+        "style_reward_notices",
         "presence",
         "medals",
         "runs",

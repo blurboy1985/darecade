@@ -634,7 +634,7 @@ test("old two-lap times and dares are archived without changing other games or e
     assert.equal(migrated.best.noodle, 30);
     assert.equal(community.state(id).boards.coast.length, 0);
     assert.equal(community.state(id).dares.length, 0);
-    assert.throws(() => community.postDare(id, old.id), /validated/);
+    assert.throws(() => community.postDare(id, old.id), /saved score/);
     assert.throws(
       () => community.begin(id, "coast", null, "old-dare"),
       /closed/,
@@ -735,7 +735,7 @@ test("old-loop times are archived when the route changes; earlier days still set
       timeTicks: 0,
       place: 0,
     });
-    assert.throws(() => community.postDare(id, old.id), /validated/);
+    assert.throws(() => community.postDare(id, old.id), /saved score/);
     assert.equal(community.state(id).boards.coast.length, 0);
     // The day before the route changed is still ranked on the old loop.
     store.coastFrom = "2026-10-01";

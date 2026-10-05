@@ -38,6 +38,7 @@ export class StoreCore {
       ["replay", "TEXT"],
       ["digest", "TEXT"],
       ["dare", "TEXT"],
+      ["target_run", "TEXT"],
       ["race_result", "TEXT"],
     ])
       if (!columns.includes(name))
@@ -218,12 +219,12 @@ export class StoreCore {
     const rows = this.db
       .prepare(
         `WITH best AS (
-          SELECT player,score,finished achieved,
+          SELECT id runId,player,score,finished achieved,
             ROW_NUMBER() OVER (PARTITION BY player ORDER BY score DESC,finished ASC) choice
           FROM runs WHERE game=? AND status='finished' AND verified=1 AND eligible=1
             AND (game!='coast' OR COALESCE(version,1)=?) AND finished>=? AND finished<? AND score>0
             AND player NOT IN (SELECT player FROM suspensions))
-        SELECT p.id,p.name,b.score,b.achieved FROM best b JOIN players p ON p.id=b.player
+        SELECT p.id,p.name,b.score,b.achieved,b.runId FROM best b JOIN players p ON p.id=b.player
         WHERE b.choice=1 ORDER BY b.score DESC,b.achieved ASC,p.id ASC`,
       )
       .all(
@@ -272,6 +273,7 @@ export class StoreCore {
                 .run(d, g, p.id, p.rank, 4 - p.rank, p.score),
             );
         }
+        this.onSettleDay?.(d);
         this.db.prepare("INSERT INTO settled VALUES(?)").run(d);
       }
     });
@@ -339,6 +341,7 @@ export class StoreCore {
       this.db
         .prepare("UPDATE runs SET version=? WHERE id=?")
         .run(game === "coast" ? COAST_RULES_VERSION : 1, run.id);
+      options.prepareRun?.(run);
       return run;
     });
   }
@@ -402,6 +405,7 @@ export class StoreCore {
           {
             best: empty(),
             guestBest: empty(),
+            challengeScores: {},
             points: 0,
             wins: 0,
             incoming: 0,
@@ -428,6 +432,18 @@ export class StoreCore {
         }
         card.wins += r.wins;
       }
+    }
+    for (const r of this.db
+      .prepare(
+        `WITH chosen AS (
+      SELECT id,player,game,score,ROW_NUMBER() OVER (PARTITION BY player,game ORDER BY score DESC,finished ASC,id ASC) choice
+      FROM runs WHERE status='finished' AND verified=1 AND eligible=1 AND seed IS NOT NULL AND score>0
+      AND version=CASE WHEN game='coast' THEN ${COAST_RULES_VERSION} ELSE 1 END)
+      SELECT id,player,game,score FROM chosen WHERE choice=1`,
+      )
+      .all()) {
+      const card = cards.get(r.player);
+      if (card) card.challengeScores[r.game] = { score: r.score, runId: r.id };
     }
     for (const [field, sql, args] of [
       ["points", "SELECT player,SUM(points) n FROM medals GROUP BY player", []],
@@ -466,6 +482,7 @@ export class StoreCore {
       ...p,
       look: JSON.parse(p.look),
       best: { ...(card?.[guest ? "guestBest" : "best"] || empty()) },
+      challengeScores: structuredClone(card?.challengeScores || {}),
       points: card?.points || 0,
       wins: card?.wins || 0,
       incoming: card?.incoming || 0,

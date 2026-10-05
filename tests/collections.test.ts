@@ -40,8 +40,14 @@ test("ten complete sets retain old indices and have distinct visible geometry", 
     assert.equal(canWear(slot, setStarts[slot], fresh(), 100), false);
     assert.equal(canWear(slot, 0, fresh(), 0), true);
     assert.equal(canWear(slot, 8, fresh(), 0), false);
-    assert.equal(canWear(slot, 8, { ...fresh(), xp: 300 }, 0), true);
-    assert.equal(canWear(slot, 16, fresh(), 3), true);
+    assert.equal(
+      canWear(slot, 8, { ...fresh(), wardrobeUnlocked: ["discovery"] }, 0),
+      true,
+    );
+    assert.equal(
+      canWear(slot, 16, { ...fresh(), wardrobePurchased: ["mastery"] }, 3),
+      true,
+    );
     assert.equal(canWear(slot, 999, fresh(), 999), false);
   }
 });
@@ -90,11 +96,8 @@ test("exchanges enforce server progress, debit once, survive reload and protect 
     p.xp = 1200;
     p.rounds = 29;
     community.save(id, p);
-    assert.throws(
-      () => community.progression(id, "redeem-style", "solar"),
-      /Earn/,
-    );
-    p.rounds = 30;
+    // Tokens alone buy the set, even before any medal or round gate.
+    p.rounds = 0;
     community.save(id, p);
     const first = community.progression(id, "redeem-style", "solar").progress;
     assert.equal(styleTokens(first), 0);

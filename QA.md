@@ -1,5 +1,21 @@
 # Play Simi verification
 
+
+## Gameplay simplification — 5 October 2026, draft only
+
+Built from fresh main at `b93a5e4094ee6a35d47369e7960684d9d3078cc0` in an isolated Mac checkout. No merge, deployment, real player email, credential creation or production mail/security setting change was performed.
+
+- Full Node suite: 256 tests, 252 passed, 0 failed, 4 default opt-in Chromium checks skipped. The installed Chrome's headless `--dump-dom` process stalled when enabled, including an isolated-profile retry. These checks are not counted as passes.
+- All 11 Cloudflare/Miniflare integration tests passed. TypeScript, Vite build, Worker deployment dry run and diff checks passed. The existing large Three.js bundle advisory remains.
+- Server regressions cover Singapore midnight, ties (1, 1, 3), multi-game 3-token cap separate from XP, catch-up/restart idempotency, no old medal windfall, preserved balances/ownership, transactional settlement rollback, token-only purchases and forged browser rewards. XP notices accumulate exact counts, survive restart, acknowledge once and include passive inviter awards.
+- Challenge coverage includes friends outside the top 50, daily displayed run versus lifetime best, frozen seed/target, attempt quota and distinct opponents, abandoning, cross-day replay rejection and legacy posted-attempt migration. Existing replay validation, rate-limit, blocking, suspension and privacy tests pass.
+- Email fakes cover explicit opt-in, verified address/current consent, consolidated actual awards, cancellation/erasure, concurrent delivery, accepted-send/lost-response retry, persisted lease recovery and the conservative 23-hour needs_review hold. The actual Cloudflare alarm is exercised against fake Resend 503/recovery using one immutable provider key and one reward ledger row.
+- Interactive Chrome QA used `.browser/qa-data`, synthetic verified players and private `MAIL_MODE=outbox`. Desktop and 390×844 mobile views verified Games/Neighbourhood/Menu, three game choices per page, Fishing/Hoops in Games, camera toggle and retained day/night controls. Checked menus, wardrobe, challenges and reward card had no horizontal overflow. A 1-token Street collection purchase deducted exactly one token and unlocked its pieces.
+- The running Three.js token canvas displayed +1 and +2 correctly. Keep playing dismissed it; See looks opened the wardrobe. Reduced motion used a static card. Reload after acknowledgement showed no repeat popup. With two dialogs open, the popup attached to account-dialog; See looks closed that dialog and showed the correct wallet. Friend lookup started a challenge showing BEAT 10; abandoning consumed a slot and disabled another challenge to the same neighbour. Email opt-in/out both showed Email preference saved.
+- Local screenshots `.browser/games-mobile.jpg` and `.browser/reward-mobile.jpg` are excluded from Git. Temporary request blocking was removed. Chrome disconnected before the final explicit 2D/WebGL-failure smoke test and viewport reset; those cases, physical-device GPU comfort and real inbox delivery remain unverified for this change. Earlier fallback checks below are historical evidence.
+
+See ACCOUNTS.md for durable email retries and WARDROBE.md for prices and migration.
+
 ## Coast Rush steady-motion follow-up, 4 October 2026
 
 All 176 Node tests, including opt-in Chromium checks, and eight Cloudflare integration tests passed. Build, deployment dry-run and diff checks passed. Visual-only interpolation now blends the player and all rivals between 60 Hz simulation ticks. A centred track chord removes abrupt sampled-heading changes. The chassis stays level during steering and drifting; rival hit spins, boost pulsing, shield blinking/scaling and driver cosmetic bobbing are disabled in the race view. Physics, inputs, timers and ranking rules are unchanged.

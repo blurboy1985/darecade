@@ -238,6 +238,14 @@ const handler = async (req, res) => {
         respond(community.acceptInvite(player, data.code));
         return;
       }
+      if (req.method === "POST" && url.pathname === "/api/style-rewards") {
+        respond(community.takeStyleRewards(player));
+        return;
+      }
+      if (req.method === "POST" && url.pathname === "/api/friends") {
+        respond(community.saveFriend(player, data.name));
+        return;
+      }
       if (req.method === "POST" && url.pathname === "/api/dares") {
         respond(community.postDare(player, data.run));
         return;
@@ -302,7 +310,13 @@ const handler = async (req, res) => {
         );
         result = { ok: true };
       } else if (req.method === "POST" && url.pathname === "/api/run")
-        result = community.begin(session.id, data.game, data.target, data.dare);
+        result = community.begin(
+          session.id,
+          data.game,
+          data.target,
+          data.dare,
+          data.targetRun,
+        );
       else if (req.method === "POST" && url.pathname === "/api/finish")
         result = community.finish(session.id, data);
       else if (req.method === "POST" && url.pathname === "/api/abandon") {
@@ -361,6 +375,7 @@ lanServer?.listen(Number(process.env.PORT || 4173), process.env.LAN_HOST, () =>
 const timer = setInterval(() => {
   store.settle();
   community.cleanup();
+  void community.medalRewards.deliver();
   for (const [k, v] of limits) if (v.until < Date.now()) limits.delete(k);
 }, 30000);
 timer.unref();
