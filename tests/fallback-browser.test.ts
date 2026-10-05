@@ -1,3 +1,4 @@
+import { stopBrowser } from "./browser-dom.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -8,7 +9,7 @@ import {
   mkdtempSync,
   rmSync,
 } from "node:fs";
-import { resolve, join, extname } from "node:path";
+import { resolve, join, extname, sep } from "node:path";
 import { tmpdir } from "node:os";
 import { createServer } from "node:http";
 import { once } from "node:events";
@@ -137,7 +138,7 @@ for (const twoD of [true, false]) {
           return;
         }
         const file = resolve(root, "." + path);
-        if (!file.startsWith(root + "/") || !existsSync(file)) {
+        if (!file.startsWith(root + sep) || !existsSync(file)) {
           response.writeHead(404);
           response.end();
           return;
@@ -225,11 +226,14 @@ for (const twoD of [true, false]) {
       } finally {
         // macOS headless Chrome can finish dump-dom but hang at process shutdown.
         // Stop only this fixture's process group after collecting its DOM result.
-        try {
-          process.kill(-browser.pid!, "SIGKILL");
-        } catch {}
+        await stopBrowser(browser);
         await new Promise<void>((done) => server.close(() => done()));
-        rmSync(directory, { recursive: true, force: true });
+        rmSync(directory, {
+          recursive: true,
+          force: true,
+          maxRetries: 10,
+          retryDelay: 100,
+        });
       }
     },
   );

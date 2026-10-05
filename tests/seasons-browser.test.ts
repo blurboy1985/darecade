@@ -1,3 +1,4 @@
+import { stopBrowser } from "./browser-dom.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -8,7 +9,7 @@ import {
   mkdtempSync,
   rmSync,
 } from "node:fs";
-import { join, resolve, extname } from "node:path";
+import { join, resolve, extname, sep } from "node:path";
 import { tmpdir } from "node:os";
 import { createServer } from "node:http";
 import { once } from "node:events";
@@ -134,7 +135,7 @@ for (const width of [320, 390, 1440])
           return;
         }
         const file = resolve(root, "." + path);
-        if (!file.startsWith(root + "/") || !existsSync(file)) {
+        if (!file.startsWith(root + sep) || !existsSync(file)) {
           response.writeHead(404);
           response.end();
           return;
@@ -209,11 +210,14 @@ for (const width of [320, 390, 1440])
           output.match(/<pre id="result">([\s\S]*?)<\/pre>/)?.[1] || errors,
         );
       } finally {
-        try {
-          process.kill(-child.pid!, "SIGKILL");
-        } catch {}
+        await stopBrowser(child);
         server.close();
-        rmSync(dir, { recursive: true, force: true });
+        rmSync(dir, {
+          recursive: true,
+          force: true,
+          maxRetries: 10,
+          retryDelay: 100,
+        });
       }
     },
   );

@@ -1,4 +1,37 @@
-import { spawn } from "node:child_process";
+import { spawn, execFile, type ChildProcess } from "node:child_process";
+import { promisify } from "node:util";
+
+/** Stop only the isolated fixture tree and await process shutdown. */
+export async function stopBrowser(browser: ChildProcess) {
+  if (browser.pid) {
+    if (process.platform === "win32") {
+      if (browser.exitCode === null && browser.signalCode === null) {
+        try {
+          await promisify(execFile)(
+            "taskkill",
+            ["/pid", String(browser.pid), "/T", "/F"],
+            { windowsHide: true },
+          );
+        } catch {
+          // Chrome may have exited between the check and taskkill.
+          browser.kill();
+        }
+      }
+    } else {
+      try {
+        process.kill(-browser.pid, "SIGKILL");
+      } catch {}
+    }
+  }
+  await new Promise<void>((done) => {
+    if (browser.exitCode !== null || browser.signalCode !== null) return done();
+    const bound = setTimeout(done, 2000);
+    browser.once("close", () => {
+      clearTimeout(bound);
+      done();
+    });
+  });
+}
 
 /** Run an isolated Chrome fixture until its DOM assertions finish, not shutdown. */
 export async function browserDOM(
@@ -72,21 +105,6 @@ export async function browserDOM(
     });
     return dom();
   } finally {
-    // macOS Chrome may emit the entire DOM and hang during process shutdown.
-    // Its detached group contains only this fixture and its own subprocesses.
-    if (browser.pid) {
-      try {
-        process.kill(-browser.pid, "SIGKILL");
-      } catch {}
-    }
-    await new Promise<void>((done) => {
-      if (browser.exitCode !== null || browser.signalCode !== null)
-        return done();
-      const bound = setTimeout(done, 2000);
-      browser.once("close", () => {
-        clearTimeout(bound);
-        done();
-      });
-    });
+    await stopBrowser(browser);
   }
 }

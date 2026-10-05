@@ -1,3 +1,4 @@
+import { stopBrowser } from "./browser-dom.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -8,7 +9,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { extname, join, resolve } from "node:path";
+import { extname, join, resolve, sep } from "node:path";
 import { tmpdir } from "node:os";
 import { createServer } from "node:http";
 import { once } from "node:events";
@@ -268,7 +269,7 @@ for (const viewport of viewports) {
           return;
         }
         const file = resolve(root, "." + path);
-        if (!file.startsWith(root + "/") || !existsSync(file)) {
+        if (!file.startsWith(root + sep) || !existsSync(file)) {
           response.writeHead(404).end();
           return;
         }
@@ -356,11 +357,14 @@ for (const viewport of viewports) {
         if (existsSync(screenshot))
           console.log(`Chrome screenshot: ${screenshot}`);
       } finally {
-        try {
-          process.kill(-browser.pid!, "SIGKILL");
-        } catch {}
+        await stopBrowser(browser);
         await new Promise<void>((done) => server.close(() => done()));
-        rmSync(directory, { recursive: true, force: true });
+        rmSync(directory, {
+          recursive: true,
+          force: true,
+          maxRetries: 10,
+          retryDelay: 100,
+        });
       }
     },
   );
