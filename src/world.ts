@@ -11,7 +11,7 @@ import * as T from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { blocked, route, visitsOnWalk, type Obstacle } from "./navigation";
-import { outfits, skins, type Save } from "./state";
+import { outfits, skins, firstRoundGoalPending, type Save } from "./state";
 import { gameIds, type ActivityId } from "./catalog";
 import { residents, activityPose } from "./neighbourhood";
 import {
@@ -438,7 +438,7 @@ export class LobbyWorld {
       ]),
     );
     const playerRing = new T.Mesh(
-      new T.RingGeometry(0.5, 0.6, 32),
+      new T.RingGeometry(0.52, 0.7, 32),
       new T.MeshBasicMaterial({ color: "#e7ffab", side: T.DoubleSide }),
     );
     playerRing.rotation.x = -Math.PI / 2;
@@ -462,9 +462,9 @@ export class LobbyWorld {
     const youLabel = new T.Sprite(
       new T.SpriteMaterial({ map: youTex, depthTest: false }),
     );
-    youLabel.position.y = 2.35;
+    youLabel.position.y = 2.05;
     youLabel.userData.avatarDecoration = true;
-    youLabel.scale.set(0.9, 0.45, 1);
+    youLabel.scale.set(1.1, 0.55, 1);
     this.player.root.add(youLabel);
     this.obstacle(-2, 10, 3.2, 1.4);
     this.interactions = new InteractionScenes(this.root, (scene, id) => {
@@ -1796,7 +1796,17 @@ export class LobbyWorld {
         focus
           .clone()
           .add(
-            new T.Vector3(0, this.mobile && this.inspectedId ? -0.65 : 0, 0),
+            new T.Vector3(
+              0,
+              this.mobile
+                ? this.inspectedId
+                  ? -0.65
+                  : firstRoundGoalPending(this.save)
+                    ? 0.8
+                    : 0
+                : 0,
+              0,
+            ),
           ),
       );
       this.followCamera.updateProjectionMatrix();

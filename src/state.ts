@@ -124,7 +124,7 @@ export function fresh(): Save {
     },
     coastRecord: { version: 3, timeTicks: 0, place: 0 },
     coastLegacyBest: 0,
-    cameraMode: "isometric",
+    cameraMode: "third",
     awayActivity: "jog",
     awaySince: 0,
     away: false,
@@ -160,7 +160,8 @@ export function normalise(raw: unknown, fallback: Save): Save {
   if (typeof r.welcomeDismissed === "boolean")
     s.welcomeDismissed = r.welcomeDismissed;
   if (typeof r.nameChosen === "boolean") s.nameChosen = r.nameChosen;
-  if (r.cameraMode === "third") s.cameraMode = "third";
+  if (r.cameraMode === "third" || r.cameraMode === "isometric")
+    s.cameraMode = r.cameraMode;
   if (r.awayActivity && Object.hasOwn(activities, r.awayActivity))
     s.awayActivity = r.awayActivity;
   if (typeof r.away === "boolean") s.away = r.away;
@@ -310,6 +311,11 @@ export function completeWelcomeRound(s: Save) {
   s.xp += 35;
   if (!s.unlockedHats.includes(2)) s.unlockedHats.push(2);
   return true;
+}
+export function firstRoundGoalPending(
+  s: Pick<Save, "rounds" | "unlockedHats">,
+) {
+  return s.rounds === 0 && !s.unlockedHats.includes(2);
 }
 export function claimGift(s: Save, choice: number, day = singaporeDay()) {
   if (

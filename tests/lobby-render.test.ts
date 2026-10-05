@@ -391,7 +391,7 @@ test("live redraw retains the selected dare game for the same defender", () => {
 test("first-visit settings paths never start a race and Back returns to welcome", () => {
   const h = harness();
   let races = 0;
-  h.context.firstRacePending = () => true;
+  h.context.save = state.fresh();
   h.context.startGame = () => {
     races++;
   };
@@ -410,6 +410,9 @@ test("first-visit settings paths never start a race and Back returns to welcome"
   h.run('open("settings")');
   assert.match(h.body.innerHTML, /data-action="close">← Back/);
   assert.doesNotMatch(h.body.innerHTML, /data-open="phone-menu"/);
+  h.context.save.unlockedHats.push(2);
+  h.run('open("settings")');
+  assert.match(h.body.innerHTML, /data-open="phone-menu">← Back/);
 });
 
 // The remaining tests cover bugs from the 4 October 2026 playtest.
