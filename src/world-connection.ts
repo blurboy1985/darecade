@@ -21,6 +21,7 @@ type Packet = {
 export class WorldConnection {
   private socket?: WebSocket;
   private timer?: ReturnType<typeof setTimeout>;
+  private pollTimer?: ReturnType<typeof setTimeout>;
   private tick?: ReturnType<typeof setInterval>;
   private handshake?: ReturnType<typeof setTimeout>;
   private players = new Map<number, SharedPlayer>();
@@ -30,10 +31,14 @@ export class WorldConnection {
   private polling = false;
   private world = "";
   private connection = crypto.randomUUID();
+  private generation = 0;
   constructor(
     private position: () => Movement,
     private update: (players: SharedPlayer[]) => void,
     private changed: (world: string) => void = () => {},
+    private status: (
+      state: "joining" | "connected" | "reconnecting" | "offline",
+    ) => void = () => {},
   ) {}
   async join(world: string) {
     if (world === this.world && !this.stopped) return;
@@ -63,13 +68,47 @@ export class WorldConnection {
   start() {
     if (!this.stopped) return;
     this.stopped = false;
-    this.connect();
+    this.generation++;
+    this.status(this.world ? "reconnecting" : "joining");
+    // HTTP assigns the room immediately, including on hosts without sockets.
+    // A stale bootstrap must never replace a refreshed session or chosen room.
+    void this.bootstrap();
     // A small margin avoids losing alternating updates to network timer jitter.
     this.tick = setInterval(() => this.send(), 210);
   }
+  private async bootstrap() {
+    const connection = this.connection;
+    const generation = this.generation;
+    try {
+      const suffix =
+        `?connection=${connection}` +
+        (this.world ? `&world=${encodeURIComponent(this.world)}` : "");
+      const packet = await api<Packet>(`world/poll${suffix}`, this.position());
+      if (
+        this.stopped ||
+        connection !== this.connection ||
+        generation !== this.generation
+      )
+        return;
+      this.receive(packet);
+      this.startPolling();
+    } catch {
+      if (
+        this.stopped ||
+        connection !== this.connection ||
+        generation !== this.generation
+      )
+        return;
+      this.status("offline");
+    }
+    this.connect();
+  }
   stop(notify = true) {
     this.stopped = true;
+    this.generation++;
+    this.polling = false;
     clearTimeout(this.timer);
+    clearTimeout(this.pollTimer);
     clearTimeout(this.handshake);
     clearInterval(this.tick);
     this.socket?.close();
@@ -103,6 +142,9 @@ export class WorldConnection {
             return;
           }
           this.receive(packet);
+          this.polling = false;
+          this.generation++;
+          clearTimeout(this.pollTimer);
           opened = true;
           this.failures = 0;
         } catch {
@@ -119,6 +161,7 @@ export class WorldConnection {
         this.socket = undefined;
         // An established session reconnects; two failed attempts enable polling.
         if (!opened) this.failures++;
+        if (!this.polling) this.status("reconnecting");
         this.retry();
       };
       ws.onerror = () => ws.close();
@@ -129,13 +172,18 @@ export class WorldConnection {
   }
   private retry() {
     if (this.failures >= 2) {
-      this.polling = true;
-      void this.poll();
+      this.startPolling();
     } else
       this.timer = setTimeout(
         () => this.connect(),
         Math.min(15000, 1000 * 2 ** this.failures) + Math.random() * 250,
       );
+  }
+  private startPolling() {
+    if (this.polling || this.stopped) return;
+    this.polling = true;
+    const generation = ++this.generation;
+    this.pollTimer = setTimeout(() => void this.poll(generation), 2000);
   }
   private send() {
     if (this.socket?.readyState !== WebSocket.OPEN) return;
@@ -145,24 +193,42 @@ export class WorldConnection {
       this.previous = message;
     }
   }
-  private async poll() {
-    if (this.stopped || !this.polling) return;
+  private async poll(generation = this.generation) {
+    if (this.stopped || !this.polling || generation !== this.generation) return;
     const connection = this.connection;
     try {
       const suffix =
         `?connection=${this.connection}` +
         (this.world ? `&world=${this.world}` : "");
       const packet = await api<Packet>(`world/poll${suffix}`, this.position());
-      if (this.stopped || connection !== this.connection) return;
+      if (
+        this.stopped ||
+        !this.polling ||
+        connection !== this.connection ||
+        generation !== this.generation
+      )
+        return;
       this.receive(packet);
     } catch {
-      /* State refresh handles expired sessions and offline notices. */
+      if (
+        !this.stopped &&
+        this.polling &&
+        connection === this.connection &&
+        generation === this.generation
+      )
+        this.status("offline");
     }
-    if (!this.stopped && connection === this.connection)
-      this.timer = setTimeout(() => void this.poll(), 2000);
+    if (
+      !this.stopped &&
+      this.polling &&
+      connection === this.connection &&
+      generation === this.generation
+    )
+      this.pollTimer = setTimeout(() => void this.poll(generation), 2000);
   }
   private receive(packet: Packet) {
     if (packet.t !== "sync" && packet.t !== "delta") return;
+    this.status("connected");
     if (packet.world) {
       this.world = packet.world;
       this.changed(this.world);

@@ -57,14 +57,15 @@ test("first-visit prompt is short and names the game it starts", () => {
   assert.match(source, /a === "welcome-start"[\s\S]*?startGame\("coast"\)/);
 });
 
-test("world has only the three routes and one replacing nearby action", () => {
+test("world keeps three stable routes and a separate nearby action", () => {
   const dock = source.match(/<nav class="dock lobby-dock"[\s\S]*?<\/nav>/)?.[0];
   assert.ok(dock);
   assert.deepEqual(
     [...dock.matchAll(/data-open="([^"]+)"/g)].map((m) => m[1]),
     ["arcade", "map", "phone-menu"],
   );
-  assert.match(dock, /id="interaction"[^>]*hidden/);
+  assert.doesNotMatch(dock, /id="interaction"/);
+  assert.match(source, /id="interaction" class="nearby-prompt"[^>]*hidden/);
   for (const removed of [
     "phone-next",
     "gift-teaser",
@@ -77,10 +78,8 @@ test("world has only the three routes and one replacing nearby action", () => {
 });
 
 test("first visit and 2D retain privacy and player reporting routes", () => {
-  assert.match(
-    source,
-    /firstRacePending\(\) &&[\s\S]*?"settings"[\s\S]*?"neighbours"/,
-  );
+  assert.match(source, /data-open="phone-menu"/);
+  assert.equal(menuPages["safety-menu"].actions[1].target, "neighbours");
   const invitation =
     source.match(/const invitation =[\s\S]*?;\r?\n/)?.[0] || "";
   assert.match(invitation, /data-account>Account & privacy/);
