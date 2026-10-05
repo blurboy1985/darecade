@@ -26,7 +26,7 @@ test("old two-game saves migrate without losing personal bests or mutating defau
   });
   assert.equal(fallback.best.noodle, 0);
   assert.equal(s.awayActivity, "jog");
-  assert.equal(s.cameraMode, "isometric");
+  assert.equal(s.cameraMode, "third");
   const resumed = normalise(
     {
       ...s,

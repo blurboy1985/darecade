@@ -64,6 +64,7 @@ import { residents } from "./neighbourhood";
 import {
   readSave,
   completeWelcomeRound,
+  firstRoundGoalPending,
   writeSave,
   outfits,
   skins,
@@ -86,6 +87,7 @@ import {
   dareBlock,
   standingNote,
 } from "./lobby-menu";
+import { worldPresenceCopy } from "./lobby-presence";
 
 const icons: Record<string, string> = {
   game: '<rect x="3" y="7" width="18" height="13" rx="4"/><path d="M7 13h5m-2.5-2.5v5M16 12h.01M18 15h.01M9 7V4h6"/>',
@@ -413,7 +415,7 @@ function close() {
   const returnFocus = lastFocus?.isConnected
     ? lastFocus
     : document.querySelector<HTMLElement>(
-        firstRacePending()
+        firstRoundGoalPending(save)
           ? `${is2d ? "#fallback-welcome" : ".welcome-panel"} [data-action="welcome-start"]`
           : '.lobby-dock [data-open="phone-menu"]',
       );
@@ -559,7 +561,7 @@ function open(id: string) {
     void worldPicker.open();
   } else if (isMenuPage(id)) {
     const page = menuPages[id];
-    body.innerHTML = `${page.back ? (firstRacePending() && id === "settings" ? '<button class="text-button menu-back" data-action="close">← Back</button>' : `<button class="text-button menu-back" data-open="${page.back}">← Back</button>`) : ""}<h2>${page.title}</h2><div class="simple-menu" aria-label="${page.title}">${page.actions.map((action) => `<button class="menu-choice" ${action.target === "account" ? "data-account" : `data-open="${action.target}"`} data-main-action>${icon(action.icon)}<span>${action.label}</span>${icon("arrow")}</button>`).join("")}</div>`;
+    body.innerHTML = `${page.back ? (firstRoundGoalPending(save) && id === "settings" ? '<button class="text-button menu-back" data-action="close">← Back</button>' : `<button class="text-button menu-back" data-open="${page.back}">← Back</button>`) : ""}<h2>${page.title}</h2><div class="simple-menu" aria-label="${page.title}">${page.actions.map((action) => `<button class="menu-choice" ${action.target === "account" ? "data-account" : `data-open="${action.target}"`} data-main-action>${icon(action.icon)}<span>${action.label}</span>${icon("arrow")}</button>`).join("")}</div>`;
   } else if (id === "arcade") {
     body.innerHTML = `<h2>Pick a game!</h2>${cards()}<p class="fine-print">Arcade medals land at midnight. Fishing & Hoops track your best.</p>`;
   } else if (id === "shop") {
@@ -1859,6 +1861,8 @@ window.addEventListener("camera-change", () => {
   persist();
 });
 window.addEventListener("offline", () => {
+  worldStatus = "offline";
+  renderWorldPresence();
   if (modal.open) close();
   enterAway();
   toast(
@@ -2167,7 +2171,6 @@ async function syncSocial() {
     document.querySelector("#player-name")!.textContent = me.name;
     document.querySelector("#medal-points")!.textContent =
       `${me.points} MEDAL POINTS`;
-    document.querySelector(".demo-tag")!.textContent = "SHARED NEIGHBOURHOOD";
     savedNeighbours = shared.players;
     hiddenNeighbours.clear();
     applyWorldPlayers();
@@ -2180,7 +2183,6 @@ async function syncSocial() {
       renderPlayerInspector(inspector.dataset.player);
   } catch {
     connected = false;
-    document.querySelector(".demo-tag")!.textContent = "SERVER OFFLINE";
     if (modal.open && socialPanel === "board") renderSharedBoard();
     if (modal.open && socialPanel === "dares") renderSharedDares();
   } finally {
@@ -2427,6 +2429,17 @@ function applyWorldPlayers() {
   if (modal.open && socialPanel === "neighbours") renderSharedNeighbours();
 }
 let currentWorld = "";
+let worldStatus: "joining" | "connected" | "reconnecting" | "offline" = "joining";
+function renderWorldPresence() {
+  const label = document.querySelector(".demo-tag")!;
+  const text = worldPresenceCopy(
+    liveNeighbours,
+    currentProfile?.id,
+    worldStatus,
+    navigator.onLine,
+  );
+  if (label.textContent !== text) label.textContent = text;
+}
 const worldConnection = new WorldConnection(
   presenceData,
   (players) => {
@@ -2435,6 +2448,7 @@ const worldConnection = new WorldConnection(
       if (!ids.has(p.id)) hiddenNeighbours.add(p.id);
     liveNeighbours = players;
     applyWorldPlayers();
+    renderWorldPresence();
   },
   (name) => {
     currentWorld = name;
@@ -2442,6 +2456,8 @@ const worldConnection = new WorldConnection(
       `World ${name.slice(6)} · ${worldCode(name)}`;
   },
   (status) => {
+    worldStatus = status;
+    renderWorldPresence();
     const label = document.querySelector("#current-world")!;
     const room = currentWorld
       ? `World ${currentWorld.slice(6)} · ${worldCode(currentWorld)}`
@@ -2472,11 +2488,11 @@ function firstRacePending() {
   return save.rounds === 0;
 }
 function renderWelcome() {
-  const firstRace = firstRacePending();
+  const firstRace = firstRoundGoalPending(save);
   document.body.classList.toggle("first-race", firstRace);
   document.body.classList.toggle("welcome-active", firstRace);
   document.body.classList.toggle("welcome-played", save.welcome === "played");
-  const invitation = `<div class="eyebrow">${firstVisitCopy.kicker}</div><h1>${firstVisitCopy.title}</h1><p>${firstVisitCopy.detail}</p><button class="primary" data-action="welcome-start" data-main-action>Play now ${icon("arrow")}</button><div class="welcome-options"><button class="text-button" data-open="settings">Settings</button><button class="text-button" data-account>Account & privacy</button></div>`;
+  const invitation = `<div class="eyebrow">${firstVisitCopy.kicker}</div><h1>${firstVisitCopy.title}</h1><p>${firstVisitCopy.detail}</p><p class="welcome-explore">${firstVisitCopy.explore}</p><button class="primary" data-action="welcome-start" data-main-action>Play now ${icon("arrow")}</button><div class="welcome-options"><button class="text-button" data-open="settings">Settings</button><button class="text-button" data-account>Account & privacy</button></div>`;
   const el = document.querySelector<HTMLElement>(".welcome-panel")!;
   el.hidden = !firstRace;
   const html = firstRace ? invitation : "";
