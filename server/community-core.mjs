@@ -8,6 +8,7 @@ import {
 import { randomBytes, randomInt, randomUUID, createHash } from "node:crypto";
 import { day, gameIds } from "./store-core.mjs";
 import { MedalRewards } from "./medal-rewards.mjs";
+import { PlayMedals } from "./play-medals.mjs";
 import { Seasons } from "./seasons.mjs";
 import { playIds } from "../src/catalog.ts";
 import {
@@ -175,6 +176,7 @@ export class CommunityCore {
     });
     this.store.onSnapshot = () => this.snapshot();
     this.medalRewards = new MedalRewards(this);
+    this.playMedals = new PlayMedals(this.db);
     this.store.onSettleDay = (date) => this.medalRewards.settle(date);
     this.seasons = new Seasons(store, competitionSeasons, seasonView);
     this.store.competitionAfter = (at) => this.seasons.targetAfter(at);
@@ -347,6 +349,7 @@ export class CommunityCore {
           }
         : null,
       notifications: { medalEmail: this.medalRewards.optedIn(id) },
+      playMedals: this.playMedals.progress(id, this.now()),
       styleRewards:
         this.db
           .prepare("SELECT tokens FROM style_reward_notices WHERE player=?")
@@ -653,7 +656,7 @@ export class CommunityCore {
       await this.sendEmail(
         normal,
         "Your Play Simi sign-in request",
-        `Someone asked to sign in to Play Simi with this email address, but no Play Simi account uses it yet.\n\nPlayed as a guest? Your avatar and progress are saved in the browser you played on. Open Play Simi there, choose More → Account & privacy → Create my account, and enter this email. After that you can sign in on any device.\n\nNew to Play Simi? Start here: ${this.origin}\n\nIf you did not ask for this, ignore this email. We will not email this address again for at least an hour.`,
+        `Someone asked to sign in to Play Simi with this email address, but no Play Simi account uses it yet.\n\nPlayed as a guest? Your guest profile is saved on the server and accessed through your original browser session. Open Play Simi there, choose Menu → Settings → Account & safety → Account & privacy → Save with email, and enter this email. After linking, you can sign in on another device. Clearing cookies, signing out or session expiry can leave an unlinked guest profile inaccessible.\n\nNew to Play Simi? Start here: ${this.origin}\n\nIf you did not ask for this, ignore this email. We will not email this address again for at least an hour.`,
         hash(randomBytes(32)),
         { notice: true },
       );
@@ -884,6 +887,7 @@ export class CommunityCore {
       if (r.digest !== digest)
         throw Error("This round was already saved with a different result.");
       return {
+        playMedal: this.playMedals.earned(id, r.id),
         race: r.race_result ? JSON.parse(r.race_result) : undefined,
         score: r.score,
         won: !!r.target && r.score > r.targetScore,
@@ -924,6 +928,13 @@ export class CommunityCore {
       const p = this.privateProfile(id).progress;
       const xpBefore = p.xp;
       let race;
+      const playMedal = this.playMedals.award(
+        id,
+        r.id,
+        r.game,
+        at,
+        result.playMedalEligible,
+      );
       if (result.race) {
         const previous = p.coastRecord;
         const newBest =
@@ -959,6 +970,7 @@ export class CommunityCore {
       p.best[r.game] = Math.max(p.best[r.game], result.score);
       this.save(id, p, { at });
       return {
+        playMedal,
         score: result.score,
         won: !!r.target && result.score > r.targetScore,
         verified: true,
@@ -1303,6 +1315,11 @@ export class CommunityCore {
           "SELECT day,tokens FROM medal_rewards WHERE player=? ORDER BY day",
         )
         .all(id),
+      playMedals: this.db
+        .prepare(
+          "SELECT day,game,run FROM play_medals WHERE player=? ORDER BY day,game",
+        )
+        .all(id),
       emailPreference:
         this.db
           .prepare(
@@ -1395,6 +1412,7 @@ export class CommunityCore {
         "style_reward_notices",
         "presence",
         "medals",
+        "play_medals",
         "runs",
         "sessions",
         "moves",

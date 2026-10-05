@@ -1069,6 +1069,17 @@ test(
         );
         assert.equal(result.status, 200, JSON.stringify(result.data));
         assert.equal(result.data.verified, true);
+        assert.ok(result.data.profile.playMedals.today <= 3);
+        const repeated = await api(
+          "finish",
+          { id: run.data.id, ...replay },
+          cookie,
+        );
+        assert.deepEqual(
+          repeated.data.profile.playMedals,
+          result.data.profile.playMedals,
+        );
+        assert.equal(repeated.data.playMedal, result.data.playMedal);
         if (game === "coast") {
           assert.equal(result.data.race.finished, true);
           assert.equal(result.data.race.newBest, true);
@@ -1093,6 +1104,8 @@ test(
       const me = await api("auth/me", undefined, cookie);
       assert.equal(me.data.progress.rounds, 5);
       assert.equal(me.data.progress.xp, 135);
+      assert.equal(me.data.playMedals.total, 3);
+      assert.equal(me.data.progress.medalTokens, 0);
       const state = await api("state", undefined, cookie);
       assert.equal(state.data.boards.hop[0].rank, 1);
       assert.equal(state.data.boards.coast.length, 1);

@@ -95,6 +95,12 @@ The production site is emitted to `dist/`. `npm run preview` serves it at http:/
 - Day, golden-hour and night lighting, plus an option to follow Singapore time. Sound is synthesized locally, enabled for new profiles after a browser gesture, and can be muted; existing sound preferences are preserved. Reduced decorative motion, a 30-active-minute break reminder, and a functional 2D lobby when WebGL fails or is disabled in Settings.
 - Local persistence with malformed-save recovery. Fonts and art are served locally. The background world stops rendering while an activity panel is open.
 
+## Guest play and Play medals
+
+Guests use the same privacy-filtered live world and six emotes without email. Menu → Friends brings Emotes forward; 2D emotes broadcast through the real world protocol. Rankings starts with a personal daily goal: up to three Play medal points per Singapore day, once per qualifying game. These points never change ranked medals, XP, tokens or ownership. [Section 3 checks](SECTION3-QA.md) list qualifying finishes, browser steps and evidence.
+
+Guest progress is stored on the server and accessed through the original browser session; local storage also keeps preferences. Cookie clearing, sign-out or 30-day session expiry can lose access to an unlinked profile. Linking an unused email keeps that identity and its rewards, enables recovery and cross-device play, and ranks future arcade rounds. Existing-account conflicts offer an explicit switch, without merging characters.
+
 ## Short onboarding and three-action menus
 
 Games, Neighbourhood and Menu are the three persistent primary world actions. A separate nearby place/E button appears above the dock. Stop and I’m back remain separate activity/away controls. An unobtrusive upfront camera button toggles bird's-eye/third-person view; Menu uses a gear. Player inspection hides the dock and offers three actions plus Close.

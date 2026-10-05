@@ -147,7 +147,7 @@ test("a full Hop Hop round is beatable, meets stars, and replays to the same sco
         ticks: sim.ticks,
         events,
       }),
-      { score: sim.score, ticks: sim.ticks },
+      { score: sim.score, ticks: sim.ticks, playMedalEligible: true },
     );
   }
 });

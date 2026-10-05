@@ -73,6 +73,7 @@ test("hoops and fishing are replayed rounds but not cabinets", () => {
     assert.deepEqual(replayRun(game, 77, a.replay), {
       score: a.score,
       ticks: a.replay.ticks,
+      playMedalEligible: true,
       outdoor: a.round.result(),
     });
     assert.ok(a.replay.ticks <= 3600);
@@ -84,6 +85,7 @@ test("hoops and fishing are replayed rounds but not cabinets", () => {
     assert.notDeepEqual(replayRun(game, 78, play(game, 78, "sharp").replay), {
       score: a.score,
       ticks: a.replay.ticks,
+      playMedalEligible: true,
       outdoor: a.round.result(),
     });
   }

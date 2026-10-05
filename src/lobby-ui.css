@@ -510,3 +510,32 @@
     top: 66px;
   }
 }
+/* Personal completion goal uses the same reward card language as the lobby. */
+.play-medal-goal {
+  padding: 20px;
+  margin: 16px 0;
+  border: 1px solid #d8ddcb;
+  border-radius: 18px;
+  background: #f4f7e9;
+}
+.play-medal-goal h3 {
+  margin: 6px 0;
+  font-size: 26px;
+}
+.play-medal-goal > p {
+  margin: 10px 0;
+}
+.play-medal-goal progress {
+  width: 100%;
+  accent-color: #61764b;
+}
+.play-medal-result {
+  padding: 14px;
+  border-radius: 12px;
+  background: #f4f7e9;
+}
+.play-medal-result span {
+  display: block;
+  margin-top: 5px;
+  font-size: 13px;
+}

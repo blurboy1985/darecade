@@ -10,6 +10,7 @@ import * as menus from "../src/lobby-menu.ts";
 import * as interactions from "../src/interactions.ts";
 import * as neighbourhood from "../src/neighbourhood.ts";
 import * as wardrobe from "../src/wardrobe.ts";
+import * as playMedals from "../src/play-medals.ts";
 
 // Evaluate the actual render functions. The small element fixture only records
 // generated HTML, selection and replacement; it is not a browser/DOM substitute.
@@ -158,6 +159,7 @@ function harness() {
     ...interactions,
     ...neighbourhood,
     ...wardrobe,
+    ...playMedals,
     body,
     document: {
       querySelector: () => inspector,
@@ -552,7 +554,17 @@ test("Rankings shows a guest the board and never opens the account dialog", () =
   h.context.openAccount = () => {
     accounts++;
   };
-  h.context.currentProfile = { name: "Sunny Otter 06", account: null };
+  h.context.currentProfile = {
+    name: "Sunny Otter 06",
+    account: null,
+    playMedals: {
+      day: "2026-10-05",
+      total: 2,
+      today: 1,
+      games: ["swarm"],
+      limit: 3,
+    },
+  };
   h.context.shared.competitionReady = false;
   h.context.shared.boards.hop = [
     { id: "p1", name: "Player 1", score: 93, rank: 1 },
@@ -564,11 +576,13 @@ test("Rankings shows a guest the board and never opens the account dialog", () =
     const html = h.body.innerHTML;
     assert.equal(accounts, 0, period);
     assert.match(html, /<h2>Rankings<\/h2>/);
-    assert.match(html, /<small>Guest rounds are not ranked<\/small>/);
+    assert.match(html, /Daily Play medal goal/);
+    assert.match(html, /<strong>1 \/ 3<\/strong> Play medal points today/);
+    assert.doesNotMatch(html, /Guest rounds are not ranked/);
     assert.doesNotMatch(html, /Playing without email/);
     assert.doesNotMatch(html, /Finish a round to (join the board|claim #1)/);
     // Saving stays an offer on the board, not a wall in front of it.
-    assert.match(html, /data-account>Save with email to be ranked</);
+    assert.match(html, /data-account>Link an email</);
     checkActions(html, `guest rankings ${period}`);
   }
   assert.match(h.body.innerHTML, /Player 1[\s\S]*93/);

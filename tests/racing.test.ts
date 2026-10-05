@@ -88,6 +88,7 @@ test("Coast Rush shares deterministic three-lap physics with server replay; the 
   assert.deepEqual(replayRun("coast", 1, a.replay), {
     score: a.score,
     ticks: a.replay.ticks,
+    playMedalEligible: true,
     race: a.race.result(),
   });
   assert.ok(a.replay.events.length <= RACE_TICKS);
@@ -690,7 +691,12 @@ test("a race that uses its items replays to the same result on the server", () =
       ticks: sim.ticks,
       events,
     }),
-    { score: sim.score, ticks: sim.ticks, race: sim.race!.result() },
+    {
+      score: sim.score,
+      ticks: sim.ticks,
+      playMedalEligible: true,
+      race: sim.race!.result(),
+    },
   );
 });
 

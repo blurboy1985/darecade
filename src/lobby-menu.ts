@@ -45,12 +45,12 @@ export const menuPages = {
     back: "phone-menu",
     actions: [
       { label: "Neighbours", target: "neighbours", icon: "smile" },
+      { label: "Emotes", target: "emotes", icon: "smile" },
       {
-        label: "Challenges & ranks",
+        label: "Worlds & scores",
         target: "competition-menu",
         icon: "trophy",
       },
-      { label: "Worlds", target: "worlds", icon: "compass" },
     ],
   },
   "competition-menu": {
@@ -59,7 +59,7 @@ export const menuPages = {
     actions: [
       { label: "Challenges", target: "dares", icon: "game" },
       { label: "Rankings", target: "board", icon: "trophy" },
-      { label: "Emotes", target: "emotes", icon: "smile" },
+      { label: "Worlds", target: "worlds", icon: "compass" },
     ],
   },
   "rewards-menu": {

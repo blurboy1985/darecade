@@ -23,6 +23,8 @@ export class HoopsRound {
   score = 0;
   ended = false;
   shot = 0;
+  /** Shots deliberately taken, excluding expired shot clocks. */
+  attempts = 0;
   made = 0;
   streak = 0;
   marker = 0;
@@ -42,7 +44,7 @@ export class HoopsRound {
     this.aim();
   }
   result() {
-    return { made: this.made };
+    return { made: this.made, attempts: this.attempts };
   }
   private aim() {
     this.width = Math.max(0.13, 0.27 - this.shot * 0.016);
@@ -77,6 +79,7 @@ export class HoopsRound {
     }
     this.clock--;
     if (!pressed && this.clock) return;
+    if (pressed) this.attempts++;
     const off = Math.abs(this.marker - this.centre);
     this.last = !pressed
       ? "late"
