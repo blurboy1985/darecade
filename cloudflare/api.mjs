@@ -1,3 +1,4 @@
+import { RELAY_TICK_BUDGET } from "../shared/relay-protocol.ts";
 import { paymentBody } from "../server/payments.mjs";
 import { randomUUID } from "node:crypto";
 
@@ -149,7 +150,7 @@ export async function handleApi(
       rate(
         "relay:" + action,
         action === "tick"
-          ? 300
+          ? RELAY_TICK_BUDGET
           : action === "create"
             ? 6
             : action === "join"

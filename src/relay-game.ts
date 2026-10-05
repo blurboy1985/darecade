@@ -3,7 +3,11 @@ import { presentationTick } from "./relay-motion";
 import { loadCharacter } from "./character";
 import { currentProfile } from "./account";
 import type { Save } from "./state";
-import type { RelaySnapshot } from "../shared/relay-protocol";
+import {
+  RELAY_POLL_MS,
+  RELAY_INPUT_MIN_MS,
+  type RelaySnapshot,
+} from "../shared/relay-protocol";
 import type { RelayView } from "./relay-view";
 import {
   relayAction,
@@ -79,6 +83,8 @@ export function mountRelay(
   let code = "",
     signature = "",
     nextPoll = 0,
+    lastTickAt = -Infinity,
+    retryAt = 0,
     lastAction = -Infinity,
     lastFrame = performance.now(),
     frame = 0;
@@ -265,12 +271,23 @@ export function mountRelay(
     }
   }
   async function tick() {
-    if (!snapshot || busy || stopped || !live()) return;
+    const now = performance.now();
+    if (
+      !snapshot ||
+      busy ||
+      stopped ||
+      !live() ||
+      now < nextPoll ||
+      now < retryAt ||
+      now - lastTickAt < RELAY_INPUT_MIN_MS
+    )
+      return;
     const requestedGeneration = generation;
     const current = snapshot,
       sentAction = actionSeq;
     busy = true;
-    nextPoll = performance.now() + (current.status === "running" ? 250 : 1000);
+    lastTickAt = now;
+    nextPoll = now + (current.status === "running" ? RELAY_POLL_MS : 1000);
     try {
       const result = await api<RelaySnapshot>("relay/tick", {
         room: current.room,
@@ -298,7 +315,7 @@ export function mountRelay(
         e instanceof Error ? e.message : "Connection interrupted.";
       error.textContent = `${message} Team time keeps running.`;
       clearInput();
-      nextPoll = performance.now() + 1500;
+      retryAt = nextPoll = performance.now() + 1500;
       if (/another tab|control|expired|unavailable|no longer/i.test(message)) {
         stopped = true;
         reconnect.hidden = false;
@@ -314,6 +331,11 @@ export function mountRelay(
       releaseRequest();
     }
   }
+  // Keep the newest controls pending when a request is already in flight.
+  const requestTick = () => {
+    nextPoll = 0;
+    void tick();
+  };
   async function leave() {
     const previous = snapshot;
     generation++;
@@ -323,6 +345,7 @@ export function mountRelay(
     signature = "";
     stopped = false;
     seq = actionSeq = acknowledgedAction = 0;
+    retryAt = nextPoll = 0;
     remember();
     view?.dispose();
     view = null;
@@ -355,6 +378,7 @@ export function mountRelay(
       .querySelectorAll<HTMLButtonElement>("button")
       .forEach((button) => (button.disabled = true));
     seq = actionSeq = acknowledgedAction = 0;
+    retryAt = nextPoll = 0;
     code = "";
     try {
       const value = await command("create", {
@@ -408,6 +432,7 @@ export function mountRelay(
       }
       code = value;
       seq = actionSeq = acknowledgedAction = 0;
+      retryAt = nextPoll = 0;
       setup.dataset.starting = "true";
       setup
         .querySelectorAll<HTMLButtonElement>("button")
@@ -426,6 +451,7 @@ export function mountRelay(
     () => {
       if (!snapshot || busy) return;
       seq = actionSeq = acknowledgedAction = 0;
+      retryAt = nextPoll = 0;
       clearInput();
       void command("join", { room: snapshot.room });
     },
@@ -440,7 +466,7 @@ export function mountRelay(
       return;
     lastAction = performance.now();
     actionSeq++;
-    void tick();
+    requestTick();
   };
   window.addEventListener(
     "keydown",
@@ -469,18 +495,27 @@ export function mountRelay(
       e.preventDefault();
       if (key === " " || key === "e") {
         if (!e.repeat) actionEdge();
-      } else keys.add(key);
+      } else if (!keys.has(key)) {
+        keys.add(key);
+        requestTick();
+      }
     },
     { signal: abort.signal },
   );
-  window.addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()), {
-    signal: abort.signal,
-  });
+  window.addEventListener(
+    "keyup",
+    (e) => {
+      if (keys.delete(e.key.toLowerCase())) requestTick();
+    },
+    {
+      signal: abort.signal,
+    },
+  );
   window.addEventListener(
     "blur",
     () => {
       clearInput();
-      void tick();
+      requestTick();
     },
     { signal: abort.signal },
   );
@@ -489,7 +524,7 @@ export function mountRelay(
     () => {
       if (document.hidden) {
         clearInput();
-        void tick();
+        requestTick();
       }
     },
     { signal: abort.signal },
@@ -511,13 +546,13 @@ export function mountRelay(
               number,
             ],
           );
-          void tick();
+          requestTick();
         },
         { signal: abort.signal },
       );
       const release = (e: PointerEvent) => {
         pointers.delete(e.pointerId);
-        void tick();
+        requestTick();
       };
       button.addEventListener("pointerup", release, { signal: abort.signal });
       button.addEventListener("pointercancel", release, {

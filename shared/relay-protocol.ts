@@ -1,3 +1,8 @@
+// Bound active polling and control edges below both server request budgets.
+export const RELAY_POLL_MS = 100;
+export const RELAY_INPUT_MIN_MS = 80;
+export const RELAY_TICK_BUDGET = 900;
+
 import type { Look } from "../src/character";
 import type { RelayState } from "./relay.ts";
 
