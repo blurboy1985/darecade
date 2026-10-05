@@ -3,17 +3,17 @@ import { legendaryHead, legendaryBody } from "./legendary.ts";
 import * as T from "three";
 import { clone as cloneSkeleton } from "three/addons/utils/SkeletonUtils.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { outfits, skins } from "./state";
-import { clothingNames } from "./appearance";
-import { makePet, animatePet, type Pet } from "./pets";
-import { buildMagic, disposeMagic, type Magic } from "./magic";
-import { buildHeadgear, animateHeadgear, type Gear } from "./headgear";
+import { outfits, skins } from "./state.ts";
+import { clothingNames } from "./appearance.ts";
+import { makePet, animatePet, type Pet } from "./pets.ts";
+import { buildMagic, disposeMagic, type Magic } from "./magic.ts";
+import { buildHeadgear, animateHeadgear, type Gear } from "./headgear.ts";
 export {
   clothingNames,
   hairNames,
   petNames,
   accessoryNames,
-} from "./appearance";
+} from "./appearance.ts";
 export type Look = {
   outfit: number;
   skin: number;
@@ -45,8 +45,9 @@ export type Avatar = {
   footrest: T.Mesh;
   moving: boolean;
   rig: Map<string, { bone: T.Object3D; rest: T.Quaternion }>;
+  expressions: T.Mesh[];
 };
-let template: T.Group;
+let template: T.Group | null = null;
 let loading: Promise<void> | null = null;
 export function loadCharacter() {
   return (loading ??= new GLTFLoader()
@@ -56,15 +57,19 @@ export function loadCharacter() {
       parser.textureLoader = new T.TextureLoader(parser.options.manager);
       return { name: "DarecadeEmbeddedImages" };
     })
-    .loadAsync("/models/neighbour-kaykit.glb?v=kaykit-1")
+    .loadAsync("/models/neighbour-chibi.glb?v=face-3")
     .then((g) => {
       template = g.scene;
-      template.scale.setScalar(KAYKIT_SCALE);
+      template.scale.setScalar(CHARACTER_SCALE);
+    })
+    .catch((error: unknown) => {
+      loading = null;
+      throw error;
     }));
 }
-// KayKit Adventurers (CC0, Kay Lousberg). All four characters share one rig, so
-// each saved look picks a body set and a head set by toggling mesh visibility.
-const KAYKIT_SCALE = 0.86;
+// Original Simi chibi art on the CC0 KayKit-compatible skeleton. All four
+// silhouettes share a rig; saved looks still mix named body and head parts.
+const CHARACTER_SCALE = 0.86;
 type Who = "Rogue" | "Mage" | "Knight" | "Barbarian";
 // [top & arms, legs, cape or null]. Parts from different adventurers share one
 // rig, so they mix freely. Order matches clothingNames.
@@ -106,7 +111,7 @@ const legendaryBodies: [Who, Who, Who | null][] = [
   ["Knight", "Mage", "Mage"],
   ["Rogue", "Mage", "Rogue"],
 ];
-// [head mesh, KayKit headwear, procedural gear]. Order matches hairNames.
+// [head mesh, model headwear, procedural gear]. Order matches hairNames.
 const headSets: [string, string | null, Gear | null][] = [
   ["Rogue_Head", null, null],
   ["Mage_Head", null, null],
@@ -138,9 +143,8 @@ const headSets: [string, string | null, Gear | null][] = [
   ["Rogue_Head", null, "bow"],
 ];
 const headwear = ["Mage_Hat", "Knight_Helmet", "Barbarian_Hat"];
-// Each KayKit texture is an 8 x 4 grid of 128 x 256 px gradient swatches. The
-// first swatch is skin in all four; the first two swatches of the second row
-// carry each outfit's main colour (tunic, robe, plume/cape, hood, wizard hat).
+// The 512px atlas packs 8 x 4 palette swatches into the upper half, painted
+// skin at lower left, and immutable eye artwork at lower right.
 const tintCache = new Map<string, T.Texture>();
 function releaseTint(texture: T.Texture | null) {
   if (!texture?.userData.tintKey) return;
@@ -158,14 +162,13 @@ function tintedTexture(src: T.Texture, skin: string, outfit: string) {
   };
   if (typeof document === "undefined" || !img?.width) return src;
   const canvas = document.createElement("canvas");
-  // These are gradient swatches, not detailed artwork. A compact atlas avoids
-  // allocating a full-resolution image for every neighbour and colour choice.
-  canvas.width = Math.min(256, img.width);
-  canvas.height = Math.min(256, img.height);
+  // Facial paint must retain its authored resolution through every saved look.
+  canvas.width = img.width;
+  canvas.height = img.height;
   const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
   ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
   const cw = canvas.width / 8,
-    ch = canvas.height / 4;
+    ch = canvas.height / 8;
   const paint = (col: number, row: number, hex: string, shade = 1) => {
     const target = new T.Color(hex).convertLinearToSRGB();
     const want = [target.r, target.g, target.b].map((v) => v * 255 * shade);
@@ -186,6 +189,27 @@ function tintedTexture(src: T.Texture, skin: string, outfit: string) {
   paint(0, 0, skin);
   paint(0, 1, outfit);
   paint(1, 1, outfit, 0.82);
+  // Scale the painted skin from its neutral base. This retains blush and soft
+  // cheek shading without changing the eyes, lashes, mouth or hair palette.
+  const face = ctx.getImageData(
+    0,
+    canvas.height / 2,
+    canvas.width / 2,
+    canvas.height / 2,
+  );
+  const target = new T.Color(skin).convertLinearToSRGB();
+  const ratios = [
+    (target.r * 255) / 247,
+    (target.g * 255) / 217,
+    (target.b * 255) / 198,
+  ];
+  for (let i = 0; i < face.data.length; i += 4)
+    for (let channel = 0; channel < 3; channel++)
+      face.data[i + channel] = Math.min(
+        255,
+        face.data[i + channel] * ratios[channel],
+      );
+  ctx.putImageData(face, 0, canvas.height / 2);
   const tex = new T.CanvasTexture(canvas);
   tex.flipY = src.flipY;
   tex.colorSpace = src.colorSpace;
@@ -257,6 +281,7 @@ export function createAvatar(
   const model = cloneSkeleton(template) as T.Group;
   root.add(model);
   const materials = new Map<string, T.MeshStandardMaterial>();
+  const expressions: T.Mesh[] = [];
   model.traverse((o) => {
     if (o instanceof T.Mesh) {
       const original = o.material as T.MeshStandardMaterial;
@@ -267,10 +292,13 @@ export function createAvatar(
         m.addEventListener("dispose", () => {
           releaseTint(m!.map);
           m!.map = null;
+          m!.emissiveMap = null;
         });
         materials.set(original.name, m);
       }
       o.material = m;
+      if (o.morphTargetDictionary && o.morphTargetInfluences)
+        expressions.push(o);
       o.castShadow = true;
       o.receiveShadow = false;
     }
@@ -318,6 +346,7 @@ export function createAvatar(
     footrest,
     moving: false,
     rig,
+    expressions,
   };
   root.add(a.hat, a.extras, a.costume);
   root.userData.avatar = a;
@@ -342,6 +371,8 @@ export function applyLook(
         if (next.userData.tintKey) next.userData.users++;
         releaseTint(m.map);
         m.map = next;
+        // Both slots use the same atlas and share one tint-cache reference.
+        if (m.emissiveMap) m.emissiveMap = next;
         m.needsUpdate = true;
       }
     }
@@ -388,7 +419,7 @@ export function applyLook(
     );
     leaf.rotation.z = 0.5;
   }
-  // Earned hats were sized for the earlier head; fit them to the KayKit head
+  // Earned hats were sized for the earlier head; fit them to the chibi head
   // (about 0.87 wide, crown at y 1.78 after scaling).
   for (const part of a.hat.children) {
     part.position.x *= 1.85;
@@ -416,12 +447,16 @@ export function applyLook(
   }
 }
 // Release per-avatar resources; the model geometry and procedural shapes are shared.
+const disposedAvatars = new WeakSet<Avatar>();
 export function disposeAvatar(a: Avatar) {
+  if (disposedAvatars.has(a)) return;
+  disposedAvatars.add(a);
   a.root.removeFromParent();
   a.pet?.root.removeFromParent();
   disposeMagic(a.magic);
+  a.pet = null;
+  a.magic = null;
   for (const material of a.materials.values()) {
-    releaseTint(material.map);
     material.dispose();
   }
   const skeletons = new Set<T.Skeleton>();
@@ -429,6 +464,29 @@ export function disposeAvatar(a: Avatar) {
     if (object instanceof T.SkinnedMesh) skeletons.add(object.skeleton);
   });
   for (const skeleton of skeletons) skeleton.dispose();
+  const geometries = new Set<T.BufferGeometry>();
+  const materials = new Set<T.Material>();
+  const textures = new Set<T.Texture>();
+  a.root.traverse((object) => {
+    if (!object.userData.avatarDecoration) return;
+    if (!(object instanceof T.Mesh || object instanceof T.Sprite)) return;
+    // Sprites use Three's shared quad. Only world-created mesh geometry is owned.
+    if (object instanceof T.Mesh) geometries.add(object.geometry);
+    for (const material of Array.isArray(object.material)
+      ? object.material
+      : [object.material]) {
+      materials.add(material);
+      if (
+        (material instanceof T.MeshBasicMaterial ||
+          material instanceof T.SpriteMaterial) &&
+        material.map
+      )
+        textures.add(material.map);
+    }
+  });
+  geometries.forEach((geometry) => geometry.dispose());
+  materials.forEach((material) => material.dispose());
+  textures.forEach((texture) => texture.dispose());
 }
 export function animateDetails(
   a: Avatar,
@@ -446,6 +504,18 @@ export function animateDetails(
   a.moving = travel > 0.008;
   a.last.copy(a.root.position);
   const t = reduced ? 0 : time;
+  const blinkPhase = t % 4.6;
+  const blink =
+    blinkPhase < 0.18 ? Math.sin((Math.PI * blinkPhase) / 0.18) ** 2 : 0;
+  for (const mesh of a.expressions) {
+    const dictionary = mesh.morphTargetDictionary!;
+    const influences = mesh.morphTargetInfluences!;
+    if (dictionary.Blink !== undefined) influences[dictionary.Blink] = blink;
+    if (dictionary.Smile !== undefined)
+      influences[dictionary.Smile] = ["wave", "dance", "pet"].includes(mode)
+        ? 0.35
+        : 0;
+  }
   const gait = Math.sin(t * 10);
   const seated = ["rest", "bench", "swing", "drive"].includes(mode);
   const performing = [
@@ -611,7 +681,7 @@ function poseSkin(a: Avatar, mode: string) {
   }
 
   fitHands(a, mode, mode === "drive" ? 1 : reach);
-  const pivot = new T.Vector3(0, 1.241 * KAYKIT_SCALE, 0);
+  const pivot = new T.Vector3(0, 1.241 * CHARACTER_SCALE, 0);
   a.hat.quaternion.copy(head);
   a.hat.position.copy(pivot).sub(pivot.clone().applyQuaternion(head));
   a.hat.position.y += a.model.position.y;
@@ -858,13 +928,7 @@ export function createCharacterPreview(
     dispose() {
       cancelAnimationFrame(frame);
       observer.disconnect();
-      a.materials.forEach((m) => m.dispose());
-      disposeMagic(a.magic);
-      const skeletons = new Set<T.Skeleton>();
-      a.model.traverse((o) => {
-        if (o instanceof T.SkinnedMesh) skeletons.add(o.skeleton);
-      });
-      skeletons.forEach((s) => s.dispose());
+      disposeAvatar(a);
       renderer.dispose();
       // Release only when leaving the wardrobe, not on every choice.
       renderer.forceContextLoss();

@@ -159,7 +159,7 @@ The plan was used as design context. Its dates, legal statements, commercial ass
 
 ## Blender asset
 
-`art/dragon-playground.blend` is the editable master. `public/models/dragon-playground.glb` is the runtime model. Both were generated from the original script `scripts/build_dragon.py`; the playground and arcade art are original. Avatars use the CC0 KayKit Adventurers character pack by Kay Lousberg; see `art/characters/CREDITS.md`.
+`art/dragon-playground.blend` is the editable master. `public/models/dragon-playground.glb` is the runtime model. Both were generated from the original script `scripts/build_dragon.py`; the playground and arcade art are original. Avatars use original Blender chibi meshes and painted faces on the compatible CC0 KayKit rest skeleton; see `art/characters/chibi/README.md` and `art/characters/CREDITS.md`.
 
 To rebuild the model on this Windows machine:
 
@@ -202,6 +202,12 @@ See `QA.md` for checked behaviours, screenshots, and limits. Mobile browser emul
 - **Magic (26):** rebuilt in `src/magic.ts` as glowing meshes plus a small sparkle-particle shader: stardust trails, snow, sakura, aurora, embers, lightning, glitter rain, hearts, music notes, rune circle, galaxy orbit, angel and dragon wings, ice crystals, wisps, starfall, rainbow comet, moonbeam and forest spirits.
 - Saved looks keep their meaning: every list kept its first eight entries and only grew. Server validation reads the new list lengths from `src/appearance.ts`.
 - **Sound (`src/audio.ts`):** original music and effects synthesised live with Web Audio — no audio files or licences. Music has three moods that change on a bar line: mellow lo-fi by day, soft pads and celesta at night/dusk, and chiptune while a game is open. Effects cover menus, footsteps, coins, gifts, level-ups, wardrobe changes, each pet, the bell, swing, slide, bench and cabinet, plus per-game events (eat, brick, paddle, jump, hits, explosions, boss, power-up, win). Sound stays opt-in; Settings has separate **Sound effects** and **Background music** switches. Game sounds only read the simulation, so server replay validation is unchanged.
+
+## Original chibi character art — 5 October 2026
+
+The game loads `public/models/neighbour-chibi.glb`. Its editable master is `art/characters/chibi/simi-chibi.blend`, with a reproducible Blender builder in `scripts/build_chibi_character.py`. Four original outfit and hair families share the existing 41-bone rest hierarchy, so saved cosmetic indices and interaction poses continue to work. Painted faces include blink and smile morphs; skin and outfit colours remain customizable. The former KayKit GLB is retained only as the CC0 skeleton input to the builder.
+
+For provenance, topology budgets and rebuilding, see [the character source notes](art/characters/chibi/README.md). For local browser comparisons and the actual game with synthetic accounts, see [art verification](art/characters/ART-QA.md).
 
 ## KayKit character swap — 3 October 2026
 

@@ -1,0 +1,399 @@
+{
+  "glb_bytes": 1129444,
+  "mesh_count": 32,
+  "material_count": 4,
+  "texture_count": 8,
+  "total_triangles": 46045,
+  "parts": {
+    "Barbarian_ArmLeft": {
+      "vertices": 350,
+      "triangles": 640,
+      "draws": 1
+    },
+    "Barbarian_ArmRight": {
+      "vertices": 350,
+      "triangles": 640,
+      "draws": 1
+    },
+    "Barbarian_Body": {
+      "vertices": 382,
+      "triangles": 694,
+      "draws": 1
+    },
+    "Barbarian_Cape": {
+      "vertices": 156,
+      "triangles": 272,
+      "draws": 1
+    },
+    "Barbarian_Hat": {
+      "vertices": 168,
+      "triangles": 328,
+      "draws": 1
+    },
+    "Barbarian_Head": {
+      "vertices": 3461,
+      "triangles": 5982,
+      "draws": 1
+    },
+    "Barbarian_LegLeft": {
+      "vertices": 352,
+      "triangles": 624,
+      "draws": 1
+    },
+    "Barbarian_LegRight": {
+      "vertices": 352,
+      "triangles": 624,
+      "draws": 1
+    },
+    "Knight_ArmLeft": {
+      "vertices": 414,
+      "triangles": 764,
+      "draws": 1
+    },
+    "Knight_ArmRight": {
+      "vertices": 414,
+      "triangles": 764,
+      "draws": 1
+    },
+    "Knight_Body": {
+      "vertices": 373,
+      "triangles": 667,
+      "draws": 1
+    },
+    "Knight_Cape": {
+      "vertices": 156,
+      "triangles": 272,
+      "draws": 1
+    },
+    "Knight_Head": {
+      "vertices": 3743,
+      "triangles": 6666,
+      "draws": 1
+    },
+    "Knight_Helmet": {
+      "vertices": 360,
+      "triangles": 664,
+      "draws": 1
+    },
+    "Knight_LegLeft": {
+      "vertices": 376,
+      "triangles": 672,
+      "draws": 1
+    },
+    "Knight_LegRight": {
+      "vertices": 376,
+      "triangles": 672,
+      "draws": 1
+    },
+    "Mage_ArmLeft": {
+      "vertices": 350,
+      "triangles": 640,
+      "draws": 1
+    },
+    "Mage_ArmRight": {
+      "vertices": 350,
+      "triangles": 640,
+      "draws": 1
+    },
+    "Mage_Body": {
+      "vertices": 600,
+      "triangles": 1040,
+      "draws": 1
+    },
+    "Mage_Cape": {
+      "vertices": 156,
+      "triangles": 272,
+      "draws": 1
+    },
+    "Mage_Hat": {
+      "vertices": 212,
+      "triangles": 412,
+      "draws": 1
+    },
+    "Mage_Head": {
+      "vertices": 3463,
+      "triangles": 6122,
+      "draws": 1
+    },
+    "Mage_LegLeft": {
+      "vertices": 376,
+      "triangles": 672,
+      "draws": 1
+    },
+    "Mage_LegRight": {
+      "vertices": 376,
+      "triangles": 672,
+      "draws": 1
+    },
+    "Rogue_ArmLeft": {
+      "vertices": 350,
+      "triangles": 640,
+      "draws": 1
+    },
+    "Rogue_ArmRight": {
+      "vertices": 350,
+      "triangles": 640,
+      "draws": 1
+    },
+    "Rogue_Body": {
+      "vertices": 490,
+      "triangles": 886,
+      "draws": 1
+    },
+    "Rogue_Cape": {
+      "vertices": 156,
+      "triangles": 272,
+      "draws": 1
+    },
+    "Rogue_Head": {
+      "vertices": 3071,
+      "triangles": 5386,
+      "draws": 1
+    },
+    "Rogue_Head_Hooded": {
+      "vertices": 3111,
+      "triangles": 5462,
+      "draws": 1
+    },
+    "Rogue_LegLeft": {
+      "vertices": 376,
+      "triangles": 672,
+      "draws": 1
+    },
+    "Rogue_LegRight": {
+      "vertices": 376,
+      "triangles": 672,
+      "draws": 1
+    }
+  },
+  "reference_kaykit": {
+    "glb_bytes": 714452,
+    "mesh_count": 32,
+    "material_count": 4,
+    "texture_count": 4,
+    "total_triangles": 19118,
+    "parts": {
+      "Knight_Helmet": {
+        "vertices": 504,
+        "triangles": 480,
+        "draws": 1
+      },
+      "Knight_Cape": {
+        "vertices": 56,
+        "triangles": 84,
+        "draws": 1
+      },
+      "Knight_ArmLeft": {
+        "vertices": 486,
+        "triangles": 594,
+        "draws": 1
+      },
+      "Knight_ArmRight": {
+        "vertices": 486,
+        "triangles": 594,
+        "draws": 1
+      },
+      "Knight_Body": {
+        "vertices": 1141,
+        "triangles": 1052,
+        "draws": 1
+      },
+      "Knight_Head": {
+        "vertices": 727,
+        "triangles": 956,
+        "draws": 1
+      },
+      "Knight_LegLeft": {
+        "vertices": 438,
+        "triangles": 476,
+        "draws": 1
+      },
+      "Knight_LegRight": {
+        "vertices": 438,
+        "triangles": 476,
+        "draws": 1
+      },
+      "Barbarian_Hat": {
+        "vertices": 529,
+        "triangles": 654,
+        "draws": 1
+      },
+      "Barbarian_Cape": {
+        "vertices": 53,
+        "triangles": 78,
+        "draws": 1
+      },
+      "Barbarian_ArmLeft": {
+        "vertices": 445,
+        "triangles": 594,
+        "draws": 1
+      },
+      "Barbarian_ArmRight": {
+        "vertices": 393,
+        "triangles": 534,
+        "draws": 1
+      },
+      "Barbarian_Body": {
+        "vertices": 1012,
+        "triangles": 1004,
+        "draws": 1
+      },
+      "Barbarian_Head": {
+        "vertices": 746,
+        "triangles": 1033,
+        "draws": 1
+      },
+      "Barbarian_LegLeft": {
+        "vertices": 335,
+        "triangles": 418,
+        "draws": 1
+      },
+      "Barbarian_LegRight": {
+        "vertices": 411,
+        "triangles": 462,
+        "draws": 1
+      },
+      "Mage_Hat": {
+        "vertices": 402,
+        "triangles": 396,
+        "draws": 1
+      },
+      "Mage_Cape": {
+        "vertices": 56,
+        "triangles": 84,
+        "draws": 1
+      },
+      "Mage_ArmLeft": {
+        "vertices": 330,
+        "triangles": 468,
+        "draws": 1
+      },
+      "Mage_ArmRight": {
+        "vertices": 330,
+        "triangles": 468,
+        "draws": 1
+      },
+      "Mage_Body": {
+        "vertices": 1275,
+        "triangles": 1230,
+        "draws": 1
+      },
+      "Mage_Head": {
+        "vertices": 761,
+        "triangles": 1027,
+        "draws": 1
+      },
+      "Mage_LegLeft": {
+        "vertices": 326,
+        "triangles": 418,
+        "draws": 1
+      },
+      "Mage_LegRight": {
+        "vertices": 326,
+        "triangles": 418,
+        "draws": 1
+      },
+      "Rogue_Cape": {
+        "vertices": 56,
+        "triangles": 84,
+        "draws": 1
+      },
+      "Rogue_ArmLeft": {
+        "vertices": 440,
+        "triangles": 580,
+        "draws": 1
+      },
+      "Rogue_ArmRight": {
+        "vertices": 440,
+        "triangles": 580,
+        "draws": 1
+      },
+      "Rogue_Body": {
+        "vertices": 1124,
+        "triangles": 1172,
+        "draws": 1
+      },
+      "Rogue_Head": {
+        "vertices": 907,
+        "triangles": 1115,
+        "draws": 1
+      },
+      "Rogue_LegLeft": {
+        "vertices": 300,
+        "triangles": 408,
+        "draws": 1
+      },
+      "Rogue_LegRight": {
+        "vertices": 300,
+        "triangles": 408,
+        "draws": 1
+      },
+      "Rogue_Head_Hooded": {
+        "vertices": 592,
+        "triangles": 773,
+        "draws": 1
+      }
+    }
+  },
+  "visible_base_styles": {
+    "Rogue": {
+      "vertices": 5169,
+      "triangles": 9168,
+      "draws": 7
+    },
+    "Mage": {
+      "vertices": 5671,
+      "triangles": 10058,
+      "draws": 7
+    },
+    "Knight": {
+      "vertices": 5852,
+      "triangles": 10477,
+      "draws": 7
+    },
+    "Barbarian": {
+      "vertices": 5403,
+      "triangles": 9476,
+      "draws": 7
+    }
+  },
+  "atlas": {
+    "size": [
+      512,
+      512
+    ],
+    "palette_canvas_rect": [
+      0,
+      0,
+      512,
+      256
+    ],
+    "grid": [
+      8,
+      4
+    ],
+    "skin_canvas_rect": [
+      0,
+      256,
+      256,
+      256
+    ],
+    "iris_canvas_rect": [
+      256,
+      256,
+      256,
+      256
+    ],
+    "neutral_skin": "#f7d9c6"
+  },
+  "expressions": [
+    "Blink",
+    "Smile"
+  ],
+  "bones": 41,
+  "worst_mixed_selection": {
+    "triangles": 11514,
+    "draws": 8
+  },
+  "image_count": 1
+}

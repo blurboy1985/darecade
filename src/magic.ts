@@ -4,7 +4,85 @@ import { legendaryMagic } from "./legendary.ts";
 // halos, crystals) with sparkle particle layers drawn by one small shader.
 // Positions are avatar-local: feet at y 0, head centre ~1.35, crown ~1.8.
 import * as T from "three";
-import { ball, node, part } from "./shapes.ts";
+import {
+  mergeGeometries,
+  mergeVertices,
+} from "three/addons/utils/BufferGeometryUtils.js";
+import { ball, material, node, part } from "./shapes.ts";
+
+// Original star charms and an orchid compass. Recipes use shared geometry and
+// vertex colours, so each static animated part costs one draw across its palette.
+const charmParts = new Map<string, T.BufferGeometry>();
+const charmMaterial = new T.MeshBasicMaterial({ vertexColors: true });
+const compassRing = new T.TorusGeometry(1, 0.025, 3, 32);
+const starShape = new T.Shape();
+for (let i = 0; i < 10; i++) {
+  const angle = (i / 10) * Math.PI * 2 + Math.PI / 2;
+  const radius = i % 2 ? 0.46 : 1;
+  const x = Math.cos(angle) * radius;
+  const y = Math.sin(angle) * radius;
+  if (i) starShape.lineTo(x, y);
+  else starShape.moveTo(x, y);
+}
+starShape.closePath();
+const starCharm = new T.ExtrudeGeometry(starShape, {
+  depth: 0.12,
+  bevelEnabled: true,
+  bevelSize: 0.045,
+  bevelThickness: 0.035,
+  bevelSegments: 1,
+  steps: 1,
+});
+
+function bakeCharm(group: T.Group, key: string) {
+  const meshes = group.children.filter(
+    (child): child is T.Mesh<T.BufferGeometry, T.MeshStandardMaterial> =>
+      child instanceof T.Mesh &&
+      child.material instanceof T.MeshStandardMaterial,
+  );
+  if (!meshes.length) return;
+  let geometry = charmParts.get(key);
+  if (!geometry) {
+    const pieces = meshes.map((mesh) => {
+      mesh.updateMatrix();
+      const piece = mesh.geometry.index
+        ? mesh.geometry.toNonIndexed()
+        : mesh.geometry.clone();
+      piece.applyMatrix4(mesh.matrix);
+      const colors = new Float32Array(piece.getAttribute("position").count * 3);
+      const color = mesh.material.color;
+      for (let i = 0; i < colors.length; i += 3)
+        colors.set([color.r, color.g, color.b], i);
+      piece.setAttribute("color", new T.BufferAttribute(colors, 3));
+      return piece;
+    });
+    const merged = mergeGeometries(pieces);
+    pieces.forEach((piece) => piece.dispose());
+    if (!merged) throw new Error("Magic charms must share geometry attributes");
+    geometry = mergeVertices(merged);
+    merged.dispose();
+    charmParts.set(key, geometry);
+  }
+  meshes.forEach((mesh) => mesh.removeFromParent());
+  const baked = new T.Mesh(geometry, charmMaterial);
+  baked.name = "MagicCharm";
+  baked.userData.sharedCosmeticGeometry = true;
+  group.add(baked);
+}
+
+function charm(
+  group: T.Group,
+  geometry: T.BufferGeometry,
+  color: string,
+  scale: number,
+  z = 0,
+) {
+  const mesh = new T.Mesh(geometry, material(color));
+  mesh.scale.setScalar(scale);
+  mesh.position.z = z;
+  group.add(mesh);
+  return mesh;
+}
 
 type Sprite =
   | "glow"
@@ -65,6 +143,17 @@ function sprite(kind: Sprite) {
       x.quadraticCurveTo(58, 32, 32, 58);
       x.quadraticCurveTo(6, 32, 32, 6);
       x.fill();
+      x.globalCompositeOperation = "destination-out";
+      x.lineWidth = 2;
+      x.beginPath();
+      x.moveTo(32, 17);
+      x.lineTo(32, 48);
+      x.moveTo(32, 30);
+      x.lineTo(23, 23);
+      x.moveTo(32, 38);
+      x.lineTo(41, 31);
+      x.stroke();
+      x.globalCompositeOperation = "source-over";
     }
     if (kind === "flake") {
       glow(18, 0.6);
@@ -148,6 +237,7 @@ export type Magic = {
   layers: Layer[];
   tick: (t: number, moving: boolean) => void;
 };
+const disposedMagic = new WeakSet<Magic>();
 
 const hash = (i: number, k = 0) => {
   const v = Math.sin(i * 127.1 + k * 311.7) * 43758.5453;
@@ -291,45 +381,43 @@ export function buildMagic(parent: T.Object3D, kind: number): Magic | null {
   }
   switch (kind) {
     case 1: {
-      // Orbiting stars: three glowing star gems with twinkling trails.
+      // Three five-point wishing charms with short, slow sparkle tails.
       const stars = [0, 1, 2].map((i) => {
-        const s = node(g);
-        part(
-          s,
-          "oct",
-          [0, 0, 0],
-          [0.07, 0.11, 0.07],
-          ["#ffe7a5", "#ffd1f0", "#bfe9ff"][i],
-          { glow: 1 },
-        );
+        const s = node(g, [0, 0, 0], "WishingStar");
+        charm(s, starCharm, ["#e5b65d", "#d397b0", "#77bdb6"][i], 0.12);
+        charm(s, starCharm, "#fff3ca", 0.078, 0.015);
+        bakeCharm(s, `star/${i}`);
+        s.rotation.x = -0.65;
         return s;
       });
       anim.push((t) =>
         stars.forEach((s, i) => {
-          const a = t * 1.4 + (i * tau) / 3;
+          const a = t * 0.65 + (i * tau) / 3;
           s.position.set(
-            Math.cos(a) * 0.62,
-            2.0 + Math.sin(t * 1.8 + i) * 0.12,
-            Math.sin(a) * 0.62,
+            Math.cos(a) * 0.56,
+            1.98 + Math.sin(t * 1.2 + i) * 0.08,
+            Math.sin(a) * 0.56,
           );
-          s.rotation.y = t * 3;
+          // Keep the five-point face readable while the charms orbit and tilt.
+          s.rotation.y = Math.sin(t * 0.7 + i) * 0.22;
+          s.rotation.z = Math.sin(t * 0.9 + i) * 0.16;
         }),
       );
       layer(
         m,
         "star",
-        36,
-        0.08,
-        ["#fff3c4", "#ffd1f0", "#cdeeff"],
+        18,
+        0.055,
+        ["#ffe9a6", "#f1c0d5", "#c6f0dc"],
         (i, t, o) => {
           const star = i % 3,
-            lag = Math.floor(i / 3) * 0.06;
-          const a = (t - lag) * 1.4 + (star * tau) / 3;
-          o.x = Math.cos(a) * 0.62;
-          o.z = Math.sin(a) * 0.62;
-          o.y = 2.0 + Math.sin((t - lag) * 1.8 + star) * 0.12;
-          o.a = (1 - lag / 0.72) * twinkle(i, t, 9);
-          o.s = 1 - lag;
+            lag = Math.floor(i / 3) * 0.09;
+          const a = (t - lag) * 0.65 + (star * tau) / 3;
+          o.x = Math.cos(a) * 0.56;
+          o.z = Math.sin(a) * 0.56;
+          o.y = 1.98 + Math.sin((t - lag) * 1.2 + star) * 0.08;
+          o.a = (0.72 - lag) * twinkle(i, t, 2);
+          o.s = 0.9 - lag;
         },
         true,
       );
@@ -708,41 +796,44 @@ export function buildMagic(parent: T.Object3D, kind: number): Magic | null {
       );
       break;
     case 17: {
-      // Rune circle on the ground with rising motes.
+      // A small orchid compass, with hand-built glyphs and rising pearl motes.
       const circle = node(g, [0, 0.04, 0], "Runes");
-      part(circle, "ring", [0, 0, 0], [0.8, 0.8, 0.8], "#9b7bff", {
-        glow: 1,
-        rot: [Math.PI / 2, 0, 0],
-      });
-      part(circle, "ring", [0, 0, 0], [0.62, 0.62, 0.62], "#c7b4ff", {
-        glow: 1,
-        rot: [Math.PI / 2, 0, 0],
-      });
-      for (let i = 0; i < 8; i++) {
-        const a = (i / 8) * tau;
+      for (const [radius, color] of [
+        [0.72, "#aa84c0"],
+        [0.53, "#e3b989"],
+      ] as const) {
+        const ring = charm(circle, compassRing, color, radius);
+        ring.rotation.x = Math.PI / 2;
+      }
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * tau;
+        // Three strokes make each open-ended glyph, rather than a copied rune.
+        for (let stroke = 0; stroke < 3; stroke++) {
+          const bar = part(
+            circle,
+            "box",
+            [Math.cos(a) * 0.622, 0.005, Math.sin(a) * 0.622],
+            [stroke === 1 ? 0.06 : 0.015, 0.012, stroke === 1 ? 0.015 : 0.06],
+            "#d5b8df",
+          );
+          bar.rotation.y = -a;
+          if (stroke !== 1) {
+            bar.position.x += Math.cos(a) * (stroke ? 0.028 : -0.028);
+            bar.position.z += Math.sin(a) * (stroke ? 0.028 : -0.028);
+          }
+        }
         part(
           circle,
           "oct",
-          [Math.cos(a) * 0.71, 0.02, Math.sin(a) * 0.71],
-          [0.05, 0.02, 0.05],
-          "#e6dcff",
-          { glow: 1 },
+          [Math.cos(a) * 0.415, 0.008, Math.sin(a) * 0.415],
+          [0.035, 0.014, 0.072],
+          "#e8cd95",
+          { rot: [0, -a + Math.PI / 2, 0] },
         );
       }
-      for (let i = 0; i < 3; i++) {
-        const a = (i / 3) * tau;
-        const bar = part(
-          circle,
-          "box",
-          [Math.cos(a) * 0.31, 0, Math.sin(a) * 0.31],
-          [0.02, 0.01, 1.07],
-          "#b49cff",
-          { glow: 1 },
-        );
-        bar.rotation.y = -a + Math.PI / 2;
-      }
-      anim.push((t) => (circle.rotation.y = t * 0.6));
-      glowDust(["#d9ccff", "#9b7bff", "#ffffff"], 0.05, 1.6, 0.7, 26);
+      bakeCharm(circle, "orchid-compass");
+      anim.push((t) => (circle.rotation.y = t * 0.18));
+      glowDust(["#dbc2e2", "#ead29d", "#eaf8df"], 0.08, 0.9, 0.61, 12);
       break;
     }
     case 18:
@@ -1025,31 +1116,31 @@ export function buildMagic(parent: T.Object3D, kind: number): Magic | null {
       layer(
         m,
         "leaf",
-        26,
-        0.12,
-        ["#7ad66b", "#a8e063", "#4fb06a", "#d6f28a"],
+        14,
+        0.145,
+        ["#68bc9e", "#a0ca72", "#77b878", "#d2dfa0"],
         (i, t, o) => {
-          const k = life(i, t, 3.2);
-          const a = hash(i) * tau + t * 1.4;
-          const r = 0.45 + Math.sin(k * Math.PI) * 0.25;
+          const k = life(i, t, 5);
+          const a = hash(i) * tau + t * 0.48;
+          const r = 0.42 + Math.sin(k * Math.PI) * 0.17;
           o.x = Math.cos(a) * r;
           o.z = Math.sin(a) * r;
-          o.y = 0.15 + k * 1.9;
-          o.r = t * 3 + i;
-          o.a = Math.min(1, Math.sin(k * Math.PI) * 2);
+          o.y = 0.16 + k * 1.45;
+          o.r = Math.sin(t * 0.7 + i) * 0.8 + i;
+          o.a = Math.sin(k * Math.PI) * 0.75;
         },
       );
       layer(
         m,
         "glow",
-        14,
-        0.1,
-        ["#f6ffb0", "#c8ffd0"],
+        6,
+        0.09,
+        ["#f6eab8", "#d7f5d2"],
         (i, t, o) => {
-          o.x = Math.sin(t * 0.8 + i * 1.9) * 0.6;
-          o.z = Math.cos(t * 0.6 + i * 2.7) * 0.6;
-          o.y = 0.4 + hash(i) * 1.5 + Math.sin(t * 2 + i) * 0.1;
-          o.a = 0.4 + 0.6 * Math.max(0, Math.sin(t * 3 + i));
+          o.x = Math.sin(t * 0.4 + i * 1.9) * 0.54;
+          o.z = Math.cos(t * 0.3 + i * 2.7) * 0.54;
+          o.y = 0.35 + hash(i) * 1.15 + Math.sin(t * 0.8 + i) * 0.08;
+          o.a = 0.35 + 0.25 * Math.max(0, Math.sin(t * 1.3 + i));
         },
         true,
       );
@@ -1071,7 +1162,9 @@ export function buildMagic(parent: T.Object3D, kind: number): Magic | null {
 }
 
 export function disposeMagic(m: Magic | null) {
-  if (!m) return;
+  if (!m || disposedMagic.has(m)) return;
+  disposedMagic.add(m);
+  m.tick = () => {};
   for (const l of m.layers) {
     l.points.geometry.dispose();
     (l.points.material as T.Material).dispose();
