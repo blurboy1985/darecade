@@ -54,5 +54,29 @@
   "donation-50": {
     "priceId": "price_1UMlcCA6Maf1zlslILMzs4ST",
     "amount": 5000
+  },
+  "candy": {
+    "priceId": "price_1UNCy7A6Maf1zlslQHA1Hl4p",
+    "amount": 199
+  },
+  "boba": {
+    "priceId": "price_1UNCy7A6Maf1zlslSvinHQQr",
+    "amount": 199
+  },
+  "pixel": {
+    "priceId": "price_1UNCy8A6Maf1zlslay77OeSQ",
+    "amount": 199
+  },
+  "witch": {
+    "priceId": "price_1UNCy8A6Maf1zlslHmPqFzoi",
+    "amount": 199
+  },
+  "garden": {
+    "priceId": "price_1UNCy8A6Maf1zlsl7bUgEw6C",
+    "amount": 199
+  },
+  "dino": {
+    "priceId": "price_1UNCy9A6Maf1zlslTBYeSjB8",
+    "amount": 199
   }
 }

@@ -96,16 +96,13 @@ tokens or ranking advantages. There are no subscriptions or random paid rewards.
 - Sandbox: products and S$1.99 one-time SGD prices exist for all six and are in
   `stripe-sandbox-catalog.json`. The server's catalogue check accepts all 16.
   No sandbox checkout of a new set has been run.
-- Live: **not created.** The `Darecade server` restricted key can read Products
-  and Prices but not write them, so `scripts/stripe-add-sets.mjs live` is
-  refused. Until live prices exist and are added to `stripe-live-catalog.json`
-  and to `STRIPE_CATALOG` in `wrangler.jsonc`, the six sets are sold for Style
-  tokens only.
-- To finish: either copy the six sandbox products to live mode in the Stripe
-  Dashboard, as was done for the first ten, or give a key Products and Prices
-  write for one run of `node --experimental-strip-types
-  scripts/stripe-add-sets.mjs live`, then remove the permission. Then copy the
-  six entries into `STRIPE_CATALOG` and deploy.
+- Live: created on 5 October 2026 with `scripts/stripe-add-sets.mjs live`,
+  after the owner gave the `Darecade server` key Products and Prices write.
+  Stripe confirms each of the six prices is live, active, one-time, SGD 199.
+  They are in `stripe-live-catalog.json` and in `STRIPE_CATALOG` in
+  `wrangler.jsonc` (20 entries: 16 sets and 4 donations).
+- Not yet done: deploying this change, a real purchase of a new set, and
+  removing the write permission from the key, which the server does not need.
 
 Sandbox set prices are in `stripe-sandbox-catalog.json`; live set and donation
 prices are in `stripe-live-catalog.json`.
