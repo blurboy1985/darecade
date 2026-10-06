@@ -917,7 +917,7 @@ export class CommunityCore {
     }
     if (
       r.status !== "started" ||
-      at - r.started > 600000 ||
+      at - r.started > 86400000 ||
       r.version !== rulesVersion(r.game)
     )
       throw Error("This round has expired. Start a new round.");

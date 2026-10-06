@@ -30,7 +30,7 @@ test("presence counts live people including self, deduplicates and never counts 
   const me = { id: "me", status: "online" } as const;
   assert.equal(
     worldPresenceCopy([me], "me", "connected"),
-    "Quiet right now — neighbours are around",
+    "1 player · 5 neighbours",
   );
   const players = [
     me,
@@ -41,16 +41,16 @@ test("presence counts live people including self, deduplicates and never counts 
   ] as const;
   assert.equal(
     worldPresenceCopy(players, "me", "connected"),
-    "3 players here · including you",
+    "3 players · 5 neighbours",
   );
   for (const state of ["offline", "reconnecting"] as const)
     assert.equal(
       worldPresenceCopy(players, "me", state),
-      "Player count unavailable",
+      "5 neighbours · player count unavailable",
     );
   assert.equal(
     worldPresenceCopy(players, "me", "connected", false),
-    "Player count unavailable",
+    "5 neighbours · player count unavailable",
   );
 });
 

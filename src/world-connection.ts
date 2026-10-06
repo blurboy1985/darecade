@@ -71,7 +71,7 @@ export class WorldConnection {
     if (!this.stopped) return;
     this.stopped = false;
     this.generation++;
-    if (Date.now() - this.lastReceived > 6000)
+    if (Date.now() - this.lastReceived > 15000)
       this.status(this.world ? "reconnecting" : "joining");
     // HTTP assigns the room immediately, including on hosts without sockets.
     // A stale bootstrap must never replace a refreshed session or chosen room.
@@ -102,7 +102,7 @@ export class WorldConnection {
         generation !== this.generation
       )
         return;
-      this.status("offline");
+      this.startPolling();
     }
     this.connect();
   }
@@ -165,7 +165,7 @@ export class WorldConnection {
         // An established session reconnects; two failed attempts enable polling.
         if (!opened) this.failures++;
         this.startPolling();
-        if (Date.now() - this.lastReceived > 6000) this.status("reconnecting");
+        if (Date.now() - this.lastReceived > 15000) this.status("reconnecting");
         this.retry();
       };
       ws.onerror = () => ws.close();
@@ -190,6 +190,15 @@ export class WorldConnection {
     this.pollTimer = setTimeout(() => void this.poll(generation), 2000);
   }
   private send() {
+    if (
+      this.lastReceived &&
+      Date.now() - this.lastReceived > 15000 &&
+      this.players.size
+    ) {
+      this.players.clear();
+      this.update([]);
+      if (!navigator.onLine) this.status("offline");
+    }
     if (this.socket?.readyState !== WebSocket.OPEN) return;
     const message = JSON.stringify(this.position());
     if (message !== this.previous || Date.now() - this.lastSent >= 4000) {
@@ -221,7 +230,7 @@ export class WorldConnection {
         connection === this.connection &&
         generation === this.generation
       )
-        if (Date.now() - this.lastReceived > 6000) this.status("offline");
+        if (Date.now() - this.lastReceived > 15000) this.status("offline");
     }
     if (
       !this.stopped &&

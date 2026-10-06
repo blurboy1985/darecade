@@ -1,3 +1,4 @@
+import { ScoreOutbox } from "./score-outbox";
 import { raceTime } from "../shared/racing";
 import { mountAvatarCards, refreshHeadshot } from "./avatar-portraits";
 import { mountPayments } from "./payments";
@@ -206,6 +207,39 @@ window.addEventListener("session-expired", () => {
     );
   }
 });
+type SavedRound = {
+  playMedal?: number;
+  race?: RaceResult & { newBest: boolean };
+  welcome?: boolean;
+  invite?: { xp: number } | null;
+  ranked?: boolean;
+  profile: Profile;
+  xpTokens?: number;
+};
+const scoreOutbox = new ScoreOutbox<SavedRound>(
+  localStorage,
+  (round) =>
+    api<SavedRound>("finish", {
+      id: round.id,
+      score: round.score,
+      replay: round.replay,
+    }),
+  () => currentProfile?.id || "",
+  (result) => {
+    if (result.profile.id === currentProfile?.id) {
+      acceptProfile(result.profile);
+      if (result.profile.styleRewards) void claimStyleRewards();
+    }
+  },
+  (persisted) => {
+    const checking = body.querySelector("[data-saving-score]");
+    if (checking)
+      checking.textContent = persisted
+        ? "Saved on this device. Retrying automatically when the connection returns…"
+        : "Retrying automatically. Keep this tab open until your score is saved.";
+  },
+);
+window.addEventListener("online", () => scoreOutbox.resume());
 let profileQueue = Promise.resolve();
 let sentPreferences = "";
 const preferenceKeys = [
@@ -911,15 +945,7 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
   if (!outdoor) boardGame = id;
   if (id === "coast") modal.classList.add("racing-modal");
   const onFinish = async (score: number, replay: Replay) => {
-    type Finished = {
-      playMedal?: number;
-      race?: RaceResult & { newBest: boolean };
-      welcome?: boolean;
-      invite?: { xp: number } | null;
-      ranked?: boolean;
-      profile: Profile;
-      xpTokens?: number;
-    };
+    type Finished = SavedRound;
     const racing = game instanceof RacingGame ? game : null;
     const endNote = game instanceof ArcadeGame ? game.endNote() : "";
     const raceSummary =
@@ -930,13 +956,13 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
     playtestEvent("round-finished");
     const send = async () => {
       await profileQueue;
-      const result = await api<Finished>("finish", {
+      const result = await scoreOutbox.submit({
+        owner: currentProfile!.id,
         id: run!.id,
         score,
         replay,
+        queuedAt: Date.now(),
       });
-      acceptProfile(result.profile);
-      if (result.profile.styleRewards) void claimStyleRewards();
       return result;
     };
     // The race is saved while its finish sequence plays, so closing the
@@ -950,7 +976,8 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
     game = null;
     flushStyleTokens();
     updateMusic();
-    body.innerHTML = "<h2>Checking score…</h2>";
+    body.innerHTML =
+      '<h2 data-saving-score>Saving your round…</h2><button class="secondary" data-open="arcade">Back to Games</button>';
     const render = async () => {
       try {
         let result: Finished | null = null;
@@ -1917,8 +1944,20 @@ let qualityExplained = false;
 window.addEventListener("performance-mode", () => {
   if (qualityExplained) return;
   qualityExplained = true;
-  toast(
-    "Performance mode is on for smoother play. Menu → Sound & display → 3D quality lets you switch back.",
+  toast("Performance mode lowers scene detail for smoother play.");
+  const action = document.createElement("button");
+  action.className = "secondary";
+  action.textContent = "Switch back";
+  action.onclick = () => {
+    if (world) world.setQuality("high");
+    action.blur();
+    document.querySelector("#toast")?.classList.remove("show");
+  };
+  document.querySelector("#toast")!.append(action);
+  clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(
+    () => document.querySelector("#toast")?.classList.remove("show"),
+    12000,
   );
 });
 window.addEventListener("world-interaction-progress", (event) => {
@@ -2108,6 +2147,7 @@ setInterval(() => {
 renderStats();
 captureInvite();
 const accountReady = ensureAccount().then((p) => {
+  scoreOutbox.resume();
   try {
     if (!localStorage.getItem("darecade-preview-backup")) {
       const old = localStorage.getItem("darecade-v1");
@@ -2627,6 +2667,7 @@ function renderWorldPresence() {
     currentProfile?.id,
     worldStatus,
     navigator.onLine,
+    residents.length,
   );
   if (label.textContent !== text) label.textContent = text;
 }

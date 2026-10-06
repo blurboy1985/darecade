@@ -91,6 +91,9 @@ export async function api<T>(path: string, data?: unknown): Promise<T> {
   if (response.status === 401 && path !== "auth/me")
     window.dispatchEvent(new Event("session-expired"));
   if (!response.ok)
-    throw Error(result.error || "The neighbourhood server is unavailable.");
+    throw Object.assign(
+      new Error(result.error || "The neighbourhood server is unavailable."),
+      { status: response.status },
+    );
   return result;
 }

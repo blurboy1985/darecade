@@ -6,14 +6,17 @@ export function worldPresenceCopy(
   me: string | undefined,
   status: "joining" | "connected" | "reconnecting" | "offline",
   networkOnline = true,
+  neighbours = 5,
 ) {
   if (!networkOnline || status === "offline" || status === "reconnecting")
-    return "Player count unavailable";
+    return `${neighbours} neighbours · player count unavailable`;
   const ids = new Set(
-    players.filter((p) => p.status !== "offline").map((p) => p.id),
+    players
+      .filter((p) => p.status === "online" || p.status === "resting")
+      .map((p) => p.id),
   );
   if (status !== "connected" || !me || !ids.has(me)) return "Finding players…";
   return ids.size === 1
-    ? "Quiet right now — neighbours are around"
-    : `${ids.size} players here · including you`;
+    ? `1 player · ${neighbours} neighbours`
+    : `${ids.size} players · ${neighbours} neighbours`;
 }
