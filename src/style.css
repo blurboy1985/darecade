@@ -62,7 +62,7 @@ button {
     box-shadow 0.18s;
 }
 button:hover:not(:disabled) {
-  transform: translateY(-2px);
+  transform: none;
 }
 button:active:not(:disabled) {
   transform: translateY(0);
@@ -3478,4 +3478,8 @@ dialog::backdrop {
   .wardrobe-layout .character-preview {
     height: 330px;
   }
+}
+
+button {
+  touch-action: manipulation;
 }

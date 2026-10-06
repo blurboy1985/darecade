@@ -29,8 +29,32 @@ export function route(
   end: { x: number; z: number },
   obstacles: Obstacle[],
 ) {
-  const sx = Math.round(start.x),
-    sz = Math.round(start.z),
+  const clearSegment = (x: number, z: number) => {
+    const steps = Math.ceil(Math.hypot(start.x - x, start.z - z) / 0.1);
+    for (let i = 1; i <= steps; i++)
+      if (
+        blocked(
+          start.x + ((x - start.x) * i) / steps,
+          start.z + ((z - start.z) * i) / steps,
+          obstacles,
+        )
+      )
+        return false;
+    return true;
+  };
+  const nearby = [];
+  for (let x = Math.floor(start.x) - 1; x <= Math.ceil(start.x) + 1; x++)
+    for (let z = Math.floor(start.z) - 1; z <= Math.ceil(start.z) + 1; z++)
+      if (!blocked(x, z, obstacles) && clearSegment(x, z))
+        nearby.push({ x, z });
+  nearby.sort(
+    (a, b) =>
+      Math.hypot(a.x - start.x, a.z - start.z) -
+      Math.hypot(b.x - start.x, b.z - start.z),
+  );
+  if (!nearby.length) return [];
+  const sx = nearby[0].x,
+    sz = nearby[0].z,
     ex = Math.round(end.x),
     ez = Math.round(end.z);
   if (blocked(ex, ez, obstacles)) return [];
@@ -47,7 +71,10 @@ export function route(
         path.push({ x: p[0], z: p[1] });
         p = prev.get(key(p[0], p[1]))!;
       }
-      return path.reverse().slice(1);
+      const ordered = path.reverse();
+      return Math.hypot(start.x - sx, start.z - sz) < 0.05
+        ? ordered.slice(1)
+        : ordered;
     }
     for (const [dx, dz] of [
       [0, 1],

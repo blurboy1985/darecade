@@ -14,6 +14,6 @@ export function worldPresenceCopy(
   );
   if (status !== "connected" || !me || !ids.has(me)) return "Finding players…";
   return ids.size === 1
-    ? "Just you here"
+    ? "Quiet right now — neighbours are around"
     : `${ids.size} players here · including you`;
 }

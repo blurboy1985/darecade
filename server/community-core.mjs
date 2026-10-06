@@ -861,6 +861,15 @@ export class CommunityCore {
       )
         throw Error("You already played this saved score. Try a new score.");
     }
+    // Negative seed namespace is reserved for unranked first-finish support.
+    // Existing positive seeds and in-flight replays keep their original rules.
+    if (
+      game === "coast" &&
+      !target &&
+      !dareId &&
+      !this.privateProfile(id).progress.coastRecord.timeTicks
+    )
+      seed = -seed - 1;
     const run = this.store.begin(id, game, target, {
       at,
       allowOnline: !!dare,
@@ -877,7 +886,7 @@ export class CommunityCore {
       ...run,
       seed,
       version: rulesVersion(game),
-      ranked: this.rankedAccount(id),
+      ranked: this.rankedAccount(id) && seed >= 0,
       dailySeed: seed === seedFor(game, day(at)),
     };
   }
@@ -919,7 +928,8 @@ export class CommunityCore {
         "This replay was submitted faster than the round could be played.",
       );
     const saved = this.store.transaction(() => {
-      const ranked = this.rankedAccount(id);
+      const ranked =
+        this.rankedAccount(id) && !(r.game === "coast" && r.seed < 0);
       this.db
         .prepare(
           "UPDATE runs SET score=?,finished=?,status='finished',verified=1,eligible=?,replay=?,digest=? WHERE id=?",
@@ -974,7 +984,8 @@ export class CommunityCore {
       const invite = p.rounds === 0 ? this.payInvite(id, p, at) : null;
       p.rounds++;
       p.xp += 20;
-      p.best[r.game] = Math.max(p.best[r.game], result.score);
+      if (!result.race?.novice)
+        p.best[r.game] = Math.max(p.best[r.game], result.score);
       this.save(id, p, { at });
       return {
         playMedal,

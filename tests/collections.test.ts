@@ -103,7 +103,7 @@ test("exchanges enforce server progress, debit once, survive reload and protect 
       JSON.parse(
         store.db.prepare("SELECT look FROM players WHERE id=?").get(id).look,
       ).clothing,
-      0,
+      me.progress.clothing,
     );
     const p = community.privateProfile(id).progress;
     p.xp = 1200;

@@ -1,3 +1,4 @@
+import { starterClasses } from "./class-costumes.ts";
 import {
   clothingNames,
   hairNames,
@@ -50,9 +51,14 @@ export function thumbnailLook(slot: WardrobeTab, index: number): Look {
     : { ...base, [slot]: index };
 }
 export function itemName(slot: WardrobeTab, index: number) {
+  if (slot === "sets" && index < 0) return starterClasses[-index - 1]?.name;
   return slot === "sets" ? legendarySets[index]?.name : names[slot][index];
 }
 export function itemLook(slot: WardrobeTab, index: number, worn: Look): Look {
+  if (slot === "sets" && index < 0) {
+    const starter = starterClasses[-index - 1];
+    return { ...worn, clothing: starter.clothing, hat: 0 };
+  }
   return slot === "sets"
     ? { ...worn, ...setLook(index) }
     : { ...worn, [slot]: index, ...(slot === "hair" ? { hat: 0 } : {}) };
@@ -76,12 +82,23 @@ export function wardrobeCards(
 ) {
   const entries =
     tab === "sets"
-      ? legendarySets.map((s, index) => ({ name: s.name, index }))
+      ? [
+          { name: legendarySets[9].name, index: 9 },
+          ...starterClasses.map((s, index) => ({
+            name: s.name,
+            index: -index - 1,
+          })),
+          ...legendarySets
+            .map((s, index) => ({ name: s.name, index }))
+            .filter((s) => s.index !== 9),
+        ]
       : names[tab]
           .map((name, index) => ({ name, index }))
           .filter(({ index }) => collectionFor(tab, index) === collection);
   return `<div class="collection-grid">${entries
     .map(({ name, index }) => {
+      if (tab === "sets" && index < 0)
+        return `<article class="collection-card"><button class="try-item" data-try-slot="sets" data-try-index="${index}" aria-label="Preview ${name}"><span class="item-art"><img class="avatar-thumbnail" data-thumbnail="sets:${index}" alt="${name}" width="240" height="220"></span><span class="item-state">Free starter class</span><strong>${name}</strong></button></article>`;
       const set =
         tab === "sets" ? legendarySets[index] : setForItem(tab, index);
       const owned =
@@ -109,7 +126,7 @@ export function wardrobeCards(
             : `${tier} · owned`
           : `${tier} · preview`;
       const thumb = `${tab}:${index}`;
-      return `<article class="collection-card ${selected ? "is-previewing" : ""}" style="--collection-color:${set?.color ?? "#b4a0f5"}"><button class="try-item" data-try-slot="${tab}" data-try-index="${index}" aria-label="Preview ${name}" aria-pressed="${selected}"><span class="item-art"><img data-thumbnail="${thumb}" src="/wardrobe/${thumb.replace(":", "-")}.png" loading="lazy" alt="${name}" width="240" height="220"></span><span class="item-state${set ? " is-premium" : ""}">${state}</span><strong>${name}</strong>${set ? `<small>${tab === "sets" ? set.theme : set.name}</small>` : ""}</button>${tab === "sets" && set ? `<div class="set-requirement"><small>Outfit + headwear + pet + magic</small>${owned ? `<span>Yours to mix & match</span>` : `<span>${set.cost} Style tokens</span><button class="secondary" data-redeem-set="${set.id}" ${canRedeem(set, p, medals) ? "" : "disabled"}>${canRedeem(set, p, medals) ? "Exchange tokens" : "Keep playing to unlock"}</button><button class="text-button" data-buy-set="${set.id}">Buy set options</button>`}</div>` : ""}</article>`;
+      return `<article class="collection-card ${selected ? "is-previewing" : ""}" style="--collection-color:${set?.color ?? "#b4a0f5"}"><button class="try-item" data-try-slot="${tab}" data-try-index="${index}" aria-label="Preview ${name}" aria-pressed="${selected}"><span class="item-art"><img data-thumbnail="${thumb}" class="avatar-thumbnail" loading="lazy" alt="${name}" width="240" height="220"></span><span class="item-state${set ? " is-premium" : ""}">${state}</span><strong>${name}</strong>${set ? `<small>${tab === "sets" ? set.theme : set.name}</small>` : ""}</button>${tab === "sets" && set ? `<div class="set-requirement"><small>Outfit + headwear + pet + magic</small>${owned ? `<span>Yours to mix & match</span>` : `<span>${set.cost} Style tokens</span><button class="secondary" data-redeem-set="${set.id}" ${canRedeem(set, p, medals) ? "" : "disabled"}>${canRedeem(set, p, medals) ? "Exchange tokens" : "Keep playing to unlock"}</button><button class="text-button" data-buy-set="${set.id}">Buy set options</button>`}</div>` : ""}</article>`;
     })
     .join("")}</div>`;
 }

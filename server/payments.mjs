@@ -149,6 +149,8 @@ export class Payments {
       fail("Save your account with email before making a payment.", 403);
     const product = this.catalog().find((p) => p.id === productId);
     if (!product) fail("This item is not available for purchase.");
+    if (product.kind === "donation" && profile.ageBand !== "18+")
+      fail("Donations are available to adults only.", 403);
     if (product.kind === "set" && ownsSet(profile.progress, product.id))
       fail("You already own this set.");
     const price = await this.stripe(`prices/${product.priceId}`);

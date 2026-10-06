@@ -1,3 +1,4 @@
+import { seededLook } from "../src/character-identity.ts";
 import { clampMovement } from "./world-core.mjs";
 import { appearanceLimits } from "../src/appearance.ts";
 import { randomUUID, randomBytes, createHash } from "node:crypto";
@@ -135,9 +136,17 @@ export class StoreCore {
     const name = `${["Sunny Otter", "Cosmic Cat", "Brave Panda", "Mellow Fox", "Mint Gecko"][count % 5]} ${String(count + 1).padStart(2, "0")}`;
     this.db
       .prepare(
-        "INSERT INTO players(id,token,name,created,since,seen) VALUES(?,?,?,?,?,?)",
+        "INSERT INTO players(id,token,name,created,since,seen,look) VALUES(?,?,?,?,?,?,?)",
       )
-      .run(id, hash(token), name, this.now(), this.now(), this.now());
+      .run(
+        id,
+        hash(token),
+        name,
+        this.now(),
+        this.now(),
+        this.now(),
+        JSON.stringify(seededLook(id)),
+      );
     return { id, token };
   }
   status(id) {

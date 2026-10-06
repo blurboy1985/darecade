@@ -1,9 +1,19 @@
+import { cameraOcclusion } from "./camera-occlusion";
+import {
+  seededLook,
+  identitySeed,
+  distinctHair,
+  separateCharacter,
+} from "./character-identity";
+import { MovementInput } from "./movement-input";
 import {
   createAvatar as avatar,
   applyLook,
   animateDetails,
+  setAvatarDetail,
   disposeAvatar,
   type Avatar,
+  type Look,
 } from "./character";
 import type { SharedPlayer } from "./social";
 import { MovementBuffer } from "./movement-buffer";
@@ -37,7 +47,7 @@ export const spots: Spot[] = [
   { id: "cat", name: "Kopi the cat", x: -9, z: 6, approach: [-8, 6] },
   {
     id: "playground",
-    name: "Dragon Playground",
+    name: "Dragon Rooftop",
     x: 9,
     z: 10,
     approach: [6, 10],
@@ -139,7 +149,7 @@ function sign(
   c.fillStyle = fg;
   c.textAlign = "center";
   c.textBaseline = "middle";
-  c.font = `900 ${(size * 1024) / 512}px Arial, sans-serif`;
+  c.font = `900 ${Math.max((size * 1024) / 512, canvas.height * 0.6)}px Arial, sans-serif`;
   c.fillText(text, 512, canvas.height / 2, 970);
   const tex = new T.CanvasTexture(canvas);
   tex.colorSpace = T.SRGBColorSpace;
@@ -210,6 +220,9 @@ export class LobbyWorld {
   camera: T.OrthographicCamera | T.PerspectiveCamera = this.mapCamera;
   cameraMode: "isometric" | "third" = "isometric";
   pitch = 0.34;
+  private occlusion?: ReturnType<typeof cameraOcclusion>;
+  private revealAt = -Infinity;
+  private revealYaw = 0;
   followDistance = 7;
   inspectedId = "";
   private sharedPlayers = new Map<
@@ -229,6 +242,7 @@ export class LobbyWorld {
     activity: ActivityId;
     offset: number;
   }[] = [];
+  private movementInput = new MovementInput();
   private pointers = new Map<number, { x: number; y: number }>();
   private dragStart = { x: 0, y: 0 };
   private dragged = false;
@@ -270,6 +284,7 @@ export class LobbyWorld {
   private frames = 0;
   private monitor = 0;
   private low = false;
+  private shadowAt = -1;
   private marker: T.Mesh;
   private listener: ResizeObserver;
   interactions!: InteractionScenes;
@@ -317,7 +332,9 @@ export class LobbyWorld {
       alpha: true,
       powerPreference: "high-performance",
     });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+    this.renderer.setPixelRatio(
+      Math.min(devicePixelRatio, host.clientWidth < 760 ? 1.25 : 1.5),
+    );
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = T.PCFShadowMap;
     this.renderer.outputColorSpace = T.SRGBColorSpace;
@@ -437,6 +454,7 @@ export class LobbyWorld {
         ),
       ]),
     );
+    this.occlusion = cameraOcclusion(this.root);
     const playerRing = new T.Mesh(
       new T.RingGeometry(0.52, 0.7, 32),
       new T.MeshBasicMaterial({ color: "#e7ffab", side: T.DoubleSide }),
@@ -446,26 +464,6 @@ export class LobbyWorld {
     playerRing.userData.avatarDecoration = true;
     playerRing.position.y = 0.05;
     this.player.root.add(playerRing);
-    const youCanvas = document.createElement("canvas");
-    youCanvas.width = 128;
-    youCanvas.height = 64;
-    const yc = youCanvas.getContext("2d")!;
-    yc.fillStyle = "#293d45";
-    yc.beginPath();
-    yc.roundRect(4, 4, 120, 52, 16);
-    yc.fill();
-    yc.fillStyle = "#e7f2cb";
-    yc.font = "bold 28px Arial";
-    yc.textAlign = "center";
-    yc.fillText("YOU", 64, 41);
-    const youTex = new T.CanvasTexture(youCanvas);
-    const youLabel = new T.Sprite(
-      new T.SpriteMaterial({ map: youTex, depthTest: false }),
-    );
-    youLabel.position.y = 2.05;
-    youLabel.userData.avatarDecoration = true;
-    youLabel.scale.set(1.1, 0.55, 1);
-    this.player.root.add(youLabel);
     this.obstacle(-2, 10, 3.2, 1.4);
     this.interactions = new InteractionScenes(this.root, (scene, id) => {
       this.targets.push({ mesh: scene, id: `action:${id}` });
@@ -517,19 +515,6 @@ export class LobbyWorld {
     box(this.root, 0, 0.13, -3, 31, 0.025, 3.4, "#edddc4");
     for (let i = 0; i < 7; i++)
       box(this.root, -1.1 + i * 0.37, 0.15, 12.5, 0.15, 0.02, 1.4, "#a99d8d");
-    const welcome = sign(
-      this.root,
-      "MEET YOU DOWNSTAIRS.",
-      0,
-      0.16,
-      12,
-      6.5,
-      0.8,
-      "#e8d9c1",
-      "#85736b",
-      27,
-    );
-    welcome.rotation.x = -Math.PI / 2;
     // A miniature city outside the playable island gives the plaza a neighbourhood context.
     const backdrop = box(this.scene, 0, -1.65, 0, 220, 0.1, 220, "#9da9b8");
     backdrop.receiveShadow = true;
@@ -568,18 +553,7 @@ export class LobbyWorld {
       box(g, x, 0.55, 0.9, 0.7, 0.45, 0.73, "#e9e8cc");
     }
     box(g, 0, 4.3, 3.25, 19.1, 0.72, 0.17, "#38434e");
-    sign(
-      g,
-      "A R C A D E   R O W",
-      0,
-      4.32,
-      3.35,
-      12,
-      0.66,
-      "#38434e",
-      "#f5e9ac",
-      34,
-    );
+    sign(g, "ARCADE ROW", 1.5, 4.32, 3.35, 8, 0.66, "#38434e", "#f5e9ac", 48);
     for (let x = -8.5; x <= 8.5; x += 1.55) {
       const bulb = sphere(g, x, 3.83, 3.12, 0.1, "#ffe7ad");
       (bulb.material as T.MeshStandardMaterial) = material("#ffe7ad", true);
@@ -605,7 +579,7 @@ export class LobbyWorld {
       controls.rotation.x = -0.16;
       // Blender interaction assets supply the animated joystick and buttons.
       box(c, 0, 0.35, 0.58, 0.4, 0.16, 0.025, "#34434c");
-      sign(c, names[i], 0, 2.51, 0.65, 1.69, 0.36, "#283548", cols[i], 34);
+      sign(c, names[i], 0, 2.69, 0.65, 2.5, 0.56, "#20283b", "#fff5d8", 42);
       const screen = sign(
         c,
         ["● ━ ━ ●", "▰ ▰ ▰", "↑ HOP ↑", "✦ SWARM", "COAST GP"][i],
@@ -844,18 +818,7 @@ export class LobbyWorld {
     this.obstacle(-15, -2.5, 4.2, 1.2);
     for (const x of [-1.7, 1.7]) box(g, x, 1.7, 0, 0.2, 3.4, 0.2, "#687a75");
     box(g, 0, 2.8, 0, 4.6, 3.1, 0.28, "#50655f");
-    sign(
-      g,
-      "THE DAILY BOARD",
-      0,
-      3.95,
-      0.17,
-      4.2,
-      0.55,
-      "#50655f",
-      "#f4d797",
-      33,
-    );
+    sign(g, "DAILY BOARD", 0, 3.95, 0.17, 4.2, 0.55, "#50655f", "#f4d797", 48);
     sign(
       g,
       "GOLD  +3 POINTS / DAY",
@@ -1228,7 +1191,7 @@ export class LobbyWorld {
     const placeholder = new T.Group();
     placeholder.position.set(11, 0.3, 10);
     this.root.add(placeholder);
-    this.obstacle(11, 10, 5, 3);
+    this.obstacle(11, 10, 6, 4);
     // The authored Blender mesh is optional; the procedural shape keeps the scene usable if it fails to load.
     for (let i = 0; i < 5; i++) {
       const a = i * 0.5;
@@ -1251,6 +1214,7 @@ export class LobbyWorld {
         batchStatic(gltf.scene);
         placeholder.clear();
         placeholder.add(gltf.scene);
+        this.occlusion?.include(gltf.scene);
         gltf.scene.traverse((o) => {
           if (o instanceof T.Mesh) {
             o.castShadow = true;
@@ -1265,7 +1229,7 @@ export class LobbyWorld {
     this.targets.push({ mesh: placeholder, id: "playground" });
     sign(
       this.root,
-      "SMALL ADVENTURES CLUB",
+      "DRAGON ROOFTOP",
       11,
       1,
       13.45,
@@ -1321,8 +1285,37 @@ export class LobbyWorld {
       this.targets.push({ mesh: hit, id: s.id });
     }
   }
-  updateAvatar() {
-    applyLook(this.player, this.save);
+  updateAvatar(look: Look = this.save) {
+    if (
+      [
+        "outfit",
+        "skin",
+        "body",
+        "hair",
+        "clothing",
+        "hat",
+        "pet",
+        "accessory",
+      ].some(
+        (key) =>
+          (this.player.look[key as keyof Look] ?? 0) !==
+          (look[key as keyof Look] ?? 0),
+      )
+    ) {
+      applyLook(this.player, look);
+      this.revealAt = this.clock;
+      this.revealYaw = this.player.root.rotation.y;
+    }
+    const occupied = new Set([
+      look.hair ?? 0,
+      ...[...this.sharedPlayers.values()].map((p) => p.avatar.look.hair ?? 0),
+    ]);
+    for (const resident of this.neighbours) {
+      const other = resident.avatar.look;
+      const hair = distinctHair(other.hair ?? 0, occupied);
+      occupied.add(hair);
+      if (hair !== other.hair) applyLook(resident.avatar, { ...other, hair });
+    }
   }
   syncPlayers(
     players: SharedPlayer[],
@@ -1423,21 +1416,26 @@ export class LobbyWorld {
     );
   }
   private buildNeighbours() {
+    const occupied = new Set([this.save.hair % 8]);
     for (const [index, r] of residents.entries()) {
+      const look = seededLook(r.id);
+      look.hair = distinctHair(look.hair, occupied);
+      occupied.add(look.hair);
       const a = avatar(
         this.root,
         0,
         0,
-        outfits[r.outfit],
-        skins[r.skin],
-        r.hat,
+        outfits[look.outfit],
+        skins[look.skin],
+        0,
         {
-          clothing: index % 4,
-          hair: (index + 1) % 4,
+          ...look,
           pet: index === 0 ? 2 : index === 3 ? 1 : 0,
           accessory: index === 2 ? 2 : index === 1 ? 1 : 0,
         },
       );
+      if (a.look.hair === this.save.hair)
+        applyLook(a, { ...a.look, hair: ((a.look.hair ?? 0) + 1) % 8 });
       a.root.userData.id = `resident:${r.id}`;
       this.targets.push({ mesh: a.root, id: a.root.userData.id });
       this.neighbours.push({
@@ -1714,15 +1712,7 @@ export class LobbyWorld {
     this.setCameraMode(this.save.cameraMode);
   }
   setLighting(mode: string) {
-    let hour = 18;
-    if (mode === "auto")
-      hour = Number(
-        new Intl.DateTimeFormat("en-GB", {
-          timeZone: "Asia/Singapore",
-          hour: "numeric",
-          hour12: false,
-        }).format(new Date()),
-      );
+    const hour = new Date().getHours();
     const night =
       mode === "night" || (mode === "auto" && (hour >= 19 || hour < 7));
     const day = mode === "day" || (mode === "auto" && hour >= 7 && hour < 17);
@@ -1746,6 +1736,8 @@ export class LobbyWorld {
     const w = this.host.clientWidth,
       h = this.host.clientHeight;
     this.mobile = w < 760;
+    this.renderer.shadowMap.autoUpdate = !this.mobile;
+    this.renderer.shadowMap.needsUpdate = true;
     this.renderer.setSize(w, h);
     this.updateCamera();
   }
@@ -1764,29 +1756,9 @@ export class LobbyWorld {
         Math.sin(this.pitch),
         Math.cos(this.angle) * Math.cos(this.pitch),
       );
-      let distance = this.followDistance;
-      for (let d = 0.6; d < distance; d += 0.2) {
-        const q = focus.clone().addScaledVector(offset, d);
-        if (
-          this.obstacles.some((o) => {
-            const contains = (x: number, z: number) =>
-              Math.abs(x - o.x) < o.w / 2 + 0.15 &&
-              Math.abs(z - o.z) < o.d / 2 + 0.15;
-            return (
-              !contains(focus.x, focus.z) &&
-              q.y < o.cameraHeight &&
-              contains(q.x, q.z)
-            );
-          })
-        ) {
-          distance = Math.max(0.6, d - 0.25);
-          break;
-        }
-      }
+      this.followCamera.fov = this.mobile && !this.inspectedId ? 82 : 52;
+      const distance = Math.max(3.2, this.followDistance);
       this.followCamera.position.copy(focus).addScaledVector(offset, distance);
-      // A wall can compress the follow distance inside a large KayKit head.
-      // Lift the camera in tight spaces while continuing to aim at the player.
-      this.followCamera.position.y += Math.max(0, 1.25 - distance) * 2;
       this.followCamera.position.y = Math.max(
         0.35,
         this.followCamera.position.y,
@@ -1797,7 +1769,7 @@ export class LobbyWorld {
           .clone()
           .add(
             new T.Vector3(
-              0,
+              this.mobile && !this.inspectedId ? -1.8 : 0,
               this.mobile
                 ? this.inspectedId
                   ? -0.65
@@ -1950,6 +1922,15 @@ export class LobbyWorld {
       true,
     );
     const visibleHits = intersections.filter((h) => {
+      let owner: T.Object3D | null = h.object;
+      while (owner && !owner.userData.avatar) owner = owner.parent;
+      if (owner) {
+        const avatar = owner.userData.avatar as Avatar;
+        let part: T.Object3D | null = h.object;
+        while (part && part !== avatar.model && !part.userData.playerLabel)
+          part = part.parent;
+        if (!part) return false;
+      }
       let p: T.Object3D | null = h.object;
       while (p) {
         if (!p.visible) return false;
@@ -2033,11 +2014,6 @@ export class LobbyWorld {
       ].includes(k)
     )
       this.cancelInteraction();
-    if (k === "v" && !e.repeat) {
-      this.setCameraMode(this.cameraMode === "third" ? "isometric" : "third");
-      window.dispatchEvent(new Event("camera-change"));
-      return;
-    }
     if (this.save.away || this.inspectedId) return;
     if (
       [
@@ -2055,6 +2031,20 @@ export class LobbyWorld {
     ) {
       e.preventDefault();
       this.keys.add(k);
+      if (
+        !e.repeat &&
+        [
+          "w",
+          "a",
+          "s",
+          "d",
+          "arrowup",
+          "arrowdown",
+          "arrowleft",
+          "arrowright",
+        ].includes(k)
+      )
+        this.movementInput.press(k);
       if (k === "e" && !e.repeat && this.near) this.onInteract(this.near);
       if (k === " " && !e.repeat) this.act("jump");
     }
@@ -2064,6 +2054,7 @@ export class LobbyWorld {
   };
   private clearKeys = () => {
     this.keys.clear();
+    this.movementInput.clear();
     this.joystick = { x: 0, y: 0 };
   };
   private visibility = () => {
@@ -2071,6 +2062,22 @@ export class LobbyWorld {
     this.last = 0;
   };
   act(id: string) {
+    if (id === "jump") {
+      if (
+        this.paused ||
+        this.save.away ||
+        this.inspectedId ||
+        this.interactionId
+      )
+        return;
+      // The camera follows the avatar's height. Restarting this arc in the air
+      // snaps both back to the ground, so accept the next jump after landing.
+      if (this.emote === "jump" && this.clock - this.emoteAt < 1) return;
+    }
+    if (id !== "jump") {
+      this.revealAt = this.clock;
+      this.revealYaw = this.player.root.rotation.y;
+    }
     this.emote = id;
     this.emoteAt = this.clock;
   }
@@ -2273,6 +2280,25 @@ export class LobbyWorld {
       }
     }
     if (this.cameraMode === "third") this.updateCamera();
+    const occupiedPositions = [this.player.root.position];
+    const neighbours = [
+      ...[...this.sharedPlayers.entries()].map(([id, item]) => ({
+        id,
+        avatar: item.avatar,
+      })),
+      ...this.neighbours,
+    ];
+    for (const [index, neighbour] of neighbours.entries()) {
+      separateCharacter(
+        neighbour.avatar.root.position,
+        occupiedPositions,
+        identitySeed(neighbour.id),
+      );
+      occupiedPositions.push(neighbour.avatar.root.position);
+      for (const label of neighbour.avatar.root.children)
+        if (label.userData.playerLabel)
+          label.position.y = 2.45 + (index % 3) * 0.18;
+    }
     for (const object of this.root.children) {
       const a = object.userData.avatar as Avatar | undefined;
       if (!a) continue;
@@ -2297,8 +2323,22 @@ export class LobbyWorld {
               : undefined) ||
             resident?.activity ||
             "idle";
-      animateDetails(a, this.clock, mode, this.reduced);
+      const near =
+        a === this.player ||
+        a.root.position.distanceTo(this.camera.position) < 24;
+      setAvatarDetail(a, near);
+      animateDetails(a, this.clock, mode, this.reduced || !near);
     }
+    // Phone shadows update at 20 Hz; motion and the main scene stay at display rate.
+    if (this.mobile && this.clock - this.shadowAt >= 0.05) {
+      this.renderer.shadowMap.needsUpdate = true;
+      this.shadowAt = this.clock;
+    }
+    this.occlusion?.update(
+      this.player.root.position,
+      this.camera.position,
+      this.cameraMode === "third",
+    );
     this.renderer.render(this.scene, this.camera);
     this.renderer.domElement.dataset.position = `${this.player.root.position.x.toFixed(2)},${this.player.root.position.z.toFixed(2)}`;
     this.accumulator += elapsed;
@@ -2323,16 +2363,17 @@ export class LobbyWorld {
     }
   };
   private move(dt: number) {
+    const keys = this.movementInput.sample(this.keys, dt);
     const p = this.player.root.position;
     let dx = 0,
       dz = 0;
     const x =
-      Number(this.keys.has("d") || this.keys.has("arrowright")) -
-      Number(this.keys.has("a") || this.keys.has("arrowleft")) +
+      Number(keys.has("d") || keys.has("arrowright")) -
+      Number(keys.has("a") || keys.has("arrowleft")) +
       this.joystick.x;
     const y =
-      Number(this.keys.has("s") || this.keys.has("arrowdown")) -
-      Number(this.keys.has("w") || this.keys.has("arrowup")) +
+      Number(keys.has("s") || keys.has("arrowdown")) -
+      Number(keys.has("w") || keys.has("arrowup")) +
       this.joystick.y;
     if (x || y) {
       this.path = [];
@@ -2406,6 +2447,15 @@ export class LobbyWorld {
     const active = this.emote && t < 2.5;
     p.root.position.y = 0.1;
     p.root.rotation.z = 0;
+    const revealAge = this.clock - this.revealAt;
+    if (revealAge < 1.25) {
+      const turn = Math.atan2(
+        Math.sin(this.angle - this.revealYaw),
+        Math.cos(this.angle - this.revealYaw),
+      );
+      const progress = Math.min(1, revealAge / 0.3);
+      p.root.rotation.y = this.revealYaw + turn * (1 - (1 - progress) ** 3);
+    }
     p.left.rotation.set(0, 0, 0);
     p.right.rotation.set(0, 0, 0);
     if (!active) {
@@ -2416,11 +2466,11 @@ export class LobbyWorld {
       p.root.position.y =
         0.1 + Math.max(0, Math.sin(Math.min(t, 1) * Math.PI)) * 1.5;
     if (this.emote === "wave") {
-      p.right.rotation.z = -2.4 + Math.sin(t * 10) * 0.35;
+      p.right.rotation.z = 2.1 + Math.sin(t * 10) * 0.25;
     }
     if (this.emote === "cheer" || this.emote === "victory") {
-      p.left.rotation.z = 2.4;
-      p.right.rotation.z = -2.4;
+      p.left.rotation.z = -2.1;
+      p.right.rotation.z = 2.1;
     }
     if (this.emote === "dance") {
       p.left.rotation.z = Math.sin(t * 8);
@@ -2460,6 +2510,7 @@ export class LobbyWorld {
       if (a) avatars.add(a);
     });
     avatars.forEach(disposeAvatar);
+    this.occlusion?.dispose();
     this.renderer.dispose();
   }
 }

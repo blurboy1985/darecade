@@ -211,6 +211,7 @@ function harness() {
     playtestEnabled: false,
     socialPanel: "",
     characterPreview: null,
+    mountAvatarCards: noop,
     profileQueue: Promise.resolve(),
     worldPicker: { open: noop },
     startOutdoor: noop,
@@ -307,7 +308,7 @@ test("wardrobe renders previews before selection without equipping them", () => 
     ];
     assert.ok(cards.length > 0, tab);
     for (const [card] of cards) {
-      assert.match(card, /<img[^>]+src="\/wardrobe\//);
+      assert.match(card, /<img[^>]+data-thumbnail=/);
       assert.match(card, /aria-label="Preview /);
     }
     assert.match(html, /Tap a card to try it on/);

@@ -1,3 +1,17 @@
+import {
+  buildClassBody,
+  buildClassHead,
+  classFor,
+  animateCostume,
+} from "./class-costumes.ts";
+import {
+  addWink,
+  buildHair,
+  buildMouth,
+  expressionFor,
+  outlineModel,
+  rimMaterial,
+} from "./character-finish.ts";
 import { extraIndexFor, legendarySets, setIndexFor } from "./collections.ts";
 import { legendaryHead, legendaryBody } from "./legendary.ts";
 import * as T from "three";
@@ -68,6 +82,7 @@ export function loadCharacter() {
     .loadAsync("/models/neighbour-chibi2.glb?v=6")
     .then((g) => {
       template = g.scene;
+      addWink(template);
       template.scale.setScalar(CHARACTER_SCALE);
     })
     .catch((error: unknown) => {
@@ -323,6 +338,26 @@ export function createAvatar(
       if (!m) {
         // Each avatar colours its own copies; the textures stay shared.
         m = original.clone();
+        rimMaterial(m);
+        if (original.name === "eyes" || original.name === "eyes_b") {
+          m.onBeforeCompile = (shader) => {
+            shader.uniforms.irisTint = {
+              value: m!.userData.irisTint ?? new T.Color("#795038"),
+            };
+            shader.fragmentShader =
+              "uniform vec3 irisTint;\n" + shader.fragmentShader;
+            shader.fragmentShader = shader.fragmentShader.replace(
+              "#include <map_fragment>",
+              `
+              #include <map_fragment>
+              float irisMask = (1.0 - smoothstep(0.5, 0.85, max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b)))) * smoothstep(0.025, 0.12, max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b)));
+              diffuseColor.rgb = mix(diffuseColor.rgb, irisTint * (0.5 + diffuseColor.r), irisMask * 0.65);
+            `,
+            );
+          };
+          m.customProgramCacheKey = () => "simi-iris-v1";
+          if (m.map) m.map.anisotropy = 4;
+        }
         materials.set(original.name, m);
       }
       o.material = m;
@@ -332,6 +367,7 @@ export function createAvatar(
       o.receiveShadow = false;
     }
   });
+  outlineModel(model);
   model.updateMatrixWorld(true);
   const rig = new Map<string, { bone: T.Object3D; rest: T.Quaternion }>();
   model.traverse((bone) => {
@@ -377,6 +413,13 @@ export function createAvatar(
     rig,
     expressions,
   };
+  for (const suffix of ["r", "l"]) {
+    const wrist = rig.get("wrist" + suffix)?.bone;
+    if (wrist) {
+      const mitten = ellipsoid(wrist, [0, 0, 0], [0.075, 0.09, 0.065], skin);
+      mitten.name = "Mitten";
+    }
+  }
   root.add(a.hat, a.extras, a.costume);
   root.userData.avatar = a;
   applyLook(a, a.look, color, skin);
@@ -390,10 +433,23 @@ export function applyLook(
   skin = skins[look.skin],
 ) {
   const previous = a.look;
+  for (const name of ["eyes", "eyes_b"]) {
+    const material = a.materials.get(name);
+    if (material) {
+      const tint = (material.userData.irisTint ??= new T.Color());
+      tint.set(
+        ["#916136", "#3694cc", "#3a9c79", "#9666cf"][
+          (look.skin + (look.hair ?? 0)) % 4
+        ],
+      );
+    }
+  }
   const outfitSet = setIndexFor("clothing", look.clothing ?? 0);
   const headSet = setIndexFor("hair", look.hair ?? 0);
   const special = legendarySets[outfitSet];
+  const starter = classFor(look.clothing ?? 0);
   if (special) color = special.color;
+  else if (starter) color = starter.color;
   a.look = { body: 0, clothing: 0, hair: 0, pet: 0, accessory: 0, ...look };
   const boy = a.look.body === 1;
   const [top, legs, cape] = special
@@ -408,18 +464,26 @@ export function applyLook(
   const below = bottoms[legs];
   const shown = new Set([
     ...alwaysShown,
-    ...hairParts[hair.style],
+
     boy ? "EyesB" : "Eyes",
     boy && below.part === "Skirt" ? "Shorts" : below.part,
   ]);
   if (tops[top].jacket) shown.add("Jacket");
-  if (cape) shown.add("Cape");
+  if (starter?.prop === "staff") shown.delete("Skirt");
+  if (cape && !special && !classFor(a.look.clothing!)) shown.add("Cape");
   if (below.shoes) shown.add("Shoes");
-  if (wear && !look.hat) shown.add(wear);
+  if (wear && !look.hat && !classFor(a.look.clothing!)) shown.add(wear);
   a.model.traverse((o) => {
-    if (o instanceof T.Mesh) o.visible = shown.has(o.name);
+    if (o instanceof T.Mesh) {
+      o.visible = o.name === "Mitten" || shown.has(o.name);
+      if (o.userData.outline) o.userData.selected = o.visible;
+      if (o.name === "Mitten") o.material = mat(skin);
+    }
   });
   const primary = new T.Color(color);
+  const hsl = { h: 0, s: 0, l: 0 };
+  primary.getHSL(hsl);
+  primary.setHSL(hsl.h, Math.min(1, hsl.s * 1.5), Math.min(0.58, hsl.l));
   const tone = new T.Color(skin),
     base = new T.Color(BASE_SKIN);
   const paint: Record<string, T.Color> = {
@@ -433,6 +497,11 @@ export function applyLook(
     cape: primary.clone().multiplyScalar(0.7),
     ...tops[top].paint(primary),
   };
+  if (starter) {
+    paint.jacket = primary;
+    paint.shirt = primary;
+    paint.bottom = primary.clone().multiplyScalar(0.7);
+  }
   if (special) {
     // Sets wear their two signature colours from collar to hem.
     const accent = new T.Color(special.accent);
@@ -448,6 +517,9 @@ export function applyLook(
   // Set trim was sized for a broader chest; draw it in to this one.
   a.costume.scale.setScalar(0.82);
   if (special) legendaryBody(a.costume, outfitSet);
+  buildClassBody(a.costume, a.look.clothing!, !!special);
+  a.root.userData.equippedAt = null;
+  delete a.root.userData.detailLevel;
   a.hat.clear();
   if (look.hat === 1) {
     ellipsoid(a.hat, [0, 1.83, 0], [0.24, 0.12, 0.22], "#e7a769");
@@ -472,11 +544,14 @@ export function applyLook(
   for (const part of a.hat.children) {
     part.position.x *= 1.85;
     part.position.z *= 1.85;
-    part.position.y -= 0.16;
+    part.position.y += 0.04;
     part.scale.x *= 1.85;
     part.scale.z *= 1.85;
     part.scale.y *= 1.25;
   }
+  buildHair(a.hat, a.look.hair!);
+  buildMouth(a.hat, skin);
+  if (!look.hat) buildClassHead(a.hat, a.look.clothing!);
   if (hair.beard) buildBeard(a.hat, hair.color);
   if (hair.hood && !look.hat) buildHood(a.hat);
   // Wardrobe headgear sits under an earned hat's slot: the earned hat wins.
@@ -553,13 +628,46 @@ export function animateDetails(
   a.moving = travel > 0.008;
   a.last.copy(a.root.position);
   const t = reduced ? 0 : time;
-  const blinkPhase = t % 4.6;
+  a.root.userData.equippedAt ??= time;
+  animateCostume(
+    a.costume,
+    t,
+    a.moving,
+    reduced,
+    time - a.root.userData.equippedAt,
+  );
+  const blinkPhase =
+    (t + (a.look.hair ?? 0) * 0.37) % (3.4 + (a.look.skin % 4) * 0.6);
+  const expression = expressionFor(mode);
+  const mouth = a.hat.getObjectByName("Mouth");
+  if (mouth)
+    mouth.scale.set(
+      expression === "surprised" ? 0.022 : expression === "wink" ? 0.02 : 0.027,
+      expression === "surprised"
+        ? 0.028
+        : expression === "sleepy"
+          ? 0.004
+          : 0.009,
+      0.003,
+    );
+  const hairVolume = a.hat.getObjectByName("VolumetricHair");
+  if (hairVolume) {
+    hairVolume.rotation.z =
+      Math.sin(t * (a.moving ? 10 : 1.8)) * (a.moving ? 0.045 : 0.012);
+    hairVolume.position.y = 1.46 + Math.sin(t * 3) * 0.008;
+  }
   const blink =
-    blinkPhase < 0.18 ? Math.sin((Math.PI * blinkPhase) / 0.18) ** 2 : 0;
+    !reduced && blinkPhase < 0.28
+      ? Math.sin((Math.PI * blinkPhase) / 0.28) ** 2
+      : 0;
   for (const mesh of a.expressions) {
     const dictionary = mesh.morphTargetDictionary!;
     const influences = mesh.morphTargetInfluences!;
-    if (dictionary.Blink !== undefined) influences[dictionary.Blink] = blink;
+    if (dictionary.Blink !== undefined)
+      influences[dictionary.Blink] =
+        expression === "sleepy" ? Math.max(0.55, blink) : blink;
+    if (dictionary.Wink !== undefined)
+      influences[dictionary.Wink] = expression === "wink" ? 0.95 : 0;
     if (dictionary.Smile !== undefined)
       influences[dictionary.Smile] = ["wave", "dance", "pet"].includes(mode)
         ? 0.35
@@ -613,7 +721,11 @@ export function animateDetails(
     !performing && !a.moving ? Math.sin(t * 0.8) * 0.09 : 0,
     mode === "think" ? 0.09 : 0,
   );
-  a.spine.rotation.z = !performing && a.moving ? gait * 0.025 : 0;
+  a.spine.rotation.z = !performing
+    ? a.moving
+      ? gait * 0.025
+      : Math.sin(t * 1.2) * 0.018
+    : 0;
   // The older clip bends the whole root toward Kopi. Keep the larger KayKit
   // head upright while crouching so its face does not intersect the cat.
   a.spine.rotation.x = mode === "pet" ? -0.25 : 0;
@@ -636,6 +748,14 @@ export function animateDetails(
     a.spine.rotation.set(0.05, 0, 0);
   }
   poseSkin(a, mode);
+  if (!reduced && !performing) {
+    const lift = a.moving
+      ? Math.abs(Math.sin(t * 10)) * 0.025
+      : Math.sin(t * 2) * 0.009;
+    a.model.position.y += lift;
+    a.hat.position.y += lift;
+    a.costume.position.y += lift;
+  }
   if (a.pet) {
     const target = new T.Vector3(0.8, 0.02, 0.9)
       .applyAxisAngle(new T.Vector3(0, 1, 0), a.root.rotation.y)
@@ -856,7 +976,10 @@ export function createCharacterPreview(
 ) {
   const renderer = new T.WebGLRenderer({ alpha: true, antialias: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
-  renderer.setSize(host.clientWidth, Math.max(160, host.clientHeight));
+  renderer.setSize(
+    Math.max(1, host.clientWidth),
+    Math.max(160, host.clientHeight),
+  );
   renderer.setClearColor("#e8eadc", 0);
   host.append(renderer.domElement);
   const scene = new T.Scene();
@@ -866,7 +989,7 @@ export function createCharacterPreview(
   scene.add(light);
   const camera = new T.PerspectiveCamera(
     35,
-    host.clientWidth / Math.max(160, host.clientHeight),
+    Math.max(1, host.clientWidth) / Math.max(160, host.clientHeight),
     0.1,
     30,
   );
@@ -906,7 +1029,7 @@ export function createCharacterPreview(
     last = 0;
   const loop = (t: number) => {
     frame = requestAnimationFrame(loop);
-    if (t - last < 33) return;
+    if (!host.isConnected || t - last < 33) return;
     last = t;
     animateDetails(a, t / 1000, "idle", look.reduced);
     if (a.pet) a.pet.root.rotation.y = a.root.rotation.y - 0.18;
@@ -938,19 +1061,21 @@ export function createCharacterPreview(
       camera.aspect = 240 / 220;
       // [x, camera height, distance, target height] for each kind of card.
       const [x, y, z, aim] =
-        slot === "hair"
-          ? [0, 1.75, 3.1, 1.68]
-          : slot === "pet"
-            ? [0.85, 0.8, 2.8, 0.5]
-            : slot === "clothing"
-              ? [0, 1.35, 4, 1.02]
-              : [0.25, 1.5, 5.2, 1.15];
+        slot === "portrait"
+          ? [0, 1.45, 2.1, 1.43]
+          : slot === "hair"
+            ? [0, 1.75, 3.1, 1.68]
+            : slot === "pet"
+              ? [0.4, 1.4, 5.0, 1.05]
+              : slot === "clothing"
+                ? [0, 1.35, 4, 1.02]
+                : [0.25, 1.5, 5.2, 1.15];
       camera.position.set(x, y, z);
       camera.lookAt(x, aim, 0);
       camera.updateProjectionMatrix();
       applyLook(a, itemLook);
       a.root.rotation.y = 0.15;
-      a.root.visible = slot !== "pet";
+      a.root.visible = true;
       animateDetails(a, 1.4, "idle", true);
       renderer.render(scene, camera);
       const image = renderer.domElement.toDataURL("image/png");
@@ -985,4 +1110,16 @@ export function createCharacterPreview(
       renderer.domElement.remove();
     },
   };
+}
+
+/** At gameplay distance, keep the silhouette but drop subpixel outline draws. */
+export function setAvatarDetail(a: Avatar, near: boolean) {
+  if (a.root.userData.detailLevel === near) return;
+  a.root.userData.detailLevel = near;
+  a.model.traverse((o) => {
+    if (o.userData.outline) o.visible = near && !!o.userData.selected;
+  });
+  a.hat.traverse((o) => {
+    if (o.userData.outline) o.visible = near;
+  });
 }

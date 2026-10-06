@@ -28,7 +28,10 @@ test("presence counts live people including self, deduplicates and never counts 
   assert.equal(worldPresenceCopy([], "me", "joining"), "Finding players…");
   assert.equal(worldPresenceCopy([], "me", "connected"), "Finding players…");
   const me = { id: "me", status: "online" } as const;
-  assert.equal(worldPresenceCopy([me], "me", "connected"), "Just you here");
+  assert.equal(
+    worldPresenceCopy([me], "me", "connected"),
+    "Quiet right now — neighbours are around",
+  );
   const players = [
     me,
     me,

@@ -1,4 +1,4 @@
-import { CoastRace, RACE_TICKS } from "./racing.ts";
+import { CoastRace, RACE_TICKS, FIRST_RACE_TICKS } from "./racing.ts";
 import { HopRun, StarFlight, type EndReason } from "../src/action-games.ts";
 export type { EndReason } from "../src/action-games.ts";
 import { FishingRound, HoopsRound } from "./outdoor.ts";
@@ -69,7 +69,7 @@ export class Simulation {
       throw Error("Invalid game.");
     this.id = id;
     this.seed = seed >>> 0;
-    this.race = id === "coast" ? new CoastRace(this.seed) : null;
+    this.race = id === "coast" ? new CoastRace(seed) : null;
     this.outdoor =
       id === "hoops"
         ? new HoopsRound(this.seed)
@@ -354,9 +354,11 @@ export function replayRun(game: string, seed: number, replay: Replay) {
     replay.version !== rulesVersion(game) ||
     !Number.isInteger(replay.ticks) ||
     replay.ticks < 1 ||
-    replay.ticks > (game === "coast" ? RACE_TICKS : 3600) ||
+    replay.ticks >
+      (game === "coast" ? (seed < 0 ? FIRST_RACE_TICKS : RACE_TICKS) : 3600) ||
     !Array.isArray(replay.events) ||
-    replay.events.length > (game === "coast" ? RACE_TICKS : 3600)
+    replay.events.length >
+      (game === "coast" ? (seed < 0 ? FIRST_RACE_TICKS : RACE_TICKS) : 3600)
   )
     throw Error("Invalid replay.");
   let previous = -1;

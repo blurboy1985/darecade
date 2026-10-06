@@ -1,0 +1,140 @@
+PLAY SIMI — SECOND CHARACTER / INPUT REFRESH
+Published: 6 October 2026
+Live: https://playsimi.danielquek.com
+
+PHASE RELEASES (deployed in order)
+1 Input: 1f66450d-7978-4352-9966-732eaab98623
+2 Characters: 5d397160-732d-4a96-b99e-d15a1da24485
+3 Back silhouettes/camera: 262fe453-d915-4b9f-95bf-05b599eec4a1
+4 First race: e33b9ce8-2d11-4398-b6dc-fcc159102796
+5 World/UI: 2ac1aca3-a72a-4144-af55-5897b3dbc2bd (current)
+
+WHAT CHANGED
+Phase 1: Removed button focus traps and hover hit-target movement; short movement
+presses survive the interval between frames. Opening panels no longer rebuilds
+the avatar. NPC selection targets the body/name, not surrounding effects. Level-up
+toasts wait for panels to close. Menu fits short landscape screens.
+
+Phase 2: Stable seeded guest/NPC appearances cover eight hair shapes and colours,
+skin tones and four iris colours. Larger hair masses, clearer portrait framing,
+blinking and existing idle motion. Hats avoid inverted-hull brim artifacts.
+NPC/remote rendering uses minimum spacing and staggered name labels.
+
+Phase 3: Contrasting class capes, larger back weapons, archer hood/quiver, pirate
+coat tails and thief scarf tails. Equip/emotes briefly face the camera. Cheap
+shader dithering fades obstructing scenery instead of pushing the camera into
+the player's head. Phone framing includes Arcade Row and the Daily Board.
+
+Phase 4: Until a completed Palm Bay race, a 180-second novice mode assists against
+AI. Novice races grant XP/Play medals but are unranked; subsequent races retain
+normal difficulty. Negative run seeds distinguish novice replays without a save
+schema change. Countdown freezes race time; fixed simulation ticks are monotonic.
+Escape pauses with Resume/Quit. Quit produces an incomplete result. No-finish
+results do not celebrate. Progress feedback and race-view preloading added.
+
+Phase 5: Initial live presence and HTTP fallback avoid transient disconnect copy.
+Quiet-world copy mentions neighbours. Local-clock automatic lighting is the new
+default. Final guest names and medal totals render from the profile immediately.
+Hoops/Fishing card art, Dragon Rooftop presentation, correct Arcade Row stage
+label, planter-safe navigation, adult-only donation UI and server enforcement,
+clearer guest rewards, natural-height wardrobe cards and compact phone HUD.
+The deployed page contains no Cloudflare Insights beacon or external tracker.
+
+VERIFICATION
+* npm test: 410 tests; 383 passed, 27 skipped, 0 failed.
+* npm run test:cloudflare: 14 passed, 0 failed.
+* npm run build and git diff --check passed.
+* Existing positive-seed racing simulations still pass their historical checks.
+* Novice runs reproduce exactly through the authoritative replay simulation.
+* Browser first-race fixture: one GO press completed Palm Bay in 1:28.52,
+  first of eight. Replay validation accepted it; XP 235 -> 255, medals 4 -> 5.
+* Race again and Race! responded on first click; countdown race tick remained 0.
+  Escape pause, one-click Resume and explicit incomplete Quit were exercised.
+* Browser Menu, emotes, NPC profile/Close and movement were exercised. Automated
+  input tests cover a W tap between frames, held W and blur cleanup.
+* At 390 x 667 the bottom HUD measured 96px (14.4%); at 390 x 844, 11.4%.
+  Landscape Menu at 390px height displayed its last row without clipping.
+* Fresh production load: no console warnings/errors. Live Menu/My look/Close
+  each responded to the first click.
+* Production page assets matched the final build.
+
+SAVE SAFETY
+No save schema/version change, no item ID removal, no account/token migration.
+The SQLite round-trip fixture contains an existing account, XP 2740, medalTokens
+19, wardrobeSpent 12, purchased/unlocked cosmetics, hats, 31 rounds, and a prior
+race record. It saves, changes the look, closes and reopens the database, then
+deep-compares the complete profile and checks token balance and stored look.
+Existing collection ownership/equip and account/payment integration tests pass.
+The existing live guest remained Cosmic Cat 17, Level 2 / 165 XP, 1 Play medal,
+1 Style token and Coral Pirate set after deployment. No purchases or equipment
+changes were made during this live verification.
+
+LIMITS / NOT CERTIFIED
+* Physical mid-range phone 60 fps, <100ms interaction latency, <5-second 4G first
+  playable and <8-second race load are not certified by the desktop viewport test.
+* Seeded NPCs avoid nearby hair matches; independently chosen real-player looks
+  are preserved, so players may intentionally match one another.
+* Existing explicit lighting overrides remain; automatic local time is the new
+  default, not a forced overwrite of an existing day/dusk/night preference.
+* No independent visual review has established a 10/10 rating.
+
+FILE-BY-FILE INVENTORY — THIS ROUND
+server/community-core.mjs — novice seed selection, replay/rewards/ranking rules.
+server/payments.mjs — reject donation checkout for under-18 profiles.
+server/store-core.mjs — stable seeded appearance for newly created guests.
+shared/racing.ts — novice time limit, gentle AI assistance, novice scoring.
+shared/simulation.ts — signed-seed novice replay and duration support.
+src/avatar-portraits.ts — close headshot framing; staggered thumbnail queue.
+src/camera-occlusion.ts — shared shader-based scenery dithering (new).
+src/character-finish.ts — fuller hair and hat outline exclusion.
+src/character-identity.ts — deterministic looks, hair variety and spacing (new).
+src/character.ts — iris variants, blink timing, hat positioning, portrait camera.
+src/class-costumes.ts — contrasting back pieces and larger class props.
+src/interactions.ts — Dragon Rooftop presentation.
+src/lobby-presence.ts — quiet-world neighbour copy.
+src/main.ts — button/input handling, toasts, first-race/reward flow, preloading,
+  name/medal rendering, local time, initial presence and game-card art.
+src/mobile-lobby.css — short-screen Menu, phone HUD/layout, game-card art.
+src/movement-input.ts — short keypress latching and held input (new).
+src/navigation.ts — safe visible grid entry and obstacle-aware route segments.
+src/payments.ts — adult-only donation section.
+src/progression-guide.ts — guest reward/leaderboard explanation.
+src/racing-game.ts — loading stages, novice timer, pause/Resume/Quit behavior.
+src/racing.css — loading progress styling.
+src/state.ts — automatic lighting default and novice record duration allowance.
+src/style.css — stable button hit targets and touch behavior.
+src/wardrobe.css — natural card heights and unclipped preview actions.
+src/world-connection.ts — recent-snapshot fallback and connection status grace.
+src/world.ts — precise NPC picking, input, seeded variety, spacing, class reveal,
+  camera fading/framing, local lighting, navigation and world labels.
+scripts/character-review.mjs — isolated browser review server/replay verification.
+tests/avatar-lifecycle.test.ts — blink and avatar lifecycle regression updates.
+tests/character-identity.test.ts — deterministic variety and spacing tests (new).
+tests/cloudflare.test.mjs — novice first race, rewards and normal follow-up race.
+tests/collections.test.ts — seeded starter expectation; ownership retained.
+tests/core.test.ts — navigation and related regression coverage.
+tests/first-minute.test.ts — initial world/reward copy expectations.
+tests/mobile-lobby-fixture.ts — first-race/retry and live presence browser fixture.
+tests/movement-input.test.ts — tap/hold/blur input regression tests (new).
+tests/payments.test.ts — under-18 donation denial without Stripe/order side effects.
+tests/progression-guide.test.ts — guest reward explanation expectations.
+tests/racing.test.ts — novice completion, top-four assist, replay and DNF tests.
+tests/save-refresh.test.ts — existing-save SQLite round-trip regression (new).
+tests/section4-browser.test.ts — updated initial presence expectation.
+reports/refresh-verification-2026-10-06.txt — this release/test/file inventory.
+
+PRE-EXISTING UNCOMMITTED FILES RETAINED
+The workspace already contained the previous visual release and jump work.
+These additional dirty files remain in the working tree; their prior functional
+changes are not claimed as new work in this round (formatting may be normalized):
+src/appearance.ts — previous item/appearance catalogue work.
+src/wardrobe.ts — previous own-avatar wardrobe preview implementation.
+src/cosmetic-meshes.ts — previous cosmetic mesh implementation.
+tests/character-finish.test.ts — previous character finish coverage.
+tests/lobby-flow.test.ts — previous lobby flow coverage.
+tests/lobby-render.test.ts — previous lobby rendering expectations.
+tests/lobby-jump.test.ts — pre-existing jump coverage.
+
+SCREENSHOT
+.browser/character-refresh/live-final-wardrobe.png — deployed wardrobe showing
+the existing guest, current costume and retained Style token balance.

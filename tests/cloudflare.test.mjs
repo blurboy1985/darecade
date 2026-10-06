@@ -1094,7 +1094,7 @@ test(
             true,
           );
         }
-        assert.equal(result.data.ranked, true);
+        assert.equal(result.data.ranked, game !== "coast");
         assert.equal(
           (await api("finish", { id: run.data.id, ...replay }, cookie)).data
             .profile.progress.rounds,
@@ -1108,8 +1108,17 @@ test(
       assert.equal(me.data.progress.medalTokens, 0);
       const state = await api("state", undefined, cookie);
       assert.equal(state.data.boards.hop[0].rank, 1);
-      assert.equal(state.data.boards.coast.length, 1);
-      assert.equal(state.data.boards.coast[0].id, id);
+      assert.equal(
+        state.data.boards.coast.length,
+        0,
+        "first-finish support stays off the ranked board",
+      );
+      const standardRace = await api("run", { game: "coast" }, cookie);
+      assert.ok(
+        standardRace.data.seed >= 0,
+        "finishing once unlocks standard difficulty",
+      );
+      await api("abandon", { id: standardRace.data.id }, cookie);
       assert.equal(state.data.players[0].name, "Cloud Mochi");
       const presence = await api(
         "presence",

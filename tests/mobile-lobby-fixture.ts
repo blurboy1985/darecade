@@ -15,7 +15,7 @@ export function mobileLobbyFixture(
   const profile = {
     id: "mobile-qa",
     name: "LongNeighbourNameTest",
-    ageBand: "adult",
+    ageBand: "18+",
     privacyVersion: "fixture",
     account: account
       ? { email: "qa@example.test", created: 1, eligibleAt: 1 }
@@ -49,7 +49,17 @@ export function mobileLobbyFixture(
     else if (path === 'profile') { Object.assign(profile.progress, JSON.parse(init.body)); result = profile; }
     else if (path === 'auth/me') result = profile;
     else if (path === 'state') result = { profile, competitionReady: false, me: profile.id, self: {id: profile.id, name: profile.name, look: {}, activity: 'lobby', status: 'online', best: profile.progress.best, points: ${account ? 12 : 0}}, day:'2026-10-05', nextReset:Date.now()+86400000, week:'', weekly:[], lastWeek:[], dares:[], recentRuns:[], players:[], friends:[], challenged:[], boards:{noodle:[],hop:[],brick:[],swarm:[],coast:[]}, history:[] };
-    else if (path === 'world/poll') result = {t:'sync',at:Date.now(),world:'qa',p:[],d:[],gone:[]};
+    else if (path === 'finish') {
+      result = await baseFetch('/qa-finish', init).then(r=>r.json());
+      profile.progress.xp += 20;
+      if (result.race?.finished) profile.progress.coastRecord = {version:3,timeTicks:result.race.timeTicks,place:result.race.place};
+      profile.playMedals.total += result.playMedal || 0;
+      profile.playMedals.today += result.playMedal || 0;
+      if (result.playMedal) profile.playMedals.games.push('coast');
+      result.profile = profile;
+    }
+    else if (path === 'run') result = {id: profile.progress.coastRecord.timeTicks ? 'qa-standard' : 'qa-race',seed: profile.progress.coastRecord.timeTicks ? 42 : -43, ranked:false};
+    else if (path === 'world/poll') result = {t:'sync',at:Date.now(),world:'world-1',p:[[0,profile.id,profile.name,profile.progress]],d:[[0,0,1000,0,0,0]],gone:[]};
     return new Response(JSON.stringify(result), {headers:{'Content-Type':'application/json'}});
   };
   ${
@@ -88,12 +98,32 @@ export function mobileLobbyFixture(
       `
       }
       dismiss.click();
+      const jump=find('#lobby-jump');
+      check(!!jump, 'jump control exists');
+      if (!${twoD} && ${width}<=1000) {
+        check(visible(jump) && hit(jump), 'Jump touch target unobstructed');
+        check(jump.getBoundingClientRect().width>=44 && jump.getBoundingClientRect().height>=44, 'Jump touch target at least 44px');
+        const canvas=find('#world canvas');
+        jump.click(); jump.click();
+        check(find('#world canvas')===canvas && !find('#modal').open, 'repeated Jump keeps the scene open');
+        const nearby=find('#interaction');
+        nearby.hidden=false;
+        nearby.querySelector('span').textContent='Arcade Row';
+        check(hit(jump) && hit(nearby), 'Jump and nearby action both reachable');
+        nearby.hidden=true;
+        for(const state of ['is-away','is-interacting','inspecting']) {
+          document.body.classList.add(state);
+          check(!visible(jump), 'Jump hidden during '+state);
+          document.body.classList.remove(state);
+        }
+      } else check(!visible(jump), 'Jump hidden on desktop or in 2D');
       check(goal.hidden, 'dismiss clears the scene');
       check(JSON.parse(localStorage.getItem('darecade-v1')).welcomeDismissed, 'dismiss survives saving');
       check(profile.progress.rounds===0 && !profile.progress.unlockedHats.includes(2), 'dismiss does not complete or grant reward');
       const menu=find('.lobby-dock [data-open="phone-menu"]');
       check(visible(menu) && hit(menu), 'Menu touch target unobstructed');
       menu.focus(); menu.click();
+      check(!visible(jump), 'Jump hidden behind open menu');
       const items=[...document.querySelectorAll('.menu-directory .menu-choice')];
       check(items.length===${menuPages["phone-menu"].actions.length}, 'all destinations on first menu page');
       check(!find('.menu-directory details') && !find('.menu-directory .choice-pager'), 'no category gates or paging');

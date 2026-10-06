@@ -95,7 +95,7 @@ export function singaporeWeek(date = new Date()) {
 export function fresh(): Save {
   return {
     version: 1,
-    outfit: 0,
+    outfit: 2,
     skin: 0,
     body: 0,
     clothing: 0,
@@ -138,7 +138,7 @@ export function fresh(): Save {
       typeof matchMedia === "function" &&
       matchMedia("(prefers-reduced-motion: reduce)").matches,
     twoD: false,
-    light: "dusk",
+    light: "auto",
     claims: [],
     welcome: "new",
     welcomeDismissed: false,
@@ -270,7 +270,7 @@ export function normalise(raw: unknown, fallback: Save): Save {
     record?.version === 3 &&
     Number.isInteger(record.timeTicks) &&
     record.timeTicks >= 0 &&
-    record.timeTicks <= 7200 &&
+    record.timeTicks <= 10800 &&
     Number.isInteger(record.place) &&
     record.place >= 0 &&
     record.place <= 8

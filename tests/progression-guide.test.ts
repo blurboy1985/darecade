@@ -30,7 +30,7 @@ test("Coast goal distinguishes first finish from separate personal records", () 
   const guide = coastProgress(saved);
   assert.ok(guide.includes(`Next goal: beat ${raceTime(3600)}`));
   assert.match(guide, /best place 2/);
-  assert.match(guide, /Verified round: \+20 XP/);
+  assert.match(guide, /Guests earn \+20 XP/);
   assert.deepEqual(saved, before);
 });
 

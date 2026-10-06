@@ -168,7 +168,10 @@ for (const live of [false, true]) {
       session.status = "complete";
       session.payment_status = "paid";
       await s.event(session);
-      assert.deepEqual(s.c.privateProfile(s.player).progress.wardrobePurchased, ["solar"]);
+      assert.deepEqual(
+        s.c.privateProfile(s.player).progress.wardrobePurchased,
+        ["solar"],
+      );
     } finally {
       s.close();
     }
@@ -349,4 +352,23 @@ test("webhook verification rejects forged, mutated and stale bodies; accepts rot
     ).type,
     "checkout.session.completed",
   );
+});
+
+test("under-18 donation attempts fail before contacting Stripe", async () => {
+  const f = setup();
+  try {
+    f.account();
+    f.store.db
+      .prepare("UPDATE profiles SET age_band=? WHERE player=?")
+      .run("13–17", f.player);
+    const before = f.calls();
+    await assert.rejects(
+      f.payments.checkout(f.player, "donation-small"),
+      /adults only/,
+    );
+    assert.equal(f.calls(), before);
+    assert.equal(f.payments.history(f.player).length, 0);
+  } finally {
+    f.close();
+  }
 });

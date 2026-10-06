@@ -1,3 +1,5 @@
+import { raceTime } from "../shared/racing";
+import { mountAvatarCards, refreshHeadshot } from "./avatar-portraits";
 import { mountPayments } from "./payments";
 import {
   wardrobeCards,
@@ -125,7 +127,7 @@ function icon(name: string) {
 const save = readSave();
 let world: LobbyWorld | null = null;
 let game: ArcadeGame | RacingGame | OutdoorGame | null = null;
-let wardrobeTab: WardrobeTab = "clothing";
+let wardrobeTab: WardrobeTab = "sets";
 let wardrobeCollection: Collection = "starter";
 let tryingLook: TryOn = null;
 let gamePage = 0;
@@ -160,7 +162,14 @@ async function claimStyleRewards() {
 }
 let dismissStyleReward: (() => void) | null = null;
 function flushStyleTokens() {
-  if (!pendingStyleTokens || game || document.hidden) return;
+  if (
+    !pendingStyleTokens ||
+    game ||
+    modal.open ||
+    document.querySelector("dialog[open]") ||
+    document.hidden
+  )
+    return;
   const count = pendingStyleTokens;
   pendingStyleTokens = 0;
   dismissStyleReward?.();
@@ -262,9 +271,10 @@ app.innerHTML = `
   <main class="hud"><section class="welcome-panel" aria-label="Welcome"></section>
   <div class="move-hint"><kbd>W</kbd><span><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><p>Move <i>·</i> tap to walk</p></div>
   <div id="joystick" class="joystick" role="group" aria-label="Drag to walk"><span></span></div>
+  <button id="lobby-jump" class="lobby-jump" type="button" data-action="jump" aria-label="Jump"><span aria-hidden="true">↑</span>Jump</button>
   <div id="fallback" class="fallback" hidden></div>
   </main>
-  <footer class="bottom-bar"><div class="profile"><span class="avatar-icon" id="avatar-icon"><i></i></span><span class="profile-summary"><span class="profile-identity"><strong id="player-name">New neighbour</strong><span id="player-account">Guest mode</span></span><span id="level-label">Level 1 · 0 XP</span><small id="medal-points">0 Play medals · 0 Ranked</small><span class="xp-track" role="progressbar" aria-label="XP towards next level" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="xp-fill"></i></span></span></div><nav class="dock lobby-dock" aria-label="Main actions"><button class="selected" data-open="arcade" data-main-action>${icon("game")}<span>Games</span></button><button data-open="map" data-main-action>${icon("compass")}<span>Neighbourhood</span></button><button class="phone-more" data-open="phone-menu" data-main-action>${icon("settings")}<span>Menu</span></button></nav><span class="footer-note" id="quality-note">3D WORLD</span></footer>
+  <footer class="bottom-bar"><div class="profile"><span class="avatar-icon" id="avatar-icon"><i></i></span><span class="profile-summary"><span class="profile-identity"><strong id="player-name"></strong><span id="player-account">Guest mode</span></span><span id="level-label">Level 1 · 0 XP</span><small id="medal-points">0 Play medals · 0 Ranked</small><span class="xp-track" role="progressbar" aria-label="XP towards next level" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="xp-fill"></i></span></span></div><nav class="dock lobby-dock" aria-label="Main actions"><button class="selected" data-open="arcade" data-main-action>${icon("game")}<span>Games</span></button><button data-open="map" data-main-action>${icon("compass")}<span>Neighbourhood</span></button><button class="phone-more" data-open="phone-menu" data-main-action>${icon("settings")}<span>Menu</span></button></nav><span class="footer-note" id="quality-note">3D WORLD</span></footer>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <dialog id="modal"><div class="modal-top"><span class="eyebrow" id="modal-kicker">THE NEIGHBOURHOOD</span><button id="close-modal" class="close-button" aria-label="Close panel">×</button></div><div id="modal-body"></div></dialog>
   <div id="loading"><span class="brand-mark">p<span>★</span></span><h2>See you downstairs.</h2><p>Loading…</p><span class="loading-line"></span></div>
@@ -307,13 +317,7 @@ function startTune() {
   updateMusic();
 }
 function updateMusic() {
-  const hour = Number(
-    new Intl.DateTimeFormat("en-GB", {
-      hour: "numeric",
-      hourCycle: "h23",
-      timeZone: "Asia/Singapore",
-    }).format(new Date()),
-  );
+  const hour = new Date().getHours();
   const night =
     save.light === "night" ||
     save.light === "dusk" ||
@@ -331,6 +335,11 @@ function updateMusic() {
 let shownLevel = 0;
 function renderStats() {
   audio.configure(save.sound, save.music);
+  if (currentProfile) {
+    document.querySelector("#player-name")!.textContent = currentProfile.name;
+    document.querySelector("#medal-points")!.textContent =
+      `${currentProfile.playMedals?.total ?? 0} Play medals · ${shared?.self?.points ?? 0} Ranked`;
+  }
   const level = 1 + Math.floor(save.xp / 100);
   if (shownLevel && level > shownLevel) beep("levelup");
   shownLevel = level;
@@ -347,6 +356,7 @@ function renderStats() {
     "--outfit",
     outfits[save.outfit],
   );
+  refreshHeadshot(document.querySelector<HTMLElement>("#avatar-icon")!, save);
   document.documentElement.classList.toggle("reduced", save.reduced);
 }
 function visit(id: string) {
@@ -410,6 +420,7 @@ function openShell(kicker: string, keepPreview = false) {
   }
 }
 function close() {
+  world?.updateAvatar();
   dismissStyleReward?.();
   window.setTimeout(flushStyleTokens, 0);
   setupGuide = false;
@@ -435,7 +446,10 @@ function close() {
           ? `${is2d ? "#fallback-welcome" : ".welcome-panel"} [data-action="welcome-start"]`
           : '.lobby-dock [data-open="phone-menu"]',
       );
-  returnFocus?.focus({ preventScroll: true });
+  // Return keyboard navigation to the lobby without arming a HUD button.
+  if (returnFocus instanceof HTMLButtonElement) returnFocus.blur();
+  if (document.activeElement instanceof HTMLButtonElement)
+    document.activeElement.blur();
 }
 function actionButton(action: string, label: string, klass = "primary") {
   return `<button class="${klass}" data-action="${action}">${label}</button>`;
@@ -453,8 +467,10 @@ function cards() {
     swarm:
       '<span class="star-ship">▲</span><span class="star-enemy">▼</span><i>✦ · ✧ · ✦</i>',
     coast: "<span>🏎</span><b>PALM BAY</b><i>05</i>",
-    hoops: "<span>🏀</span>",
-    fishing: "<span>🎣</span>",
+    hoops:
+      '<span class="court-backboard"></span><span class="court-rim"></span><span class="court-ball"></span><b>SHOOT YOUR SHOT</b>',
+    fishing:
+      '<span class="jetty-deck"></span><span class="jetty-rod"></span><span class="jetty-fish">◀</span><b>CAST & CHILL</b>',
   };
   const choices = pageChoices(playIds, gamePage);
   return `<div class="game-grid compact-games">${choices.items.map((id) => `<button class="game-card ${id}" data-game="${id}"><div class="game-art ${id}-art">${art[id]}</div><span class="eyebrow">${games[id].genre}</span><h3>${games[id].name}</h3><div><span>${id === "coast" ? "3 laps" : id === "hoops" ? "10 shots" : "60s"} · BEST ${formatScore(id, shared?.self.best[id] ?? 0)}</span>${icon("arrow")}</div></button>`).join("")}</div>${pager(choices.page, choices.total, "games")}`;
@@ -465,6 +481,7 @@ function open(id: string) {
   if (id !== "wardrobe") {
     setupGuide = false;
     tryingLook = null;
+    world?.updateAvatar();
   }
   if (id.startsWith("player:")) {
     showPlayer(id.slice(7));
@@ -533,7 +550,7 @@ function open(id: string) {
           : ["fishing", "hoops", "plots"].includes(id)
             ? "EAST SIDE"
             : id === "stage"
-              ? "SIMI PLAZA"
+              ? "ARCADE ROW"
               : "PLAY SIMI",
     id === "wardrobe" && !is2d,
   );
@@ -581,6 +598,7 @@ function open(id: string) {
     socialPanel = "worlds";
     void worldPicker.open();
   } else if (isMenuPage(id)) {
+    modal.classList.add("directory-panel");
     const page = menuPages[id];
     body.innerHTML = `<h2>${page.title}</h2><div class="menu-directory" aria-label="${page.title}">${page.actions.map((action, index) => `${index === 0 || page.actions[index - 1].group !== action.group ? `<h3>${action.group}</h3>` : ""}<button class="menu-choice" ${action.target === "account" ? "data-account" : `data-open="${action.target}"`}>${icon(action.icon)}<span>${action.label}</span></button>`).join("")}</div>`;
   } else if (id === "arcade") {
@@ -598,6 +616,7 @@ function open(id: string) {
       body.querySelector<HTMLDetailsElement>(".setup-more")?.open ?? false;
     const medals = shared?.self?.points ?? 0;
     const shown = tryingLook?.look ?? save;
+    world?.updateAvatar(shown);
     const canEquip = tryingLook && wearable(shown, save, medals);
     body.innerHTML = `<div class="wardrobe-layout"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${tryingLook ? "Trying on" : escapeText(nickname)}</strong><small>DRAG TO TURN</small><span class="look-caption">${tryingLook?.name ?? clothingNames[save.clothing]}</span><div class="try-actions" role="status">${tryingLook ? `<button class="primary" data-equip-look ${canEquip ? "" : "disabled"}>${canEquip ? "Equip look" : "Locked · preview only"}</button><button class="text-button" data-reset-look>Back to my look</button>` : "<span>Tap a card to try it on</span>"}</div></div><div class="wardrobe-controls">${setupGuide ? '<span class="eyebrow setup-step">STEP 1 OF 2 · NAME & LOOK</span>' : ""}${setupGuide ? "<h2>Create your driver</h2>" : `<span class="eyebrow">YOUR COLLECTION</span><h2>My look</h2><div class="style-wallet"><strong>${tokenSummary(save)}</strong><small>Tokens buy looks. +1 per 100 XP, up to +3 daily from ranked medals.</small></div>`}<details class="look-identity" ${setupGuide ? "open" : ""}><summary>Name, girl or boy, colours & daily hats</summary><form id="nickname-form" novalidate><label class="field-label" for="nickname">NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" value="${escapeText(typed)}" minlength="2" maxlength="20" autocomplete="off" placeholder="Choose your nickname" aria-describedby="nickname-status" required><button class="secondary" type="submit">Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form><label class="field-label">CHARACTER</label><div class="body-options">${["Girl", "Boy"].map((label, i) => `<button data-body="${i}" class="${save.body === i ? "active" : ""}" aria-pressed="${save.body === i}">${label}</button>`).join("")}</div><label class="field-label">OUTFIT COLOUR</label><div class="swatches">${outfits.map((c, i) => `<button data-outfit="${i}" style="--swatch:${c}" class="${save.outfit === i ? "active" : ""}" aria-label="${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][i]} outfit" aria-pressed="${save.outfit === i}"></button>`).join("")}</div><p class="fine-print">Legendary outfits use their own signature colours.</p><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">DAILY HATS</label><div class="hat-options">${["No hat", "Bucket", "Cap", "Sprout"].map((n, i) => `<button data-hat="${i}" ${save.unlockedHats.includes(i) ? "" : "disabled"} aria-pressed="${save.hat === i}">${n}${save.unlockedHats.includes(i) ? "" : " · locked"}</button>`).join("")}</div></details>${setupGuide ? `<details class="setup-more" ${moreLooksOpen ? "open" : ""}><summary>More looks & hairstyles</summary>` : ""}<div class="look-tabs" aria-label="Wardrobe sections">${(
       [
@@ -614,7 +633,7 @@ function open(id: string) {
       )
       .join("")}</div>${wardrobeTab === "hair" ? hatShelf(save) : ""}${
       wardrobeTab === "sets"
-        ? '<h3>Legendary sets</h3><p class="collection-note">Premium sets. Buy one, or pay with Style tokens.</p>'
+        ? '<h3>Class sets</h3><p class="collection-note">Five free classes. Earn legendary sets with Style tokens.</p>'
         : `<div class="collection-tabs" aria-label="Collections">${Object.entries(
             collectionLabels,
           )
@@ -626,6 +645,7 @@ function open(id: string) {
               "",
             )}</div><p class="collection-note">${collectionDescription(wardrobeCollection, save, medals)}</p>`
     }${wardrobeTab === "sets" ? "" : starterOffer(wardrobeCollection, save)}${wardrobeCards(wardrobeTab, wardrobeCollection, save, medals, tryingLook)}<p class="fine-print">Cosmetic only. No gameplay advantage. Earn sets through play or check optional purchase availability.</p>${setupGuide ? "</details>" : ""}${setupGuide ? actionButton("setup-save", currentProfile?.account ? "Save & continue →" : "Next: save my character →") : actionButton("done-look", "Done")}</div></div>`;
+    mountAvatarCards(body, save);
     const preview = body.querySelector<HTMLElement>(".character-preview")!;
     if (!is2d) {
       try {
@@ -766,7 +786,7 @@ function open(id: string) {
         walk: false,
         open: true,
       },
-      { id: "dragon", label: "Dragon slide", emoji: "🐉", walk: false },
+      { id: "dragon", label: "Dragon rooftop run", emoji: "🐉", walk: false },
       { id: "swing", label: "Swings", emoji: "✦", walk: false },
       { id: "pet", label: "Pet Kopi", emoji: "🐈", walk: false },
       { id: "fishing", label: "Fishing", emoji: "🎣", walk: true },
@@ -790,7 +810,7 @@ function open(id: string) {
   } else if (id === "garden") {
     body.innerHTML = `<div class="garden-portrait">${icon("leaf")}</div><h2>Pocket Garden</h2><p class="lead">Nothing to chase. Just breathe.</p><button class="primary" data-environment="bench0">Sit & read →</button>`;
   } else if (id === "playground") {
-    body.innerHTML = `<div class="dragon-portrait">✦</div><h2>Dragon playground</h2><button class="primary" data-environment="dragon">Ride the dragon →</button><button class="secondary" data-environment="swing">Swing</button>`;
+    body.innerHTML = `<div class="dragon-portrait">✦</div><h2>Dragon Rooftop</h2><p class="lead">Ride, flip, and pose for photos.</p><button class="primary" data-environment="dragon">Ride the rooftop →</button><button class="secondary" data-action="dragon-pose">Strike a pose</button>`;
   } else if (id === "soon") {
     body.innerHTML = `<h2>Pick a game!</h2>${cards()}`;
   } else {
@@ -820,7 +840,8 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
         : "ARCADE ROW",
   );
   const generation = gameGeneration;
-  body.innerHTML = "<h2>Loading…</h2>";
+  body.innerHTML =
+    '<h2>Getting the grid ready…</h2><progress aria-label="Loading race session"></progress>';
   let run: Run | null = null;
   try {
     run = await api<Run>("run", {
@@ -934,7 +955,7 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
           (reward || !save.nameChosen || save.welcome !== "complete");
         body.innerHTML =
           id === "coast"
-            ? `<h2 class="result-score">${formatScore(id, score)}<small>YOUR THREE-LAP TIME</small></h2>${result?.race?.newBest ? '<p class="new-best">New personal best!</p>' : ""}${raceComparison(score, today, !!result?.ranked)}<div class="button-row"><button class="primary" data-action="setup-look">${setup ? "Create my name & look" : "Edit my name & look"}</button><button class="secondary" data-replay="coast">Race again</button></div><details class="race-extra-details"><summary>Race details & rewards</summary>${raceSummary}<p>${result ? `Verified round · +20 XP${reward ? " · Lilac cap unlocked · +35 bonus XP" : ""}` : "Offline · this round was not saved."}</p>${!currentProfile?.account ? '<button class="secondary" data-account>Save with email</button>' : ""}</details>`
+            ? `<h2 class="result-score">${result?.race?.finished ? raceTime(result.race.timeTicks) : score ? formatScore(id, score) : "So close — try again!"}<small>${score ? "YOUR THREE-LAP TIME" : "NO FINISH RECORDED"}</small></h2>${result?.race?.newBest ? '<p class="new-best">New personal best!</p>' : ""}${result?.race?.novice ? "<p>Your first-finish race earns XP and Play medals. Standard races unlock after your first finish; verified-email standard races enter the leaderboard.</p>" : raceComparison(score, today, !!result?.ranked)}<div class="button-row"><button class="primary" data-action="setup-look">${setup ? "Create my name & look" : "Edit my name & look"}</button><button class="secondary" data-replay="coast">Race again</button></div><details class="race-extra-details"><summary>Race details & rewards</summary>${raceSummary}<p>${result ? `Verified round · +20 XP${reward ? " · Lilac cap unlocked · +35 bonus XP" : ""}` : "Offline · this round was not saved."}</p>${!currentProfile?.account ? '<button class="secondary" data-account>Save with email</button>' : ""}</details>`
             : '<div class="result-star">' +
               icon(target ? "trophy" : "game") +
               '</div><h2 class="result-score">' +
@@ -1012,10 +1033,10 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
           "afterbegin",
           '<div class="finish-effects" aria-hidden="true"></div>',
         );
-        if (arcadeFx) {
+        if ((id !== "coast" || score > 0) && arcadeFx) {
           arcadeFx.setUrgency(0);
           arcadeFx.fire("end");
-        } else if (!is2d && !save.reduced) {
+        } else if ((id !== "coast" || score > 0) && !is2d && !save.reduced) {
           try {
             disposeCelebration = celebrate(
               body.querySelector(".finish-effects")!,
@@ -1053,7 +1074,7 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
           mount,
           onFinish,
           (name) => beep(name),
-          run?.seed ?? 314159,
+          run?.seed ?? (save.coastRecord.timeTicks ? 314159 : -314160),
           save,
           {
             reduced: save.reduced,
@@ -1073,7 +1094,7 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
             id,
             onFinish,
             (name) => beep(name),
-            run?.seed ?? 314159,
+            run?.seed ?? (save.coastRecord.timeTicks ? 314159 : -314160),
             { reduced: save.reduced, simple: save.twoD },
           )
         : new ArcadeGame(id, mount, onFinish, (name) => beep(name), run?.seed);
@@ -1090,9 +1111,19 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
   game.onPause = (paused) => arcadeFx?.setPaused(paused);
 }
 
+document.addEventListener(
+  "pointerdown",
+  (e) => {
+    const button = (e.target as Element).closest("button");
+    if (button && !button.disabled) e.preventDefault();
+  },
+  { capture: true },
+);
+
 document.addEventListener("click", (e) => {
   const b = (e.target as Element).closest<HTMLButtonElement>("button");
   if (!b || b.disabled) return;
+  b.blur();
   if (b.dataset.joinFriend) {
     void worldPicker.join({ friend: b.dataset.joinFriend });
     return;
@@ -1342,6 +1373,10 @@ document.addEventListener("click", (e) => {
   }
   if (b.dataset.action) {
     const a = b.dataset.action;
+    if (a === "jump") {
+      world?.act("jump");
+      return;
+    }
     if (a === "toggle-camera") {
       const next =
         (world?.cameraMode ?? save.cameraMode) === "third"
@@ -1584,7 +1619,8 @@ document.addEventListener("click", (e) => {
 document.querySelector("#close-modal")!.addEventListener("click", close);
 modal.addEventListener("cancel", (e) => {
   e.preventDefault();
-  close();
+  if (game instanceof RacingGame) game.pause();
+  else close();
 });
 modal.addEventListener("click", (e) => {
   if (e.target === modal) {
@@ -1853,6 +1889,23 @@ window.addEventListener("world-interaction-progress", (event) => {
     `${Math.round((event as CustomEvent<number>).detail * 100)}%`;
 });
 window.addEventListener("keydown", (e) => {
+  if (
+    [
+      "w",
+      "a",
+      "s",
+      "d",
+      " ",
+      "arrowup",
+      "arrowdown",
+      "arrowleft",
+      "arrowright",
+    ].includes(e.key.toLowerCase()) &&
+    document.activeElement instanceof HTMLButtonElement
+  ) {
+    e.preventDefault();
+    document.activeElement.blur();
+  }
   if (e.key === "Escape" && !modal.open) dismissInspector();
 });
 function dismissInspector() {
@@ -1983,13 +2036,14 @@ for (const event of ["pointerup", "pointercancel", "lostpointercapture"])
     if (world) world.joystick = { x: 0, y: 0 };
   });
 function updateClock() {
-  document.querySelector("#sgt-clock")!.textContent =
-    new Intl.DateTimeFormat("en-SG", {
-      timeZone: "Asia/Singapore",
+  document.querySelector("#sgt-clock")!.textContent = new Intl.DateTimeFormat(
+    "en-SG",
+    {
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
-    }).format(new Date()) + " SGT";
+    },
+  ).format(new Date());
   if (save.week !== singaporeWeek()) {
     save.week = singaporeWeek();
     save.coins = [];
@@ -2095,6 +2149,10 @@ requestAnimationFrame(async () => {
       return;
     }
     await loadCharacter();
+    // Warm the race module while the player explores; the driver is shared.
+    window.setTimeout(() => {
+      void import("./race-view").catch(() => {});
+    }, 1500);
     world = new LobbyWorld(document.querySelector("#world")!, save, {
       interact: open,
       visit,
@@ -2158,8 +2216,8 @@ function presenceData() {
   return {
     away: save.away,
     activity: save.awayActivity,
-    x: world?.player.root.position.x,
-    z: world?.player.root.position.z,
+    x: world?.player.root.position.x ?? 0,
+    z: world?.player.root.position.z ?? 10,
     yaw: world?.player.root.rotation.y,
     emote: is2d
       ? Date.now() < emote2d.until
@@ -2473,7 +2531,14 @@ let savedNeighbours: SharedPlayer[] = [];
 let liveNeighbours: SharedPlayer[] = [];
 const hiddenNeighbours = new Set<string>();
 function applyWorldPlayers() {
-  if (!shared) return;
+  if (!shared) {
+    world?.syncPlayers(
+      liveNeighbours,
+      currentProfile?.id ?? "",
+      new Set(liveNeighbours.map((p) => p.id)),
+    );
+    return;
+  }
   const liveIds = new Set(liveNeighbours.map((p) => p.id));
   const cards = new Map(savedNeighbours.map((p) => [p.id, p]));
   shared.players = [
