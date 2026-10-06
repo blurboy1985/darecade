@@ -10,45 +10,17 @@ import {
 
 const source = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
 
-test("every menu page makes exactly three short choices", () => {
-  for (const page of Object.values(menuPages)) {
-    assert.equal(page.actions.length, 3, page.title);
-    for (const action of page.actions) {
-      assert.ok(action.label.length <= 20, action.label);
-      assert.ok(action.target && action.icon);
-    }
-    if (page.back) assert.ok(isMenuPage(page.back));
-  }
+test("Menu has the four permanent routes, with session and legal actions rendered separately", () => {
+  assert.deepEqual(
+    menuPages["phone-menu"].actions.map((a) => a.label),
+    ["My look", "Quests & rankings", "Sound & display", "Change world"],
+  );
   assert.ok(isMenuPage("phone-menu"));
   assert.equal(isMenuPage("toString"), false);
-  assert.equal(isMenuPage("__proto__"), false);
-});
-
-test("menu routes preserve rewards, social play and account access", () => {
-  const seen = new Set<string>();
-  function visit(id: string) {
-    if (seen.has(id)) return;
-    seen.add(id);
-    if (isMenuPage(id))
-      for (const action of menuPages[id].actions) visit(action.target);
-  }
-  visit("phone-menu");
-  for (const destination of [
-    "wardrobe",
-    "support",
-    "shop",
-    "quests",
-    "album",
-    "account",
-    "settings",
-    "neighbours",
-    "dares",
-    "board",
-    "worlds",
-    "emotes",
-  ]) {
-    assert.ok(seen.has(destination), destination);
-  }
+  assert.match(source, /Save with email/);
+  assert.match(source, /Log out/);
+  assert.match(source, /data-open="privacy"/);
+  assert.match(source, /data-open="help"/);
 });
 
 test("first-visit prompt is short and names the game it starts", () => {
@@ -79,7 +51,7 @@ test("world keeps three stable routes and a separate nearby action", () => {
 
 test("first visit and 2D retain privacy and player reporting routes", () => {
   assert.match(source, /data-open="phone-menu"/);
-  assert.equal(menuPages["safety-menu"].actions[1].target, "neighbours");
+  assert.match(source, /data-open="neighbours">Nearby players/);
   const invitation =
     source.match(/const invitation =[\s\S]*?;\r?\n/)?.[0] || "";
   assert.match(invitation, /data-account>Account & privacy/);

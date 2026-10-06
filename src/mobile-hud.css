@@ -1,4 +1,17 @@
 /* Floating controls leave the world visible in both phone orientations. */
+.outside-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.outside-cards .menu-choice { display: flex; flex-direction: column; min-height: 82px; gap: 8px; padding: 10px; font-size: 13px; }
+.quest-tabs { display: flex; gap: 6px; position: sticky; top: 0; background: #faf7ee; z-index: 2; padding: 6px 0; }
+.quest-tabs button { flex: 1; min-width: 0; padding: 8px 4px; font-size: 12px; }
+.quest-tabs [aria-pressed="true"] { background: #d9f0a2; }
+.menu-links { display: flex; gap: 14px; margin-top: 16px; font-size: 12px; }
+@media (max-width: 600px) {
+  .game-grid.compact-games { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .compact-games .game-card { padding: 10px; min-height: 0; }
+  .compact-games .game-card .game-art { height: 78px; }
+  .compact-games .game-card h3 { font-size: 16px; }
+  .compact-games .game-card > div:last-child { font-size: 9px; }
+}
 .bottom-bar {
   display: contents;
 }

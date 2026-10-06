@@ -104,6 +104,17 @@ export const activities = {
     icon: "🏀",
     description: "A few free throws at the East Side court.",
   },
+  read: {
+    name: "Read a book",
+    icon: "📖",
+    description: "A quiet chapter downstairs.",
+  },
+  nap: { name: "Have a nap", icon: "💤", description: "Rest in the shade." },
+  pet: {
+    name: "Play with a pet",
+    icon: "🐈",
+    description: "A little company while you rest.",
+  },
 } as const;
 export type ActivityId = keyof typeof activities;
 /** Stable wire positions: append new activities so existing indices never change. */
@@ -115,6 +126,9 @@ export const activityIds: readonly ActivityId[] = [
   "arcade",
   "fish",
   "hoops",
+  "read",
+  "nap",
+  "pet",
 ];
 
 /** Says why a round stopped, so an early finish is never a mystery. */

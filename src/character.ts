@@ -566,7 +566,9 @@ export function animateDetails(
         : 0;
   }
   const gait = Math.sin(t * 10);
-  const seated = ["rest", "bench", "swing", "drive"].includes(mode);
+  const seated = ["rest", "read", "nap", "bench", "swing", "drive"].includes(
+    mode,
+  );
   const performing = [
     "drive",
     "dragon",
@@ -617,6 +619,14 @@ export function animateDetails(
   // The older clip bends the whole root toward Kopi. Keep the larger KayKit
   // head upright while crouching so its face does not intersect the cat.
   a.spine.rotation.x = mode === "pet" ? -0.25 : 0;
+  if (mode === "read") {
+    a.head.rotation.x = 0.22;
+    a.left.rotation.x = a.right.rotation.x = -0.9;
+  }
+  if (mode === "nap") {
+    a.head.rotation.x = 0.35;
+    a.spine.rotation.x = 0.25;
+  }
   if (!performing && ["idle", "walk", "jog"].includes(mode)) {
     a.left.rotation.x = a.moving
       ? -a.legs[0].rotation.x * 0.65

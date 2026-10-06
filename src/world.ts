@@ -285,6 +285,7 @@ export class LobbyWorld {
   private padFlight: { from: T.Vector3; to: T.Vector3; time: number } | null =
     null;
   private roofStars: T.Group[] = [];
+  private beforeAway: T.Vector3 | null = null;
   private marker: T.Mesh;
   private listener: ResizeObserver;
   interactions!: InteractionScenes;
@@ -1681,7 +1682,7 @@ export class LobbyWorld {
       }),
     );
   }
-  async interact(id: string) {
+  async interact(id: string, immediate = false) {
     const spec = interactionSpecs.find((s) => s.id === id);
     if (!spec) return;
     this.cancelInteraction();
@@ -1702,6 +1703,13 @@ export class LobbyWorld {
         spec,
         "This animation could not load. Refresh to try again.",
       );
+      return;
+    }
+    if (immediate) {
+      this.player.root.position.set(spec.approach[0], 0.1, spec.approach[1]);
+      this.elevation = 0.1;
+      this.motion.reset();
+      this.beginInteraction(id);
       return;
     }
     this.interactionEvent("walking", spec);
@@ -1775,6 +1783,8 @@ export class LobbyWorld {
   }
   setAway(value: boolean) {
     this.cancelInteraction();
+    if (value && !this.beforeAway)
+      this.beforeAway = this.player.root.position.clone();
     this.save.away = value;
     this.path = [];
     this.pending = "";
@@ -1782,7 +1792,14 @@ export class LobbyWorld {
     this.joystick = { x: 0, y: 0 };
     this.marker.visible = false;
     if (!value) {
-      this.player.root.position.set(0, 0.1, 10);
+      this.player.root.position.copy(
+        this.beforeAway || new T.Vector3(0, 0.1, 10),
+      );
+      this.beforeAway = null;
+      this.elevation = this.player.root.position.y;
+      this.jumpVelocity = 0;
+      this.padFlight = null;
+      this.motion.reset();
       this.player.legs.forEach((l) => (l.rotation.x = 0));
       this.inspectedId = "";
     }

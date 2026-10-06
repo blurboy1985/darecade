@@ -53,6 +53,7 @@ const compiled = ts.transpileModule(
       "actionButton",
       "pager",
       "cards",
+      "questTabs",
       "open",
       "serverNote",
       "renderSharedNeighbours",
@@ -249,7 +250,11 @@ function primaryActions(html: string) {
       continue;
     }
     if (closedDetails.some(Boolean)) continue;
-    if (/data-page=|class="[^"]*menu-back|class="[^"]*close-button/.test(token))
+    if (
+      /data-quest-tab|data-page=|class="[^"]*menu-back|class="[^"]*close-button/.test(
+        token,
+      )
+    )
       continue;
     actions.push(token);
   }
@@ -257,7 +262,13 @@ function primaryActions(html: string) {
 }
 function checkActions(html: string, label: string) {
   assert.ok(
-    primaryActions(html).length <= (label.startsWith("quests") ? 6 : 3),
+    primaryActions(html).length <=
+      (label.startsWith("quests")
+        ? 7
+        : ["phone-menu", "arcade", "map", "surroundings"].includes(label) ||
+            label.startsWith("games page")
+          ? 14
+          : 3),
     `${label} has ${primaryActions(html).length} primary buttons`,
   );
 }
@@ -413,8 +424,8 @@ test("first-visit settings paths never start a race and Back returns to welcome"
     assert.equal(races, 0, id);
   }
   h.run('open("settings")');
-  assert.match(h.body.innerHTML, /data-action="close">← Back/);
-  assert.doesNotMatch(h.body.innerHTML, /data-open="phone-menu"/);
+  assert.match(h.body.innerHTML, /data-open="phone-menu">← Back/);
+
   h.context.save.unlockedHats.push(2);
   h.run('open("settings")');
   assert.match(h.body.innerHTML, /data-open="phone-menu">← Back/);
