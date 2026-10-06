@@ -9,10 +9,17 @@ import type { SharedPlayer } from "./social";
 import { MovementBuffer } from "./movement-buffer";
 import * as T from "three";
 import { WorldMotion } from "./world-motion.ts";
+import { rooftops } from "./rooftops.ts";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { blocked, route, visitsOnWalk, type Obstacle } from "./navigation";
-import { outfits, skins, firstRoundGoalPending, type Save } from "./state";
+import {
+  outfits,
+  skins,
+  firstRoundGoalPending,
+  singaporeDay,
+  type Save,
+} from "./state";
 import { gameIds, type ActivityId } from "./catalog";
 import { residents, activityPose } from "./neighbourhood";
 import {
@@ -273,6 +280,11 @@ export class LobbyWorld {
   private low = false;
   private motion = new WorldMotion();
   private quality: "auto" | "quality" | "performance" = "auto";
+  private jumpVelocity = 0;
+  private elevation = 0.1;
+  private padFlight: { from: T.Vector3; to: T.Vector3; time: number } | null =
+    null;
+  private roofStars: T.Group[] = [];
   private marker: T.Mesh;
   private listener: ResizeObserver;
   interactions!: InteractionScenes;
@@ -363,6 +375,7 @@ export class LobbyWorld {
     this.buildEastSide();
     this.buildNeighbours();
     this.buildLiveliness();
+    this.buildRooftops();
     this.cat = this.buildCat();
     this.ball = sphere(this.root, 7, 0.47, 6, 0.38, "#f3bb64", 2);
     this.ball.userData.id = "ball";
@@ -498,6 +511,93 @@ export class LobbyWorld {
     cameraHeight = 0,
   ) {
     this.obstacles.push({ x, z, w, d, cameraHeight });
+  }
+  private buildRooftops() {
+    for (const roof of rooftops) {
+      const pad = cylinder(
+        this.root,
+        roof.pad[0],
+        0.2,
+        roof.pad[1],
+        0.65,
+        0.18,
+        "#c9ef8b",
+        24,
+      );
+      pad.name = `JumpPad-${roof.id}`;
+      sign(
+        this.root,
+        "JUMP ↑",
+        roof.pad[0],
+        0.34,
+        roof.pad[1],
+        1.1,
+        0.5,
+        "#c9ef8b",
+        "#263447",
+      ).rotation.x = -Math.PI / 2;
+      const star = new T.Group();
+      star.position.set(roof.x, roof.y + 2.2, roof.z);
+      const jewel = new T.Mesh(
+        new T.OctahedronGeometry(0.36),
+        new T.MeshStandardMaterial({
+          color: "#ffd261",
+          emissive: "#e9a32e",
+          emissiveIntensity: 0.5,
+        }),
+      );
+      star.add(jewel);
+      star.name = `RooftopStar-${roof.id}`;
+      star.userData.roof = roof.id;
+      star.userData.avatar = undefined;
+      star.visible =
+        this.save.roofDay !== singaporeDay() ||
+        !this.save.roofStars.includes(roof.id);
+      this.root.add(star);
+      this.roofStars.push(star);
+      this.targets.push({ mesh: star, id: `roof:${roof.id}` });
+    }
+  }
+  private jumpStep(dt: number) {
+    const p = this.player.root.position;
+    if (this.padFlight) {
+      const f = this.padFlight;
+      f.time = Math.min(1, f.time + dt / 1.5);
+      p.lerpVectors(f.from, f.to, f.time);
+      p.y += Math.sin(Math.PI * f.time) * 3.8;
+      this.elevation = p.y;
+      this.motion.reset();
+      if (f.time === 1) this.padFlight = null;
+    } else {
+      const surface = rooftops
+        .filter(
+          (r) =>
+            Math.abs(p.x - r.x) < r.w / 2 &&
+            Math.abs(p.z - r.z) < r.d / 2 &&
+            this.elevation >= r.y - 0.05,
+        )
+        .reduce((y, r) => Math.max(y, r.y + 0.1), 0.1);
+      if (this.elevation > surface || this.jumpVelocity > 0) {
+        this.jumpVelocity -= dt * 15;
+        this.elevation = Math.max(
+          surface,
+          this.elevation + this.jumpVelocity * dt,
+        );
+        if (this.elevation === surface) this.jumpVelocity = 0;
+      }
+      p.y = this.elevation;
+    }
+    for (const star of this.roofStars) {
+      star.rotation.y = this.clock;
+      if (
+        star.visible &&
+        Math.hypot(p.x - star.position.x, p.z - star.position.z) < 0.7 &&
+        Math.abs(p.y + 1 - star.position.y) < 0.55
+      ) {
+        star.visible = false;
+        this.onCoin(`roof:${star.userData.roof}`);
+      }
+    }
   }
   private buildGround() {
     box(this.root, 0, -0.75, 0, 41, 1.5, 31, "#9299a2");
@@ -1876,6 +1976,10 @@ export class LobbyWorld {
     this.updateCamera();
   }
   /** Walks to a spot. False when there is no way to get there. */
+  goRooftop(id: string) {
+    const roof = rooftops.find((r) => r.id === id);
+    return roof ? this.walkTo(roof.pad[0], roof.pad[1]) : false;
+  }
   go(id: string) {
     this.cancelInteraction();
     if (this.save.away) return false;
@@ -2097,6 +2201,21 @@ export class LobbyWorld {
     this.last = 0;
   };
   act(id: string) {
+    if (id === "jump") {
+      if (this.jumpVelocity || this.padFlight) return;
+      const p = this.player.root.position;
+      const roof = rooftops.find(
+        (r) => Math.hypot(p.x - r.pad[0], p.z - r.pad[1]) < 1 && p.y < 0.3,
+      );
+      if (roof)
+        this.padFlight = {
+          from: p.clone(),
+          to: new T.Vector3(roof.x, roof.y + 0.1, roof.z),
+          time: 0,
+        };
+      else this.jumpVelocity = 6.8;
+      return;
+    }
     this.emote = id;
     this.emoteAt = this.clock;
   }
@@ -2146,10 +2265,12 @@ export class LobbyWorld {
           (Date.now() - this.save.awaySince) / 1000,
         );
       } else if (!this.inspectedId) {
-        this.motion.sample(this.player.root.position, dt, (step) =>
-          this.move(step),
-        );
+        if (!this.padFlight)
+          this.motion.sample(this.player.root.position, dt, (step) =>
+            this.move(step),
+          );
         this.animatePlayer();
+        this.jumpStep(dt);
       }
       const remotes = [...this.sharedPlayers.values()].sort(
         (a, b) =>
@@ -2332,6 +2453,8 @@ export class LobbyWorld {
     if (this.cameraMode === "third") this.updateCamera();
     this.renderer.render(this.scene, this.camera);
     this.renderer.domElement.dataset.position = `${this.player.root.position.x.toFixed(2)},${this.player.root.position.z.toFixed(2)}`;
+    this.renderer.domElement.dataset.elevation =
+      this.player.root.position.y.toFixed(2);
     this.accumulator += elapsed;
     this.frames++;
     if (++this.monitor >= 120) {
@@ -2401,8 +2524,16 @@ export class LobbyWorld {
       const speed = Math.min(dt * 4.8, len);
       dx = (dx / len) * speed;
       dz = (dz / len) * speed;
-      if (!blocked(p.x + dx, p.z, this.obstacles)) p.x += dx;
-      if (!blocked(p.x, p.z + dz, this.obstacles)) p.z += dz;
+      const obstacles = this.obstacles.filter(
+        (o) =>
+          !rooftops.some(
+            (r) =>
+              this.elevation >= r.y && Math.hypot(o.x - r.x, o.z - r.z) < 5,
+          ) &&
+          (o.cameraHeight === 0 || this.elevation < o.cameraHeight),
+      );
+      if (!blocked(p.x + dx, p.z, obstacles)) p.x += dx;
+      if (!blocked(p.x, p.z + dz, obstacles)) p.z += dz;
       this.player.root.rotation.y = Math.atan2(dx, dz);
       this.player.legs[0].rotation.x = Math.sin(this.clock * 12) * 0.55;
       this.player.legs[1].rotation.x = -Math.sin(this.clock * 12) * 0.55;

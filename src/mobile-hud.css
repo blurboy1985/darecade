@@ -1,0 +1,233 @@
+/* Floating controls leave the world visible in both phone orientations. */
+.bottom-bar {
+  display: contents;
+}
+.bottom-bar > .profile {
+  display: flex;
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+  background: #faf7eeeb;
+  border-radius: 28px;
+  padding: 5px 10px 5px 5px;
+  gap: 6px;
+  max-width: 160px;
+  min-width: 0;
+  width: 120px;
+  height: 40px;
+}
+.profile .avatar-icon {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+}
+.avatar-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+.avatar-icon:has(img)::before,
+.avatar-icon:has(img)::after {
+  display: none;
+}
+.profile #player-name,
+.profile #medal-points,
+.footer-note {
+  display: none;
+}
+.profile #level-label {
+  font-size: 10px;
+}
+.profile .xp-track {
+  width: 64px;
+}
+.topbar {
+  pointer-events: none;
+  top: 10px;
+  left: 190px;
+  right: 12px;
+  padding: 0;
+  height: 38px;
+}
+.topbar .brand {
+  display: none;
+}
+.topbar .location-pill {
+  display: none;
+}
+.topbar .world-utilities {
+  pointer-events: auto;
+  margin-left: auto;
+}
+.topbar > .demo-tag {
+  display: block;
+  position: fixed;
+  right: 54px;
+  top: 15px;
+  padding: 5px 8px;
+  font-size: 9px;
+}
+#camera-toggle {
+  width: 36px;
+  height: 36px;
+  padding: 7px;
+  border-radius: 50%;
+}
+#camera-toggle span {
+  display: none;
+}
+.bottom-bar .lobby-dock {
+  position: fixed;
+  z-index: 10;
+  right: 12px;
+  top: 65px;
+  left: auto;
+  bottom: auto;
+  transform: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 44px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.lobby-dock button,
+.lobby-dock button.selected,
+.bottom-bar .lobby-dock > button.phone-more {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  max-height: 44px;
+  max-width: 44px;
+  flex: 0 0 44px;
+  padding: 8px;
+  border-radius: 50%;
+  border: 1px solid #26344733;
+  background: #faf7eeeb;
+  box-shadow: 0 2px 8px #26344722;
+}
+.lobby-dock button.selected {
+  background: #d9f0a2;
+}
+.lobby-dock button span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.world-actions {
+  position: fixed;
+  z-index: 10;
+  right: 12px;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  display: flex;
+  gap: 10px;
+}
+.round-action {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid #26344744;
+  background: #d9f0a2ed;
+  font-size: 24px;
+  display: grid;
+  place-items: center;
+}
+.round-action svg {
+  width: 22px;
+  height: 22px;
+}
+#quick-emotes {
+  position: fixed;
+  z-index: 15;
+  bottom: 68px;
+  right: 12px;
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 24px;
+  background: #faf7eef2;
+  box-shadow: 0 3px 15px #26344722;
+}
+#quick-emotes[hidden] {
+  display: none;
+}
+#quick-emotes button {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #e7edda;
+}
+.world-zoom {
+  position: fixed;
+  z-index: 10;
+  right: 12px;
+  top: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.world-zoom button {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #faf7eec9;
+  font-size: 20px;
+}
+.hud #joystick {
+  bottom: 14px;
+  left: 14px;
+  width: 64px;
+  height: 64px;
+}
+.hud .nearby-prompt {
+  bottom: 75px;
+  right: 12px;
+  padding: 7px 10px;
+  max-width: 190px;
+  font-size: 11px;
+  min-height: 32px;
+}
+.camera-hint,
+.move-hint {
+  display: none !important;
+}
+.toast {
+  bottom: 125px;
+  max-width: calc(100vw - 30px);
+}
+.is-playing .world-actions,
+.is-playing .world-zoom,
+.is-playing #quick-emotes,
+.mode-2d .world-zoom {
+  display: none;
+}
+@media (min-width: 900px) {
+  .lobby-dock button {
+    position: relative;
+  }
+  .lobby-dock button:hover::after {
+    content: attr(aria-label);
+    position: absolute;
+    right: 50px;
+    background: #faf7ee;
+    padding: 7px;
+    border-radius: 8px;
+    white-space: nowrap;
+  }
+}
+@media (max-height: 480px) {
+  .world-zoom {
+    top: 64px;
+    right: 68px;
+  }
+  .hud .nearby-prompt {
+    bottom: 68px;
+  }
+}

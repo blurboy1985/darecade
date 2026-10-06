@@ -260,7 +260,6 @@
 
 /* Prevent the profile colliding with the centered dock on small laptops. */
 @media (max-width: 1000px) {
-  .bottom-bar > .profile,
   .bottom-bar > .footer-note {
     display: none !important;
   }

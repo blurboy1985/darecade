@@ -62,7 +62,7 @@ test("world keeps three stable routes and a separate nearby action", () => {
   assert.ok(dock);
   assert.deepEqual(
     [...dock.matchAll(/data-open="([^"]+)"/g)].map((m) => m[1]),
-    ["arcade", "map", "phone-menu"],
+    ["arcade", "wardrobe", "phone-menu"],
   );
   assert.doesNotMatch(dock, /id="interaction"/);
   assert.match(source, /id="interaction" class="nearby-prompt"[^>]*hidden/);

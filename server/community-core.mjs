@@ -505,6 +505,18 @@ export class CommunityCore {
             if (!p.unlockedHats.includes(3)) p.unlockedHats.push(3);
           }
         }
+      } else if (event === "rooftop") {
+        if (!["arcade", "shop", "dragon"].includes(value))
+          throw Error("Unknown rooftop.");
+        const today = day(at);
+        if (p.roofDay !== today) {
+          p.roofDay = today;
+          p.roofStars = [];
+        }
+        if (!p.roofStars.includes(value)) {
+          p.roofStars.push(value);
+          p.xp += 10 + (p.roofStars.length === 3 ? 30 : 0);
+        }
       } else if (event === "claim") {
         const m = missions.find((x) => x.id === value);
         if (

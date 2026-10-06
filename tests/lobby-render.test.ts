@@ -11,6 +11,7 @@ import * as interactions from "../src/interactions.ts";
 import * as neighbourhood from "../src/neighbourhood.ts";
 import * as wardrobe from "../src/wardrobe.ts";
 import * as playMedals from "../src/play-medals.ts";
+import { rooftops } from "../src/rooftops.ts";
 
 // Evaluate the actual render functions. The small element fixture only records
 // generated HTML, selection and replacement; it is not a browser/DOM substitute.
@@ -161,6 +162,7 @@ function harness() {
     ...neighbourhood,
     ...wardrobe,
     ...playMedals,
+    rooftops,
     body,
     document: {
       querySelector: () => inspector,
@@ -255,12 +257,12 @@ function primaryActions(html: string) {
 }
 function checkActions(html: string, label: string) {
   assert.ok(
-    primaryActions(html).length <= 3,
+    primaryActions(html).length <= (label.startsWith("quests") ? 6 : 3),
     `${label} has ${primaryActions(html).length} primary buttons`,
   );
 }
 
-test("real menu renders have at most three primary actions with populated social data", () => {
+test("menu pages stay compact; quests also expose the three rooftop routes", () => {
   const h = harness();
   h.context.shared.dares = [
     {

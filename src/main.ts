@@ -1,3 +1,4 @@
+import { rooftops } from "./rooftops";
 import { mountPayments } from "./payments";
 import {
   wardrobeCards,
@@ -79,6 +80,7 @@ import {
 import "./arcade-theme.css";
 import "./wardrobe.css";
 import "./lobby-ui.css";
+import "./mobile-hud.css";
 import {
   menuPages,
   isMenuPage,
@@ -263,7 +265,10 @@ app.innerHTML = `
   <div id="joystick" class="joystick" role="group" aria-label="Drag to walk"><span></span></div>
   <div id="fallback" class="fallback" hidden></div>
   </main>
-  <footer class="bottom-bar"><div class="profile"><span class="avatar-icon" id="avatar-icon"><i></i></span><span><strong id="player-name">New neighbour</strong><small id="medal-points">0 MEDALS</small><span id="level-label">LEVEL 1</span><span class="xp-track"><i id="xp-fill"></i></span></span></div><nav class="dock lobby-dock" aria-label="Main actions"><button class="selected" data-open="arcade" data-main-action>${icon("game")}<span>Games</span></button><button data-open="map" data-main-action>${icon("compass")}<span>Neighbourhood</span></button><button class="phone-more" data-open="phone-menu" data-main-action>${icon("settings")}<span>Menu</span></button></nav><span class="footer-note" id="quality-note">3D WORLD</span></footer>
+  <footer class="bottom-bar"><div class="profile"><span class="avatar-icon" id="avatar-icon"><i></i></span><span><strong id="player-name">New neighbour</strong><small id="medal-points">0 MEDALS</small><span id="level-label">LEVEL 1</span><span class="xp-track"><i id="xp-fill"></i></span></span></div><nav class="dock lobby-dock" aria-label="Main actions"><button class="selected" data-open="arcade" data-main-action>${icon("game")}<span>Play</span></button><button data-open="wardrobe" data-main-action>${icon("shirt")}<span>My look</span></button><button class="phone-more" data-open="phone-menu" data-main-action>${icon("settings")}<span>Menu</span></button></nav><span class="footer-note" id="quality-note">3D WORLD</span></footer>
+  <div class="world-actions"><button class="round-action" id="quick-emotes-toggle" aria-label="Favourite emotes" aria-expanded="false">${icon("smile")}</button><button class="round-action" data-emote="jump" aria-label="Jump">↑</button></div>
+  <div id="quick-emotes" hidden><button data-emote="wave" aria-label="Wave">👋</button><button data-emote="dance" aria-label="Dance">♫</button><button data-emote="cheer" aria-label="Cheer">🙌</button><button data-emote="victory" aria-label="Victory">✌</button><button data-open="emotes">More</button></div>
+  <div class="world-zoom"><button data-action="zoom-out" aria-label="Zoom out">−</button><button data-action="zoom-in" aria-label="Zoom in">+</button></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <dialog id="modal"><div class="modal-top"><span class="eyebrow" id="modal-kicker">THE NEIGHBOURHOOD</span><button id="close-modal" class="close-button" aria-label="Close panel">×</button></div><div id="modal-body"></div></dialog>
   <div id="loading"><span class="brand-mark">p<span>★</span></span><h2>See you downstairs.</h2><p>Loading…</p><span class="loading-line"></span></div>
@@ -274,6 +279,15 @@ document
     "beforeend",
     `<aside id="inspector" class="inspector" aria-label="Neighbour inspection" hidden></aside><div id="away-banner" class="away-banner" hidden><span></span><button data-action="return-lobby">I’m back</button></div><div id="camera-hint" class="camera-hint" hidden></div><button id="interaction" class="nearby-prompt" hidden>${icon("pin")}<span></span><kbd>E</kbd></button>`,
   );
+document
+  .querySelector("#quick-emotes-toggle")!
+  .addEventListener("click", () => {
+    const strip = document.querySelector<HTMLElement>("#quick-emotes")!;
+    strip.hidden = !strip.hidden;
+    document
+      .querySelector("#quick-emotes-toggle")!
+      .setAttribute("aria-expanded", String(!strip.hidden));
+  });
 const modal = document.querySelector<HTMLDialogElement>("#modal")!;
 const body = document.querySelector<HTMLDivElement>("#modal-body")!;
 function persist() {
@@ -328,11 +342,30 @@ function updateMusic() {
   );
 }
 let shownLevel = 0;
+let headshotLook = "";
 function renderStats() {
   audio.configure(save.sound, save.music);
   const level = 1 + Math.floor(save.xp / 100);
   if (shownLevel && level > shownLevel) beep("levelup");
   shownLevel = level;
+  const lookKey = [
+    save.outfit,
+    save.skin,
+    save.body,
+    save.hat,
+    save.clothing,
+    save.hair,
+  ].join(":");
+  if (world && lookKey !== headshotLook) {
+    headshotLook = lookKey;
+    const host = document.createElement("div");
+    const preview = createCharacterPreview(host, save);
+    const image = new Image();
+    image.alt = "Your character";
+    image.src = preview.thumbnail(save, "hair");
+    preview.dispose();
+    document.querySelector("#avatar-icon")!.replaceChildren(image);
+  }
   document.querySelector("#level-label")!.textContent =
     `LEVEL ${1 + Math.floor(save.xp / 100)}`;
   (document.querySelector("#xp-fill") as HTMLElement).style.width =
@@ -353,6 +386,25 @@ function visit(id: string) {
   }
 }
 function collect(id: string) {
+  if (id.startsWith("roof:")) {
+    const today = singaporeDay();
+    if (save.roofDay !== today) {
+      save.roofDay = today;
+      save.roofStars = [];
+    }
+    const roof = id.slice(5);
+    if (save.roofStars.includes(roof)) return;
+    save.roofStars.push(roof);
+    progress("rooftop", roof);
+    beep("coin");
+    toast(
+      save.roofStars.length === 3
+        ? "Rooftop hunt complete! +30 bonus XP"
+        : `Rooftop star ${save.roofStars.length}/3 · +10 XP`,
+    );
+    persist();
+    return;
+  }
   if (firstRacePending()) return;
   if (save.coins.includes(id)) return;
   save.coins.push(id);
@@ -673,7 +725,7 @@ function open(id: string) {
     body.innerHTML = `<h2>Neighbourhood</h2><label class="field-label" for="destination">Choose a spot</label><select class="destination-select" id="destination">${spots.map((spot) => `<option value="${spot.id}">${spot.name}</option>`).join("")}</select><div class="simple-menu"><button class="menu-choice" data-action="go-destination" data-main-action>${icon("pin")}<span>Go there</span>${icon("arrow")}</button><button class="menu-choice" data-open="surroundings" data-main-action>${icon("star")}<span>Play outside</span>${icon("arrow")}</button><button class="menu-choice" data-open="worlds" data-main-action>${icon("compass")}<span>Change world</span>${icon("arrow")}</button></div>`;
   } else if (id === "quests") {
     const choices = pageChoices(missions, questPage);
-    body.innerHTML = `<h2>Quests</h2><div class="hunt-panel"><span class="big-coin">✦</span><div><h3>Pixel hunt</h3><p>Find 5 coins → Sprout hat + 50 XP</p><strong>${save.coins.length} / 5</strong></div></div>${is2d ? '<p class="fine-print">Needs 3D. Or grab a free Sprout hat at the Mama Shop.</p>' : ""}<div class="mission-list">${choices.items
+    body.innerHTML = `<h2>Quests</h2><div class="hunt-panel"><span class="big-coin">★</span><div><h3>Daily rooftop hunt</h3><p>Jump from green pads to the arcade, shop and dragon. Jump again for each star.</p><strong>${save.roofDay === singaporeDay() ? save.roofStars.length : 0}/3 · +10 XP per star, +30 for all three</strong><small>Resets at midnight SGT</small><div class="button-row">${rooftops.map((r) => `<button class="secondary" data-rooftop="${r.id}">${r.name}</button>`).join("")}</div></div></div><div class="hunt-panel"><span class="big-coin">✦</span><div><h3>Pixel hunt</h3><p>Find 5 coins → Sprout hat + 50 XP</p><strong>${save.coins.length} / 5</strong></div></div>${is2d ? '<p class="fine-print">Needs 3D. Or grab a free Sprout hat at the Mama Shop.</p>' : ""}<div class="mission-list">${choices.items
       .map((m) => {
         const progress = missionProgress(save, m.id);
         return `<div><span class="mission-check ${progress >= m.total ? "complete" : ""}">${progress >= m.total ? "✓" : icon("star")}</span><span><strong>${m.name}</strong><small>${m.detail} · ${progress}/${m.total}</small></span><button data-claim="${m.id}" ${progress < m.total || save.claims.includes(m.id) ? "disabled" : ""}>${save.claims.includes(m.id) ? "CLAIMED ✓" : progress >= m.total ? `CLAIM +${m.xp} XP` : `${progress}/${m.total} · +${m.xp} XP`}</button></div>`;
@@ -1238,6 +1290,12 @@ document.addEventListener("click", (e) => {
     }
     return;
   }
+  if (b.dataset.rooftop) {
+    close();
+    world?.goRooftop(b.dataset.rooftop);
+    toast("Follow the path to the green pad. Press Jump to launch.");
+    return;
+  }
   if (b.dataset.game) {
     startGame(b.dataset.game as GameId);
     return;
@@ -1323,14 +1381,18 @@ document.addEventListener("click", (e) => {
   }
   if (b.dataset.emote) {
     const id = b.dataset.emote;
+    document.querySelector<HTMLElement>("#quick-emotes")!.hidden = true;
+    document
+      .querySelector("#quick-emotes-toggle")!
+      .setAttribute("aria-expanded", "false");
+    if (id === "jump" && !localStorage.getItem("playsimi-jump-hint")) {
+      toast("Jump on a green pad, then jump again to collect a rooftop star.");
+      localStorage.setItem("playsimi-jump-hint", "1");
+    }
     close();
     if (is2d) emote2d = { id, until: Date.now() + 4000 };
     else world?.act(id);
-    toast(
-      is2d
-        ? "Emote ready · players in your connected world can see it."
-        : "A little main-character moment.",
-    );
+    if (id !== "jump") toast(is2d ? "Emote ready." : "Emote sent.");
     return;
   }
   if (b.dataset.action) {

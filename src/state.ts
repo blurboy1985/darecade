@@ -44,6 +44,8 @@ export type Save = {
   wardrobeUnlocked: string[];
   wardrobePurchased: string[];
   coins: string[];
+  roofDay: string;
+  roofStars: string[];
   week: string;
   giftDay: string;
   gift: number;
@@ -111,6 +113,8 @@ export function fresh(): Save {
     wardrobeUnlocked: [],
     wardrobePurchased: [],
     coins: [],
+    roofDay: "",
+    roofStars: [],
     week: singaporeWeek(),
     giftDay: "",
     gift: 0,
@@ -252,6 +256,18 @@ export function normalise(raw: unknown, fallback: Save): Save {
     s.giftDay = r.giftDay;
   if (r.week === fallback.week && Array.isArray(r.coins))
     s.coins = [...new Set(r.coins.filter((v) => /^coin[0-4]$/.test(v)))];
+  if (
+    typeof r.roofDay === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(r.roofDay) &&
+    Array.isArray(r.roofStars)
+  ) {
+    s.roofDay = r.roofDay;
+    s.roofStars = [
+      ...new Set(
+        r.roofStars.filter((v) => ["arcade", "shop", "dragon"].includes(v)),
+      ),
+    ];
+  }
   s.unlockedHats = [
     ...new Set([
       0,
