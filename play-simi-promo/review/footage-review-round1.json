@@ -1,0 +1,87 @@
+{
+  "round": 1,
+  "shots": {
+    "coast-rush.mp4": { "score": 8, "rank": 1, "beat": "PLAY", "rejected": false, "note": "Best footage in the set: 3D kart, TURBO callout, speed jump 83 to 112 km/h; use 0.0-1.5s or 2.3-3.8s." },
+    "hoops.mp4": { "score": 7, "rank": 2, "beat": "PLAY", "rejected": false, "note": "Warm colour, big SWISH and flame text, score climbing 18 to 42; any 1.2s window containing a SWISH works." },
+    "wardrobe-sets.mp4": { "score": 7, "rank": 3, "beat": "CREATE", "rejected": false, "note": "Most colourful outfit swaps (Storm Ronin, Sakura Kitsune, Galaxy Idol, Dream Witch, Phoenix); cut before 2.9s where the thumbnails go blank, and note these are PREMIUM PREVIEW sets, not class looks." },
+    "emote.mp4": { "score": 6, "rank": 4, "beat": "HOOK", "rejected": false, "note": "Sharp front-facing close-up with orbiting stars, but the cheer barely reads because the arms hide behind the hair; a placeholder hook only." },
+    "plaza-wave.mp4": { "score": 6, "rank": 5, "beat": "HANG OUT", "rejected": false, "note": "Avatar faces camera with pet and a second avatar tagged Bao, but the wave is almost invisible and 3.6s is near-static; oversized YOU tag sits on the hat." },
+    "plaza.mp4": { "score": 6, "rank": 6, "beat": "HANG OUT", "rejected": false, "note": "Use 0.0-1.3s and 3.3-5.5s only; at about 1.5-2.7s another avatar blocks the lens and a dark green name-tag slab covers half the frame." },
+    "levelup.mp4": { "score": 6, "rank": 7, "beat": "PROGRESS", "rejected": false, "note": "Swish into result card with +20 XP and LEVEL UP +1 Style token works for 1.5s; panel overlaps the Play again button and Rank reads Guest." },
+    "open-stage.mp4": { "score": 6, "rank": 8, "beat": "PLAY", "rejected": false, "note": "Avatar on stage with spotlights and PERFECT! hits, but the game sits in a small card over a blurred backdrop; must be cropped to the card and will be soft." },
+    "fishing.mp4": { "score": 6, "rank": 9, "beat": "PLAY", "rejected": false, "note": "Slow until the catch; only 4.3-5.2s (catfish pops with +25 and splash) is worth cutting in." },
+    "wardrobe-classes.mp4": { "score": 5, "rank": 10, "beat": "CREATE", "rejected": false, "note": "Only clip showing class filters, but the avatar is about 8 percent of the frame, only the hat changes, Thief is missing and the Pirate chip is clipped to 'Pi'." },
+    "hop-hop.mp4": { "score": 5, "rank": null, "beat": "PLAY", "rejected": false, "note": "Readable runner with score ticking, but the pixel character is tiny; use the last 0.6s where STAR POWER triggers." },
+    "brick-bash.mp4": { "score": 5, "rank": null, "beat": "PLAY", "rejected": false, "note": "Clean and colourful bricks but slow, one brick every second; acceptable 1s filler cut at the +15 pops." },
+    "noodle-run.mp4": { "score": 5, "rank": null, "beat": "PLAY", "rejected": false, "note": "Readable snake with steady +20 pops but visually sparse and dark; filler cut only." },
+    "emote-dance.mp4": { "score": 5, "rank": null, "beat": "HOOK", "rejected": false, "note": "Only clip with real body motion, but the face is visible for roughly 0.6s of 3.6s and the last 1.7s is the back of the head." },
+    "star-swarm.mp4": { "score": 4, "rank": null, "beat": "PLAY", "rejected": false, "note": "Washed-out pale field, tiny sprites, wave 1 only, and the player takes a hit with a red flash; weakest game clip." },
+    "wardrobe.mp4": { "score": 4, "rank": null, "beat": "CREATE", "rejected": false, "note": "Hair and outfit do swap but in a postage-stamp preview above a wall of text; last 1.5s is static." },
+    "plaza-desktop.mp4": { "score": 3, "rank": null, "beat": "HANG OUT", "rejected": false, "note": "Landscape 16:9, opens with a Juno name slab across the avatar and spends the last 2.5s walking into a blank orange wall; unusable for a 9:16 cut." },
+    "emote-wave.mp4": { "score": 2, "rank": null, "beat": "HOOK", "rejected": false, "note": "Entire clip is the back of the avatar's head; the wave is never visible." },
+
+    "emote-still.png": { "score": 5, "rank": null, "beat": "HOOK", "rejected": false, "note": "Clean sharp close-up with stars, usable as a freeze frame or thumbnail; no motion and a neutral face." },
+    "plaza-3.png": { "score": 5, "rank": null, "beat": "HANG OUT", "rejected": false, "note": "Best plaza still: avatar faces camera with pet and Bao beside it; bottom quarter is empty floor and no wave is visible." },
+    "coast-rush-still.png": { "score": 5, "rank": null, "beat": "PLAY", "rejected": false, "note": "Clear kart frame with MochiStar tag, fine as a thumbnail; the clip is better." },
+    "look-mage.png": { "score": 5, "rank": null, "beat": "CTA", "rejected": false, "note": "Clean hero close-up but neutral pose and the hat with halo does not obviously read as Mage." },
+    "wardrobe-sets.png": { "score": 5, "rank": null, "beat": "CREATE", "rejected": false, "note": "Phoenix set is the most eye-catching wardrobe frame; crop to the top preview and the two set cards." },
+    "logo.png": { "score": 5, "rank": null, "beat": "CTA", "rejected": false, "note": "Correct logo but only 561x150, so it will go soft when scaled to a 1080-wide end card." },
+    "avatar-create-1.png": { "score": 4, "rank": null, "beat": "CREATE", "rejected": false, "note": "Readable My look screen with item cards; avatar is small and half the frame is text, crop to the preview." },
+    "avatar-create-archer.png": { "score": 4, "rank": null, "beat": "CREATE", "rejected": false, "note": "Green hood, fireflies and fox pet give the most colour of the class stills; lower half is help text and clipped cards." },
+    "avatar-create-thief.png": { "score": 4, "rank": null, "beat": "CREATE", "rejected": false, "note": "Twin buns look with cat pet is cute, but no Thief chip is visible in frame so the class does not read." },
+    "wardrobe-magic.png": { "score": 4, "rank": null, "beat": "CREATE", "rejected": false, "note": "Orbiting stars card is visible but the frame is near-identical to the other wardrobe stills." },
+    "wardrobe-outfits.png": { "score": 4, "rank": null, "beat": "CREATE", "rejected": false, "note": "Clean but duplicates avatar-create-1 at lower resolution." },
+    "look-thief.png": { "score": 4, "rank": null, "beat": "CTA", "rejected": false, "note": "Sharp, but a plain vest and shorts with no cape visible from the front; nothing says Thief." },
+    "look-warrior.png": { "score": 4, "rank": null, "beat": "CTA", "rejected": false, "note": "Sharp, but the knight helmet reads as a cap with earmuffs; neutral pose." },
+    "plaza-desktop-ui.png": { "score": 4, "rank": null, "beat": "HANG OUT", "rejected": false, "note": "Only frame showing the busy plaza with five other avatars, but landscape, HUD on, a Juno avatar merged into the player, and the HUD says 'Just you here'." },
+    "levelup.png": { "score": 4, "rank": null, "beat": "PROGRESS", "rejected": false, "note": "Coin is caught edge-on so it looks like a brown blob; use the clip frame with the star face instead." },
+    "brick-bash-still.png": { "score": 4, "rank": null, "beat": "PLAY", "rejected": false, "note": "Clean frame at score 255, static; thumbnail use only." },
+    "noodle-run-still.png": { "score": 4, "rank": null, "beat": "PLAY", "rejected": false, "note": "Long snake at 380 reads well; static and dark." },
+    "fishing-still.png": { "score": 4, "rank": null, "beat": "PLAY", "rejected": false, "note": "Hooked state with splash, no fish on screen; the catch frame from the clip is stronger." },
+    "hop-hop-still.png": { "score": 4, "rank": null, "beat": "PLAY", "rejected": false, "note": "Character standing at a gap edge, no jump in frame." },
+    "avatar-create-mage.png": { "score": 3, "rank": null, "beat": "CREATE", "rejected": false, "note": "Mage chip selected but the look is the default avatar and the lower half is help text." },
+    "avatar-create-pirate.png": { "score": 3, "rank": null, "beat": "CREATE", "rejected": false, "note": "Bandana reads as a red beret on a grey-bearded avatar, and the Pirate chip is clipped to 'Pi'." },
+    "avatar-create-warrior.png": { "score": 3, "rank": null, "beat": "CREATE", "rejected": false, "note": "Helmet does not read as a knight helmet at this size; lower half is help text." },
+    "wardrobe-classes.png": { "score": 3, "rank": null, "beat": "CREATE", "rejected": false, "note": "Same weak pirate frame as avatar-create-pirate at lower resolution." },
+    "wardrobe-hats.png": { "score": 3, "rank": null, "beat": "CREATE", "rejected": false, "note": "Default look with a help-text block and clipped thumbnails; nothing happening." },
+    "wardrobe-pets.png": { "score": 3, "rank": null, "beat": "CREATE", "rejected": false, "note": "The blank 'No companion' tile looks like an unloaded thumbnail." },
+    "result-screen.png": { "score": 3, "rank": null, "beat": "PROGRESS", "rejected": false, "note": "Plain text card with +20 XP and Rank Guest, clipped text at the bottom; no level or bar." },
+    "plaza-1.png": { "score": 3, "rank": null, "beat": "HANG OUT", "rejected": false, "note": "Back of the avatar, a clipped name tag ('zu') and stage floor filling the bottom third." },
+    "plaza-2.png": { "score": 3, "rank": null, "beat": "HANG OUT", "rejected": false, "note": "Avatar turned away, a blank clipped tag slab on the left and the bottom third is empty floor." },
+    "hoops-still.png": { "score": 2, "rank": null, "beat": "PROGRESS", "rejected": false, "note": "Mislabelled: this is the result card, not Hoops gameplay, and duplicates result-screen.png." },
+
+    "look-archer.png": { "score": 3, "rank": null, "beat": "CTA", "rejected": true, "note": "Rejected, render error: the green magic effect clips through the face, leaving yellow-green patches over half-closed eyes." },
+    "open-stage-still.png": { "score": 4, "rank": null, "beat": "PLAY", "rejected": true, "note": "Rejected, shows an error and blur: counter reads 'NOTES 19 / 5' and half the frame is blurred backdrop." },
+    "quests.png": { "score": 2, "rank": null, "beat": "PROGRESS", "rejected": true, "note": "Rejected, cluttered UI with a text glitch ('threeResets at midnight SGT') and zero progress (0/3, 0/5)." },
+    "plaza-desktop.png": { "score": 2, "rank": null, "beat": "HANG OUT", "rejected": true, "note": "Rejected, empty: a blank orange wall fills most of the frame and the avatar has its back to camera; no dance visible." },
+    "rankings.png": { "score": 1, "rank": null, "beat": "PROGRESS", "rejected": true, "note": "Rejected, empty: no ranking rows at all, just explanatory text and 'Your best today: 0'." },
+    "star-swarm-still.png": { "score": 1, "rank": null, "beat": "PLAY", "rejected": true, "note": "Rejected, mid-load: frame is the 'Checking score...' interstitial, not gameplay." }
+  },
+  "missing": [
+    {
+      "beat": "HOOK",
+      "recapture": "Replace emote.mp4, emote-dance.mp4 and emote-wave.mp4. Film 2.5s per emote, portrait 780x1688, HUD and the YOU tag hidden, camera locked in front of the avatar at chest height so the face stays toward the lens for the whole clip (do not let the camera sit behind; emote-wave is 100% back of head). Frame head-to-knees so raised arms are inside the frame, avatar filling about 70% of frame height. Trigger the emote at 0.3s so the biggest pose lands inside the first second. Use the most extreme look available (a premium set try-on such as Phoenix Ascendant or Dream Witch if that is allowed in the plaza, otherwise Mage with the star magic). Keep the pet out of the bottom corner or fully in frame, not half-clipped. For the dance, either pick an emote without a full spin or cut the take so it starts and ends face-on."
+    },
+    {
+      "beat": "CREATE",
+      "recapture": "Replace wardrobe-classes.mp4 (and the avatar-create-*.png set). Needed: five class looks in order Mage, Pirate, Thief, Warrior, Archer, each held 0.8-1.0s, total 5s. Change the whole look per class (hat plus outfit plus cape/prop), not just the hat. Zoom or crop so the avatar preview panel fills at least the top 50% of the 9:16 frame; scroll the panel so the class chip row and item cards are visible and the 'Your hats' help-text block is off screen. Scroll the chip row so 'Pirate' and 'Thief' are fully readable, not clipped to 'Pi', and so the selected chip changes visibly on each swap. Thief is currently absent from the clip. Pirate needs an avatar where the bandana reads as a bandana (no grey beard hair under it). End on a held frame, not on blank loading thumbnails as wardrobe-sets.mp4 does at 2.9s."
+    },
+    {
+      "beat": "HANG OUT",
+      "recapture": "Replace plaza.mp4 and plaza-wave.mp4 with one 5s portrait take. Camera in front of or three-quarters to the avatar (face visible), walking 2s past at least three other avatars with readable placeholder name tags (Luna, Kiko, Bao, Miso etc.), pet visibly trotting behind, then stop and fire a big-arm emote for 2s with another avatar in frame. No avatar or name tag may pass between camera and player (plaza.mp4 at 1.5-2.7s has a head filling the lens and then a green tag slab covering half the frame). Shrink or hide the YOU tag so it does not cover the hat; keep the player in the lower-middle third so the bottom of the frame is not empty floor. Drop plaza-desktop.mp4 and plaza-desktop.png or refilm them in portrait; never end a take facing a wall. If plaza-desktop-ui.png is reshot, the HUD must not read 'Just you here'."
+    },
+    {
+      "beat": "PLAY",
+      "recapture": "Replace star-swarm.mp4 and star-swarm-still.png: film 3s from wave 2 or later with at least six enemies on screen, several +20 pops and no hit taken (no red flash); take the still from mid-combat, never from the 'Checking score...' screen. Replace hoops-still.png with a real Hoops frame at the SWISH callout (ball above the rim, flame text visible). Replace open-stage.mp4 and open-stage-still.png: record the full show rather than the 5-note warm-up so the counter does not read 'NOTES 19 / 5', and capture so the stage card fills the frame width (crop target at least 1080 px wide) with no blurred backdrop. Optional upgrades: fishing.mp4 start the take 1s before a catch so the fish lands at 1.0s; hop-hop.mp4 start 1s before STAR POWER; noodle-run.mp4 and brick-bash.mp4 are acceptable as 1s filler cuts."
+    },
+    {
+      "beat": "PROGRESS",
+      "recapture": "Replace rankings.png, quests.png, levelup.png and result-screen.png. (1) Level up: a 2.5s clip where an XP bar visibly fills and a level number changes (e.g. LEVEL 3 to LEVEL 4), coin showing its star face, panel not overlapping the Play again button, Rank not reading 'Guest' (use a signed-in capture account). (2) Rankings: a board with at least five populated rows, the MochiStar row highlighted near the top, every other row using placeholder names only (Luna, Kiko, Bao, Tofu, Miso, Juno, Sora, Nori, Pip, Yuzu ...); expand 'Ranked medal standings' so rows, not paragraphs, fill the frame. (3) Quests: at least one quest mid-progress and one completing on camera (e.g. 2/3 to 3/3 with the reward popping); the 'threeResets at midnight SGT' text glitch must not be on screen. Frame each so numbers and bars fill the middle 60% of the 9:16 frame with body copy cropped out."
+    },
+    {
+      "beat": "CTA",
+      "recapture": "No end-card footage exists. (1) Replace logo.png with a logo at least 1600 px wide on a transparent or flat cream background (export from the vector source, not a screenshot of the top bar). (2) Film a 3s portrait hero shot, HUD and tags hidden: the five class avatars (Mage, Pirate, Thief, Warrior, Archer) side by side or one per cut, front-facing, all firing a cheer emote at the same moment, upper third of the frame left clear for the logo and 'Play free' line. (3) Replace look-archer.png: reshoot with the firefly/leaf effect not clipping through the face, eyes open. look-mage.png, look-thief.png and look-warrior.png are sharp but neutral; reshoot mid-emote with class props visible so each class reads at a glance."
+    }
+  ],
+  "summary": "Round 1 has one genuinely strong shot (coast-rush.mp4) and a usable PLAY montage, but the bookends are weak. The hook emotes are either near-static or filmed from behind, the class looks do not read as Mage/Pirate/Thief/Warrior/Archer, and the PROGRESS beat is text cards with an empty rankings board and no visible level change. Six files are rejected (one loading screen, two empty frames, one cluttered quest panel with a text glitch, one render artefact, one counter bug); no real player names were found, every readable tag is on the placeholder list. All six beats need at least one recapture before this can be cut; priority order is HOOK, CREATE, PROGRESS, CTA, then HANG OUT and the Star Swarm and Open Stage fixes."
+}

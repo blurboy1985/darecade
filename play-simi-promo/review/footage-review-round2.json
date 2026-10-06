@@ -1,0 +1,448 @@
+{
+  "round": 2,
+  "shots": {
+    "avatar-create-archer.png": {
+      "score": 5,
+      "rank": null,
+      "beat": "CREATE",
+      "rejected": false,
+      "note": "Sharp 3x Orchard Archer preview; crop to the preview card."
+    },
+    "avatar-create-mage.png": {
+      "score": 5,
+      "rank": null,
+      "beat": "CREATE",
+      "rejected": false,
+      "note": "Sharp 3x My look screen with Lantern Mage; crop to the preview card, the lower two thirds is menu."
+    },
+    "avatar-create-pirate.png": {
+      "score": 5,
+      "rank": null,
+      "beat": "CREATE",
+      "rejected": false,
+      "note": "Sharp 3x Coral Pirate preview; crop to the preview card."
+    },
+    "avatar-create-thief.png": {
+      "score": 5,
+      "rank": null,
+      "beat": "CREATE",
+      "rejected": false,
+      "note": "Sharp 3x Velvet Thief preview; crop to the preview card."
+    },
+    "avatar-create-warrior.png": {
+      "score": 5,
+      "rank": null,
+      "beat": "CREATE",
+      "rejected": false,
+      "note": "Sharp 3x Dawn Warrior preview; crop to the preview card."
+    },
+    "brick-bash-still.png": {
+      "score": 4,
+      "rank": null,
+      "beat": "PLAY",
+      "rejected": false,
+      "note": "Half-cleared wall at 255; readable but static."
+    },
+    "brick-bash.mp4": {
+      "score": 6,
+      "rank": 9,
+      "beat": "PLAY",
+      "rejected": false,
+      "note": "Clear pastel bricks with +15 pops, readable but slow; crop to the board and take a hit moment."
+    },
+    "coast-rush-still.png": {
+      "score": 6,
+      "rank": null,
+      "beat": "PLAY",
+      "rejected": false,
+      "note": "Clean kart frame with 1st / 8; no turbo effect, the clip is better."
+    },
+    "coast-rush.mp4": {
+      "score": 8,
+      "rank": 2,
+      "beat": "PLAY",
+      "rejected": false,
+      "note": "Kart with avatar and pet, real speed; cut on the TURBO! flash at about 2.5s and crop to the race view above the DRIFT/GO buttons."
+    },
+    "emote-cheer.mp4": {
+      "score": 4,
+      "rank": null,
+      "beat": "HOOK",
+      "rejected": true,
+      "note": "Rejected: another player's tag reads \"Sunny C...\" at the right edge with their avatar in frame for most of the clip; the smiling cheer itself is the best face in the set."
+    },
+    "emote-dance.mp4": {
+      "score": 7,
+      "rank": 5,
+      "beat": "HOOK",
+      "rejected": false,
+      "note": "Best motion of the emote set (full spin with staff and pet), no stray tags; frame below the YOU tag, half the spin shows her back."
+    },
+    "emote-jump.mp4": {
+      "score": 2,
+      "rank": null,
+      "beat": "HOOK",
+      "rejected": true,
+      "note": "Rejected: another player's tag reads \"Sunny\" top right, the first second is the camera still settling, and no jump is visible."
+    },
+    "emote-still.png": {
+      "score": 6,
+      "rank": null,
+      "beat": "HOOK",
+      "rejected": false,
+      "note": "Sharp victory frame with orbiting stars; a poster frame for the hook, wink patch visible."
+    },
+    "emote-think.mp4": {
+      "score": 2,
+      "rank": null,
+      "beat": "HOOK",
+      "rejected": false,
+      "note": "Not a front close-up: the avatar faces away for the whole clip, so no face and no readable emote."
+    },
+    "emote-wave.mp4": {
+      "score": 2,
+      "rank": null,
+      "beat": "HOOK",
+      "rejected": false,
+      "note": "Not a front close-up: back of the head for all three seconds, no wave visible."
+    },
+    "emote.mp4": {
+      "score": 6,
+      "rank": 7,
+      "beat": "HOOK",
+      "rejected": false,
+      "note": "Clean front victory pose, but the arms just go up and hold and the wink renders as a purple/yellow patch; use the first 1s only."
+    },
+    "fishing-still.png": {
+      "score": 4,
+      "rank": null,
+      "beat": "PLAY",
+      "rejected": false,
+      "note": "Float and splash only, no fish; the catch frame in the clip is the one to use."
+    },
+    "fishing.mp4": {
+      "score": 6,
+      "rank": 8,
+      "beat": "PLAY",
+      "rejected": false,
+      "note": "Four seconds of a bobbing float, then a good catfish +25 pop at about 4.5s; use only 4.2-5.2s."
+    },
+    "hoops-still.png": {
+      "score": 6,
+      "rank": null,
+      "beat": "PLAY",
+      "rejected": false,
+      "note": "Ball in the net with SWISH half faded; fine as a thumbnail."
+    },
+    "hoops.mp4": {
+      "score": 8,
+      "rank": 4,
+      "beat": "PLAY",
+      "rejected": false,
+      "note": "Repeated SWISH with flame and warm colour, reads instantly; crop to the court and drop the SHOOT button."
+    },
+    "hop-hop-still.png": {
+      "score": 4,
+      "rank": null,
+      "beat": "PLAY",
+      "rejected": false,
+      "note": "Runner before a gap, no effect on screen; weak as a still."
+    },
+    "hop-hop.mp4": {
+      "score": 6,
+      "rank": 10,
+      "beat": "PLAY",
+      "rejected": false,
+      "note": "Readable runner with +25 pops; the last 0.5s with STAR POWER is the only exciting part."
+    },
+    "levelup.mp4": {
+      "score": 5,
+      "rank": null,
+      "beat": "PROGRESS",
+      "rejected": false,
+      "note": "Real LEVEL UP +1 Style token panel with a spinning coin, but it is a text card showing Rank Guest; crop to the level-up panel only."
+    },
+    "levelup.png": {
+      "score": 5,
+      "rank": null,
+      "beat": "PROGRESS",
+      "rejected": false,
+      "note": "Same level-up card as the clip with the coin edge-on; use the clip, not this frame."
+    },
+    "logo.png": {
+      "score": 6,
+      "rank": null,
+      "beat": "CTA",
+      "rejected": false,
+      "note": "Crisp wordmark and icon on cream, 1089px wide; fine at up to about 85% of a 1080 frame, do not scale up."
+    },
+    "look-archer-pose.png": {
+      "score": 6,
+      "rank": null,
+      "beat": "CTA",
+      "rejected": false,
+      "note": "Clean Archer victory pose, no tags; wink patch visible on a punch-in."
+    },
+    "look-archer.png": {
+      "score": 6,
+      "rank": null,
+      "beat": "CTA",
+      "rejected": false,
+      "note": "Clean standing Archer with hood and bow, good green contrast."
+    },
+    "look-mage-pose.png": {
+      "score": 6,
+      "rank": null,
+      "beat": "CTA",
+      "rejected": false,
+      "note": "Sharp Mage victory pose, no tags; wink eye renders as a patch, so keep it small in the line-up."
+    },
+    "look-mage.png": {
+      "score": 6,
+      "rank": null,
+      "beat": "CTA",
+      "rejected": false,
+      "note": "Sharp 3x standing Mage, clean background; frame below the YOU tag (hat floats above a bare scalp at this distance)."
+    },
+    "look-pirate-pose.png": {
+      "score": 3,
+      "rank": null,
+      "beat": "CTA",
+      "rejected": true,
+      "note": "Rejected: another player's name tag is readable at the right edge, cut off as \"Sur...\" (not a placeholder name), with their avatar and pet in frame."
+    },
+    "look-pirate.png": {
+      "score": 6,
+      "rank": null,
+      "beat": "CTA",
+      "rejected": false,
+      "note": "Clean standing Pirate with cutlass, strong red; use this instead of the rejected pirate pose."
+    },
+    "look-thief-pose.png": {
+      "score": 5,
+      "rank": null,
+      "beat": "CTA",
+      "rejected": false,
+      "note": "Clean victory pose; same blocky mask plus the wink patch, keep small."
+    },
+    "look-thief.png": {
+      "score": 5,
+      "rank": null,
+      "beat": "CTA",
+      "rejected": false,
+      "note": "Clean, but the face mask and chest block read as a flat purple rectangle; weakest class silhouette."
+    },
+    "look-warrior-pose.png": {
+      "score": 3,
+      "rank": null,
+      "beat": "CTA",
+      "rejected": false,
+      "note": "Not usable: both eyes are mid-blink and one renders as a dark hole; use look-warrior.png."
+    },
+    "look-warrior.png": {
+      "score": 6,
+      "rank": null,
+      "beat": "CTA",
+      "rejected": false,
+      "note": "Clean standing Warrior, bright orange armour; sword is hidden behind the head so it reads less as a warrior."
+    },
+    "noodle-run-still.png": {
+      "score": 4,
+      "rank": null,
+      "beat": "PLAY",
+      "rejected": false,
+      "note": "Long snake on a dark grid, score 380; readable but static."
+    },
+    "noodle-run.mp4": {
+      "score": 5,
+      "rank": null,
+      "beat": "PLAY",
+      "rejected": false,
+      "note": "Plain snake on a dark grid with +20 pops; usable for a 1s cut, lowest energy of the game clips."
+    },
+    "open-stage-still.png": {
+      "score": 7,
+      "rank": null,
+      "beat": "PLAY",
+      "rejected": false,
+      "note": "Strong poster frame: spotlit avatar, PERFECT!, combo 44; crop to the stage panel."
+    },
+    "open-stage.mp4": {
+      "score": 9,
+      "rank": 1,
+      "beat": "PLAY",
+      "rejected": false,
+      "note": "Avatar dancing under spotlights with confetti, PERFECT! and an 80+ combo; crop to the stage panel above the four arrow buttons."
+    },
+    "plaza-1.png": {
+      "score": 5,
+      "rank": null,
+      "beat": "HANG OUT",
+      "rejected": false,
+      "note": "Only clean plaza frame: avatar, pet and Arcade Row, no stray tags and no dither haze, but it is a still with no emote and no second avatar."
+    },
+    "plaza-2.png": {
+      "score": 3,
+      "rank": null,
+      "beat": "HANG OUT",
+      "rejected": true,
+      "note": "Rejected: tag \"Mint Gecko 4...\" readable top right, and the whole frame has a screen-door dither haze."
+    },
+    "plaza-3.png": {
+      "score": 3,
+      "rank": null,
+      "beat": "HANG OUT",
+      "rejected": true,
+      "note": "Rejected: tag \"Mint Gecko 4...\" readable top right, same dither haze over the emote frame."
+    },
+    "plaza-desktop-ui.png": {
+      "score": 2,
+      "rank": null,
+      "beat": "HANG OUT",
+      "rejected": true,
+      "note": "Rejected: tag \"Brave Panda 31\" is readable by Mama Shop, the avatar has its back to camera, and the HUD is on."
+    },
+    "plaza-desktop.mp4": {
+      "score": 5,
+      "rank": null,
+      "beat": "HANG OUT",
+      "rejected": true,
+      "note": "Rejected: tags \"Sunny Otter 12\" (left, from about 1.5s) and \"Mint Gecko 42\" are readable; \"Kiko\" is fine. Best composition in the folder otherwise."
+    },
+    "plaza-desktop.png": {
+      "score": 5,
+      "rank": null,
+      "beat": "HANG OUT",
+      "rejected": true,
+      "note": "Rejected: tag \"Sunny Otter 12\" is readable over the Daily Board at left; a centre 9:16 crop would leave only the allowed \"Kiko\" tag."
+    },
+    "plaza-wave.mp4": {
+      "score": 4,
+      "rank": null,
+      "beat": "HANG OUT",
+      "rejected": true,
+      "note": "Rejected: tags \"Mint Gecko 4...\" (right) and \"...ny Otter 12\" (left edge, last 0.5s) are readable; whole clip also has the dither haze."
+    },
+    "plaza.mp4": {
+      "score": 4,
+      "rank": null,
+      "beat": "HANG OUT",
+      "rejected": true,
+      "note": "Rejected: tag \"Mint Gecko 42\" is readable by the Coast Rush sign from about 1.2s, and a dither haze covers the frame from about 2.2s; only 0-1.0s (walk, no emote) is clean."
+    },
+    "quests.png": {
+      "score": 3,
+      "rank": null,
+      "beat": "PROGRESS",
+      "rejected": false,
+      "note": "All small text with no colour, and the copy runs together (\"threeResets at midnight\"); background reference for the editor's own board at most."
+    },
+    "rankings.png": {
+      "score": 1,
+      "rank": null,
+      "beat": "PROGRESS",
+      "rejected": true,
+      "note": "Rejected: empty, the guest rankings view has no rows, only a goal card and two dropdowns."
+    },
+    "result-screen.png": {
+      "score": 4,
+      "rank": null,
+      "beat": "PROGRESS",
+      "rejected": false,
+      "note": "Readable 54 score and XP +20, but Rank reads Guest and it is a plain card; crop to the score and XP tile."
+    },
+    "star-swarm-still.png": {
+      "score": 4,
+      "rank": null,
+      "beat": "PLAY",
+      "rejected": false,
+      "note": "Sparse pale board with a tiny ship; weak as a still."
+    },
+    "star-swarm.mp4": {
+      "score": 5,
+      "rank": null,
+      "beat": "PLAY",
+      "rejected": false,
+      "note": "Works, but sprites are tiny on a pale board and it reads weak at phone size; crop tight to the board and cut on a +20."
+    },
+    "wardrobe-classes.mp4": {
+      "score": 8,
+      "rank": 3,
+      "beat": "CREATE",
+      "rejected": false,
+      "note": "All five class sets swap in order with labels; crop to the preview card (top 40%) to lose the token and filter rows."
+    },
+    "wardrobe-classes.png": {
+      "score": 5,
+      "rank": null,
+      "beat": "CREATE",
+      "rejected": false,
+      "note": "Lower-resolution duplicate of avatar-create-archer.png; use the 3x still or the clip."
+    },
+    "wardrobe-hats.png": {
+      "score": 3,
+      "rank": null,
+      "beat": "CREATE",
+      "rejected": false,
+      "note": "Mostly menu text with No hat selected; nothing here the clips do not show better."
+    },
+    "wardrobe-magic.png": {
+      "score": 3,
+      "rank": null,
+      "beat": "CREATE",
+      "rejected": false,
+      "note": "Halo effect barely visible and the frame is mostly menu; skip."
+    },
+    "wardrobe-pets.png": {
+      "score": 4,
+      "rank": null,
+      "beat": "CREATE",
+      "rejected": false,
+      "note": "Shows the cat option but the frame is mostly menu; use wardrobe.mp4 for pet swaps."
+    },
+    "wardrobe-sets.mp4": {
+      "score": 7,
+      "rank": 6,
+      "beat": "CREATE",
+      "rejected": false,
+      "note": "Flashiest looks in the folder (Storm Ronin, Phoenix Ascendant) but they are premium previews, so use as a 1s accent after the free classes."
+    },
+    "wardrobe-sets.png": {
+      "score": 6,
+      "rank": null,
+      "beat": "CREATE",
+      "rejected": false,
+      "note": "Phoenix Ascendant preview is the most striking single wardrobe frame; premium preview, crop to the preview card."
+    },
+    "wardrobe.mp4": {
+      "score": 5,
+      "rank": null,
+      "beat": "CREATE",
+      "rejected": false,
+      "note": "Hat and pet swaps on the Archer are small changes at phone size; use about 1s of the pet swaps (cat, owl, shiba) cropped to the preview card."
+    }
+  },
+  "missing": [
+    {
+      "beat": "HANG OUT",
+      "recapture": "Feasible as guest. Every plaza shot with other avatars is rejected, so reshoot the phone plaza clip (780x1688, 5s, HUD hidden): walk toward camera with the pet following, stop, then do the cheer emote (open smile, no wink). At least two other avatars within about 5 m with placeholder tags (Luna, Kiko, Bao...) must be visible. First fix the name swap so it also covers auto-generated guest names of the form 'Adjective Animal NN' (Sunny Otter 12, Mint Gecko 42, Brave Panda 31 all got through), and check every frame edge. Also fix the screen-door dither haze that covers the frame once the camera stops (seen in plaza.mp4 after 2.2s, plaza-wave.mp4, plaza-2/3.png). Reshoot plaza-desktop.mp4 the same way; its composition was the best in the folder."
+    },
+    {
+      "beat": "HOOK",
+      "recapture": "Feasible as guest. Reshoot emote-cheer (it has the best face: open smile, arms up) as a 3s front close-up framed from just under the YOU tag to the feet, with nobody else in frame: turn the camera so the background is the swings/planter with no walkway, or wait until other players leave, and confirm no second tag at any edge. Reshoot jump so the jump is actually in frame (start recording after the camera settles, trigger the emote at 0.5s). Reshoot wave and think with the avatar facing the camera; both current takes show only her back."
+    },
+    {
+      "beat": "CTA",
+      "recapture": "Partly feasible. Feasible: retake look-pirate-pose.png with no other player or tag in frame, and retake look-warrior-pose.png on a frame where the eyes are open (current frame has a dark eye hole). Prefer a pose without the wink for all five, since the wink renders as a coloured patch on punch-in. Not feasible as guest: a real five-avatar group shot (one account, one avatar) and a vector logo; the editor composites the five look-* stills and uses logo.png at no more than its native 1089 px."
+    },
+    {
+      "beat": "PROGRESS",
+      "recapture": "Mostly not feasible as guest. A populated rankings board cannot be filmed (guests are unranked; rankings.png is empty and rejected), so the editor's drawn board stands. Feasible bonus: a 2s phone clip of the top-left HUD chip (it reads 'Level 5 - 400 XP' in plaza-desktop-ui.png) as XP ticks up after a round, framed tight on the chip with no other player tags behind it."
+    },
+    {
+      "beat": "PLAY",
+      "recapture": "Feasible as guest, optional. All eight games are covered. Star Swarm is the weakest: reshoot 4s at wave 3 or later with more enemies and shots on screen and a +20 pop every second. Fishing: start the take 1s before the catch so the fish pop lands mid-clip rather than in the last second."
+    }
+  ],
+  "summary": "Round 2 delivers PLAY and CREATE: all eight mini-games are real rounds with moving scores, and the five free class sets swap cleanly in the wardrobe. HANG OUT is still missing, because every plaza shot with other avatars shows a non-placeholder name tag (Sunny Otter 12, Mint Gecko 42, Brave Panda 31) and the phone plaza takes also carry a dither haze; the name swap is not catching auto-generated guest names. HOOK is thin: of six emote clips only victory and dance are usable, two are rejected for a 'Sunny' tag and two show the avatar from behind. Eleven files are rejected, ten for readable names and one for an empty rankings view. Avatar close-ups have model flaws the editor must frame around: the wink renders as a coloured patch and the hat floats above a bare scalp."
+}
