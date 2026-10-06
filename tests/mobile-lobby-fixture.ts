@@ -109,6 +109,11 @@ export function mobileLobbyFixture(
       `
       }
       dismiss.click();
+      if (!${twoD} && ${width} <= 900) {
+        const stick=find('#joystick');
+        check(visible(stick) && hit(stick), 'world joystick is visible and unobstructed');
+        check(getComputedStyle(stick).touchAction==='none', 'world joystick keeps native touch capture');
+      }
       const jump=find('#lobby-jump');
       check(!!jump, 'jump control exists');
       if (!${twoD}) {

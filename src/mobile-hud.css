@@ -577,7 +577,7 @@ body:has(dialog[open]) .world-actions {
 }
 @media (max-width: 900px), (pointer: coarse) {
   .hud #joystick {
-    display: block;
+    display: grid;
   }
 }
 .mode-2d .hud #joystick,
@@ -585,5 +585,15 @@ body:has(dialog[open]) .world-actions {
 .is-interacting .hud #joystick,
 .inspecting .hud #joystick,
 body:has(dialog[open]) .hud #joystick {
+  display: none;
+}
+
+.hud #joystick {
+  position: fixed;
+  touch-action: none;
+  z-index: 10;
+  place-items: center;
+}
+.hud #joystick::before {
   display: none;
 }
