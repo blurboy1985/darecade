@@ -152,6 +152,7 @@ function harness() {
   }));
   const inspector = element();
   const context = vm.createContext({
+    localStorage: { getItem: () => null },
     ...state,
     ...catalog,
     ...appearance,

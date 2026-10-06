@@ -8,6 +8,7 @@ import {
 import type { SharedPlayer } from "./social";
 import { MovementBuffer } from "./movement-buffer";
 import * as T from "three";
+import { WorldMotion } from "./world-motion.ts";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { blocked, route, visitsOnWalk, type Obstacle } from "./navigation";
@@ -270,6 +271,8 @@ export class LobbyWorld {
   private frames = 0;
   private monitor = 0;
   private low = false;
+  private motion = new WorldMotion();
+  private quality: "auto" | "quality" | "performance" = "auto";
   private marker: T.Mesh;
   private listener: ResizeObserver;
   interactions!: InteractionScenes;
@@ -564,6 +567,7 @@ export class LobbyWorld {
     box(g, 0, 4.8, -1.8, 19.5, 0.65, 2.9, "#7f9990");
     box(g, 0, 5.18, -1.8, 19.8, 0.18, 2.9, "#c4ccac");
     for (const x of [-8.8, -1.8, 1.8, 8.8]) {
+      this.obstacle(-5 + x, -8.6, 0.7, 0.73, 4.4);
       box(g, x, 2.3, 0.9, 0.55, 4.4, 0.6, "#dce4c6");
       box(g, x, 0.55, 0.9, 0.7, 0.45, 0.73, "#e9e8cc");
     }
@@ -596,6 +600,7 @@ export class LobbyWorld {
     for (let i = 0; i < gameIds.length; i++) {
       const c = new T.Group();
       c.position.set(-7.2 + i * 3.6, 0.48, 0.7);
+      this.obstacle(-12.2 + i * 3.6, -8.2, 1.75, 2.4, 2.8);
       g.add(c);
       box(c, 0, 1.13, 0, 1.72, 2.25, 1.12, cols[i]);
       box(c, 0, 1.82, 0.62, 1.42, 1.15, 0.13, "#263747");
@@ -804,6 +809,7 @@ export class LobbyWorld {
     floor.rotation.x = -Math.PI / 2;
     // Keep the plaza open; rankings live on the board, without mannequin placeholders.
     for (const x of [-5, 5]) {
+      this.obstacle(x, 0, 0.17, 0.17, 5.8);
       cylinder(this.root, x, 2.9, 0, 0.085, 5.8, "#556c69");
       sphere(this.root, x, 5.85, 0, 0.18, "#e3c58c");
     }
@@ -918,9 +924,16 @@ export class LobbyWorld {
     crown.scale.set(1, 1.05, 1);
     sphere(g, -0.65, 2.8, 0.3, 0.9, "#8eb49a", 1);
     sphere(g, 0.4, 3.9, 0, 0.9, "#a0bd94", 1);
-    this.obstacle(x, z, 1.5 * scale, 1.5 * scale);
+    this.obstacle(x, z, 2.1 * scale, 2.1 * scale, 2.8 * scale);
   }
   private bench(x: number, z: number, rot = 0) {
+    this.obstacle(
+      x,
+      z,
+      Math.abs(Math.cos(rot)) * 2.4 + Math.abs(Math.sin(rot)) * 0.8,
+      Math.abs(Math.sin(rot)) * 2.4 + Math.abs(Math.cos(rot)) * 0.8,
+      1.4,
+    );
     const g = new T.Group();
     g.position.set(x, 0, z);
     g.rotation.y = rot;
@@ -948,6 +961,7 @@ export class LobbyWorld {
     this.bench(-13, 10, Math.PI);
     cylinder(this.root, -13, 0.5, 8, 0.8, 0.9, "#c0b39a");
     cylinder(this.root, -13, 1, 8, 1.1, 0.15, "#d8c7a4");
+    this.obstacle(-13, 8, 2.2, 2.2, 1.1);
     for (let i = 0; i < 8; i++) {
       const a = (i * Math.PI) / 4;
       sphere(
@@ -986,6 +1000,7 @@ export class LobbyWorld {
       this.tree(x, z, s);
     for (const x of [-18, 18])
       for (const z of [-5, 12]) {
+        this.obstacle(x, z, 0.14, 0.14, 3.6);
         cylinder(this.root, x, 1.8, z, 0.07, 3.6, "#526761");
         box(this.root, x, 3.65, z, 0.55, 0.7, 0.55, "#55675f");
         const bulb = box(
@@ -1497,14 +1512,17 @@ export class LobbyWorld {
       flag.position.set(x, 3.5 + Math.sin(i * 0.65) * 0.4, z);
       this.root.add(flag);
     }
-    for (const x of [4.6, 14])
+    for (const x of [4.6, 14]) {
+      this.obstacle(x, 5.5, 0.09, 0.09, 3.8);
       cylinder(this.root, x, 1.9, 5.5, 0.045, 3.8, "#72948a");
+    }
     for (const [x, z] of [
       [-6, 6],
       [7, 13],
       [17, -1],
     ]) {
       box(this.root, x, 0.35, z, 1.6, 0.55, 0.7, "#b18c72");
+      this.obstacle(x, z, 1.6, 0.7, 0.8);
       for (let i = 0; i < 7; i++) {
         cylinder(
           this.root,
@@ -1751,6 +1769,10 @@ export class LobbyWorld {
   }
   private updateCamera() {
     const ratio = this.host.clientWidth / this.host.clientHeight;
+    for (const child of this.player.root.children) {
+      if (child.userData.avatarDecoration)
+        child.visible = this.cameraMode !== "third" || this.followDistance > 3;
+    }
     if (this.cameraMode === "third") {
       this.camera = this.followCamera;
       const subject =
@@ -1758,7 +1780,9 @@ export class LobbyWorld {
           ?.avatar ||
         this.neighbours.find((n) => n.id === this.inspectedId)?.avatar ||
         this.player;
-      const focus = subject.root.position.clone().add(new T.Vector3(0, 1.2, 0));
+      const focus = subject.root.position
+        .clone()
+        .add(new T.Vector3(0, this.followDistance < 3 ? 1.05 : 1.2, 0));
       const offset = new T.Vector3(
         Math.sin(this.angle) * Math.cos(this.pitch),
         Math.sin(this.pitch),
@@ -1799,11 +1823,13 @@ export class LobbyWorld {
             new T.Vector3(
               0,
               this.mobile
-                ? this.inspectedId
-                  ? -0.65
-                  : firstRoundGoalPending(this.save)
-                    ? 0.8
-                    : 0
+                ? this.followDistance < 3
+                  ? 0
+                  : this.inspectedId
+                    ? -0.65
+                    : firstRoundGoalPending(this.save)
+                      ? 0.8
+                      : 0
                 : 0,
               0,
             ),
@@ -1843,10 +1869,10 @@ export class LobbyWorld {
     if (this.cameraMode === "third")
       this.followDistance = T.MathUtils.clamp(
         this.followDistance - delta * 4,
-        1.8,
+        2.7,
         16,
       );
-    else this.zoom = T.MathUtils.clamp(this.zoom + delta, 0.7, 3);
+    else this.zoom = T.MathUtils.clamp(this.zoom + delta, 0.7, 12);
     this.updateCamera();
   }
   /** Walks to a spot. False when there is no way to get there. */
@@ -2101,6 +2127,7 @@ export class LobbyWorld {
     this.clock += dt;
     if (!this.paused) {
       if (this.interactions.active) {
+        this.motion.reset();
         const finished = this.interactions.sample(dt, this.player);
         this.renderer.domElement.dataset.interactionTime =
           this.interactions.elapsed.toFixed(2);
@@ -2111,14 +2138,17 @@ export class LobbyWorld {
           }),
         );
         if (finished) this.cancelInteraction(true);
-      } else if (this.save.away)
+      } else if (this.save.away) {
+        this.motion.reset();
         this.applyActivity(
           this.player,
           this.save.awayActivity,
           (Date.now() - this.save.awaySince) / 1000,
         );
-      else if (!this.inspectedId) {
-        this.move(dt);
+      } else if (!this.inspectedId) {
+        this.motion.sample(this.player.root.position, dt, (step) =>
+          this.move(step),
+        );
         this.animatePlayer();
       }
       const remotes = [...this.sharedPlayers.values()].sort(
@@ -2272,7 +2302,6 @@ export class LobbyWorld {
         this.updateCamera();
       }
     }
-    if (this.cameraMode === "third") this.updateCamera();
     for (const object of this.root.children) {
       const a = object.userData.avatar as Avatar | undefined;
       if (!a) continue;
@@ -2299,6 +2328,8 @@ export class LobbyWorld {
             "idle";
       animateDetails(a, this.clock, mode, this.reduced);
     }
+    // Finalize the character and skeleton before following that exact displayed pose.
+    if (this.cameraMode === "third") this.updateCamera();
     this.renderer.render(this.scene, this.camera);
     this.renderer.domElement.dataset.position = `${this.player.root.position.x.toFixed(2)},${this.player.root.position.z.toFixed(2)}`;
     this.accumulator += elapsed;
@@ -2309,7 +2340,13 @@ export class LobbyWorld {
       this.renderer.domElement.dataset.drawCalls = String(
         this.renderer.info.render.calls,
       );
-      if (fps < 29 && !this.low) {
+      if (
+        fps < 29 &&
+        !this.low &&
+        this.quality === "auto" &&
+        !this.player.moving &&
+        !this.path.length
+      ) {
         this.renderer.setPixelRatio(1);
         this.renderer.shadowMap.enabled = false;
         this.low = true;
@@ -2435,6 +2472,13 @@ export class LobbyWorld {
   }
   setReduced(value: boolean) {
     this.reduced = value;
+  }
+  setQuality(value: "auto" | "quality" | "performance") {
+    this.quality = value;
+    this.low = value === "performance";
+    this.renderer.setPixelRatio(this.low ? 1 : Math.min(devicePixelRatio, 2));
+    this.renderer.shadowMap.enabled = !this.low;
+    this.renderer.domElement.dataset.quality = value;
   }
   dispose() {
     this.cancelInteraction();

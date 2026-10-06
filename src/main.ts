@@ -735,7 +735,7 @@ function open(id: string) {
         "",
       )}</select><div class="button-row">${actionButton("start-away", "Step away")}${actionButton("save-away", "Save choice", "secondary")}</div><p class="fine-print">Away time earns no XP.</p>`;
   } else if (id === "preferences") {
-    body.innerHTML = `<button class="text-button menu-back" data-open="settings">← Back</button><h2>Preferences</h2><label class="settings-row"><span><strong>Sound effects</strong><small>Blips and sparkles</small></span><input id="setting-sound" type="checkbox" ${save.sound ? "checked" : ""}></label><label class="settings-row"><span><strong>Background music</strong><small>Lo-fi, pads and chiptune</small></span><input id="setting-music" type="checkbox" ${save.music ? "checked" : ""} ${save.sound ? "" : "disabled"}></label><label class="settings-row"><span><strong>Reduce motion</strong><small>Calmer effects</small></span><input id="setting-reduced" type="checkbox" ${save.reduced ? "checked" : ""}></label><label class="settings-row"><span><strong>Time of day</strong><small>SGT or pick a mood</small></span><select id="setting-light">${[
+    body.innerHTML = `<button class="text-button menu-back" data-open="settings">← Back</button><h2>Sound & display</h2><label class="settings-row"><span>Display quality</span><select id="setting-quality">${["auto", "quality", "performance"].map((q) => `<option value="${q}" ${localStorage.getItem("playsimi-quality") === q ? "selected" : ""}>${q === "auto" ? "Automatic" : q === "quality" ? "Quality" : "Performance"}</option>`).join("")}</select></label><label class="settings-row"><span><strong>Sound effects</strong><small>Blips and sparkles</small></span><input id="setting-sound" type="checkbox" ${save.sound ? "checked" : ""}></label><label class="settings-row"><span><strong>Background music</strong><small>Lo-fi, pads and chiptune</small></span><input id="setting-music" type="checkbox" ${save.music ? "checked" : ""} ${save.sound ? "" : "disabled"}></label><label class="settings-row"><span><strong>Reduce motion</strong><small>Calmer effects</small></span><input id="setting-reduced" type="checkbox" ${save.reduced ? "checked" : ""}></label><label class="settings-row"><span><strong>Time of day</strong><small>SGT or pick a mood</small></span><select id="setting-light">${[
       ["auto", "Follow SGT"],
       ["day", "Daylight"],
       ["dusk", "Golden hour"],
@@ -1590,6 +1590,20 @@ modal.addEventListener("click", (e) => {
 });
 document.addEventListener("change", (e) => {
   const el = e.target as HTMLInputElement;
+  if (
+    el.id === "setting-quality" &&
+    ["auto", "quality", "performance"].includes(el.value)
+  ) {
+    const quality =
+      el.value === "quality"
+        ? "quality"
+        : el.value === "performance"
+          ? "performance"
+          : "auto";
+    world?.setQuality(quality);
+    localStorage.setItem("playsimi-quality", quality);
+    return;
+  }
   if (el.id === "setting-zoom") {
     world?.setZoom((Number(el.value) - Number(el.dataset.previous || 50)) / 20);
     el.dataset.previous = el.value;
@@ -2108,6 +2122,14 @@ requestAnimationFrame(async () => {
       save.awaySince = Date.now();
       persist();
     }
+    const quality = localStorage.getItem("playsimi-quality");
+    world.setQuality(
+      quality === "quality"
+        ? "quality"
+        : quality === "performance"
+          ? "performance"
+          : "auto",
+    );
     if (save.away) world.setAway(true);
     applyWorldPlayers();
     renderCameraUI();
