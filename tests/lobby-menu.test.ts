@@ -104,7 +104,7 @@ test("first visit and 2D retain privacy and player reporting routes", () => {
       source.indexOf("function showPlayer("),
     ),
   );
-  assert.match(playerPanel, /if \(is2d\)[\s\S]*?data-report/);
+  assert.match(playerPanel, /if \(is2d\)[\s\S]*?playerProfile/);
 });
 
 test("closing setup prevents a delayed name save from reopening email", () => {

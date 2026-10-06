@@ -348,9 +348,10 @@ export class Neighbourhood extends DurableObject {
       JOIN profiles f ON f.player=p.id WHERE w.seen>? AND p.id!=? AND f.consent=?
       AND NOT EXISTS(SELECT 1 FROM suspensions WHERE player=p.id)
       AND p.id NOT IN(SELECT target FROM blocks WHERE player=? UNION SELECT player FROM blocks WHERE target=?)
+      AND EXISTS(SELECT 1 FROM saved_friends a JOIN saved_friends b ON b.player=a.target AND b.target=a.player WHERE a.player=? AND a.target=p.id)
       ORDER BY p.seen DESC,p.id LIMIT 40`,
       )
-      .all(cutoff, id, PRIVACY_VERSION, id, id);
+      .all(cutoff, id, PRIVACY_VERSION, id, id, id);
     return {
       worlds: worlds.map((w) => ({ ...w, code: "W" + w.id.slice(6) })),
       neighbours,
@@ -359,6 +360,10 @@ export class Neighbourhood extends DurableObject {
   worldDestination(id, { world, friend }) {
     let name = world;
     if (friend) {
+      if (!this.community.isFriend(id, friend))
+        throw Error(
+          "Only accepted friends can be joined. Use a shared room code to meet.",
+        );
       // Use the same bilateral privacy filter without revealing a hidden player's room.
       name = this.db
         .prepare(

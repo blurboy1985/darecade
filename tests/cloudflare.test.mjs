@@ -102,17 +102,17 @@ test(
         api("progress", { event: "visit", value: "stage" }, a.cookie),
       ]);
       const profile = (await api("auth/me", undefined, a.cookie)).data;
-      assert.equal(profile.progress.xp, 310);
-      assert.equal(profile.season.xp, 60);
+      assert.equal(profile.progress.xp, 280);
+      assert.equal(profile.season.xp, 30);
       assert.ok(profile.progress.wardrobePurchased.includes("solar"));
       assert.equal(
         (
           await sql.exec(
-            "SELECT SUM(tokens) n FROM style_reward_notices WHERE player=?",
+            "SELECT COALESCE(SUM(tokens),0) n FROM style_reward_notices WHERE player=?",
             a.data.id,
           )
         )[0].n,
-        1,
+        0,
       );
       for (const game of ["hop", "noodle"])
         await sql.exec(
@@ -129,7 +129,7 @@ test(
       await stub.runAwardAlarm(start + 86402000);
       state = await api("state", undefined, a.cookie);
       assert.equal(state.data.season.points, 6);
-      assert.equal(state.data.season.xp, 60);
+      assert.equal(state.data.season.xp, 30);
       assert.equal(state.data.profile.progress.medalTokens, 3);
       assert.equal(
         (
@@ -141,7 +141,7 @@ test(
         1,
       );
       const exported = await api("privacy/export", undefined, a.cookie);
-      assert.equal(exported.data.seasons[0].xp, 60);
+      assert.equal(exported.data.seasons[0].xp, 30);
       assert.equal((await api("auth/me", undefined, b.cookie)).status, 200);
     } finally {
       await mf.dispose();
@@ -737,8 +737,8 @@ test(
       const liveState = await api("state", undefined, users[0].cookie);
       assert.equal(
         liveState.data.players.filter((p) => p.status === "online").length,
-        30,
-        "world membership preserves live status between position saves",
+        1,
+        "stranger profiles do not expose online status",
       );
       assert.equal((await connect(users[30].cookie, "world-1")).status, 409);
       const directory = await api("worlds", undefined, users[0].cookie);
@@ -793,8 +793,8 @@ test(
       assert.equal(
         (
           await api(
-            "report",
-            { target: users[1].data.id, reason: "unsafe-behaviour" },
+            "moderate",
+            { target: users[1].data.id, action: "block" },
             users[0].cookie,
           )
         ).status,
@@ -913,6 +913,8 @@ test(
         users[3].data.id,
       );
       assert.equal(membership[0].world, "world-2");
+      await api("friends",{name:users[3].data.name},users[4].cookie);
+      await api("friends",{target:users[4].data.id},users[3].cookie);
       const friend = await api(
         "worlds/join",
         { friend: users[3].data.id },
@@ -969,7 +971,6 @@ test(
           await api(
             "profile",
             {
-              name: "Cloud Mochi",
               gender: 1,
               hair: 7,
               clothing: 7,
@@ -979,7 +980,7 @@ test(
             cookie,
           )
         ).data.name,
-        "Cloud Mochi",
+        guest.data.name,
       );
       assert.equal(
         (
@@ -1119,7 +1120,7 @@ test(
         "finishing once unlocks standard difficulty",
       );
       await api("abandon", { id: standardRace.data.id }, cookie);
-      assert.equal(state.data.players[0].name, "Cloud Mochi");
+      assert.equal(state.data.players[0].name, guest.data.name);
       const presence = await api(
         "presence",
         {
@@ -1150,7 +1151,7 @@ test(
         name: "darecade-main-v1",
       });
       const restored = await api("auth/me", undefined, cookie);
-      assert.equal(restored.data.name, "Cloud Mochi");
+      assert.equal(restored.data.name, guest.data.name);
       assert.equal(restored.data.progress.hair, 7);
       assert.equal(restored.data.progress.rounds, 5);
       assert.equal(

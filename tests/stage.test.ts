@@ -239,15 +239,15 @@ test("the server pays five XP a star, capped per day, and refuses rapid or malfo
     });
     const go = (event: string, value?: unknown) =>
       community.progression(me.id, event, value).progress;
-    assert.equal(go("visit", "stage").xp, 10);
-    assert.equal(go("perform", { score: 3000, stars: 2 }).xp, 20);
+    assert.equal(go("visit", "stage").xp, 0);
+    assert.equal(go("perform", { score: 3000, stars: 2 }).xp, 10);
     assert.throws(() => go("perform", { score: 3000, stars: 3 }), /breath/);
     time += STAGE_REST_MS;
     assert.throws(() => go("perform", { score: 3000, stars: 9 }), /breath/);
     assert.equal(
       community.patch(me.id, { xp: 9999, stageBest: 99999, stageXp: 0 })
         .progress.xp,
-      20,
+      10,
       "a settings change cannot grant stage XP",
     );
     assert.equal(community.privateProfile(me.id).progress.stageBest, 3000);

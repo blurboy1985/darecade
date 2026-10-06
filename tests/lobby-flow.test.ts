@@ -116,7 +116,7 @@ for (const outcome of [
     };
     const context = vm.createContext({
       Error,
-      save: { nameChosen: false, rounds: 1, welcome: "complete" },
+      save: { nameChosen: false, rounds: 1, welcome: "played" },
       gameGeneration: 1,
       modal: { open: true },
       body,

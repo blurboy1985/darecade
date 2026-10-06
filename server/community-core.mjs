@@ -1,3 +1,4 @@
+import { nicknameError } from "../shared/nickname.ts";
 import {
   ownsSet,
   styleTokens,
@@ -162,7 +163,7 @@ export class CommunityCore {
         table === "profiles" ? "consent" : undefined,
       );
     this.db.exec(
-      "CREATE TABLE IF NOT EXISTS saved_friends(player TEXT REFERENCES players(id),target TEXT REFERENCES players(id),PRIMARY KEY(player,target)); CREATE INDEX IF NOT EXISTS blocks_target ON blocks(target,player)",
+      "CREATE TABLE IF NOT EXISTS saved_friends(player TEXT REFERENCES players(id),target TEXT REFERENCES players(id),PRIMARY KEY(player,target)); CREATE INDEX IF NOT EXISTS blocks_target ON blocks(target,player); CREATE TABLE IF NOT EXISTS mutes(player TEXT REFERENCES players(id),target TEXT REFERENCES players(id),PRIMARY KEY(player,target))",
     );
     this.store.transaction(() => {
       if (
@@ -412,10 +413,12 @@ export class CommunityCore {
     if (Object.hasOwn(patch, "name")) {
       if (typeof patch.name !== "string") throw Error("Choose a nickname.");
       name = patch.name.trim().replace(/\s+/g, " ");
-      if (!/^[\p{L}][\p{L}\p{N} _-]{1,19}$/u.test(name) || /\d{5}/.test(name))
+      if (!this.rankedAccount(id))
         throw Error(
-          "Use 2–20 letters, numbers, spaces or hyphens; no contact details.",
+          "Guests use generated names. Save with email to choose a nickname.",
         );
+      const error = nicknameError(name);
+      if (error) throw Error(error);
     }
     const p = this.privateProfile(id).progress,
       allowed = {};
@@ -483,7 +486,6 @@ export class CommunityCore {
           throw Error("Unknown place.");
         if (!p.visited.includes(value)) {
           p.visited.push(value);
-          p.xp += 10;
         }
       } else if (event === "cat") {
         if (!p.cat) {
@@ -532,8 +534,9 @@ export class CommunityCore {
       } else if (event === "harvest") {
         if (!harvestCrop(p, at)) throw Error("This crop is not ready yet.");
       } else if (event === "setup-complete") {
-        if (!p.nameChosen || p.rounds < 1)
+        if (p.rounds < 1)
           throw Error("Finish a round and choose your nickname first.");
+        p.nameChosen = true;
         p.welcome = "complete";
       } else if (event === "welcome-wear") {
         if (!p.unlockedHats.includes(2))
@@ -1050,7 +1053,7 @@ export class CommunityCore {
     });
   }
   presence(id) {
-    return { players: this.store.playerList(id, true) };
+    return { players: this.visibleProfiles(id) };
   }
   state(id) {
     const snapshot = this.snapshot(),
@@ -1074,8 +1077,12 @@ export class CommunityCore {
       ...personal,
       day: base.day,
       nextReset: base.nextReset,
-      players: this.store.playerList(id, true),
+      players: this.visibleProfiles(id),
       friends: this.friends(id),
+      muted: this.db
+        .prepare("SELECT target FROM mutes WHERE player=?")
+        .all(id)
+        .map((p) => p.target),
       history: personal.history.filter(
         (r) => allowed(r.player) && allowed(r.target),
       ),
@@ -1115,23 +1122,113 @@ export class CommunityCore {
         .all(id),
     };
   }
+  isFriend(id, target) {
+    return !!this.db
+      .prepare(
+        "SELECT 1 FROM saved_friends a JOIN saved_friends b ON b.player=a.target AND b.target=a.player WHERE a.player=? AND a.target=?",
+      )
+      .get(id, target);
+  }
+  visibleProfiles(id) {
+    const friends = new Set(
+      this.db
+        .prepare(
+          "SELECT a.target FROM saved_friends a JOIN saved_friends b ON b.player=a.target AND b.target=a.player WHERE a.player=?",
+        )
+        .all(id)
+        .map((p) => p.target),
+    );
+    return this.store
+      .playerList(id, true)
+      .map((p) =>
+        id === p.id || friends.has(p.id)
+          ? p
+          : {
+              ...p,
+              status: "private",
+              activity: "lobby",
+              since: 0,
+              x: 0,
+              z: 0,
+              yaw: 0,
+            },
+      );
+  }
+  moderate(id, target, action) {
+    if (
+      id === target ||
+      !this.db.prepare("SELECT 1 FROM profiles WHERE player=?").get(target)
+    )
+      throw Error("Choose another player.");
+    if (!["block", "mute", "unmute"].includes(action))
+      throw Error("Choose Block or Mute.");
+    if (action === "unmute")
+      this.db
+        .prepare("DELETE FROM mutes WHERE player=? AND target=?")
+        .run(id, target);
+    else
+      this.db
+        .prepare(
+          `INSERT OR IGNORE INTO ${action === "block" ? "blocks" : "mutes"} VALUES(?,?)`,
+        )
+        .run(id, target);
+    if (action === "block") {
+      this.relay.cancelPairRaw(id, target);
+      this.relay.onChange?.();
+    }
+    return { ok: true };
+  }
+  acceptFriend(id, target) {
+    if (
+      !this.db
+        .prepare("SELECT 1 FROM saved_friends WHERE player=? AND target=?")
+        .get(target, id)
+    )
+      throw Error("No pending request.");
+    if (
+      this.db
+        .prepare(
+          "SELECT 1 FROM blocks WHERE (player=? AND target=?) OR (player=? AND target=?)",
+        )
+        .get(id, target, target, id)
+    )
+      throw Error("This request is unavailable.");
+    this.db
+      .prepare("INSERT OR IGNORE INTO saved_friends VALUES(?,?)")
+      .run(id, target);
+    return this.friends(id);
+  }
   friends(id) {
     this.store.snapshot();
     return this.db
       .prepare(
-        `SELECT p.id,p.name,p.look,p.activity,p.since,p.x,p.z,p.yaw,p.seen FROM saved_friends f JOIN players p ON p.id=f.target JOIN accounts a ON a.player=p.id JOIN profiles q ON q.player=p.id WHERE f.player=? AND q.consent=? AND p.id NOT IN (SELECT player FROM suspensions) AND p.id NOT IN (SELECT target FROM blocks WHERE player=? UNION SELECT player FROM blocks WHERE target=?) ORDER BY p.name`,
+        `SELECT p.id,p.name,p.look,p.activity,p.since,p.x,p.z,p.yaw,p.seen FROM saved_friends f JOIN players p ON p.id=CASE WHEN f.player=? THEN f.target ELSE f.player END JOIN profiles q ON q.player=p.id WHERE (f.player=? OR f.target=?) AND q.consent=? AND p.id NOT IN (SELECT player FROM suspensions) AND p.id NOT IN (SELECT target FROM blocks WHERE player=? UNION SELECT player FROM blocks WHERE target=?) ORDER BY p.name`,
       )
-      .all(id, PRIVACY_VERSION, id, id)
-      .map((p) =>
-        this.store.publicPlayer({ ...p, status: this.store.status(p.id) }),
-      );
+      .all(id, id, id, PRIVACY_VERSION, id, id)
+      .map((p) => ({
+        ...this.store.publicPlayer({
+          ...p,
+          status: this.isFriend(id, p.id) ? this.store.status(p.id) : "private",
+          activity: this.isFriend(id, p.id) ? p.activity : "lobby",
+        }),
+        relationship: this.isFriend(id, p.id)
+          ? "friend"
+          : this.db
+                .prepare(
+                  "SELECT 1 FROM saved_friends WHERE player=? AND target=?",
+                )
+                .get(p.id, id)
+            ? "incoming"
+            : "outgoing",
+      }))
+      .filter((p, i, all) => all.findIndex((other) => other.id === p.id) === i);
   }
   saveFriend(id, name) {
     if (typeof name !== "string" || name.trim().length < 2 || name.length > 20)
       throw Error("Enter your friend’s exact nickname.");
     const p = this.db
       .prepare(
-        `SELECT p.id FROM players p JOIN accounts a ON a.player=p.id JOIN profiles q ON q.player=p.id WHERE p.name=? COLLATE NOCASE AND p.id!=? AND q.consent=? AND p.id NOT IN (SELECT player FROM suspensions) AND p.id NOT IN (SELECT target FROM blocks WHERE player=? UNION SELECT player FROM blocks WHERE target=?) LIMIT 2`,
+        `SELECT p.id FROM players p JOIN profiles q ON q.player=p.id WHERE p.name=? COLLATE NOCASE AND p.id!=? AND q.consent=? AND p.id NOT IN (SELECT player FROM suspensions) AND p.id NOT IN (SELECT target FROM blocks WHERE player=? UNION SELECT player FROM blocks WHERE target=?) LIMIT 2`,
       )
       .all(name.trim(), id, PRIVACY_VERSION, id, id);
     if (p.length !== 1)
@@ -1190,10 +1287,6 @@ export class CommunityCore {
           "INSERT INTO reports(id,reporter,target,reason,created) VALUES(?,?,?,?,?)",
         )
         .run(randomUUID(), id, target, reason, this.now());
-      this.db
-        .prepare("INSERT OR IGNORE INTO blocks VALUES(?,?)")
-        .run(id, target);
-      this.relay.cancelPairRaw(id, target);
     });
     this.relay.onChange?.();
     return { ok: true };
@@ -1252,6 +1345,14 @@ export class CommunityCore {
         this.db.prepare("SELECT 1 FROM suspensions WHERE player=?").get(inviter)
       )
         throw Error("This invite link is no longer open.");
+      if (
+        this.db
+          .prepare(
+            "SELECT 1 FROM blocks WHERE (player=? AND target=?) OR (player=? AND target=?)",
+          )
+          .get(id, inviter, inviter, id)
+      )
+        throw Error("This invite is unavailable.");
       if (inviter === id) throw Error("That is your own invite link.");
       const existing = this.db
         .prepare("SELECT inviter FROM invite_joins WHERE invitee=?")
@@ -1366,6 +1467,7 @@ export class CommunityCore {
       dares: this.db
         .prepare("SELECT id,game,score,created,expires FROM dares WHERE host=?")
         .all(id),
+      muted: this.db.prepare("SELECT target FROM mutes WHERE player=?").all(id),
       reports: this.db
         .prepare("SELECT reason,created,status FROM reports WHERE reporter=?")
         .all(id),
@@ -1380,6 +1482,9 @@ export class CommunityCore {
         .run(id);
       this.db
         .prepare("DELETE FROM saved_friends WHERE player=? OR target=?")
+        .run(id, id);
+      this.db
+        .prepare("DELETE FROM mutes WHERE player=? OR target=?")
         .run(id, id);
       this.db
         .prepare("DELETE FROM blocks WHERE player=? OR target=?")

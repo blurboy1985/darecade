@@ -31,7 +31,7 @@ function setup() {
   const community = new Community(store, { directory });
   const guest = (name = "Test neighbour") => {
     const p = community.join(consent);
-    community.patch(p.me.id, { name });
+    store.db.prepare("UPDATE players SET name=? WHERE id=?").run(name,p.me.id); // Existing named guest fixture.
     return { id: p.me.id, token: p.token };
   };
   const call = (p: ReturnType<typeof guest>, action: string, data: object) =>
@@ -414,7 +414,7 @@ test("bilateral blocks reject a code join and cancel an existing roster without 
     const t = team(s),
       r = start(s, t),
       [a, b] = t.people;
-    s.community.report(b.id, a.id, "unsafe-behaviour");
+    s.community.moderate(b.id, a.id, "block");
     const cancelled = tick(s, a, r, 0);
     assert.equal(cancelled.status, "cancelled");
     assert.equal(cancelled.simulation, null);

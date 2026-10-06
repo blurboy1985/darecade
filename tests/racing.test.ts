@@ -252,7 +252,7 @@ test("verified race times drive daily medals, weekly totals and three distinct-n
     assert.ok(
       !JSON.stringify(guestState.boards.coast).includes("@example.test"),
     );
-    community.report(guest, people[0], "inappropriate-name");
+    community.moderate(guest, people[0], "block");
     assert.ok(
       !community.state(guest).boards.coast.some((p) => p.id === people[0]),
       "blocked racers remain hidden from guest timing comparisons",

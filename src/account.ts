@@ -37,16 +37,20 @@ const esc = (s: string) =>
       ]!,
   );
 function shell(closable = true) {
+  window.dispatchEvent(new Event("account-opening"));
   document.querySelector("#account-dialog")?.remove();
   const d = document.createElement("dialog");
   d.id = "account-dialog";
   d.className = "account-dialog";
-  d.innerHTML = `${closable ? '<button class="close-button" id="account-close" aria-label="Close account panel">×</button>' : ""}<div id="account-content"></div>`;
+  d.innerHTML = `${closable ? '<button class="close-button" id="account-close" aria-label="Close account panel">×</button>' : ""}<div id="account-content"></div>${closable ? '<button class="secondary" id="account-cancel">Cancel</button>' : ""}`;
   document.body.append(d);
   d.addEventListener("cancel", (e) => {
     if (!closable) e.preventDefault();
   });
   d.querySelector("#account-close")?.addEventListener("click", () => d.close());
+  d.querySelector("#account-cancel")?.addEventListener("click", () =>
+    d.close(),
+  );
   d.showModal();
   return { d, host: d.querySelector<HTMLElement>("#account-content")! };
 }
@@ -56,8 +60,8 @@ export function acceptProfile(p: Profile) {
   currentProfile = p;
   window.dispatchEvent(new CustomEvent("account-profile", { detail: p }));
 }
-export const privacyCopy = `<h2>Your play. Your privacy.</h2><p>We save your avatar, progress, scores, chosen nickname and age band. If you create an account, we also keep your email so you can sign in on another device. We do not keep your birth month or year.</p><p>Other players can see your nickname, avatar, activity, scores and challenges. They cannot see your email or age band. Choose a nickname rather than your real name or contact details. There is no chat, photo upload or advertising tracker.</p><p>We check recorded game inputs before saving scores. Inputs are deleted after 30 days; scores stay with your profile. Sign-in codes expire after 15 minutes. Inactive profiles are deleted after 12 months. Optional phone-test feedback is saved only when you send it and is included in your data download and deletion.</p><p>You can download your data or withdraw consent and delete your profile under Account & privacy. Deleting removes your avatar, scores, challenges and access. It cannot be undone.</p><p>This local test stores data on the arcade operator's computer. Email delivery, when enabled, uses a transactional email provider. Optional purchases and donations use Stripe hosted checkout when enabled. We store order references, amounts, payment status and purchased sets, never card details. Deleting your profile removes its link to order records; payment records may remain with Stripe and in our order ledger for payment support. Optional daily medal emails list your actual awards. They are off until you choose them, and you can turn them off in Account &amp; privacy. No marketing emails are sent.</p><p>If anything is unclear, stop here and ask a trusted adult or the arcade operator. You do not need to agree to continue reading this notice.</p>`;
-const privacySummary = `<ul class="privacy-summary"><li>Other players see your nickname, avatar, activity, scores and challenges. Use a nickname, not your real name or contact details.</li><li>We save your progress. Your age band and optional email stay private.</li><li>Download your data or delete your profile in Account &amp; privacy.</li></ul><p class="fine-print">Not sure? Ask a trusted adult or the arcade operator.</p>`;
+export const privacyCopy = `<h2>Your play. Your privacy.</h2><p>We save your avatar, progress, scores, chosen nickname and age band. If you create an account, we also keep your email so you can sign in on another device. We do not keep your birth month or year.</p><p>Other players see your nickname, outfit and medals. Only accepted friends can see your online status and activity or find your world. They cannot see your email or age band. Choose a nickname rather than your real name or contact details. There is no chat, photo upload or advertising tracker.</p><p>We check recorded game inputs before saving scores. Inputs are deleted after 30 days; scores stay with your profile. Sign-in codes expire after 15 minutes. Inactive profiles are deleted after 12 months. Optional phone-test feedback is saved only when you send it and is included in your data download and deletion.</p><p>You can download your data or withdraw consent and delete your profile under Account & privacy. Deleting removes your avatar, scores, challenges and access. It cannot be undone.</p><p>This local test stores data on the arcade operator's computer. Email delivery, when enabled, uses a transactional email provider. Optional purchases and donations use Stripe hosted checkout when enabled. We store order references, amounts, payment status and purchased sets, never card details. Deleting your profile removes its link to order records; payment records may remain with Stripe and in our order ledger for payment support. Optional daily medal emails list your actual awards. They are off until you choose them, and you can turn them off in Account &amp; privacy. No marketing emails are sent.</p><p>If anything is unclear, stop here and ask a trusted adult or the arcade operator. You do not need to agree to continue reading this notice.</p>`;
+const privacySummary = `<ul class="privacy-summary"><li>Other players see your nickname, outfit and medals. Your status, activity and world are private to accepted friends. Use a nickname, not your real name or contact details.</li><li>We save your progress. Your age band and optional email stay private.</li><li>Download your data or delete your profile in Account &amp; privacy.</li></ul><p class="fine-print">Not sure? Ask a trusted adult or the arcade operator.</p>`;
 function privacyNotice() {
   return (
     privacyCopy.replace(
@@ -88,7 +92,7 @@ function emailForm(host: HTMLElement, path: string, flow: EmailFlow) {
   const signIn = path === "auth/login-code";
   host.innerHTML = signIn
     ? `<span class="eyebrow">WELCOME BACK</span><h2>Sign in</h2><p>Enter your email. We'll send a 6-digit code. No password.</p><form id="email-form"><label>Email<input name="email" type="email" autocomplete="email" maxlength="254" required></label><button class="primary">Send code →</button><p role="status" id="account-status"></p></form><button class="secondary" id="account-back">Back</button><details class="account-details"><summary>Played without email?</summary><p>Open Play Simi in the browser you used. Choose Account &amp; privacy → Save with email first.</p></details>`
-    : `<span class="eyebrow">${flow.guided ? "STEP 2 OF 2 · OPTIONAL" : "OPTIONAL"}</span><h2>Save with email?</h2><p>Keep this character across devices. We'll send a 6-digit code. No password.</p><details class="account-details"><summary>What is already saved?</summary><p>${guestSaveCopy}</p><p>${emailSaveCopy}</p></details><form id="email-form"><label>Email<input name="email" type="email" autocomplete="email" maxlength="254" required></label><button class="primary">Send code →</button><p role="status" id="account-status"></p></form><button class="secondary" id="account-back">${flow.guided ? "Skip for now" : "Back"}</button><p class="fine-print">You can keep playing without an email.</p>`;
+    : `<span class="eyebrow">${flow.guided ? "STEP 2 OF 2 · OPTIONAL" : "OPTIONAL"}</span><h2>Save with email?</h2><p>Keep this character across devices. We'll send a 6-digit code. No password.</p><details class="account-details"><summary>What is already saved?</summary><p>${guestSaveCopy}</p><p>${emailSaveCopy}</p></details><form id="email-form"><label>Email<input name="email" type="email" autocomplete="email" maxlength="254" required></label><button class="primary">Send code →</button><p role="status" id="account-status"></p></form><button class="secondary" id="account-back">${flow.guided ? "Skip for now" : "Back"}</button><p class="fine-print">You can keep playing without an email. If you're under 18, check with a parent or guardian before saving with email.</p><details class="account-details"><summary>Privacy notice</summary>${privacyNotice()}</details>`;
   host.querySelector("#account-back")!.addEventListener("click", flow.back);
   host.querySelector("form")!.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -319,7 +323,7 @@ export async function openAccount(
         },
       });
     const render = () => {
-      host.innerHTML = `<span class="eyebrow">ACCOUNT & PRIVACY</span><h2>Your account</h2><p>${p.account ? `Signed in as <strong>${esc(p.account.email)}</strong>. Your avatar and progress follow this account.` : "Playing without email. Your guest profile is saved for this browser session."}</p>${!p.account ? `<details class="account-details"><summary>Your guest progress</summary><p>${guestSaveCopy}</p><p>${emailSaveCopy}</p></details>` : ""}<p>${p.account && p.account.eligibleAt > Date.now() ? `Every round you finish is ranked. ${dareHoldCopy(false, p.account)}` : p.account ? "Three outgoing challenges per day. No points lost when another player wins." : "Play together and use emotes now. Email is optional."}</p>${p.season ? `<p>${esc(p.season.name)} · ${p.season.xp} Season XP · ${p.progress.xp} Lifetime XP</p>` : ""}${!p.account ? '<button class="primary" id="save-account">Save with email →</button>' : ""}${p.account ? `<label class="consent-choice"><input id="medal-email" type="checkbox" ${p.notifications?.medalEmail ? "checked" : ""}> Email my daily medal awards</label><p class="fine-print">One email on days you win medals. Turn off here anytime.</p>` : ""}<div class="account-actions"><button class="secondary" id="read-privacy">Privacy &amp; data</button><button class="secondary" id="logout">Sign out</button></div><p role="status" id="account-status"></p>`;
+      host.innerHTML = `<span class="eyebrow">ACCOUNT & PRIVACY</span><h2>Your account</h2><p>${p.account ? `Signed in as <strong>${esc(p.account.email)}</strong>. Your avatar and progress follow this account.` : "Playing without email. Your guest profile is on the server. This browser’s access lasts up to 30 days; clearing cookies can end access earlier."}</p>${!p.account ? `<details class="account-details"><summary>Your guest progress</summary><p>${guestSaveCopy}</p><p>${emailSaveCopy}</p></details>` : ""}<p>${p.account && p.account.eligibleAt > Date.now() ? `Every round you finish is ranked. ${dareHoldCopy(false, p.account)}` : p.account ? "Three outgoing challenges per day. No points lost when another player wins." : "Play together and use emotes now. Email is optional."}</p>${p.season ? `<p>${esc(p.season.name)} · ${p.season.xp} Season XP · ${p.progress.xp} Lifetime XP</p>` : ""}${!p.account ? '<button class="primary" id="save-account">Save with email →</button>' : ""}${p.account ? `<label class="consent-choice"><input id="medal-email" type="checkbox" ${p.notifications?.medalEmail ? "checked" : ""}> Email my daily medal awards</label><p class="fine-print">One email on days you win medals. Turn off here anytime.</p>` : ""}<div class="account-actions"><button class="secondary" id="read-privacy">Privacy &amp; data</button>${p.account ? '<button class="secondary" id="logout">Sign out</button>' : ""}</div><p role="status" id="account-status"></p>`;
       host
         .querySelector<HTMLInputElement>("#medal-email")
         ?.addEventListener("change", async (event) => {
@@ -342,14 +346,14 @@ export async function openAccount(
       host
         .querySelector("#read-privacy")!
         .addEventListener("click", renderPrivacy);
-      host.querySelector("#logout")!.addEventListener("click", async () => {
+      host.querySelector("#logout")?.addEventListener("click", async () => {
         await api("auth/logout", {});
         clearLocalProfile();
         location.reload();
       });
     };
     const renderPrivacy = () => {
-      host.innerHTML = `<span class="eyebrow">ACCOUNT & PRIVACY</span><h2>Privacy &amp; data</h2>${privacySummary}<details class="account-details privacy-details"><summary>Full privacy notice · storage &amp; retention</summary>${privacyNotice()}</details><div class="account-actions"><button class="secondary" id="export-data">Download my data</button><button class="secondary" id="delete-data">Withdraw consent &amp; delete</button></div><button class="secondary" id="privacy-back">Back to account</button><p role="status"></p>`;
+      host.innerHTML = `<span class="eyebrow">ACCOUNT & PRIVACY</span><h2>Privacy &amp; data</h2>${privacySummary}<details class="account-details privacy-details"><summary>Full privacy notice · storage &amp; retention</summary>${privacyNotice()}</details><div class="account-actions"><button class="secondary" id="export-data">Download my data</button><button class="danger" id="delete-data">Withdraw consent &amp; delete</button></div><button class="secondary" id="privacy-back">Back to account</button><p role="status"></p>`;
       host.querySelector("#privacy-back")!.addEventListener("click", render);
       host
         .querySelector("#export-data")!
@@ -374,7 +378,7 @@ export async function openAccount(
         });
       host.querySelector("#delete-data")!.addEventListener("click", () => {
         host.innerHTML =
-          '<h2>Leave no avatar behind.</h2><p>This permanently removes your account, avatar, progress, scores and challenges. You will be signed out on every device.</p><form><label>Type DELETE to confirm<input name="confirm" required pattern="DELETE" autocomplete="off"></label><button class="primary">Delete my profile</button><p role="status"></p></form><button class="secondary" id="keep-account">Keep my account</button>';
+          '<h2>Leave no avatar behind.</h2><p>This permanently removes your account, avatar, progress, scores and challenges. You will be signed out on every device.</p><form><label>Type DELETE to confirm<input name="confirm" required pattern="DELETE" autocomplete="off"></label><button class="danger">Delete my profile</button><p role="status"></p></form><button class="secondary" id="keep-account">Cancel · keep my account</button>';
         host
           .querySelector("#keep-account")!
           .addEventListener("click", renderPrivacy);
@@ -413,7 +417,7 @@ export async function openAccount(
 export function reportPlayer(target: string) {
   const { host } = shell();
   host.innerHTML =
-    '<h2>Help keep the neighbourhood safe.</h2><p>The report goes privately to the arcade operator. This player will be hidden from your neighbourhood.</p><form><label>What concerns you?<select name="reason"><option value="under-age">They may be under 13</option><option value="suspected-cheating">Their score may be unfair</option><option value="unsafe-behaviour">Unsafe behaviour</option><option value="inappropriate-name">Inappropriate nickname or contact details</option></select></label><button class="primary">Send report & hide player</button><p role="status"></p></form>';
+    '<h2>Help keep the neighbourhood safe.</h2><p>The report goes privately to the arcade operator. Reporting does not block or mute them. You can choose those actions separately.</p><form><label>What concerns you?<select name="reason"><option value="under-age">They may be under 13</option><option value="suspected-cheating">Their score may be unfair</option><option value="unsafe-behaviour">Unsafe behaviour</option><option value="inappropriate-name">Inappropriate nickname or contact details</option></select></label><button class="primary">Send report</button><p role="status"></p></form>';
   host.querySelector("form")!.addEventListener("submit", async (e) => {
     e.preventDefault();
     try {
@@ -422,7 +426,7 @@ export function reportPlayer(target: string) {
         reason: new FormData(e.currentTarget as HTMLFormElement).get("reason"),
       });
       host.innerHTML =
-        "<h2>Report received.</h2><p>The player is hidden from your view. The arcade operator can review your report.</p>";
+        "<h2>Report received.</h2><p>The arcade operator can review your report. Block and Mute are separate actions.</p>";
       window.dispatchEvent(new Event("account-refresh"));
     } catch (error) {
       host.querySelector("[role=status]")!.textContent = (
@@ -430,4 +434,28 @@ export function reportPlayer(target: string) {
       ).message;
     }
   });
+}
+
+export function moderatePlayer(
+  target: string,
+  action: "block" | "mute" | "unmute",
+) {
+  const { d, host } = shell();
+  host.innerHTML = `<h2>${action === "block" ? "Block this player?" : action === "mute" ? "Mute their emotes?" : "Show their emotes again?"}</h2><p>${action === "block" ? "Their character, name tag and emotes will disappear. Visits, team invites and friend requests between you will be stopped." : "Mute only hides emotes. It does not send a report or hide their character."}</p><button class="primary" id="confirm-moderation">${action === "block" ? "Block player" : action === "mute" ? "Mute emotes" : "Unmute emotes"}</button><p role="status"></p>`;
+  host
+    .querySelector("#confirm-moderation")!
+    .addEventListener("click", async () => {
+      try {
+        await api("moderate", { target, action });
+        window.dispatchEvent(
+          new CustomEvent("player-moderated", { detail: { target, action } }),
+        );
+        window.dispatchEvent(new Event("account-refresh"));
+        d.close();
+      } catch (error) {
+        host.querySelector("[role=status]")!.textContent = (
+          error as Error
+        ).message;
+      }
+    });
 }

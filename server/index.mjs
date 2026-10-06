@@ -269,12 +269,15 @@ const handler = async (req, res) => {
         return;
       }
       if (req.method === "POST" && url.pathname === "/api/friends") {
-        respond(community.saveFriend(player, data.name));
+        respond(data.target ? community.acceptFriend(player,data.target) : community.saveFriend(player, data.name));
         return;
       }
       if (req.method === "POST" && url.pathname === "/api/dares") {
         respond(community.postDare(player, data.run));
         return;
+      }
+      if (req.method === "POST" && url.pathname === "/api/moderate") {
+        respond(community.moderate(player,data.target,data.action)); return;
       }
       if (req.method === "POST" && url.pathname === "/api/report") {
         respond(community.report(player, data.target, data.reason));

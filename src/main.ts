@@ -39,6 +39,7 @@ import {
   ensureAccount,
   openAccount,
   reportPlayer,
+  moderatePlayer,
   acceptProfile,
   currentProfile,
   type Profile,
@@ -365,10 +366,9 @@ function renderStats() {
 function visit(id: string) {
   if (!save.visited.includes(id)) {
     save.visited.push(id);
-    save.xp += 10;
     progress("visit", id);
     persist();
-    toast(`Discovered ${spots.find((s) => s.id === id)?.name || id} · +10 XP`);
+    toast(`Discovered ${spots.find((s) => s.id === id)?.name || id}`);
   }
 }
 function collect(id: string) {
@@ -632,15 +632,14 @@ function open(id: string) {
     const nickname =
       currentProfile?.name || shared?.self?.name || "New neighbour";
     const typed =
-      body.querySelector<HTMLInputElement>("#nickname")?.value ??
-      (setupGuide && !save.nameChosen ? "" : nickname);
+      body.querySelector<HTMLInputElement>("#nickname")?.value ?? nickname;
     const moreLooksOpen =
       body.querySelector<HTMLDetailsElement>(".setup-more")?.open ?? false;
     const medals = shared?.self?.points ?? 0;
     const shown = tryingLook?.look ?? save;
     world?.updateAvatar(shown);
     const canEquip = tryingLook && wearable(shown, save, medals);
-    body.innerHTML = `<div class="wardrobe-layout"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${tryingLook ? "Trying on" : escapeText(nickname)}</strong><small>DRAG TO TURN</small><span class="look-caption">${tryingLook?.name ?? clothingNames[save.clothing]}</span><div class="try-actions" role="status">${tryingLook ? `<button class="primary" data-equip-look ${canEquip ? "" : "disabled"}>${canEquip ? "Equip look" : "Locked · preview only"}</button><button class="text-button" data-reset-look>Back to my look</button>` : "<span>Tap a card to try it on</span>"}</div></div><div class="wardrobe-controls">${setupGuide ? '<span class="eyebrow setup-step">STEP 1 OF 2 · NAME & LOOK</span>' : ""}${setupGuide ? "<h2>Create your driver</h2>" : `<span class="eyebrow">YOUR COLLECTION</span><h2>My look</h2><div class="style-wallet"><strong>${tokenSummary(save)}</strong><small>Tokens buy looks. +1 per 100 XP, up to +3 daily from ranked medals.</small></div>`}<details class="look-identity" ${setupGuide ? "open" : ""}><summary>Name, girl or boy, colours & daily hats</summary><form id="nickname-form" novalidate><label class="field-label" for="nickname">NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" value="${escapeText(typed)}" minlength="2" maxlength="20" autocomplete="off" placeholder="Choose your nickname" aria-describedby="nickname-status" required><button class="secondary" type="submit">Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form><label class="field-label">CHARACTER</label><div class="body-options">${["Girl", "Boy"].map((label, i) => `<button data-body="${i}" class="${save.body === i ? "active" : ""}" aria-pressed="${save.body === i}">${label}</button>`).join("")}</div><label class="field-label">OUTFIT COLOUR</label><div class="swatches">${outfits.map((c, i) => `<button data-outfit="${i}" style="--swatch:${c}" class="${save.outfit === i ? "active" : ""}" aria-label="${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][i]} outfit" aria-pressed="${save.outfit === i}"></button>`).join("")}</div><p class="fine-print">Legendary outfits use their own signature colours.</p><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">DAILY HATS</label><div class="hat-options">${["No hat", "Bucket", "Cap", "Sprout"].map((n, i) => `<button data-hat="${i}" ${save.unlockedHats.includes(i) ? "" : "disabled"} aria-pressed="${save.hat === i}">${n}${save.unlockedHats.includes(i) ? "" : " · locked"}</button>`).join("")}</div></details>${setupGuide ? `<details class="setup-more" ${moreLooksOpen ? "open" : ""}><summary>More looks & hairstyles</summary>` : ""}<div class="look-tabs" aria-label="Wardrobe sections">${(
+    body.innerHTML = `<div class="wardrobe-layout"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${tryingLook ? "Trying on" : escapeText(nickname)}</strong><small>DRAG TO TURN</small><span class="look-caption">${tryingLook?.name ?? clothingNames[save.clothing]}</span><div class="try-actions" role="status">${tryingLook ? `<button class="primary" data-equip-look ${canEquip ? "" : "disabled"}>${canEquip ? "Equip look" : "Locked · preview only"}</button><button class="text-button" data-reset-look>Back to my look</button>` : "<span>Tap a card to try it on</span>"}</div></div><div class="wardrobe-controls">${setupGuide ? '<span class="eyebrow setup-step">STEP 1 OF 2 · NAME & LOOK</span>' : ""}${setupGuide ? "<h2>Make it yours</h2>" : `<span class="eyebrow">YOUR COLLECTION</span><h2>My look</h2><div class="style-wallet"><strong>${tokenSummary(save)}</strong><small>Tokens buy looks. +1 per 100 XP, up to +3 daily from ranked medals.</small></div>`}<details class="look-identity" ${setupGuide ? "open" : ""}><summary>Name, girl or boy, colours & daily hats</summary><form id="nickname-form" novalidate><label class="field-label" for="nickname">NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" ${currentProfile?.account ? "" : "readonly"} value="${escapeText(typed)}" minlength="2" maxlength="20" autocomplete="off" placeholder="Choose your nickname" aria-describedby="nickname-status" required><button class="secondary" type="submit" ${currentProfile?.account ? "" : "disabled"}>Save name</button></div><p class="fine-print">Don't use your real name. ${currentProfile?.account ? "Choose a made-up handle." : "Guests use generated names; your current name is already saved."}</p><p id="nickname-status" role="status"></p></form><label class="field-label">CHARACTER</label><div class="body-options">${["Girl", "Boy"].map((label, i) => `<button data-body="${i}" class="${save.body === i ? "active" : ""}" aria-pressed="${save.body === i}">${label}</button>`).join("")}</div><label class="field-label">OUTFIT COLOUR</label><div class="swatches">${outfits.map((c, i) => `<button data-outfit="${i}" style="--swatch:${c}" class="${save.outfit === i ? "active" : ""}" aria-label="${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][i]} outfit" aria-pressed="${save.outfit === i}"></button>`).join("")}</div><p class="fine-print">Legendary outfits use their own signature colours.</p><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">DAILY HATS</label><div class="hat-options">${["No hat", "Bucket", "Cap", "Sprout"].map((n, i) => `<button data-hat="${i}" ${save.unlockedHats.includes(i) ? "" : "disabled"} aria-pressed="${save.hat === i}">${n}${save.unlockedHats.includes(i) ? "" : " · locked"}</button>`).join("")}</div></details>${setupGuide ? `<details class="setup-more" ${moreLooksOpen ? "open" : ""}><summary>More looks & hairstyles</summary>` : ""}<div class="look-tabs" aria-label="Wardrobe sections">${(
       [
         ["clothing", "Outfits"],
         ["hair", "Head"],
@@ -1240,7 +1239,23 @@ document.addEventListener("click", (e) => {
     return;
   }
   if (b.dataset.account !== undefined) {
+    close();
     void openAccount();
+    return;
+  }
+  if (b.dataset.moderate && b.dataset.target) {
+    const action = b.dataset.moderate;
+    if (action === "block" || action === "mute" || action === "unmute")
+      moderatePlayer(b.dataset.target, action);
+    return;
+  }
+  if (b.dataset.acceptFriend) {
+    void api<SharedPlayer[]>("friends", {
+      target: b.dataset.acceptFriend,
+    }).then((friends) => {
+      if (shared) shared.friends = friends;
+      renderSharedDares();
+    });
     return;
   }
   if (b.dataset.report) {
@@ -1449,7 +1464,10 @@ document.addEventListener("click", (e) => {
         b.disabled = true;
         try {
           await profileQueue;
-          if (!save.nameChosen || name !== currentProfile?.name) {
+          if (
+            currentProfile?.account &&
+            (!save.nameChosen || name !== currentProfile?.name)
+          ) {
             acceptProfile(await api<Profile>("profile", { name }));
           }
           if (save.rounds > 0 && save.welcome !== "complete") {
@@ -2364,7 +2382,7 @@ function renderSharedNeighbours() {
     return;
   const keepFocus = document.activeElement?.id === "neighbour-choice";
   neighbourRosterSignature = signature;
-  body.innerHTML = `<h2>Neighbours</h2>${serverNote()}<label class="field-label" for="neighbour-choice">Choose a neighbour</label><select class="destination-select" id="neighbour-choice">${players.length ? `<optgroup label="Players">${players.map((player) => `<option value="player:${player.id}">${escapeText(player.name)} · ${player.status}</option>`).join("")}</optgroup>` : ""}<optgroup label="Example neighbours">${residents.map((resident) => `<option value="resident:${resident.id}">${resident.name}</option>`).join("")}</optgroup></select><div class="simple-menu"><button class="menu-choice" data-action="visit-neighbour">Visit</button><button class="menu-choice" data-open="worlds">Worlds</button><button class="menu-choice" data-action="report-neighbour">Report or hide</button></div><details class="menu-details"><summary>Bring a friend</summary><button class="secondary" data-open="invite">Invite a friend</button></details>`;
+  body.innerHTML = `<h2>Neighbours</h2>${serverNote()}<label class="field-label" for="neighbour-choice">Choose a neighbour</label><select class="destination-select" id="neighbour-choice">${players.length ? `<optgroup label="Players">${players.map((player) => `<option value="player:${player.id}">${escapeText(player.name)}</option>`).join("")}</optgroup>` : ""}<optgroup label="Example neighbours">${residents.map((resident) => `<option value="resident:${resident.id}">${resident.name}</option>`).join("")}</optgroup></select><div class="simple-menu"><button class="menu-choice" data-action="visit-neighbour">View profile</button><button class="menu-choice" data-open="worlds">Worlds</button><button class="menu-choice" data-action="report-neighbour">Report</button></div><details class="menu-details"><summary>Bring a friend</summary><button class="secondary" data-open="invite">Invite a friend</button></details>`;
   const picker = body.querySelector<HTMLSelectElement>("#neighbour-choice")!;
   if (
     selected &&
@@ -2486,11 +2504,11 @@ function renderSharedDares() {
   const eligibility = dareHoldCopy(ready, currentProfile?.account);
   const rule = `<p class="fine-print">${eligibility || `${left}/3 left today. Score freezes at start. Resets midnight SGT.`}</p>`;
   if (dareView === "home") {
-    body.innerHTML = `<h2>Challenges</h2>${serverNote()}<p>Beat a saved score.</p><div class="simple-menu"><button class="menu-choice" data-open="dares-neighbour">Friends & neighbours</button><button class="menu-choice" data-open="dares-board">Today’s scores</button><button class="menu-choice" data-open="dares-find">Save a friend</button></div>${rule}<details class="menu-details"><summary>Recent challenges</summary><div class="challenge-history">${shared?.history.map((r) => `<div><strong>${escapeText(r.challenger)} → ${escapeText(r.defender)}</strong><span>${games[r.game].name} · ${r.status === "finished" ? `${formatScore(r.game, r.score || 0)} vs ${formatScore(r.game, r.targetScore)} · ${r.score! > r.targetScore ? "WON" : r.score === r.targetScore ? "TIED" : "HELD"}` : "ENDED"}</span></div>`).join("") || "<p>No challenges yet.</p>"}</div></details>`;
+    body.innerHTML = `<h2>Challenges</h2>${serverNote()}<p>Beat a saved score.</p><div class="simple-menu"><button class="menu-choice" data-open="dares-neighbour">Friends & requests</button><button class="menu-choice" data-open="dares-board">Today’s scores</button><button class="menu-choice" data-open="dares-find">Find a friend</button></div>${rule}<details class="menu-details"><summary>Recent challenges</summary><div class="challenge-history">${shared?.history.map((r) => `<div><strong>${escapeText(r.challenger)} → ${escapeText(r.defender)}</strong><span>${games[r.game].name} · ${r.status === "finished" ? `${formatScore(r.game, r.score || 0)} vs ${formatScore(r.game, r.targetScore)} · ${r.score! > r.targetScore ? "WON" : r.score === r.targetScore ? "TIED" : "HELD"}` : "ENDED"}</span></div>`).join("") || "<p>No challenges yet.</p>"}</div></details>`;
     return;
   }
   if (dareView === "find") {
-    body.innerHTML = `${back}<h2>Save a friend</h2><p>Ask for their exact nickname.</p><form id="save-friend"><label>Nickname<input name="name" minlength="2" maxlength="20" required autocomplete="off"></label><button class="primary">Save friend</button><p role="status"></p></form>`;
+    body.innerHTML = `${back}<h2>Find a friend</h2><p>Ask for their exact nickname.</p><form id="save-friend"><label>Nickname<input name="name" minlength="2" maxlength="20" required autocomplete="off"></label><button class="primary">Send friend request</button><p role="status"></p></form>`;
     body.querySelector<HTMLFormElement>("#save-friend")!.onsubmit = async (
       event,
     ) => {
@@ -2516,19 +2534,25 @@ function renderSharedDares() {
   }
   const players = [
     ...new Map(
-      [...(shared?.friends || []), ...(shared?.players || [])]
+      [...(shared?.friends || [])]
         .filter((p) => p.id !== shared?.me)
         .map((p) => [p.id, p]),
     ).values(),
   ];
   const selected = players.find((p) => p.id === previous) || players[0];
-  body.innerHTML = `${back}<h2>Friends & neighbours</h2>${serverNote()}${players.length ? `<label class="field-label" for="dare-choice">Choose a player</label><select class="destination-select" id="dare-choice">${players.map((p) => `<option value="${p.id}" ${p.id === selected?.id ? "selected" : ""}>${escapeText(p.name)} · ${p.status}</option>`).join("")}</select>` : "<p>Save a friend to find their scores here.</p>"}${selected ? challengeButtons(selected) : ""}${rule}`;
+  body.innerHTML = `${back}<h2>Friends & requests</h2>${serverNote()}${players.length ? `<label class="field-label" for="dare-choice">Choose a player</label><select class="destination-select" id="dare-choice">${players.map((p) => `<option value="${p.id}" ${p.id === selected?.id ? "selected" : ""}>${escapeText(p.name)} · ${p.relationship || "friend"}</option>`).join("")}</select>` : "<p>Find a friend to find their scores here.</p>"}${selected?.relationship === "incoming" ? `<button class="primary" data-accept-friend="${selected.id}">Accept friend request</button>` : selected?.relationship === "outgoing" ? "<p>Request pending. They must accept before you can visit.</p>" : selected ? challengeButtons(selected) : ""}${rule}`;
+}
+function playerProfile(p: SharedPlayer) {
+  const friend = shared?.friends?.some(
+    (f) => f.id === p.id && f.relationship === "friend",
+  );
+  return `<h3>${escapeText(p.name)}</h3><p>${p.points} ranked medal points</p><div class="resident-outfit"><i style="background:${outfits[p.look.outfit]}"></i><span>${clothingNames[p.look.clothing || 0]}</span></div>${friend ? `<p>${p.status} · ${activities[p.activity].name}</p><button class="secondary" data-join-friend="${p.id}">Join friend’s world</button>${shared?.competitionReady ? "" : "<p>Challenges are not open for you yet.</p>"}${challengeButtons(p)}<p>${dareHoldCopy(!!shared?.competitionReady, currentProfile?.account)}</p>` : "<p>Status, activity and world are private.</p>"}<details class="menu-details"><summary>Block, mute or report</summary><div class="button-row"><button class="secondary" data-moderate="block" data-target="${p.id}">Block</button><button class="secondary" data-moderate="${shared?.muted?.includes(p.id) ? "unmute" : "mute"}" data-target="${p.id}">${shared?.muted?.includes(p.id) ? "Unmute" : "Mute"} emotes</button><button class="secondary" data-report="${p.id}">Report</button></div></details>`;
 }
 function renderPlayerInspector(id: string) {
   const p = shared?.players.find((p) => p.id === id);
   if (!p) return;
-  const el = document.querySelector<HTMLElement>("#inspector")!;
-  el.innerHTML = `<button class="close-button" data-action="close-inspector" aria-label="Stop inspecting neighbour">×</button><span class="eyebrow">${p.status.toUpperCase()} · SAVED NEIGHBOUR</span><h3>${escapeText(p.name)}</h3><p>${p.points} ranked medal points · ${p.wins} challenge wins<br>${activities[p.activity].icon} ${activities[p.activity].name}</p><div class="resident-outfit"><i style="background:${outfits[p.look.outfit]}"></i><span>${clothingNames[p.look.clothing || 0]} · ${petNames[p.look.pet || 0]} · ${accessoryNames[p.look.accessory || 0]}</span></div><strong>${shared?.challenged.includes(p.id) ? "Already challenged today" : shared?.competitionReady ? "Ready for a friendly challenge" : "Challenges are not open for you yet"}</strong>${challengeButtons(p)}<button class="secondary" data-join-friend="${p.id}">Join friend’s world</button><button class="secondary" data-report="${p.id}">Report or hide this player</button><p class="fine-print">${dareHoldCopy(!!shared?.competitionReady, currentProfile?.account) || "Starting uses one of your three daily challenges. Beat their saved score to win."} Drag to orbit; scroll or pinch to zoom.</p>`;
+  document.querySelector<HTMLElement>("#inspector")!.innerHTML =
+    `<button class="close-button" data-action="close-inspector" aria-label="Close profile">×</button>${playerProfile(p)}`;
 }
 function showPlayer(id: string) {
   if (!shared?.players.some((p) => p.id === id)) return;
@@ -2536,7 +2560,7 @@ function showPlayer(id: string) {
     const player = shared?.players.find((p) => p.id === id);
     if (!player) return;
     openShell("NEIGHBOUR");
-    body.innerHTML = `<h2>${escapeText(player.name)}</h2><p>${activities[player.activity].name}</p><div class="simple-menu"><button class="secondary" data-open="dares">Challenges</button><button class="secondary" data-join-friend="${player.id}">Join their world</button><button class="secondary" data-report="${player.id}">Report or hide</button></div>`;
+    body.innerHTML = playerProfile(player);
     return;
   }
   if (modal.open) close();
@@ -2583,7 +2607,11 @@ function applyWorldPlayers() {
     ),
   ];
   world?.syncPlayers(
-    shared.players.filter((p) => liveIds.has(p.id)),
+    shared.players
+      .filter((p) => liveIds.has(p.id))
+      .map((p) =>
+        shared?.muted?.includes(p.id) ? { ...p, emote: undefined } : p,
+      ),
     shared.me,
     liveIds,
   );
@@ -2741,3 +2769,26 @@ window.setInterval(() => {
   if (world && !world.paused && !modal.open && world.player?.moving)
     beep("step");
 }, 300);
+
+window.addEventListener("account-opening", () => {
+  if (modal.open) close();
+  dismissInspector();
+});
+window.addEventListener("player-moderated", ((
+  event: CustomEvent<{ target: string; action: string }>,
+) => {
+  if (!shared) return;
+  const { target, action } = event.detail;
+  if (action === "block") {
+    shared.players = shared.players.filter((p) => p.id !== target);
+    liveNeighbours = liveNeighbours.filter((p) => p.id !== target);
+    savedNeighbours = savedNeighbours.filter((p) => p.id !== target);
+    hiddenNeighbours.add(target);
+  } else
+    shared.muted =
+      action === "mute"
+        ? [...(shared.muted || []), target]
+        : (shared.muted || []).filter((id) => id !== target);
+  applyWorldPlayers();
+  renderWorldPresence();
+}) as EventListener);

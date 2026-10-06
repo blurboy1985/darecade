@@ -134,7 +134,7 @@ test("the server decides East Side rewards, on its own clock", () => {
     const go = (event: string, value?: unknown) =>
       community.progression(me.id, event, value).progress;
     for (const place of ["fishing", "hoops", "plots"]) go("visit", place);
-    assert.equal(go("visit", "plots").xp, 30);
+    assert.equal(go("visit", "plots").xp, 0);
     assert.throws(() => go("visit", "moon"), /Unknown place/);
     // Catches and baskets come only from a replayed round (tests/outdoor.test.ts).
     assert.throws(() => go("fish", "catfish"), /Unknown progression/);
@@ -143,7 +143,7 @@ test("the server decides East Side rewards, on its own clock", () => {
     assert.equal(
       community.patch(me.id, { xp: 9999, hoopsBest: 10, fish: ["koi"] })
         .progress.xp,
-      30,
+      0,
     );
     assert.equal(community.privateProfile(me.id).progress.hoopsBest, 0);
     assert.throws(() => go("harvest"), /not ready/);
@@ -158,7 +158,7 @@ test("the server decides East Side rewards, on its own clock", () => {
     assert.throws(() => go("harvest"), /not ready/);
     time += 60000;
     const done = go("harvest");
-    assert.equal(done.xp, 40);
+    assert.equal(done.xp, 10);
     assert.equal(done.harvests, 1);
     // The mission needs two activities; a catch arrives through a replayed round.
     assert.throws(() => go("claim", "eastside"), /not ready to claim/);
@@ -167,7 +167,7 @@ test("the server decides East Side rewards, on its own clock", () => {
     store.db
       .prepare("UPDATE profiles SET progress=? WHERE player=?")
       .run(JSON.stringify(progress), me.id);
-    assert.equal(go("claim", "eastside").xp, 70);
+    assert.equal(go("claim", "eastside").xp, 40);
     assert.throws(() => go("claim", "eastside"), /not ready to claim/);
   } finally {
     store.close();

@@ -61,6 +61,7 @@ const compiled = ts.transpileModule(
       "challengeButtons",
       "renderSharedDares",
       "renderPlayerInspector",
+      "playerProfile",
       "openDares",
     ]
       .map(extract)
@@ -178,6 +179,7 @@ function harness() {
     shared: {
       self: { best: {}, outgoing: 0, points: 0 },
       players,
+      friends: players.map(p=>({...p,relationship:"friend"})),
       me: "self",
       competitionReady: true,
       challenged: [],

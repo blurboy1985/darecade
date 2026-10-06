@@ -41,6 +41,10 @@ export function mobileLobbyFixture(
     const script=document.createElement('script'); script.src='/qa-audit.js'; document.head.append(script);
   }
   const profile = ${JSON.stringify(profile)};
+  const safetyReview=new URLSearchParams(location.search).get('review')==='safety';
+  if(safetyReview) profile.ageBand='13-17';
+  const muted=[]; const blocked=[];
+  const neighbour={id:'review-stranger',name:'Mint Otter 12',look:{...profile.progress,hair:69},activity:'lobby',status:'private',best:{},points:7,incoming:0,outgoing:0,wins:0,x:3,z:10,yaw:0};
   const baseFetch = window.fetch;
   localStorage.setItem('darecade-v1', JSON.stringify(profile.progress));
   window.fetch = async (input, init) => {
@@ -51,7 +55,7 @@ export function mobileLobbyFixture(
     if (path === 'auth/config') result = { now: Date.now(), privacyVersion: 'fixture', mailMode: 'outbox', origin: location.origin, storageNotice: 'Synthetic local fixture' };
     else if (path === 'profile') { Object.assign(profile.progress, JSON.parse(init.body)); result = profile; }
     else if (path === 'auth/me') result = profile;
-    else if (path === 'state') result = { profile, competitionReady: false, me: profile.id, self: {id: profile.id, name: profile.name, look: {}, activity: 'lobby', status: 'online', best: profile.progress.best, points: ${account ? 12 : 0}}, day:'2026-10-05', nextReset:Date.now()+86400000, week:'', weekly:[], lastWeek:[], dares:[], recentRuns:[], players:[], friends:[], challenged:[], boards:{noodle:[],hop:[],brick:[],swarm:[],coast:[]}, history:[] };
+    else if (path === 'state') result = { profile, competitionReady: false, me: profile.id, self: {id: profile.id, name: profile.name, look: {}, activity: 'lobby', status: 'online', best: profile.progress.best, points: ${account ? 12 : 0}}, day:'2026-10-05', nextReset:Date.now()+86400000, week:'', weekly:[], lastWeek:[], dares:[], recentRuns:[], players:safetyReview&&!blocked.length?[neighbour]:[], friends:[], muted, challenged:[], boards:{noodle:[],hop:[],brick:[],swarm:[],coast:[]}, history:[] };
     else if (path === 'finish') {
       result = await baseFetch('/qa-finish', init).then(r=>r.json());
       profile.progress.xp += 20;
@@ -62,7 +66,11 @@ export function mobileLobbyFixture(
       result.profile = profile;
     }
     else if (path === 'run') result = {id: profile.progress.coastRecord.timeTicks ? 'qa-standard' : 'qa-race',seed: profile.progress.coastRecord.timeTicks ? 42 : -43, ranked:false};
-    else if (path === 'world/poll') result = {t:'sync',at:Date.now(),world:'world-1',p:[[0,profile.id,profile.name,profile.progress]],d:[[0,0,1000,0,0,0]],gone:[]};
+    else if(path==='payments/config')result={enabled:true,testMode:true,products:[{id:'solar',kind:'set',amount:500,currency:'sgd'}]};
+    else if(path==='payments/history')result=[];
+    else if(path==='moderate'){const data=JSON.parse(init.body);if(data.action==='block')blocked.push(data.target);else if(data.action==='mute')muted.push(data.target);else muted.splice(muted.indexOf(data.target),1);result={ok:true};}
+    else if(path==='report')result={ok:true};
+    else if (path === 'world/poll') result = {t:'sync',at:Date.now(),world:'world-1',p:[[0,profile.id,profile.name,profile.progress],...(safetyReview&&!blocked.length?[[1,neighbour.id,neighbour.name,neighbour.look]]:[])],d:[[0,0,1000,0,0,0],...(safetyReview&&!blocked.length?[[1,300,1000,0,0,0,1]]:[])],gone:[]};
     return new Response(JSON.stringify(result), {headers:{'Content-Type':'application/json'}});
   };
   ${
