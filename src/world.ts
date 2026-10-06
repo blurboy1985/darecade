@@ -2008,7 +2008,7 @@ export class LobbyWorld {
     if (spots.some((s) => s.id === id)) this.onVisit(id);
     this.onInteract(id);
   }
-  private walkTo(x: number, z: number, pending = "") {
+  walkTo(x: number, z: number, pending = "") {
     if (this.save.away || this.inspectedId) return false;
     this.path = route(this.player.root.position, { x, z }, this.obstacles);
     this.pending = pending;
@@ -2235,6 +2235,10 @@ export class LobbyWorld {
     }
     this.emote = id;
     this.emoteAt = this.clock;
+  }
+  placePlayer(x: number, z: number) {
+    this.cancelInteraction();this.path=[];this.player.root.position.set(x,.1,z);
+    this.elevation=.1;this.jumpVelocity=0;this.motion.reset();
   }
   resetView() {
     this.cancelInteraction();

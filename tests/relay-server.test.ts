@@ -803,3 +803,6 @@ test("Relay alarm scheduling retries get/set failures and serializes earlier dea
     );
   }
 });
+test("plaza uses existing private team codes and preserves every ledger", () => {
+ const s=setup();try{const a=s.guest('Mango Runner'),b=s.guest('Peach Runner');const before=unrelatedRows(s);const room=s.call(a,'create',{solo:false,difficulty:'standard',course:'plaza'});const joined=s.call(b,'join',{code:room.code});for(const p of [a,b])s.call(p,'ready',{room:room.room,ready:true});const running=s.call(a,'start',{room:room.room});assert.equal(running.plaza.runners.filter(r=>r.bot).length,6);assert.equal(running.simulation,null);s.tick(250);const next=s.call(a,'tick',{room:room.room,controlEpoch:running.controlEpoch,seq:1,actionSeq:0,input:{x:0,z:0},position:{x:2,y:.1,z:5}});assert.equal(next.plaza.tick,15);assert.deepEqual(unrelatedRows(s),before);s.call(b,'leave',{room:room.room,controlEpoch:joined.controlEpoch});assert.deepEqual(unrelatedRows(s),before);}finally{s.close()}
+});

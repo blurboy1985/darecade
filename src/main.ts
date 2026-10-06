@@ -51,6 +51,7 @@ import { RacingGame } from "./racing-game";
 import { raceComparison } from "./race-results";
 import { mountFishing, mountHoops, mountPlots } from "./activities";
 import { mountStage } from "./stage-game";
+import { mountPlazaRelay } from "./plaza-relay";
 import { mountRelay } from "./relay-game";
 
 import { OutdoorGame } from "./outdoor-game";
@@ -617,7 +618,8 @@ function open(id: string) {
     id === "wardrobe" && !is2d,
   );
   if (id === "relay") {
-    mountRelay(body, { save, simple: is2d });
+    if(world && !is2d) mountPlazaRelay(body,{save,world,close});
+    else mountRelay(body, { save, simple: is2d });
     return;
   }
   if (id === "stage") {
