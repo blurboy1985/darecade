@@ -8,7 +8,7 @@ import type { BrickFx } from "./brick-fx";
 import {
   BRICK_BOSS_HP,
   Simulation,
-  RULES_VERSION,
+  rulesVersion,
   type Input,
   type Replay,
 } from "../shared/simulation";
@@ -159,7 +159,7 @@ export class ArcadeGame extends Simulation {
    */
   private conclude() {
     const replay = {
-      version: RULES_VERSION,
+      version: rulesVersion(this.id),
       ticks: this.ticks,
       events: this.events,
     };
@@ -255,6 +255,7 @@ export class ArcadeGame extends Simulation {
   }
   private setShip(e: PointerEvent) {
     if (!this.started || this.paused || this.ended) return;
+    this.begin();
     const r = this.canvas.getBoundingClientRect();
     this.input[4] = Math.round(
       Math.max(20, Math.min(420, ((e.clientX - r.left) / r.width) * 440)),
@@ -570,7 +571,7 @@ export class ArcadeGame extends Simulation {
             ? "Drag the paddle to start"
             : "Move the paddle to start"
           : this.coarse
-            ? "Swipe or tap an arrow to start"
+            ? "Move the joystick to start"
             : "Press an arrow to start",
         220,
         228,

@@ -7,7 +7,7 @@ export const RULES_VERSION = 1;
 /** 3: winding route and five seeded items. 2: three laps on the old loop. */
 export const COAST_RULES_VERSION = 3;
 export const rulesVersion = (game: string) =>
-  game === "coast" ? COAST_RULES_VERSION : RULES_VERSION;
+  game === "coast" ? COAST_RULES_VERSION : game === "swarm" ? 2 : RULES_VERSION;
 export const TICK_RATE = 60;
 /** Brick Bash: the Big Brick arrives at this second, or once the wall is gone. */
 export const BRICK_BOSS_AT = 35;
@@ -54,7 +54,7 @@ export class Simulation {
   action: HopRun | StarFlight | null;
   outdoor: HoopsRound | FishingRound | null;
   id: string;
-  constructor(id: string, seed = 314159) {
+  constructor(id: string, seed = 314159, version = rulesVersion(id)) {
     if (
       ![
         "noodle",
@@ -77,7 +77,7 @@ export class Simulation {
           ? new FishingRound(this.seed)
           : null;
     this.action =
-      id === "hop" ? new HopRun() : id === "swarm" ? new StarFlight() : null;
+      id === "hop" ? new HopRun() : id === "swarm" ? new StarFlight(version >= 2) : null;
     if (this.action instanceof StarFlight) this.action.seed = this.seed;
     if (this.action instanceof HopRun) this.action.count = this.seed % 3;
     this.ball.vx = 110 + (this.seed % 41);
@@ -351,7 +351,7 @@ export class Simulation {
 export function replayRun(game: string, seed: number, replay: Replay) {
   if (
     !replay ||
-    replay.version !== rulesVersion(game) ||
+    (replay.version !== rulesVersion(game) && !(game === "swarm" && replay.version === 1)) ||
     !Number.isInteger(replay.ticks) ||
     replay.ticks < 1 ||
     replay.ticks > (game === "coast" ? RACE_TICKS : 3600) ||
@@ -382,7 +382,7 @@ export function replayRun(game: string, seed: number, replay: Replay) {
       throw Error("Invalid replay inputs.");
     previous = e[0];
   }
-  const sim = new Simulation(game, seed);
+  const sim = new Simulation(game, seed, replay.version);
   const movementSeconds = new Set<number>();
   let input: Input = [0, 0, -1, 0, -1, -1],
     cursor = 0;

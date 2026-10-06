@@ -208,15 +208,15 @@ test("Swarm auto-fire, a single pulse, unused controls and wall holding do not q
   ];
   for (const control of controls) {
     const run = play("swarm", 314159, control);
-    assert.ok(run.sim.ticks >= 15 * TICK_RATE);
-    assert.ok(run.sim.score > 0);
+    assert.ok(run.sim.ticks <= 15 * TICK_RATE);
+    if (control === neutral) assert.equal(run.sim.score, 0);
     assert.equal(run.result.playMedalEligible, false);
   }
 });
 
 test("Swarm counts distinct seconds with real steering rather than input ticks", () => {
   for (const seconds of [9, 10]) {
-    const run = play("swarm", 314159, (sim) => [
+    const run = play("swarm", 2, (sim) => [
       sim.ticks < seconds * TICK_RATE
         ? Math.floor(sim.ticks / 30) % 2
           ? -1

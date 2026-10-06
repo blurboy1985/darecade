@@ -137,8 +137,9 @@ export const activityIds: readonly ActivityId[] = [
  * alone loses all three lives in about seven seconds, so its ball waits too.
  */
 export const holdsForFirstMove = (game: GameId) =>
-  game === "noodle" || game === "brick";
+  game === "noodle" || game === "brick" || game === "swarm";
 export function endReasonText(game: GameId, reason: string, seconds: number) {
+  if (reason === "idle") return "Paused flying for too long. Move to keep your next run going.";
   const after = `after ${Math.max(1, Math.round(seconds))}s`;
   if (game === "noodle") {
     if (reason === "wall")

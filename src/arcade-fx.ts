@@ -85,12 +85,9 @@ const themes: Record<
     shapes: ["#ffb86b", "#ffe27a", "#9be38b", "#ff8fa3"],
   },
   swarm: {
-    sky: "#070c22",
-    fog: "#101a44",
-    grid: "#6ad4dc",
-    sunTop: "#ff9bf0",
-    sunBottom: "#7a5cff",
-    shapes: ["#6ad4dc", "#ff9bf0", "#f8c653", "#a9db6e"],
+    sky: "#d9f1ed", fog: "#b8d9cb", grid: "#9cbbba",
+    sunTop: "#fff6b5", sunBottom: "#ffce8d",
+    shapes: ["#83bbac", "#d8baeb", "#ffe49c", "#eabbaa"],
   },
 };
 

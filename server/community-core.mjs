@@ -918,7 +918,8 @@ export class CommunityCore {
     if (
       r.status !== "started" ||
       at - r.started > 600000 ||
-      r.version !== rulesVersion(r.game)
+      (r.version !== rulesVersion(r.game) && !(r.game === "swarm" && r.version === 1)) ||
+      data.replay?.version !== r.version
     )
       throw Error("This round has expired. Start a new round.");
     const result = replayRun(r.game, r.seed, data.replay);

@@ -21,3 +21,10 @@
  dialog.game-modal:has(.game-touch) #modal-body>h2{display:none}
 }
 
+/* Star Swarm's sunny plaza palette keeps danger orange and the ship teal. */
+dialog.game-modal[data-game="swarm"]{background:linear-gradient(#d9f1ed,#c8ddd0)!important;--glow:#f8e2b0}
+.swarm-art{background:linear-gradient(#d9f1ed,#b8d9cb)!important;color:#125770!important}
+.swarm-art .star-ship{color:#087d93!important;text-shadow:0 2px #fff}
+.swarm-art .star-enemy{color:#bb4058!important;text-shadow:0 2px #fff}
+dialog.game-modal[data-game="swarm"] .game-controls{color:#294d63!important}
+dialog.game-modal[data-game="swarm"] .game-controls .text-button{background:#294d63;color:#fff}
