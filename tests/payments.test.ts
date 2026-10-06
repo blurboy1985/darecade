@@ -129,6 +129,15 @@ function setup(secretKey = "sk_test_fixture", livemode = false) {
   };
 }
 
+test("under-18 checkout is rejected before any Stripe request", async () => {
+  const s = setup();
+  try {
+    s.store.db.prepare("UPDATE profiles SET age_band='13–17' WHERE player=?").run(s.player);
+    await assert.rejects(s.payments.checkout(s.player, "solar"), /18 and over/);
+    assert.equal(s.sessions.size, 0);
+  } finally { s.close(); }
+});
+
 test("payment configuration stays closed without secrets and saved accounts; prices stay server-owned", async () => {
   const s = setup();
   try {
@@ -364,7 +373,7 @@ test("under-18 donation attempts fail before contacting Stripe", async () => {
     const before = f.calls();
     await assert.rejects(
       f.payments.checkout(f.player, "donation-small"),
-      /adults only/,
+      /18 and over/,
     );
     assert.equal(f.calls(), before);
     assert.equal(f.payments.history(f.player).length, 0);

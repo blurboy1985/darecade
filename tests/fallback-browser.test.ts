@@ -97,21 +97,19 @@ for (const twoD of [true, false]) {
           check(!reward() && document.querySelector('#modal').open, 'See looks opens wardrobe');
           check(document.querySelector('#modal-body').textContent.includes('Style'), 'wallet explained');
           award(2);
+          await new Promise(r => setTimeout(r, 100));
+          check(!reward(), 'reward waits while wardrobe is open');
+          document.querySelector('#close-modal').click();
           await until(reward);
-          check(reward().closest('dialog') === document.querySelector('#modal'), 'reward belongs to modal');
-          const modal = document.querySelector('#modal');
-          modal.close();
-          // Virtual-time Chrome defers the native close event to a compositor
-          // frame. Deliver that event explicitly to verify the cleanup contract.
-          modal.dispatchEvent(new Event('close'));
-          check(!modal.open, 'owner dialog closed');
-          check(!reward(), 'closing owner dialog cleans reward');
+          check(!document.querySelector('#modal').open, 'owner dialog closed');
+          reward().querySelector('.text-button').click();
+          check(!reward(), 'deferred reward can be dismissed');
           check(claims === 3, 'each reward claimed once');
           await new Promise(r => setTimeout(r, 100));
           check(!reward(), 'dismissed notices do not replay');
           document.querySelector('[data-open="arcade"]').click();
           check(document.querySelector('#modal').open, 'Games opens in 2D');
-          check(document.querySelector('#modal-body').textContent.includes('Pick a game!'), 'Games heading');
+          check(document.querySelector('#modal-body').textContent.includes('Play outside'), 'Games heading');
           check(innerWidth === 390, 'real CSS viewport is 390px');
           check(document.documentElement.scrollWidth <= innerWidth, 'mobile has no horizontal overflow');
           document.body.dataset.result = 'pass';

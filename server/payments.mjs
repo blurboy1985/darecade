@@ -145,6 +145,8 @@ export class Payments {
         503,
       );
     const profile = this.c.privateProfile(player);
+    if (profile.ageBand !== "18+")
+      fail("Purchases are for players aged 18 and over only.", 403);
     if (!profile.account)
       fail("Save your account with email before making a payment.", 403);
     const product = this.catalog().find((p) => p.id === productId);

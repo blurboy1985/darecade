@@ -227,7 +227,7 @@ try {
   document.querySelector('#keep-account').click();
   check(document.querySelector('#export-data'), 'cancel deletion returns to privacy');
   document.querySelector('#privacy-back').click();
-  check(document.querySelector('#save-account') && document.querySelector('#logout'), 'back restores account actions');
+  check(document.querySelector('#save-account') && !document.querySelector('#logout'), 'back restores the guest profile returned by the fixture');
   document.body.innerHTML = '<p data-result="pass">Account onboarding passed</p>';
 } catch (error) {
   document.body.innerHTML = '<p data-result="fail"></p>';

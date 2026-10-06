@@ -1,3 +1,8 @@
+import {
+  createPlazaRelay,
+  advancePlazaRelay,
+  plazaPosition,
+} from "../shared/plaza-relay.ts";
 import { createHash, randomInt, randomUUID } from "node:crypto";
 import {
   createRelay,
@@ -131,6 +136,18 @@ export class RelayRooms {
   advance(room, members, at) {
     const state = room.simulation;
     if (!state || room.status !== "running") return;
+    if (state.kind === "plaza") {
+      const target = Math.min(
+        7200,
+        Math.max(state.tick, Math.floor((at - room.started) * 0.06)),
+      );
+      while (state.tick < target && state.status === "running")
+        advancePlazaRelay(state);
+      room.status = state.status;
+      room.updated = at;
+      this.save(room);
+      return;
+    }
     const target = Math.min(
       relayConfig(room.difficulty).limitTicks,
       Math.max(
@@ -194,7 +211,8 @@ export class RelayRooms {
       difficulty: room.difficulty,
       status: room.status,
       players,
-      simulation: room.simulation,
+      simulation: room.simulation?.kind === "plaza" ? null : room.simulation,
+      ...(room.simulation?.kind === "plaza" ? { plaza: room.simulation } : {}),
       serverAt: at,
       expiresAt: room.expires,
     };
@@ -222,11 +240,11 @@ export class RelayRooms {
   }
   request(player, action, data, token) {
     const allowed = {
-      create: ["solo", "difficulty"],
+      create: ["solo", "difficulty", "course"],
       join: ["code", "room"],
       ready: ["room", "ready"],
       start: ["room"],
-      tick: ["room", "controlEpoch", "seq", "actionSeq", "input"],
+      tick: ["room", "controlEpoch", "seq", "actionSeq", "input", "position"],
       leave: ["room", "controlEpoch"],
     }[action];
     if (!allowed) fail("Not found.", 404);
@@ -256,6 +274,7 @@ export class RelayRooms {
       .get(player);
     if (action === "create") {
       if (
+        (data.course !== undefined && data.course !== "plaza") ||
         typeof data.solo !== "boolean" ||
         !["practice", "standard", "challenge"].includes(data.difficulty)
       )
@@ -265,7 +284,8 @@ export class RelayRooms {
         this.reconcile(existing, at);
         if (
           !!existing.solo !== data.solo ||
-          existing.difficulty !== data.difficulty
+          existing.difficulty !== data.difficulty ||
+          (existing.simulation?.kind === "plaza") !== (data.course === "plaza")
         )
           fail("Leave your current Relay before creating another.");
         return this.snapshot(existing, player, at);
@@ -298,7 +318,7 @@ export class RelayRooms {
         started: null,
         updated: at,
         expires: at + RELAY_WAIT_MS,
-        simulation: null,
+        simulation: data.course === "plaza" ? createPlazaRelay([]) : null,
       };
       this.db
         .prepare("INSERT INTO relay_rooms VALUES(?,?,?,?,?,?,?,?,?,?,?)")
@@ -313,7 +333,7 @@ export class RelayRooms {
           null,
           at,
           room.expires,
-          null,
+          room.simulation ? JSON.stringify(room.simulation) : null,
         );
       this.insertMember(player, room.id, 0, session, at);
       return this.snapshot(room, player, at, code);
@@ -354,7 +374,8 @@ export class RelayRooms {
           )
           .run(at, at, player);
         if (room.status === "running" && room.simulation) {
-          setRelayConnected(room.simulation, member.slot, true);
+          if (room.simulation.kind !== "plaza")
+            setRelayConnected(room.simulation, member.slot, true);
           this.save(room);
         }
       } else {
@@ -390,6 +411,8 @@ export class RelayRooms {
     if (action === "tick") {
       if (data.controlEpoch !== member.epoch || member.session !== session)
         fail(MOVED, 409);
+      if (data.position !== undefined && room.simulation?.kind !== "plaza")
+        fail("Send only the requested Relay controls.");
       fields(data.input, ["x", "z"]);
       if (
         !sequence(data.seq) ||
@@ -405,6 +428,18 @@ export class RelayRooms {
       if (data.seq < member.seq || data.actionSeq < member.action_seq)
         fail("Those Relay controls are out of order.", 409);
       if (data.seq === member.seq) return this.snapshot(room, player, at);
+      if (
+        room.status === "running" &&
+        room.simulation?.kind === "plaza" &&
+        data.position
+      ) {
+        fields(data.position, ["x", "y", "z"]);
+        try {
+          plazaPosition(room.simulation, member.slot, data.position);
+        } catch (e) {
+          fail(e.message);
+        }
+      }
       this.db
         .prepare(
           "UPDATE relay_members SET seq=?,action_seq=?,input_x=?,input_z=?,input_at=?,pending=MAX(pending,?),seen=? WHERE player=?",
@@ -420,7 +455,8 @@ export class RelayRooms {
           player,
         );
       if (room.status === "running" && room.simulation) {
-        setRelayConnected(room.simulation, member.slot, true);
+        if (room.simulation.kind !== "plaza")
+          setRelayConnected(room.simulation, member.slot, true);
         this.save(room);
       }
     } else if (action === "ready") {
@@ -438,7 +474,8 @@ export class RelayRooms {
       if (
         live.length !== members.length ||
         members.some((other) => !other.ready) ||
-        members.length < (room.solo ? 1 : 2)
+        members.length <
+          (room.solo || room.simulation?.kind === "plaza" ? 1 : 2)
       )
         fail("Everyone must be here and ready before Relay starts.");
       if (
@@ -447,11 +484,14 @@ export class RelayRooms {
           .get().n >= RELAY_RUNNING_CAP
       )
         fail("Relay is busy. Try again shortly.", 429);
-      room.simulation = createRelay(
-        room.difficulty,
-        members.map((other) => other.slot),
-        !!room.solo,
-      );
+      room.simulation =
+        room.simulation?.kind === "plaza"
+          ? createPlazaRelay(members.map((m) => m.slot))
+          : createRelay(
+              room.difficulty,
+              members.map((other) => other.slot),
+              !!room.solo,
+            );
       room.status = "running";
       room.started = at;
       room.updated = at;
@@ -488,7 +528,8 @@ export class RelayRooms {
       at = this.now();
     if (cancel) this.cancel(room, at);
     else if (room.status === "running" && room.simulation) {
-      setRelayConnected(room.simulation, member.slot, false);
+      if (room.simulation.kind !== "plaza")
+        setRelayConnected(room.simulation, member.slot, false);
       this.save(room);
     }
     this.db.prepare("DELETE FROM relay_members WHERE player=?").run(player);

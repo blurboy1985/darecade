@@ -148,6 +148,28 @@ export function activityPose(id: ActivityId, seconds: number): ActivityPose {
       gait: Math.sin(t * 5) * 0.25,
       arms: 0.5 + hop * 1.3,
     };
+  } else if (id === "read") {
+    pose = {
+      ...pose,
+      x: -13,
+      z: 10,
+      y: 0.25,
+      yaw: Math.PI,
+      sit: true,
+      arms: 0.8,
+    };
+  } else if (id === "nap") {
+    pose = { ...pose, x: -10, z: 8, y: 0.12, sit: true, arms: 0.2 };
+  } else if (id === "pet") {
+    pose = {
+      ...pose,
+      x: -9,
+      z: 6.8,
+      y: 0.1,
+      yaw: Math.PI,
+      sit: true,
+      arms: 0.8 + Math.sin(t * 2) * 0.12,
+    };
   } else if (id === "rest") {
     pose = { ...pose, x: -13, z: 6, y: 0.25, sit: true, arms: 0.15 };
   } else {

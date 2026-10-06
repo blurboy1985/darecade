@@ -62,6 +62,7 @@ export const seedFor = (game, date) =>
 const lookKeys = [
   "outfit",
   "skin",
+  "eye",
   "body",
   "hat",
   "clothing",
@@ -508,6 +509,18 @@ export class CommunityCore {
             if (!p.unlockedHats.includes(3)) p.unlockedHats.push(3);
           }
         }
+      } else if (event === "rooftop") {
+        if (!["arcade", "shop", "dragon"].includes(value))
+          throw Error("Unknown rooftop.");
+        const today = day(at);
+        if (p.roofDay !== today) {
+          p.roofDay = today;
+          p.roofStars = [];
+        }
+        if (!p.roofStars.includes(value)) {
+          p.roofStars.push(value);
+          p.xp += 10 + (p.roofStars.length === 3 ? 30 : 0);
+        }
       } else if (event === "claim") {
         const m = missions.find((x) => x.id === value);
         if (
@@ -920,7 +933,9 @@ export class CommunityCore {
     if (
       r.status !== "started" ||
       at - r.started > 86400000 ||
-      r.version !== rulesVersion(r.game)
+      (r.version !== rulesVersion(r.game) &&
+        !(r.game === "swarm" && r.version === 1)) ||
+      data.replay?.version !== r.version
     )
       throw Error("This round has expired. Start a new round.");
     const result = replayRun(r.game, r.seed, data.replay);
@@ -1048,7 +1063,7 @@ export class CommunityCore {
       dares: this.db
         .prepare(
           `SELECT d.*,p.name FROM dares d JOIN players p ON p.id=d.host
-        JOIN runs r ON r.id=d.run WHERE r.version=CASE WHEN d.game='coast' THEN ${COAST_RULES_VERSION} ELSE 1 END
+        JOIN runs r ON r.id=d.run WHERE r.version=CASE WHEN d.game='coast' THEN ${COAST_RULES_VERSION} WHEN d.game='swarm' THEN 2 ELSE 1 END
         AND d.expires>? AND r.finished>=? ORDER BY d.created DESC LIMIT 100`,
         )
         .all(this.now(), this.seasons.targetAfter()),
@@ -1119,7 +1134,7 @@ export class CommunityCore {
       recentRuns: this.db
         .prepare(
           `SELECT id,game,score,finished FROM runs WHERE player=? AND verified=1
-        AND status='finished' AND version=CASE WHEN game='coast' THEN ${COAST_RULES_VERSION} ELSE 1 END ORDER BY finished DESC LIMIT 12`,
+        AND status='finished' AND version=CASE WHEN game='coast' THEN ${COAST_RULES_VERSION} WHEN game='swarm' THEN 2 ELSE 1 END ORDER BY finished DESC LIMIT 12`,
         )
         .all(id),
     };
@@ -1140,21 +1155,19 @@ export class CommunityCore {
         .all(id)
         .map((p) => p.target),
     );
-    return this.store
-      .playerList(id, true)
-      .map((p) =>
-        id === p.id || friends.has(p.id)
-          ? p
-          : {
-              ...p,
-              status: "private",
-              activity: "lobby",
-              since: 0,
-              x: 0,
-              z: 0,
-              yaw: 0,
-            },
-      );
+    return this.store.playerList(id, true).map((p) =>
+      id === p.id || friends.has(p.id)
+        ? p
+        : {
+            ...p,
+            status: "private",
+            activity: "lobby",
+            since: 0,
+            x: 0,
+            z: 0,
+            yaw: 0,
+          },
+    );
   }
   moderate(id, target, action) {
     if (

@@ -30,6 +30,7 @@ export type Gear =
   | "unicorn";
 
 const TOP = 1.76;
+const tricornBrim = new T.CylinderGeometry(0.67, 0.67, 0.065, 3);
 const up = new T.Vector3(0, 1, 0);
 function aim(m: T.Object3D, dir: number[]) {
   m.quaternion.setFromUnitVectors(up, new T.Vector3(...dir).normalize());
@@ -273,27 +274,26 @@ export function buildHeadgear(g: T.Object3D, gear: Gear) {
         ball(g, [side * 0.24, TOP - 0.05, 0], [0.05, 0.04, 0.05], "#7aa65a");
       }
       break;
-    case "bandana":
-      ball(g, [0, TOP - 0.2, -0.01], [0.47, 0.3, 0.5], "#d64545");
-      for (const [x, y, z] of [
-        [0.2, 0.0, 0.32],
-        [-0.18, 0.05, 0.3],
-        [0.32, -0.05, -0.05],
-        [-0.3, 0.02, -0.15],
-        [0.05, 0.08, -0.3],
-      ])
-        ball(g, [x, TOP - 0.15 + y, z], [0.035, 0.035, 0.035], "#ffffff");
-      ball(g, [0.06, TOP - 0.28, -0.48], [0.08, 0.08, 0.06], "#d64545");
-      for (const side of [-1, 1]) {
-        const tail = ball(
+    case "bandana": {
+      // Three raised corners form a tricorn; the crown intersects the hair.
+      const base = new T.Mesh(tricornBrim, material("#67424c"));
+      base.position.y = TOP - 0.16;
+      g.add(base);
+      ball(g, [0, TOP - 0.1, 0], [0.43, 0.23, 0.42], "#67424c");
+      for (let i = 0; i < 3; i++) {
+        const angle = (i * Math.PI * 2) / 3;
+        const brim = part(
           g,
-          [0.06 + side * 0.08, TOP - 0.42, -0.5],
-          [0.06, 0.14, 0.03],
-          "#c03a3a",
+          "box",
+          [Math.sin(angle) * 0.34, TOP - 0.1, Math.cos(angle) * 0.34],
+          [0.92, 0.09, 0.2],
+          "#d57e72",
         );
-        tail.rotation.z = side * 0.4;
+        brim.rotation.set(-0.5, angle, 0);
       }
+      part(g, "oct", [0, TOP - 0.07, 0.48], [0.09, 0.12, 0.04], "#ffe4ac");
       break;
+    }
     case "straw":
       part(g, "cyl", [0, TOP + 0.12 - 0.12, 0], [0.7, 0.03, 0.7], "#e8c97a");
       part(g, "cyl", [0, TOP + 0.12 + 0.0, 0], [0.38, 0.22, 0.38], "#e8c97a");

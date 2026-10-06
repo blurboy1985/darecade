@@ -401,6 +401,32 @@ test("progress rewards cannot repeat; reports hide players and deletion revokes 
     s.close();
   }
 });
+
+test("rooftop stars award once per Singapore day without changing purchases", async () => {
+  const s = setup();
+  try {
+    const a = await register(s, "rooftop@example.test");
+    const before = s.community.privateProfile(a.me.id).progress;
+    for (const id of ["arcade", "shop", "dragon", "arcade", "dragon"])
+      s.community.progression(a.me.id, "rooftop", id);
+    const after = s.community.privateProfile(a.me.id).progress;
+    assert.equal(after.xp, before.xp + 60);
+    assert.deepEqual(after.wardrobePurchased, before.wardrobePurchased);
+    assert.deepEqual(after.coins, before.coins);
+    assert.throws(
+      () => s.community.progression(a.me.id, "rooftop", "other"),
+      /Unknown/,
+    );
+    s.tick(86400000);
+    s.community.progression(a.me.id, "rooftop", "arcade");
+    assert.equal(
+      s.community.privateProfile(a.me.id).progress.xp,
+      before.xp + 70,
+    );
+  } finally {
+    s.close();
+  }
+});
 test("retention deletes inactive profiles after twelve months and production fails closed", async () => {
   const s = setup();
   try {

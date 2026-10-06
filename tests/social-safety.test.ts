@@ -147,7 +147,7 @@ test("queued finish survives another game and presence settlement; Race again re
       id: run.id,
       score: sim.score,
       replay: {
-        version: 1,
+        version: run.version,
         ticks: sim.ticks,
         events: [[0, 0, 0, -1, 0, -1, -1]],
       },

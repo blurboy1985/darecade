@@ -21,7 +21,7 @@ const world = tree.statements.find(
   (node) => ts.isClassDeclaration(node) && node.name?.text === "LobbyWorld",
 );
 assert.ok(world && ts.isClassDeclaration(world));
-const methods = ["act", "animatePlayer"].map((name) => {
+const methods = ["act", "animatePlayer", "jumpStep"].map((name) => {
   const method = world.members.find(
     (member) => member.name?.getText(tree) === name,
   );
@@ -40,32 +40,29 @@ function run(scenario: string) {
     `${compiled}
     const world = new JumpHarness();
     Object.assign(world, {clock: 10, emote: '', emoteAt: 0, paused: false,
-      save: {away: false}, inspectedId: '', interactionId: '',
+      save: {away: false}, elevation: 0.1, jumpVelocity: 0, padFlight: null, roofStars: [], inspectedId: '', interactionId: '',
       player: {root: new Group(), left: new Group(), right: new Group()}});
     ${scenario}`,
-    { assert, Group },
+    { assert, Group, rooftops: [] },
   );
 }
 
 test("repeated jump inputs preserve airborne height and the original landing time", () => {
   run(`
     world.act('jump');
-    for (const elapsed of [0.1, 0.5, 0.9]) {
-      world.clock = 10 + elapsed;
-      world.animatePlayer();
-      const height = world.player.root.position.y;
+    for (let i=0;i<25;i++) {
+      world.jumpStep(1/60);
+      const height=world.player.root.position.y;
+      const velocity=world.jumpVelocity;
       world.act('jump');
-      world.animatePlayer();
-      assert.equal(world.player.root.position.y, height, 'jump must not snap to ground');
-      assert.equal(world.emoteAt, 10, 'airborne input must not restart the jump');
+      assert.equal(world.player.root.position.y,height);
+      assert.equal(world.jumpVelocity,velocity,'airborne input must not restart jump');
     }
-    world.clock = 11;
-    world.animatePlayer();
-    assert.ok(Math.abs(world.player.root.position.y - 0.1) < 1e-8);
-    world.act('jump');
-    world.clock = 11.5;
-    world.animatePlayer();
-    assert.ok(world.player.root.position.y > 1.5, 'can jump again after landing');
+    assert.ok(world.player.root.position.y>1.5);
+    for(let i=0;i<40;i++) world.jumpStep(1/60);
+    assert.equal(world.player.root.position.y,0.1);
+    world.act('jump'); world.jumpStep(1/60);
+    assert.ok(world.player.root.position.y>0.1,'can jump after landing');
   `);
 });
 

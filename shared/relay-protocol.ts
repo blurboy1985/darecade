@@ -32,6 +32,7 @@ export type RelaySnapshot = {
   status: RelayStatus;
   players: RelayPlayer[];
   simulation: RelayState | null;
+  plaza?: import("./plaza-relay").PlazaRelay;
   serverAt: number;
   expiresAt: number;
 };

@@ -74,7 +74,7 @@ test("Hop Hop cannot double-jump in the air", () => {
 });
 test("Star Swarm auto-fires, limits damage during invulnerability, and ends at zero health", () => {
   const s = new StarFlight();
-  s.tick(0.1);
+  s.tick(0.1, 1);
   assert.ok(s.bullets.some((b) => !b.enemy));
   s.hit();
   s.hit();
@@ -88,7 +88,7 @@ test("Star Swarm auto-fires, limits damage during invulnerability, and ends at z
   s.tick(1);
   assert.equal(s.elapsed, time);
 });
-test("Star Swarm hits score points, powerups heal, and the boss arrives once", () => {
+test("Star Swarm hits score points, powerups shield, and the boss arrives once", () => {
   const s = new StarFlight();
   s.enemies.push({ x: 220, origin: 220, y: 100, phase: 0, hp: 1, boss: false });
   s.bullets.push({ x: 220, y: 103, enemy: false });
@@ -97,10 +97,11 @@ test("Star Swarm hits score points, powerups heal, and the boss arrives once", (
   s.lives = 2;
   s.pickups.push({ x: s.x, y: s.y });
   s.tick(1 / 120);
-  assert.equal(s.lives, 3);
+  assert.equal(s.lives, 2);
+  assert.equal(s.shieldHits, 2);
   assert.ok(s.shield > 0);
-  s.shield = 100;
-  for (let i = 0; i < 36 * 120; i++) s.tick(1 / 120);
+  s.invulnerable = 100;
+  for (let i = 0; i < 36 * 120; i++) s.tick(1 / 120, Math.floor(i / 120) % 2 ? 1 : -1);
   assert.equal(s.bossSpawned, true);
   assert.ok(s.enemies.filter((e) => e.boss).length <= 1);
 });

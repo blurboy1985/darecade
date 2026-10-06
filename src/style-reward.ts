@@ -115,8 +115,13 @@ export function showStyleReward(
     -1,
   );
   const parent = activeDialog || lastDialog || document.body;
-  parent.append(panel);
-  if (typeof panel.showPopover === "function") {
+  const inGame = parent.classList.contains("game-modal");
+  if (inGame) {
+    panel.removeAttribute("popover");
+    panel.classList.add("result-reward");
+    parent.insertBefore(panel, parent.querySelector("#modal-body"));
+  } else parent.append(panel);
+  if (!inGame && typeof panel.showPopover === "function") {
     panel.showPopover();
   }
   let disposeAnimation: (() => void) | undefined;

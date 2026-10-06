@@ -301,6 +301,8 @@ export async function ensureAccount(): Promise<Profile> {
 export async function openAccount(
   options: {
     create?: boolean;
+    privacy?: boolean;
+    logout?: boolean;
     guided?: boolean;
     onSaved?: (profile: Profile) => void;
     onSkipped?: () => void;
@@ -310,6 +312,12 @@ export async function openAccount(
   try {
     let p = await api<Profile>("auth/me");
     acceptProfile(p);
+    if (options.logout) {
+      await api("auth/logout", {});
+      clearLocalProfile();
+      location.reload();
+      return;
+    }
     const create = (back: () => void) =>
       emailForm(host, "auth/code", {
         back,
@@ -400,7 +408,8 @@ export async function openAccount(
         });
       });
     };
-    if (options.create && !p.account)
+    if (options.privacy) renderPrivacy();
+    else if (options.create && !p.account)
       create(
         options.guided
           ? () => {

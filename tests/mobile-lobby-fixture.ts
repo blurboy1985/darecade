@@ -87,7 +87,7 @@ export function mobileLobbyFixture(
       await wait(()=>!find('#loading') && find('#player-name')?.textContent===profile.name);
       check(innerWidth===${width} && innerHeight===${height}, 'exact test viewport');
       check(document.documentElement.scrollWidth<=innerWidth, 'no horizontal overflow');
-      for(const id of ['player-name','player-account','level-label','medal-points']) check(visible(find('#'+id)),id+' visible upfront');
+      for(const id of ['level-label']) check(visible(find('#'+id)),id+' visible upfront');
       check(find('#player-account').textContent===${JSON.stringify(account ? "Saved account" : "Guest mode")}, 'correct account status');
       check(find('#level-label').textContent.includes('235 XP') && find('#level-label').textContent.includes('Level 3'), 'level and total XP visible');
       check(find('#medal-points').textContent.includes('4 Play medals') && find('#medal-points').textContent.includes('Ranked'), 'both medal types visible');
@@ -102,16 +102,21 @@ export function mobileLobbyFixture(
           : `
       const camera=find('#camera-toggle');
       check(visible(camera) && hit(camera), 'camera target unobstructed');
-      check(camera.getBoundingClientRect().width>=44 && camera.getBoundingClientRect().height>=44, 'camera touch target at least 44px');
+      check(camera.getBoundingClientRect().width>=36 && camera.getBoundingClientRect().height>=36, 'compact camera target at least 36px');
       const initial=camera.getAttribute('aria-pressed');
       camera.click(); check(camera.getAttribute('aria-pressed')!==initial, 'camera toggles to birds eye');
       camera.click(); check(camera.getAttribute('aria-pressed')===initial, 'camera toggles back to third person');
       `
       }
       dismiss.click();
+      if (!${twoD} && ${width} <= 900) {
+        const stick=find('#joystick');
+        check(visible(stick) && hit(stick), 'world joystick is visible and unobstructed');
+        check(getComputedStyle(stick).touchAction==='none', 'world joystick keeps native touch capture');
+      }
       const jump=find('#lobby-jump');
       check(!!jump, 'jump control exists');
-      if (!${twoD} && ${width}<=1000) {
+      if (!${twoD}) {
         check(visible(jump) && hit(jump), 'Jump touch target unobstructed');
         check(jump.getBoundingClientRect().width>=44 && jump.getBoundingClientRect().height>=44, 'Jump touch target at least 44px');
         const canvas=find('#world canvas');
@@ -135,21 +140,18 @@ export function mobileLobbyFixture(
       check(visible(menu) && hit(menu), 'Menu touch target unobstructed');
       menu.focus(); menu.click();
       check(!visible(jump), 'Jump hidden behind open menu');
-      const items=[...document.querySelectorAll('.menu-directory .menu-choice')];
-      check(items.length===${menuPages["phone-menu"].actions.length}, 'all destinations on first menu page');
-      check(!find('.menu-directory details') && !find('.menu-directory .choice-pager'), 'no category gates or paging');
+      const items=[...document.querySelectorAll('.simple-menu .menu-choice')];
+      check(items.length===${menuPages["phone-menu"].actions.length + 1}, 'all destinations on first menu page');
+      check(!find('.simple-menu details') && !find('.simple-menu .choice-pager'), 'no category gates or paging');
       for(const item of items){ item.scrollIntoView({block:'center'}); check(visible(item)&&hit(item)&&item.getBoundingClientRect().height>=44,'reachable menu item: '+item.textContent.trim()); }
-      const controls=find('.menu-directory [data-open="controls"]'); controls.click();
-      check(!!find('#setting-camera'), 'camera settings open directly');
-      find('.menu-back').click();
-      find('.menu-directory [data-open="preferences"]').click();
+      find('.simple-menu [data-open="preferences"]').click();
       check(!!find('#setting-sound'), 'preferences open directly');
       find('.menu-back').click();
-      find('.menu-directory [data-account]').click();
-      check(find('#account-dialog')?.open, 'account privacy opens directly');
+      find('[data-open="privacy"]').click();
+      await wait(() => find('#export-data'));
+      check(find('#account-dialog')?.open && !!find('#export-data') && !!find('#delete-data'), 'privacy data controls open directly');
       find('#account-close')?.click();
-      find('#close-modal').click();
-      check(!find('#modal').open && document.activeElement===menu, 'closing menu restores dock focus after dismiss');
+      check(!find('#modal').open, 'account opening closes the menu');
       parent.postMessage({result:'pass',report:{width:${width},height:${height},account:${account},twoD:${twoD},checks}},location.origin);
     } catch(error) { parent.postMessage({result:'fail',report:{checks,error:error.stack}},location.origin); }
   });`

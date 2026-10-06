@@ -15,8 +15,7 @@ export function worldPresenceCopy(
       .filter((p) => p.status === "online" || p.status === "resting")
       .map((p) => p.id),
   );
-  if (status !== "connected" || !me || !ids.has(me)) return "Finding players…";
-  return ids.size === 1
-    ? `1 player · ${neighbours} neighbours`
-    : `${ids.size} players · ${neighbours} neighbours`;
+  if (me && (status === "connected" || ids.size)) ids.add(me);
+  if (!ids.size) return `Joining world · ${neighbours} neighbours`;
+  return `${ids.size} player${ids.size === 1 ? "" : "s"} · ${neighbours} neighbours`;
 }

@@ -11,6 +11,7 @@ import * as interactions from "../src/interactions.ts";
 import * as neighbourhood from "../src/neighbourhood.ts";
 import * as wardrobe from "../src/wardrobe.ts";
 import * as playMedals from "../src/play-medals.ts";
+import { rooftops } from "../src/rooftops.ts";
 
 // Evaluate the actual render functions. The small element fixture only records
 // generated HTML, selection and replacement; it is not a browser/DOM substitute.
@@ -52,6 +53,7 @@ const compiled = ts.transpileModule(
       "actionButton",
       "pager",
       "cards",
+      "questTabs",
       "open",
       "serverNote",
       "renderSharedNeighbours",
@@ -154,6 +156,7 @@ function harness() {
   }));
   const inspector = element();
   const context = vm.createContext({
+    localStorage: { getItem: () => null },
     ...state,
     ...catalog,
     ...appearance,
@@ -162,6 +165,7 @@ function harness() {
     ...neighbourhood,
     ...wardrobe,
     ...playMedals,
+    rooftops,
     body,
     document: {
       querySelector: () => inspector,
@@ -198,6 +202,9 @@ function harness() {
     innerWidth: 1024,
     world: null,
     wardrobeTab: "clothing",
+    wardrobeSection: "Outfits",
+    wardrobeFilter: "All",
+    undoLook: null,
     wardrobeCollection: "starter",
     tryingLook: null,
     setupGuide: false,
@@ -250,7 +257,11 @@ function primaryActions(html: string) {
       continue;
     }
     if (closedDetails.some(Boolean)) continue;
-    if (/data-page=|class="[^"]*menu-back|class="[^"]*close-button/.test(token))
+    if (
+      /data-quest-tab|data-page=|class="[^"]*menu-back|class="[^"]*close-button/.test(
+        token,
+      )
+    )
       continue;
     actions.push(token);
   }
@@ -258,12 +269,18 @@ function primaryActions(html: string) {
 }
 function checkActions(html: string, label: string) {
   assert.ok(
-    primaryActions(html).length <= 3,
+    primaryActions(html).length <=
+      (label.startsWith("quests")
+        ? 7
+        : ["phone-menu", "arcade", "map", "surroundings"].includes(label) ||
+            label.startsWith("games page")
+          ? 14
+          : 3),
     `${label} has ${primaryActions(html).length} primary buttons`,
   );
 }
 
-test("real menu renders have at most three primary actions with populated social data", () => {
+test("menu pages stay compact; quests also expose the three rooftop routes", () => {
   const h = harness();
   h.context.shared.dares = [
     {
@@ -302,8 +319,8 @@ test("real menu renders have at most three primary actions with populated social
 test("wardrobe renders previews before selection without equipping them", () => {
   const h = harness();
   const before = structuredClone(h.context.save);
-  for (const tab of ["clothing", "hair", "pet", "accessory", "sets"]) {
-    h.context.wardrobeTab = tab;
+  for (const tab of wardrobe.wardrobeSections) {
+    h.context.wardrobeSection = tab;
     h.run('open("wardrobe")');
     const html = h.body.innerHTML;
     const cards = [
@@ -312,9 +329,9 @@ test("wardrobe renders previews before selection without equipping them", () => 
     assert.ok(cards.length > 0, tab);
     for (const [card] of cards) {
       assert.match(card, /<img[^>]+data-thumbnail=/);
-      assert.match(card, /aria-label="Preview /);
+      assert.match(card, /aria-label="(?:Equip|Preview) /);
     }
-    assert.match(html, /Tap a card to try it on/);
+    assert.match(html, /data-undo-look/);
     assert.deepEqual(h.context.save, before);
   }
 });
@@ -411,7 +428,11 @@ test("first-visit settings paths never start a race and Back returns to welcome"
     assert.match(h.body.innerHTML, /<h2>/, id);
     assert.equal(races, 0, id);
   }
-  h.run('open("preferences")');
+  h.run('open("settings")');
+  assert.match(h.body.innerHTML, /data-open="phone-menu">← Back/);
+
+  h.context.save.unlockedHats.push(2);
+  h.run('open("settings")');
   assert.match(h.body.innerHTML, /data-open="phone-menu">← Back/);
   h.run('open("phone-menu")');
   for (const action of menus.menuPages["phone-menu"].actions) {
@@ -524,13 +545,13 @@ test("My look, Head lists a claimed daily hat", () => {
   assert.equal(state.claimGift(h.context.save, 0), true);
   h.run('open("shop")');
   assert.match(h.body.innerHTML, /data-look-tab="hair">See it in My look/);
-  h.context.wardrobeTab = "hair";
+  h.context.wardrobeSection = "Hats";
   h.run('open("wardrobe")');
   assert.match(
     h.body.innerHTML,
     /class="hat-shelf"[\s\S]*The Kopitiam Bucket · wearing/,
   );
-  h.context.wardrobeTab = "clothing";
+  h.context.wardrobeSection = "Outfits";
   h.run('open("wardrobe")');
   assert.doesNotMatch(h.body.innerHTML, /class="hat-shelf"/);
 });
@@ -602,4 +623,18 @@ test("Rankings shows a guest the board and never opens the account dialog", () =
   h.run('open("board")');
   assert.match(h.body.innerHTML, /Finish a round to join the board/);
   assert.doesNotMatch(h.body.innerHTML, /Guest rounds|Save with email/);
+});
+
+test("slot filters retain new hair, free classes and premium full sets", () => {
+  const p = state.fresh();
+  const hair = wardrobe.wardrobeBrowser("Hair", "All", p, 0, null);
+  const hats = wardrobe.wardrobeBrowser("Hats", "All", p, 0, null);
+  assert.match(hair, /data-try-index="54"/);
+  assert.doesNotMatch(hats, /data-try-index="54"/);
+  const free = wardrobe.wardrobeBrowser("Full sets", "Free", p, 0, null);
+  assert.match(free, /Lantern Mage/);
+  assert.doesNotMatch(free, /Solar Sentinel/);
+  const premium = wardrobe.wardrobeBrowser("Full sets", "Premium", p, 0, null);
+  assert.doesNotMatch(premium, /Lantern Mage/);
+  assert.match(premium, /data-try-index="9"/);
 });

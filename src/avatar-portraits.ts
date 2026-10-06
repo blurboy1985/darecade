@@ -12,6 +12,7 @@ const keyFor = (look: Look, slot: string) =>
     slot,
     look.body ?? 0,
     look.skin,
+    look.eye ?? 0,
     look.outfit,
     look.hat,
     look.clothing ?? 0,
@@ -83,6 +84,16 @@ function enqueueThumbnail(job: () => Promise<void>) {
 }
 export function mountAvatarCards(host: HTMLElement, worn: Look) {
   cards?.disconnect();
+  if (document.body.classList.contains("mode-2d")) {
+    host
+      .querySelectorAll<HTMLImageElement>("[data-thumbnail]")
+      .forEach((img) => {
+        const [slot, index] = (img.dataset.thumbnail || "").split(":");
+        img.src = `/wardrobe/${slot}-${Number(index) < 0 ? 0 : index}.png`;
+        img.classList.add("is-ready");
+      });
+    return;
+  }
   thumbnailJobs.length = 0;
   const observer = new IntersectionObserver(
     (entries) => {

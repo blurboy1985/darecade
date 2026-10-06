@@ -30,6 +30,7 @@ export type Save = {
   version: 1;
   outfit: number;
   skin: number;
+  eye?: number;
   /** 0 girl, 1 boy. */
   body: number;
   clothing: number;
@@ -44,6 +45,8 @@ export type Save = {
   wardrobeUnlocked: string[];
   wardrobePurchased: string[];
   coins: string[];
+  roofDay: string;
+  roofStars: string[];
   week: string;
   giftDay: string;
   gift: number;
@@ -97,6 +100,7 @@ export function fresh(): Save {
     version: 1,
     outfit: 2,
     skin: 0,
+    eye: 0,
     body: 0,
     clothing: 0,
     // New players start as the source character: pink twin buns (free).
@@ -111,6 +115,8 @@ export function fresh(): Save {
     wardrobeUnlocked: [],
     wardrobePurchased: [],
     coins: [],
+    roofDay: "",
+    roofStars: [],
     week: singaporeWeek(),
     giftDay: "",
     gift: 0,
@@ -174,6 +180,7 @@ export function normalise(raw: unknown, fallback: Save): Save {
   for (const key of [
     "outfit",
     "skin",
+    "eye",
     "body",
     "hat",
     "gift",
@@ -189,6 +196,7 @@ export function normalise(raw: unknown, fallback: Save): Save {
         {
           outfit: 6,
           skin: 8,
+          eye: 5,
           body: 2,
           hat: 4,
           gift: 3,
@@ -252,6 +260,18 @@ export function normalise(raw: unknown, fallback: Save): Save {
     s.giftDay = r.giftDay;
   if (r.week === fallback.week && Array.isArray(r.coins))
     s.coins = [...new Set(r.coins.filter((v) => /^coin[0-4]$/.test(v)))];
+  if (
+    typeof r.roofDay === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(r.roofDay) &&
+    Array.isArray(r.roofStars)
+  ) {
+    s.roofDay = r.roofDay;
+    s.roofStars = [
+      ...new Set(
+        r.roofStars.filter((v) => ["arcade", "shop", "dragon"].includes(v)),
+      ),
+    ];
+  }
   s.unlockedHats = [
     ...new Set([
       0,
@@ -391,7 +411,7 @@ export function performShow(
     s.stageXp = 0;
   }
   const gain = Math.min(
-    (v.stars as number) * STAGE_STAR_XP,
+    ((v.score as number) > 0 ? (v.stars as number) : 0) * STAGE_STAR_XP,
     STAGE_DAILY_XP - s.stageXp,
   );
   s.stageLast = now;

@@ -6,16 +6,16 @@ test("new Star Swarm runs give no score without input and end early; replay agre
   const sim = new Simulation("swarm", -43);
   while (!sim.ended) sim.advance([0, 0, -1, 0, -1, -1]);
   assert.equal(sim.score, 0);
-  assert.ok(sim.elapsed < 9);
+  assert.ok(sim.elapsed <= 12.1);
   const replay: Replay = {
-    version: 1,
+    version: 2,
     ticks: sim.ticks,
     events: [[0, 0, 0, -1, 0, -1, -1]],
   };
   assert.equal(replayRun("swarm", -43, replay).score, 0);
 });
 test("legacy Star Swarm positive seeds keep original rules", () => {
-  const sim = new Simulation("swarm", 42);
+  const sim = new Simulation("swarm", 42, 1);
   for (let i = 0; i < 540 && !sim.ended; i++)
     sim.advance([0, 0, -1, 0, -1, -1]);
   assert.ok(sim.elapsed > 8);

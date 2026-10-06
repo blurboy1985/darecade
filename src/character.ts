@@ -1,3 +1,4 @@
+import { part, ball } from "./shapes.ts";
 import { identitySeed } from "./character-identity.ts";
 import { HAIR_START } from "./hair-catalog.ts";
 import {
@@ -40,6 +41,7 @@ export {
 export type Look = {
   outfit: number;
   skin: number;
+  eye?: number;
   hat: number;
   /** 0 girl, 1 boy. */
   body?: number;
@@ -358,7 +360,7 @@ export function createAvatar(
               "#include <map_fragment>",
               `
               #include <map_fragment>
-              float irisMask = (1.0 - smoothstep(0.5, 0.85, max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b)))) * smoothstep(0.025, 0.12, max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b)));
+              float chroma=max(diffuseColor.r,max(diffuseColor.g,diffuseColor.b))-min(diffuseColor.r,min(diffuseColor.g,diffuseColor.b)); float irisMask=step(0.07,chroma)*step(diffuseColor.g*1.1,max(diffuseColor.r,diffuseColor.b));
               diffuseColor.rgb = mix(diffuseColor.rgb, irisTint * (0.5 + diffuseColor.r), irisMask);
               float whiteMask = smoothstep(0.4, 0.8, max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b)));
               diffuseColor.rgb = mix(diffuseColor.rgb, lidSkin, eyeClosed);
@@ -367,6 +369,26 @@ export function createAvatar(
           };
           m.customProgramCacheKey = () => "simi-iris-v2";
           if (m.map) m.map.anisotropy = 4;
+        }
+        if (original.name === "cape") {
+          const time = { value: 0 },
+            motion = { value: 0.4 };
+          m.userData.capeTime = time;
+          m.userData.capeMotion = motion;
+          m.onBeforeCompile = (shader) => {
+            shader.uniforms.capeTime = time;
+            shader.uniforms.capeMotion = motion;
+            shader.vertexShader =
+              "uniform float capeTime;uniform float capeMotion;\n" +
+              shader.vertexShader;
+            shader.vertexShader = shader.vertexShader.replace(
+              "#include <begin_vertex>",
+              `#include <begin_vertex>
+          float hem=clamp((1.19-position.y)/0.85,0.0,1.0);
+          transformed.z += sin(capeTime*5.0+position.x*7.0)*0.12*hem*hem*capeMotion;`,
+            );
+          };
+          m.customProgramCacheKey = () => "playsimi-cape-v1";
         }
         materials.set(original.name, m);
       }
@@ -449,9 +471,11 @@ export function applyLook(
       (material.userData.lidSkin ??= new T.Color()).set(skin);
       const tint = (material.userData.irisTint ??= new T.Color());
       tint.set(
-        ["#ce558e", "#805135", "#3a9c79", "#3694cc", "#cf922c"][
-          (look.skin + (look.hair ?? 0)) % 5
-        ],
+        look.eye
+          ? ["#db779f", "#865035", "#328cca", "#469267", "#8763bd"][look.eye]
+          : ["#ce558e", "#805135", "#3a9c79", "#3694cc", "#cf922c"][
+              (look.skin + (look.hair ?? 0)) % 5
+            ],
       );
     }
   }
@@ -485,7 +509,8 @@ export function applyLook(
   if (starter?.prop === "staff") shown.delete("Skirt");
   if (cape && !special && !classFor(a.look.clothing!)) shown.add("Cape");
   if (below.shoes) shown.add("Shoes");
-  if (wear && !look.hat && !classFor(a.look.clothing!)) shown.add(wear);
+  if (wear === "Hat_Wizard" && !look.hat && !classFor(a.look.clothing!))
+    shown.add(wear);
   a.model.traverse((o) => {
     if (o instanceof T.Mesh) {
       o.visible = o.name === "Mitten" || shown.has(o.name);
@@ -530,6 +555,27 @@ export function applyLook(
   // Set trim was sized for a broader chest; draw it in to this one.
   a.costume.scale.setScalar(0.82);
   if (special) legendaryBody(a.costume, outfitSet);
+  const book = part(
+    a.costume,
+    "box",
+    [0, 0.83, 0.34],
+    [0.4, 0.05, 0.28],
+    "#7b9eac",
+    { rot: [-0.3, 0, 0] },
+  );
+  book.name = "IdleBook";
+  book.visible = false;
+  if (cape) {
+    const collar = part(
+      a.costume,
+      "torus",
+      [0, 1.2, -0.02],
+      [0.25, 0.1, 0.23],
+      special?.accent || color,
+      { rot: [Math.PI / 2, 0, 0] },
+    );
+    collar.name = "CapeCollar";
+  }
   buildClassBody(a.costume, a.look.clothing!, !!special);
   a.root.userData.equippedAt = null;
   delete a.root.userData.detailLevel;
@@ -561,6 +607,26 @@ export function applyLook(
     part.scale.x *= 1.85;
     part.scale.z *= 1.85;
     part.scale.y *= 1.25;
+  }
+  if (!look.hat && wear === "Hat_Knight") {
+    ball(a.hat, [0, 1.65, -0.04], [0.48, 0.34, 0.47], "#91a1b0");
+    part(a.hat, "box", [0, 1.55, 0.38], [0.77, 0.12, 0.08], "#384756");
+    for (const side of [-1, 1])
+      part(
+        a.hat,
+        "box",
+        [side * 0.39, 1.45, 0.12],
+        [0.1, 0.32, 0.3],
+        "#91a1b0",
+      );
+    part(a.hat, "box", [0, 1.83, 0.05], [0.06, 0.3, 0.6], "#d9e4e9");
+  }
+  if (!look.hat && wear === "Hat_Bear") {
+    ball(a.hat, [0, 1.68, -0.02], [0.49, 0.27, 0.46], "#a8724f");
+    for (const side of [-1, 1]) {
+      ball(a.hat, [side * 0.37, 1.94, -0.02], [0.15, 0.16, 0.1], "#a8724f");
+      ball(a.hat, [side * 0.37, 1.94, 0.055], [0.085, 0.1, 0.03], "#e9bc8f");
+    }
   }
   buildHair(
     a.hat,
@@ -647,7 +713,14 @@ export function animateDetails(
     a.root.userData.poseStarted = time;
     a.root.userData.contactProps = new Map<string, T.Object3D>();
   }
+  const book = a.costume.getObjectByName("IdleBook");
+  if (book) book.visible = mode === "read";
   a.root.userData.poseTime = Math.max(0, time - a.root.userData.poseStarted);
+  const cm = a.materials.get("cape");
+  if (cm?.userData.capeTime) {
+    cm.userData.capeTime.value = time;
+    cm.userData.capeMotion.value = reduced ? 0 : a.moving ? 1 : 0.4;
+  }
   const travel = a.root.position.distanceTo(a.last);
   a.moving = travel > 0.008;
   a.last.copy(a.root.position);
@@ -698,19 +771,19 @@ export function animateDetails(
   for (const name of ["eyes", "eyes_b"]) {
     const material = a.materials.get(name);
     if (material)
-      (material.userData.eyeClosed ??= { value: 0 }).value = happyEyes
-        ? 1
-        : blink;
+      (material.userData.eyeClosed ??= { value: 0 }).value =
+        mode === "nap" || happyEyes ? 1 : blink;
   }
   for (const mesh of a.expressions) {
     const dictionary = mesh.morphTargetDictionary!;
     const influences = mesh.morphTargetInfluences!;
     if (dictionary.Blink !== undefined)
-      influences[dictionary.Blink] = happyEyes
-        ? 1
-        : expression === "sleepy"
-          ? Math.max(0.55, blink)
-          : blink;
+      influences[dictionary.Blink] =
+        mode === "nap" || happyEyes
+          ? 1
+          : expression === "sleepy"
+            ? Math.max(0.55, blink)
+            : blink;
     if (dictionary.Wink !== undefined)
       influences[dictionary.Wink] = expression === "wink" ? 0.95 : 0;
     if (dictionary.Smile !== undefined)
@@ -721,7 +794,9 @@ export function animateDetails(
         : 0;
   }
   const gait = Math.sin(t * 10);
-  const seated = ["rest", "bench", "swing", "drive"].includes(mode);
+  const seated = ["rest", "read", "nap", "bench", "swing", "drive"].includes(
+    mode,
+  );
   const performing = [
     "drive",
     "dragon",
@@ -778,6 +853,14 @@ export function animateDetails(
   // The older clip bends the whole root toward Kopi. Keep the larger KayKit
   // head upright while crouching so its face does not intersect the cat.
   a.spine.rotation.x = mode === "pet" ? -0.25 : 0;
+  if (mode === "read") {
+    a.head.rotation.x = 0.22;
+    a.left.rotation.x = a.right.rotation.x = -0.9;
+  }
+  if (mode === "nap") {
+    a.head.rotation.x = 0.35;
+    a.spine.rotation.x = 0.25;
+  }
   if (!performing && ["idle", "walk", "jog"].includes(mode)) {
     a.left.rotation.x = a.moving
       ? -a.legs[0].rotation.x * 0.65
@@ -827,7 +910,15 @@ function poseSkin(a: Avatar, mode: string, time = 0, reduced = false) {
   const breathing =
     !reduced && !a.moving && mode === "idle" ? Math.sin(time * 1.8) : 0;
   const pitch = -(a.legs[0].rotation.x + a.legs[1].rotation.x) / 2;
-  const seated = ["rest", "bench", "swing", "dragon", "drive"].includes(mode)
+  const seated = [
+    "rest",
+    "read",
+    "nap",
+    "bench",
+    "swing",
+    "dragon",
+    "drive",
+  ].includes(mode)
     ? T.MathUtils.clamp(pitch / 1.35, 0, 1)
     : 0;
   const reach = T.MathUtils.clamp(

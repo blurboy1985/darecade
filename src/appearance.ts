@@ -63,7 +63,7 @@ export const hairNames = [
   "Starry tiara",
   "Mushroom cap",
   "Antler crown",
-  "Pirate bandana",
+  "Coral Pirate tricorn",
   "Straw hat",
   "Big bow",
   ...later("head", [

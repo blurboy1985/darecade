@@ -72,8 +72,8 @@ export function mountStage(
       : "SCORE";
     root.querySelector<HTMLElement>(".stage-hype")!.hidden = warmup;
     goal.textContent = warmup
-      ? `Land ${STAGE_WARMUP_GOAL} notes. Use ← / → or D / K. No booing, no XP or saved score.`
-      : "Aim for a star: 30% of a perfect show. Use all four arrows or D F J K.";
+      ? `Land ${STAGE_WARMUP_GOAL} notes. Use the two outer lanes: ← / → or D / K. No booing, no XP or saved score.`
+      : "Aim for a star: 30% of a perfect show. Four lanes, left to right: ← ↓ ↑ → or D F J K.";
     start.textContent = warmup ? "Start warm-up →" : "Start the show →";
     root.querySelector("#stage-note")!.textContent = warmup
       ? "A slower 40-second rehearsal. Choose Show whenever you’re ready."

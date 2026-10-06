@@ -1,0 +1,48 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {
+  createPlazaRelay,
+  advancePlazaRelay,
+  plazaPosition,
+  PLAZA_STOPS,
+} from "../shared/plaza-relay.ts";
+test("plaza solo has seven labelled bots, requires a jump and completes with baton handoffs", () => {
+  const s = createPlazaRelay([0]);
+  assert.equal(s.runners.filter((r) => r.bot).length, 7);
+  let jumped = false;
+  for (let t = 0; t < 7200 && s.status === "running"; t++) {
+    const r = s.runners[0],
+      p = PLAZA_STOPS[Math.min(3, s.legs[0])],
+      d = Math.hypot(p.x - r.x, p.z - r.z),
+      step = 4.8 / 60;
+    if (d > 0.1) {
+      r.x += ((p.x - r.x) / d) * Math.min(d, step);
+      r.z += ((p.z - r.z) / d) * Math.min(d, step);
+    }
+    r.seen = s.tick;
+    r.y = 0.1;
+    if (s.legs[0] === 0 && d < 1) {
+      if (!jumped) {
+        for (let n = 0; n < 20; n++) {
+          r.seen = s.tick;
+          advancePlazaRelay(s);
+        }
+        assert.equal(s.legs[0], 0);
+        jumped = true;
+      }
+      r.y = 1;
+    }
+    advancePlazaRelay(s);
+  }
+  assert.equal(s.legs[0], 4);
+  assert.equal(s.legs[1], 4);
+  assert.equal(s.handoffs, 8);
+  assert.equal(s.status, "finished");
+});
+test("plaza rejects teleports and non-finite positions", () => {
+  const s = createPlazaRelay([0]);
+  assert.throws(() => plazaPosition(s, 0, { x: 30, y: 0.1, z: 20 }));
+  assert.throws(() => plazaPosition(s, 0, { x: NaN, y: 0.1, z: 5 }));
+  plazaPosition(s, 0, { x: 2.5, y: 1, z: 5 });
+  assert.equal(s.runners[0].y, 1);
+});

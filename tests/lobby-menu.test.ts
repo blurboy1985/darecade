@@ -10,50 +10,17 @@ import {
 
 const source = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
 
-test("Menu exposes every destination directly without duplicate category screens", () => {
-  assert.deepEqual(Object.keys(menuPages), ["phone-menu"]);
-  const actions = menuPages["phone-menu"].actions;
-  assert.equal(
-    new Set(actions.map((action) => action.target)).size,
-    actions.length,
+test("Menu has the four permanent routes, with session and legal actions rendered separately", () => {
+  assert.deepEqual(
+    menuPages["phone-menu"].actions.map((a) => a.label),
+    ["My look", "Quests & rankings", "Sound & display", "Change world"],
   );
-  assert.ok(
-    actions.every(
-      (action) => action.label && action.group && !isMenuPage(action.target),
-    ),
-  );
+  assert.ok(isMenuPage("phone-menu"));
   assert.equal(isMenuPage("toString"), false);
-  assert.equal(isMenuPage("__proto__"), false);
-});
-
-test("menu routes preserve rewards, social play and account access", () => {
-  const seen = new Set<string>();
-  function visit(id: string) {
-    if (seen.has(id)) return;
-    seen.add(id);
-    if (isMenuPage(id))
-      for (const action of menuPages[id].actions) visit(action.target);
-  }
-  visit("phone-menu");
-  for (const destination of [
-    "wardrobe",
-    "support",
-    "shop",
-    "quests",
-    "album",
-    "account",
-    "preferences",
-    "controls",
-    "invite",
-    "away",
-    "neighbours",
-    "dares",
-    "board",
-    "worlds",
-    "emotes",
-  ]) {
-    assert.ok(seen.has(destination), destination);
-  }
+  assert.match(source, /Save with email/);
+  assert.match(source, /Log out/);
+  assert.match(source, /data-open="privacy"/);
+  assert.match(source, /data-open="help"/);
 });
 
 test("first-visit prompt is short and names the game it starts", () => {
@@ -67,7 +34,7 @@ test("world keeps three stable routes and a separate nearby action", () => {
   assert.ok(dock);
   assert.deepEqual(
     [...dock.matchAll(/data-open="([^"]+)"/g)].map((m) => m[1]),
-    ["arcade", "map", "phone-menu"],
+    ["arcade", "wardrobe", "phone-menu"],
   );
   assert.doesNotMatch(dock, /id="interaction"/);
   assert.match(source, /id="interaction" class="nearby-prompt"[^>]*hidden/);
@@ -84,16 +51,7 @@ test("world keeps three stable routes and a separate nearby action", () => {
 
 test("first visit and 2D retain privacy and player reporting routes", () => {
   assert.match(source, /data-open="phone-menu"/);
-  assert.ok(
-    menuPages["phone-menu"].actions.some(
-      (action) => action.target === "neighbours",
-    ),
-  );
-  assert.ok(
-    menuPages["phone-menu"].actions.some(
-      (action) => action.target === "account",
-    ),
-  );
+  assert.match(source, /data-open="neighbours">Nearby players/);
   const invitation =
     source.match(/const invitation =[\s\S]*?;\r?\n/)?.[0] || "";
   assert.match(invitation, /data-action="welcome-skip"/);

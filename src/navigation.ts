@@ -1,6 +1,25 @@
 export type Obstacle = { x: number; z: number; w: number; d: number };
 /** The walkable island. East Side extends it past the original east edge. */
 export const BOUNDS = { west: -19, east: 33, depth: 14 };
+/** Swept circle against each prop's expanded footprint, also used by tap paths. */
+export function clearSegment(
+  a: { x: number; z: number },
+  b: { x: number; z: number },
+  obstacles: Obstacle[],
+) {
+  const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.1));
+  for (let i = 1; i <= steps; i++) {
+    if (
+      blocked(
+        a.x + ((b.x - a.x) * i) / steps,
+        a.z + ((b.z - a.z) * i) / steps,
+        obstacles,
+      )
+    )
+      return false;
+  }
+  return true;
+}
 export function blocked(x: number, z: number, obstacles: Obstacle[]) {
   return (
     x < BOUNDS.west ||
@@ -29,7 +48,7 @@ export function route(
   end: { x: number; z: number },
   obstacles: Obstacle[],
 ) {
-  const clearSegment = (x: number, z: number) => {
+  const clearFromStart = (x: number, z: number) => {
     const steps = Math.ceil(Math.hypot(start.x - x, start.z - z) / 0.1);
     for (let i = 1; i <= steps; i++)
       if (
@@ -45,7 +64,7 @@ export function route(
   const nearby = [];
   for (let x = Math.floor(start.x) - 1; x <= Math.ceil(start.x) + 1; x++)
     for (let z = Math.floor(start.z) - 1; z <= Math.ceil(start.z) + 1; z++)
-      if (!blocked(x, z, obstacles) && clearSegment(x, z))
+      if (!blocked(x, z, obstacles) && clearFromStart(x, z))
         nearby.push({ x, z });
   nearby.sort(
     (a, b) =>
@@ -85,7 +104,7 @@ export function route(
       const nx = x + dx,
         nz = z + dz,
         k = key(nx, nz);
-      if (!prev.has(k) && !blocked(nx, nz, obstacles)) {
+      if (!prev.has(k) && clearSegment({ x, z }, { x: nx, z: nz }, obstacles)) {
         prev.set(k, [x, z]);
         queue.push([nx, nz]);
       }

@@ -133,9 +133,8 @@ for (const viewport of viewports) {
           await until(() => find('.race-cover #start-game') && !find('.race-cover #start-game').disabled, 'Coast ready');
         };
         const openStage = async () => {
-          find('.lobby-dock [data-open="map"]').click();
-          find('#destination').value = 'stage';
-          find('[data-action="go-destination"]').click();
+          find('.lobby-dock [data-open="arcade"]').click();
+          find('[data-open="stage"]').click();
           await until(() => find('#stage-mode'), 'Stage panel');
         };
         const setMode = value => { find('#stage-mode').value = value; find('#stage-mode').dispatchEvent(new Event('change', { bubbles: true })); };
@@ -150,14 +149,9 @@ for (const viewport of viewports) {
           check(find('.game-progress').textContent.includes('Guests earn +20 XP'), 'existing Coast XP copy');
           const cover = find('.race-cover'), guide = find('.race-guide');
           check(getComputedStyle(cover).overflowY === 'auto', 'Coast cover can scroll');
-          hitTarget(find('.race-cover #start-game'), 'Coast start');
-          hitTarget(guide.querySelector('summary'), 'Coast Controls & items');
-          guide.querySelector('summary').focus();
-          check(document.activeElement === guide.querySelector('summary'), 'guide accepts keyboard focus');
-          guide.querySelector('summary').click();
-          check(guide.open && guide.textContent.includes('Shield') && guide.textContent.includes('Coconut') && guide.textContent.includes('Shells'), 'original controls and item guide opens');
-          check(guide.textContent.includes('Space') || guide.textContent.includes('DRIFT'), 'drift controls preserved');
-          hitTarget(find('.race-sound'), 'Coast sound control');
+          await until(()=>find('.coast-game').dataset.status !== 'ready','card starts race directly');
+          check(find('.coast-game').dataset.status === 'countdown','one card press starts countdown');
+          check(guide.textContent.includes('Shield') && guide.textContent.includes('Coconut'),'item instructions preserved');
           check(document.documentElement.scrollWidth <= innerWidth + 1, 'Coast has no document horizontal overflow');
           check(find('#modal').scrollWidth <= find('#modal').clientWidth + 1, 'Coast has no modal horizontal overflow');
           close();
@@ -174,10 +168,9 @@ for (const viewport of viewports) {
           check(find('#stage-mode').value === 'warmup', 'new performer defaults to warmup');
           check(find('#stage-progress').textContent.includes('0/45 XP left today'), 'same-day Stage cap');
           check(getComputedStyle(find('.stage-hype')).display === 'none', 'warmup hype is hidden by actual CSS');
-          hitTarget(find('#stage-start'), 'Stage start');
+          check(find('#stage-start').hidden,'Stage card starts immediately');
           check(find('#modal').scrollWidth <= find('#modal').clientWidth + 1, 'Stage has no modal horizontal overflow');
           const savedBefore = JSON.stringify(savedStage());
-          find('#stage-start').click();
           check(find('#stage-mode').disabled, 'session selector locked during warmup');
           check([...document.querySelectorAll('[data-lane]')].map(button => button.disabled).join() === 'false,true,true,false', 'only outside warmup lanes enabled');
           playableStage('Warmup');

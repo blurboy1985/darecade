@@ -1,83 +1,15 @@
-type MenuAction = {
-  label: string;
-  target: string;
-  icon: string;
-  group: string;
-};
-
-// Every destination is one tap from Menu. Groups are headings, not extra pages.
+type MenuAction = { label: string; target: string; icon: string };
 export const menuPages = {
   "phone-menu": {
     title: "Menu",
     actions: [
-      { label: "My look", target: "wardrobe", icon: "shirt", group: "You" },
-      { label: "Stickers", target: "album", icon: "book", group: "You" },
-      { label: "Daily gift", target: "shop", icon: "gift", group: "You" },
-      { label: "Quests", target: "quests", icon: "compass", group: "You" },
-      {
-        label: "Challenges",
-        target: "dares",
-        icon: "game",
-        group: "Play together",
-      },
-      {
-        label: "Rankings",
-        target: "board",
-        icon: "trophy",
-        group: "Play together",
-      },
-      {
-        label: "Worlds",
-        target: "worlds",
-        icon: "compass",
-        group: "Play together",
-      },
-      {
-        label: "Emotes",
-        target: "emotes",
-        icon: "smile",
-        group: "Play together",
-      },
-      {
-        label: "Neighbours & report",
-        target: "neighbours",
-        icon: "smile",
-        group: "People",
-      },
-      {
-        label: "Invite a friend",
-        target: "invite",
-        icon: "smile",
-        group: "People",
-      },
-      { label: "Step away", target: "away", icon: "leaf", group: "People" },
-      {
-        label: "Account & privacy",
-        target: "account",
-        icon: "settings",
-        group: "People",
-      },
-      {
-        label: "Sound & display",
-        target: "preferences",
-        icon: "sound",
-        group: "Settings & support",
-      },
-      {
-        label: "Camera & controls",
-        target: "controls",
-        icon: "camera",
-        group: "Settings & support",
-      },
-      {
-        label: "Support & purchases",
-        target: "support",
-        icon: "gift",
-        group: "Settings & support",
-      },
+      { label: "My look", target: "wardrobe", icon: "shirt" },
+      { label: "Quests & rankings", target: "quests", icon: "trophy" },
+      { label: "Sound & display", target: "preferences", icon: "sound" },
+      { label: "Change world", target: "worlds", icon: "compass" },
     ] satisfies MenuAction[],
   },
-};
+} as const;
 
 export function isMenuPage(id: string): id is keyof typeof menuPages {
   return Object.hasOwn(menuPages, id);

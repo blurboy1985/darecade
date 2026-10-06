@@ -58,6 +58,7 @@ test("existing version-1 profile survives database reopen with account, items an
         [
           "outfit",
           "skin",
+          "eye",
           "body",
           "clothing",
           "hair",
