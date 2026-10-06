@@ -1,3 +1,4 @@
+import { bindJoystick } from "./joystick";
 import { rooftops } from "./rooftops";
 import { mountPayments } from "./payments";
 import {
@@ -83,6 +84,7 @@ import "./arcade-theme.css";
 import "./wardrobe.css";
 import "./lobby-ui.css";
 import "./mobile-hud.css";
+import "./joystick.css";
 import {
   menuPages,
   isMenuPage,
@@ -2166,30 +2168,7 @@ function enable2D() {
   renderCameraUI();
   renderWelcome();
 }
-const stick = document.querySelector<HTMLDivElement>("#joystick")!,
-  knob = stick.querySelector("span")!;
-function moveStick(e: PointerEvent) {
-  if (!world) return;
-  const r = stick.getBoundingClientRect(),
-    dx = e.clientX - r.left - r.width / 2,
-    dy = e.clientY - r.top - r.height / 2;
-  const l = Math.hypot(dx, dy),
-    factor = Math.min(1, 32 / Math.max(l, 1));
-  knob.style.transform = `translate(${dx * factor}px,${dy * factor}px)`;
-  world.joystick = { x: (dx * factor) / 32, y: (dy * factor) / 32 };
-}
-stick.addEventListener("pointerdown", (e) => {
-  stick.setPointerCapture(e.pointerId);
-  moveStick(e);
-});
-stick.addEventListener("pointermove", (e) => {
-  if (stick.hasPointerCapture(e.pointerId)) moveStick(e);
-});
-for (const event of ["pointerup", "pointercancel", "lostpointercapture"])
-  stick.addEventListener(event, () => {
-    knob.style.transform = "";
-    if (world) world.joystick = { x: 0, y: 0 };
-  });
+bindJoystick(document.querySelector<HTMLElement>("#joystick")!, (x, y) => { if (world) world.joystick = { x, y }; });
 function updateClock() {
   document.querySelector("#sgt-clock")!.textContent =
     new Intl.DateTimeFormat("en-SG", {
