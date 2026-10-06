@@ -1,30 +1,126 @@
-.touch-stick{position:relative;display:grid;place-items:center;flex:none;width:72px;height:72px;border:2px solid #fff9;border-radius:50%;background:#243d5855;box-shadow:0 3px 12px #16314833;touch-action:none;user-select:none}
-.touch-stick span{display:block;width:30px;height:30px;border:2px solid white;border-radius:50%;background:#75b9aa;box-shadow:0 2px 5px #1235;pointer-events:none}
-.game-touch{display:none}
-.touch-action{width:64px;height:64px;border-radius:50%;border:2px solid white;background:#ffd284;color:#243d58;font-weight:900;touch-action:none}
-@media(pointer:coarse),(max-width:900px){
- .game-touch{display:flex;justify-content:space-between;align-items:center;width:min(100%,440px);padding:8px 12px;box-sizing:border-box;margin:auto}
- .race-touch .touch-stick{width:72px;height:72px}
- .race-touch .race-pedals button{border-radius:50%;width:60px;height:60px}
+.touch-stick {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 72px;
+  height: 72px;
+  border: 2px solid #fff9;
+  border-radius: 50%;
+  background: #243d5855;
+  box-shadow: 0 3px 12px #16314833;
+  touch-action: none;
+  user-select: none;
 }
-@media(max-height:500px) and (orientation:landscape){
- dialog.game-modal .game-touch{position:absolute;bottom:12px;left:20px;right:20px;width:auto;pointer-events:none}
- .game-touch>*{pointer-events:auto}
- .game-touch .touch-stick{width:64px;height:64px}
+.touch-stick span {
+  display: block;
+  width: 30px;
+  height: 30px;
+  border: 2px solid white;
+  border-radius: 50%;
+  background: #75b9aa;
+  box-shadow: 0 2px 5px #1235;
+  pointer-events: none;
 }
-@media(max-height:520px) and (orientation:landscape){
- dialog.game-modal[open]:has(.game-touch){height:100dvh;max-height:100dvh;padding:8px 16px!important;--screen:calc(100dvh - 164px)}
- dialog.game-modal:has(.game-touch) #modal-body{padding:0!important}
- dialog.game-modal:has(.game-touch) .game-stats{margin:0 auto 6px!important;height:44px}
- dialog.game-modal:has(.game-touch) .game-controls{margin-top:6px!important}
- dialog.game-modal:has(.game-touch) .game-touch{position:fixed;bottom:14px;left:24px;right:24px}
- dialog.game-modal:has(.game-touch) #modal-body>h2{display:none}
+.game-touch {
+  display: none;
+}
+.touch-action {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 2px solid white;
+  background: #ffd284;
+  color: #243d58;
+  font-weight: 900;
+  touch-action: none;
+}
+@media (pointer: coarse), (max-width: 900px) {
+  .game-touch {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: min(100%, 440px);
+    padding: 8px 12px;
+    box-sizing: border-box;
+    margin: auto;
+  }
+  .race-touch .touch-stick {
+    width: 72px;
+    height: 72px;
+  }
+  .race-touch .race-pedals button {
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+  }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  dialog.game-modal .game-touch {
+    position: absolute;
+    bottom: 12px;
+    left: 20px;
+    right: 20px;
+    width: auto;
+    pointer-events: none;
+  }
+  .game-touch > * {
+    pointer-events: auto;
+  }
+  .game-touch .touch-stick {
+    width: 64px;
+    height: 64px;
+  }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  dialog.game-modal[open]:has(.game-touch) {
+    height: 100dvh;
+    max-height: 100dvh;
+    padding: 8px 16px !important;
+    --screen: calc(100dvh - 164px);
+  }
+  dialog.game-modal:has(.game-touch) #modal-body {
+    padding: 0 !important;
+  }
+  dialog.game-modal:has(.game-touch) .game-stats {
+    margin: 0 auto 6px !important;
+    height: 44px;
+  }
+  dialog.game-modal:has(.game-touch) .game-controls {
+    margin-top: 6px !important;
+  }
+  dialog.game-modal:has(.game-touch) .game-touch {
+    position: fixed;
+    bottom: 14px;
+    left: 24px;
+    right: 24px;
+  }
+  dialog.game-modal:has(.game-touch) #modal-body > h2 {
+    display: none;
+  }
 }
 
 /* Star Swarm's sunny plaza palette keeps danger orange and the ship teal. */
-dialog.game-modal[data-game="swarm"]{background:linear-gradient(#d9f1ed,#c8ddd0)!important;--glow:#f8e2b0}
-.swarm-art{background:linear-gradient(#d9f1ed,#b8d9cb)!important;color:#125770!important}
-.swarm-art .star-ship{color:#087d93!important;text-shadow:0 2px #fff}
-.swarm-art .star-enemy{color:#bb4058!important;text-shadow:0 2px #fff}
-dialog.game-modal[data-game="swarm"] .game-controls{color:#294d63!important}
-dialog.game-modal[data-game="swarm"] .game-controls .text-button{background:#294d63;color:#fff}
+dialog.game-modal[data-game="swarm"] {
+  background: linear-gradient(#d9f1ed, #c8ddd0) !important;
+  --glow: #f8e2b0;
+}
+.swarm-art {
+  background: linear-gradient(#d9f1ed, #b8d9cb) !important;
+  color: #125770 !important;
+}
+.swarm-art .star-ship {
+  color: #087d93 !important;
+  text-shadow: 0 2px #fff;
+}
+.swarm-art .star-enemy {
+  color: #bb4058 !important;
+  text-shadow: 0 2px #fff;
+}
+dialog.game-modal[data-game="swarm"] .game-controls {
+  color: #294d63 !important;
+}
+dialog.game-modal[data-game="swarm"] .game-controls .text-button {
+  background: #294d63;
+  color: #fff;
+}

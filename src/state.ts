@@ -30,6 +30,7 @@ export type Save = {
   version: 1;
   outfit: number;
   skin: number;
+  eye?: number;
   /** 0 girl, 1 boy. */
   body: number;
   clothing: number;
@@ -99,6 +100,7 @@ export function fresh(): Save {
     version: 1,
     outfit: 0,
     skin: 0,
+    eye: 0,
     body: 0,
     clothing: 0,
     // New players start as the source character: pink twin buns (free).
@@ -178,6 +180,7 @@ export function normalise(raw: unknown, fallback: Save): Save {
   for (const key of [
     "outfit",
     "skin",
+    "eye",
     "body",
     "hat",
     "gift",
@@ -193,6 +196,7 @@ export function normalise(raw: unknown, fallback: Save): Save {
         {
           outfit: 6,
           skin: 8,
+          eye: 5,
           body: 2,
           hat: 4,
           gift: 3,
@@ -407,7 +411,7 @@ export function performShow(
     s.stageXp = 0;
   }
   const gain = Math.min(
-    (v.stars as number) * STAGE_STAR_XP,
+    ((v.score as number) > 0 ? (v.stars as number) : 0) * STAGE_STAR_XP,
     STAGE_DAILY_XP - s.stageXp,
   );
   s.stageLast = now;

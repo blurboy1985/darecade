@@ -25,10 +25,19 @@ test("new characters start in third person and explicit saved camera choices sur
 });
 
 test("presence counts live people including self, deduplicates and never counts offline cards", () => {
-  assert.equal(worldPresenceCopy([], "me", "joining"), "Finding players…");
-  assert.equal(worldPresenceCopy([], "me", "connected"), "Finding players…");
+  assert.equal(
+    worldPresenceCopy([], "me", "joining"),
+    "Joining world · 5 neighbours",
+  );
+  assert.equal(
+    worldPresenceCopy([], "me", "connected"),
+    "1 players · 5 neighbours",
+  );
   const me = { id: "me", status: "online" } as const;
-  assert.equal(worldPresenceCopy([me], "me", "connected"), "Just you here");
+  assert.equal(
+    worldPresenceCopy([me], "me", "connected"),
+    "1 players · 5 neighbours",
+  );
   const players = [
     me,
     me,
@@ -38,7 +47,7 @@ test("presence counts live people including self, deduplicates and never counts 
   ] as const;
   assert.equal(
     worldPresenceCopy(players, "me", "connected"),
-    "3 players here · including you",
+    "3 players · 5 neighbours",
   );
   for (const state of ["offline", "reconnecting"] as const)
     assert.equal(
@@ -84,4 +93,15 @@ test("the first-race goal names the real cap reward and town access without chan
     source,
     /liveNeighbours = players;[\s\S]*?renderWorldPresence\(\)/,
   );
+});
+test("eye colour is optional for old saves and never changes owned cosmetics", () => {
+  const old = fresh();
+  old.wardrobePurchased = ["solar"];
+  old.wardrobeUnlocked = ["moon"];
+  old.xp = 350;
+  const next = normalise({ ...old, eye: 3 }, fresh());
+  assert.equal(next.eye, 3);
+  assert.deepEqual(next.wardrobePurchased, old.wardrobePurchased);
+  assert.equal(next.xp, 350);
+  assert.equal(normalise({ ...old, eye: 999 }, fresh()).eye, 0);
 });

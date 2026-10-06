@@ -7,6 +7,7 @@ export type SharedPlayer = {
   look: {
     outfit: number;
     skin: number;
+    eye?: number;
     hat: number;
     body?: number;
     clothing?: number;

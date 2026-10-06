@@ -77,7 +77,11 @@ export class Simulation {
           ? new FishingRound(this.seed)
           : null;
     this.action =
-      id === "hop" ? new HopRun() : id === "swarm" ? new StarFlight(version >= 2) : null;
+      id === "hop"
+        ? new HopRun()
+        : id === "swarm"
+          ? new StarFlight(version >= 2)
+          : null;
     if (this.action instanceof StarFlight) this.action.seed = this.seed;
     if (this.action instanceof HopRun) this.action.count = this.seed % 3;
     this.ball.vx = 110 + (this.seed % 41);
@@ -351,7 +355,8 @@ export class Simulation {
 export function replayRun(game: string, seed: number, replay: Replay) {
   if (
     !replay ||
-    (replay.version !== rulesVersion(game) && !(game === "swarm" && replay.version === 1)) ||
+    (replay.version !== rulesVersion(game) &&
+      !(game === "swarm" && replay.version === 1)) ||
     !Number.isInteger(replay.ticks) ||
     replay.ticks < 1 ||
     replay.ticks > (game === "coast" ? RACE_TICKS : 3600) ||

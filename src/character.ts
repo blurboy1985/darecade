@@ -1,3 +1,4 @@
+import { part, ball } from "./shapes.ts";
 import { extraIndexFor, legendarySets, setIndexFor } from "./collections.ts";
 import { legendaryHead, legendaryBody } from "./legendary.ts";
 import * as T from "three";
@@ -23,6 +24,7 @@ export {
 export type Look = {
   outfit: number;
   skin: number;
+  eye?: number;
   hat: number;
   /** 0 girl, 1 boy. */
   body?: number;
@@ -323,6 +325,47 @@ export function createAvatar(
       if (!m) {
         // Each avatar colours its own copies; the textures stay shared.
         m = original.clone();
+        if (original.name === "eyes" || original.name === "eyes_b") {
+          const tint = { value: new T.Color("#468fc2") },
+            enabled = { value: 0 };
+          m.userData.eyeTint = tint;
+          m.userData.eyeEnabled = enabled;
+          m.onBeforeCompile = (shader) => {
+            shader.uniforms.eyeTint = tint;
+            shader.uniforms.eyeEnabled = enabled;
+            shader.fragmentShader =
+              "uniform vec3 eyeTint; uniform float eyeEnabled;\n" +
+              shader.fragmentShader;
+            shader.fragmentShader = shader.fragmentShader.replace(
+              "#include <map_fragment>",
+              `#include <map_fragment>
+            float chroma=max(diffuseColor.r,max(diffuseColor.g,diffuseColor.b))-min(diffuseColor.r,min(diffuseColor.g,diffuseColor.b));
+            float iris=step(0.07,chroma)*step(diffuseColor.g*1.1,max(diffuseColor.r,diffuseColor.b))*eyeEnabled;
+            diffuseColor.rgb=mix(diffuseColor.rgb,eyeTint*(0.3+0.7*max(diffuseColor.r,diffuseColor.b)),iris);`,
+            );
+          };
+          m.customProgramCacheKey = () => "playsimi-iris-v1";
+        }
+        if (original.name === "cape") {
+          const time = { value: 0 },
+            motion = { value: 0.4 };
+          m.userData.capeTime = time;
+          m.userData.capeMotion = motion;
+          m.onBeforeCompile = (shader) => {
+            shader.uniforms.capeTime = time;
+            shader.uniforms.capeMotion = motion;
+            shader.vertexShader =
+              "uniform float capeTime;uniform float capeMotion;\n" +
+              shader.vertexShader;
+            shader.vertexShader = shader.vertexShader.replace(
+              "#include <begin_vertex>",
+              `#include <begin_vertex>
+          float hem=clamp((1.19-position.y)/0.85,0.0,1.0);
+          transformed.z += sin(capeTime*5.0+position.x*7.0)*0.12*hem*hem*capeMotion;`,
+            );
+          };
+          m.customProgramCacheKey = () => "playsimi-cape-v1";
+        }
         materials.set(original.name, m);
       }
       o.material = m;
@@ -415,7 +458,7 @@ export function applyLook(
   if (tops[top].jacket) shown.add("Jacket");
   if (cape) shown.add("Cape");
   if (below.shoes) shown.add("Shoes");
-  if (wear && !look.hat) shown.add(wear);
+  if (wear === "Hat_Wizard" && !look.hat) shown.add(wear);
   a.model.traverse((o) => {
     if (o instanceof T.Mesh) o.visible = shown.has(o.name);
   });
@@ -444,10 +487,40 @@ export function applyLook(
   }
   for (const [name, value] of Object.entries(paint))
     a.materials.get(name)?.color.copy(value);
+  for (const key of ["eyes", "eyes_b"]) {
+    const m = a.materials.get(key);
+    if (m?.userData.eyeTint) {
+      m.userData.eyeTint.value.set(
+        ["#db779f", "#865035", "#328cca", "#469267", "#8763bd"][look.eye || 0],
+      );
+      m.userData.eyeEnabled.value = look.eye ? 1 : 0;
+    }
+  }
   a.costume.clear();
   // Set trim was sized for a broader chest; draw it in to this one.
   a.costume.scale.setScalar(0.82);
   if (special) legendaryBody(a.costume, outfitSet);
+  const book = part(
+    a.costume,
+    "box",
+    [0, 0.83, 0.34],
+    [0.4, 0.05, 0.28],
+    "#7b9eac",
+    { rot: [-0.3, 0, 0] },
+  );
+  book.name = "IdleBook";
+  book.visible = false;
+  if (cape) {
+    const collar = part(
+      a.costume,
+      "torus",
+      [0, 1.2, -0.02],
+      [0.25, 0.1, 0.23],
+      special?.accent || color,
+      { rot: [Math.PI / 2, 0, 0] },
+    );
+    collar.name = "CapeCollar";
+  }
   a.hat.clear();
   if (look.hat === 1) {
     ellipsoid(a.hat, [0, 1.83, 0], [0.24, 0.12, 0.22], "#e7a769");
@@ -476,6 +549,26 @@ export function applyLook(
     part.scale.x *= 1.85;
     part.scale.z *= 1.85;
     part.scale.y *= 1.25;
+  }
+  if (!look.hat && wear === "Hat_Knight") {
+    ball(a.hat, [0, 1.65, -0.04], [0.48, 0.34, 0.47], "#91a1b0");
+    part(a.hat, "box", [0, 1.55, 0.38], [0.77, 0.12, 0.08], "#384756");
+    for (const side of [-1, 1])
+      part(
+        a.hat,
+        "box",
+        [side * 0.39, 1.45, 0.12],
+        [0.1, 0.32, 0.3],
+        "#91a1b0",
+      );
+    part(a.hat, "box", [0, 1.83, 0.05], [0.06, 0.3, 0.6], "#d9e4e9");
+  }
+  if (!look.hat && wear === "Hat_Bear") {
+    ball(a.hat, [0, 1.68, -0.02], [0.49, 0.27, 0.46], "#a8724f");
+    for (const side of [-1, 1]) {
+      ball(a.hat, [side * 0.37, 1.94, -0.02], [0.15, 0.16, 0.1], "#a8724f");
+      ball(a.hat, [side * 0.37, 1.94, 0.055], [0.085, 0.1, 0.03], "#e9bc8f");
+    }
   }
   if (hair.beard) buildBeard(a.hat, hair.color);
   if (hair.hood && !look.hat) buildHood(a.hat);
@@ -548,7 +641,14 @@ export function animateDetails(
     a.root.userData.poseStarted = time;
     a.root.userData.contactProps = new Map<string, T.Object3D>();
   }
+  const book = a.costume.getObjectByName("IdleBook");
+  if (book) book.visible = mode === "read";
   a.root.userData.poseTime = Math.max(0, time - a.root.userData.poseStarted);
+  const cm = a.materials.get("cape");
+  if (cm?.userData.capeTime) {
+    cm.userData.capeTime.value = time;
+    cm.userData.capeMotion.value = reduced ? 0 : a.moving ? 1 : 0.4;
+  }
   const travel = a.root.position.distanceTo(a.last);
   a.moving = travel > 0.008;
   a.last.copy(a.root.position);
@@ -559,7 +659,8 @@ export function animateDetails(
   for (const mesh of a.expressions) {
     const dictionary = mesh.morphTargetDictionary!;
     const influences = mesh.morphTargetInfluences!;
-    if (dictionary.Blink !== undefined) influences[dictionary.Blink] = blink;
+    if (dictionary.Blink !== undefined)
+      influences[dictionary.Blink] = mode === "nap" ? 1 : blink;
     if (dictionary.Smile !== undefined)
       influences[dictionary.Smile] = ["wave", "dance", "pet"].includes(mode)
         ? 0.35
@@ -666,7 +767,15 @@ const rootQ = new T.Quaternion(),
   targetQ = new T.Quaternion();
 function poseSkin(a: Avatar, mode: string) {
   const pitch = -(a.legs[0].rotation.x + a.legs[1].rotation.x) / 2;
-  const seated = ["rest", "bench", "swing", "dragon", "drive"].includes(mode)
+  const seated = [
+    "rest",
+    "read",
+    "nap",
+    "bench",
+    "swing",
+    "dragon",
+    "drive",
+  ].includes(mode)
     ? T.MathUtils.clamp(pitch / 1.35, 0, 1)
     : 0;
   const reach = T.MathUtils.clamp(

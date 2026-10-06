@@ -1,16 +1,59 @@
 /* Floating controls leave the world visible in both phone orientations. */
-.outside-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.outside-cards .menu-choice { display: flex; flex-direction: column; min-height: 82px; gap: 8px; padding: 10px; font-size: 13px; }
-.quest-tabs { display: flex; gap: 6px; position: sticky; top: 0; background: #faf7ee; z-index: 2; padding: 6px 0; }
-.quest-tabs button { flex: 1; min-width: 0; padding: 8px 4px; font-size: 12px; }
-.quest-tabs [aria-pressed="true"] { background: #d9f0a2; }
-.menu-links { display: flex; gap: 14px; margin-top: 16px; font-size: 12px; }
+.outside-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.outside-cards .menu-choice {
+  display: flex;
+  flex-direction: column;
+  min-height: 82px;
+  gap: 8px;
+  padding: 10px;
+  font-size: 13px;
+}
+.quest-tabs {
+  display: flex;
+  gap: 6px;
+  position: sticky;
+  top: 0;
+  background: #faf7ee;
+  z-index: 2;
+  padding: 6px 0;
+}
+.quest-tabs button {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 4px;
+  font-size: 12px;
+}
+.quest-tabs [aria-pressed="true"] {
+  background: #d9f0a2;
+}
+.menu-links {
+  display: flex;
+  gap: 14px;
+  margin-top: 16px;
+  font-size: 12px;
+}
 @media (max-width: 600px) {
-  .game-grid.compact-games { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .compact-games .game-card { padding: 10px; min-height: 0; }
-  .compact-games .game-card .game-art { height: 78px; }
-  .compact-games .game-card h3 { font-size: 16px; }
-  .compact-games .game-card > div:last-child { font-size: 9px; }
+  .game-grid.compact-games {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .compact-games .game-card {
+    padding: 10px;
+    min-height: 0;
+  }
+  .compact-games .game-card .game-art {
+    height: 78px;
+  }
+  .compact-games .game-card h3 {
+    font-size: 16px;
+  }
+  .compact-games .game-card > div:last-child {
+    font-size: 9px;
+  }
 }
 .bottom-bar {
   display: contents;
@@ -243,4 +286,176 @@
   .hud .nearby-prompt {
     bottom: 68px;
   }
+}
+/* Result actions stay available while the score and detail scroll. */
+dialog.game-modal #modal-body:has(.result-score) {
+  min-height: 0;
+  overflow: auto;
+  justify-content: flex-start;
+  padding-top: 12px !important;
+}
+dialog.game-modal #modal-body:has(.result-score) .button-row {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  background: #f9f0df;
+  padding: 10px;
+  border-radius: 18px;
+  flex-shrink: 0;
+}
+dialog.game-modal #modal-body:has(.result-score) .result-star {
+  display: none;
+}
+input[type="range"] {
+  accent-color: #75b9aa !important;
+}
+@media (max-height: 520px) {
+  dialog.game-modal #modal-body > h2.result-score {
+    font-size: 44px !important;
+  }
+  dialog.game-modal #modal-body:has(.result-score) .button-row {
+    margin-top: 8px;
+  }
+}
+.kit-native {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0 !important;
+  clip-path: inset(50%);
+  pointer-events: none;
+}
+.kit-select {
+  display: inline-grid;
+  min-width: 130px;
+  max-width: 100%;
+  position: relative;
+  vertical-align: middle;
+}
+.kit-select-trigger {
+  width: 100%;
+  border: 2px solid #adc3b7;
+  border-radius: 14px;
+  background: #fff9ed;
+  color: #294d63;
+  padding: 10px 14px;
+  font: inherit;
+  text-align: left;
+  min-height: 44px;
+}
+.kit-options {
+  display: grid;
+  max-height: 190px;
+  overflow: auto;
+  border: 2px solid #adc3b7;
+  border-radius: 14px;
+  background: #fff9ed;
+  z-index: 50;
+}
+.kit-options[hidden] {
+  display: none;
+}
+.kit-options button {
+  border: 0;
+  border-radius: 8px;
+  padding: 10px;
+  background: transparent;
+  color: #294d63;
+  font: inherit;
+  text-align: left;
+}
+.kit-options button[aria-selected="true"],
+.kit-options button:focus {
+  background: #d3eab8;
+}
+.kit-switch {
+  flex: none;
+  width: 46px;
+  height: 28px;
+  border: 2px solid #9eb0a8;
+  border-radius: 20px;
+  background: #d6ddd6;
+  padding: 2px;
+}
+.kit-switch::after {
+  content: "";
+  display: block;
+  width: 20px;
+  height: 20px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px #2435;
+  transition: transform 0.12s;
+}
+.kit-switch[aria-checked="true"] {
+  background: #75b9aa;
+  border-color: #43877b;
+}
+.kit-switch[aria-checked="true"]::after {
+  transform: translateX(18px);
+}
+.kit-switch:disabled {
+  opacity: 0.5;
+}
+.settings-row .kit-select {
+  max-width: 60%;
+}
+dialog.game-modal #modal-body:has(.result-score) {
+  max-height: calc(100dvh - 84px);
+  flex: 0 1 auto !important;
+  overflow-y: auto;
+}
+.activity-stage[data-playing="true"] .kit-select:has(#stage-mode) {
+  display: none;
+}
+/* Daytime cabinet frame; canvas game art retains its own readable palette. */
+dialog.game-modal[open] {
+  background: linear-gradient(#e3eeea, #c6dace) !important;
+}
+dialog.game-modal .game-controls {
+  color: #294d63 !important;
+}
+dialog.game-modal .game-controls .text-button {
+  background: #294d63;
+  color: #fff;
+}
+.game-modal .result-reward {
+  position: static;
+  inset: auto;
+  flex: none;
+  box-shadow: none;
+  width: min(540px, 100%);
+  margin: 0 auto 8px;
+  display: flex;
+  padding: 8px 12px;
+  gap: 10px;
+  border-radius: 14px;
+}
+.result-reward .token-reveal {
+  flex-basis: 42px;
+  height: 50px;
+}
+.result-reward .token-reveal span {
+  width: 36px;
+  height: 36px;
+  font-size: 20px;
+}
+.result-reward > div:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+  align-items: center;
+}
+.result-reward h2 {
+  font-size: 15px !important;
+  margin: 0 !important;
+}
+.result-reward p,
+.result-reward small {
+  display: none;
+}
+.result-reward button {
+  padding: 5px 10px !important;
+  font-size: 12px !important;
+  min-height: 32px;
 }

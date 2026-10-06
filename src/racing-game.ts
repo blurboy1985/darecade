@@ -196,7 +196,14 @@ export class RacingGame {
     window.addEventListener("keyup", this.keyUp, listener);
     window.addEventListener("blur", this.onBlur, listener);
     document.addEventListener("visibilitychange", this.hidden, listener);
-    this.stick = bindJoystick(container.querySelector<HTMLElement>("[data-joystick]")!, (x, y) => { this.touchSteer = Math.sign(x); this.touchBrake = y > 0.65; if (this.touchBrake) this.cruise = false; });
+    this.stick = bindJoystick(
+      container.querySelector<HTMLElement>("[data-joystick]")!,
+      (x, y) => {
+        this.touchSteer = Math.sign(x);
+        this.touchBrake = y > 0.65;
+        if (this.touchBrake) this.cruise = false;
+      },
+    );
     this.buttons = Array.from(
       container.querySelectorAll<HTMLButtonElement>("[data-race-control]"),
     );
@@ -409,8 +416,14 @@ export class RacingGame {
   private controls(): Input {
     const touch = new Set(this.pointers.values());
     let steer = kartSteeringInput(
-      this.touchSteer < 0 || touch.has("left") || this.keys.has("arrowleft") || this.keys.has("a"),
-      this.touchSteer > 0 || touch.has("right") || this.keys.has("arrowright") || this.keys.has("d"),
+      this.touchSteer < 0 ||
+        touch.has("left") ||
+        this.keys.has("arrowleft") ||
+        this.keys.has("a"),
+      this.touchSteer > 0 ||
+        touch.has("right") ||
+        this.keys.has("arrowright") ||
+        this.keys.has("d"),
     );
     if (this.assist && this.status === "racing") {
       this.assistSteer = edgeAssist(
@@ -422,7 +435,10 @@ export class RacingGame {
     }
     return [
       steer,
-      this.touchBrake || touch.has("brake") || this.keys.has("arrowdown") || this.keys.has("s")
+      this.touchBrake ||
+      touch.has("brake") ||
+      this.keys.has("arrowdown") ||
+      this.keys.has("s")
         ? -1
         : // DRIFT and ITEM hold the throttle so one thumb can do all three.
           Number(

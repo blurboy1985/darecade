@@ -256,3 +256,12 @@ test("the server pays five XP a star, capped per day, and refuses rapid or malfo
     rmSync(directory, { recursive: true, force: true });
   }
 });
+test("zero-score Stage reports cannot grant stars or XP", () => {
+  const s = fresh();
+  assert.equal(
+    performShow(s, { score: 0, stars: 3 }, Date.now(), "2026-10-06"),
+    0,
+  );
+  assert.equal(s.xp, 0);
+  assert.equal(s.stageXp, 0);
+});

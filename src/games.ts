@@ -68,14 +68,33 @@ export class ArcadeGame extends Simulation {
         hop: "JUMP to leap",
         swarm: "Joystick to fly · auto-fire",
       }[id];
-    this.stick = bindJoystick(container.querySelector<HTMLElement>("[data-joystick]")!, (x, y) => {
-      this.touchAxis = { x: Math.sign(x), y: Math.sign(y) };
-      this.input[4] = this.input[5] = -1;
-      if (x || y) { this.begin(); if (id === "noodle") this.turn(Math.abs(x) > Math.abs(y) ? x > 0 ? "right" : "left" : y > 0 ? "down" : "up"); }
-    });
-    container.querySelector("[data-touch-action]")!.addEventListener("pointerdown", e => {
-      e.preventDefault(); this.begin(); if (id === "hop") this.turn("up");
-    });
+    this.stick = bindJoystick(
+      container.querySelector<HTMLElement>("[data-joystick]")!,
+      (x, y) => {
+        this.touchAxis = { x: Math.sign(x), y: Math.sign(y) };
+        this.input[4] = this.input[5] = -1;
+        if (x || y) {
+          this.begin();
+          if (id === "noodle")
+            this.turn(
+              Math.abs(x) > Math.abs(y)
+                ? x > 0
+                  ? "right"
+                  : "left"
+                : y > 0
+                  ? "down"
+                  : "up",
+            );
+        }
+      },
+    );
+    container
+      .querySelector("[data-touch-action]")!
+      .addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        this.begin();
+        if (id === "hop") this.turn("up");
+      });
     if (id === "brick") {
       if (!document.documentElement.classList.contains("reduced"))
         void import("./brick-fx")
@@ -394,10 +413,12 @@ export class ArcadeGame extends Simulation {
       while (this.accumulator >= 1 / 60 && !this.ended) {
         this.input[0] =
           Number(this.keys.has("d") || this.keys.has("arrowright")) -
-          Number(this.keys.has("a") || this.keys.has("arrowleft")) || this.touchAxis.x;
+            Number(this.keys.has("a") || this.keys.has("arrowleft")) ||
+          this.touchAxis.x;
         this.input[1] =
           Number(this.keys.has("s") || this.keys.has("arrowdown")) -
-          Number(this.keys.has("w") || this.keys.has("arrowup")) || this.touchAxis.y;
+            Number(this.keys.has("w") || this.keys.has("arrowup")) ||
+          this.touchAxis.y;
         const stamp = JSON.stringify(this.input);
         if (stamp !== this.previous) {
           this.events.push([this.ticks, ...this.input]);

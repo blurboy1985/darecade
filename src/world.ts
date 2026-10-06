@@ -2237,8 +2237,12 @@ export class LobbyWorld {
     this.emoteAt = this.clock;
   }
   placePlayer(x: number, z: number) {
-    this.cancelInteraction();this.path=[];this.player.root.position.set(x,.1,z);
-    this.elevation=.1;this.jumpVelocity=0;this.motion.reset();
+    this.cancelInteraction();
+    this.path = [];
+    this.player.root.position.set(x, 0.1, z);
+    this.elevation = 0.1;
+    this.jumpVelocity = 0;
+    this.motion.reset();
   }
   resetView() {
     this.cancelInteraction();
@@ -2494,6 +2498,7 @@ export class LobbyWorld {
         this.renderer.setPixelRatio(1);
         this.renderer.shadowMap.enabled = false;
         this.low = true;
+        window.dispatchEvent(new Event("performance-mode"));
         document
           .getElementById("quality-note")
           ?.replaceChildren("Performance mode");
@@ -2626,6 +2631,8 @@ export class LobbyWorld {
     this.reduced = value;
   }
   setQuality(value: "auto" | "quality" | "performance") {
+    if (value === "performance")
+      window.dispatchEvent(new Event("performance-mode"));
     this.quality = value;
     this.low = value === "performance";
     this.renderer.setPixelRatio(this.low ? 1 : Math.min(devicePixelRatio, 2));

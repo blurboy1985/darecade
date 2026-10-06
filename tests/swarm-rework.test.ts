@@ -1,9 +1,73 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import {StarFlight} from '../src/action-games.ts';
-import {Simulation,replayRun,type Replay,type Input,rulesVersion} from '../shared/simulation.ts';
-function run(version:number,active:boolean){const s=new Simulation('swarm',314159,version),events:Replay['events']=[];let last='';while(!s.ended){const i:Input=[active?(Math.floor(s.ticks/120)%2?1:-1):0,0,-1,0,-1,-1];if(JSON.stringify(i)!==last){events.push([s.ticks,...i]);last=JSON.stringify(i)}s.advance(i)}return {s,replay:{version,ticks:s.ticks,events}}}
-test('current Swarm cannot farm with zero input; active steering survives the reported eight-second failure',()=>{const idle=run(2,false);assert.equal(idle.s.score,0);assert.ok(idle.s.elapsed<=12.1);const active=run(2,true);assert.ok(active.s.elapsed>8);assert.ok(active.s.score>0);assert.equal(replayRun('swarm',314159,active.replay).score,active.s.score);assert.equal(rulesVersion('swarm'),2)});
-test('Swarm legacy rounds still validate using their original rules',()=>{const old=run(1,true);assert.equal(replayRun('swarm',314159,old.replay).score,old.s.score)});
-test('shield absorbs exactly two separated hits and never restores health',()=>{const s=new StarFlight();s.lives=1;s.pickups.push({x:s.x,y:s.y});s.tick(1/240,1);assert.equal(s.lives,1);assert.equal(s.shieldHits,2);s.hit();s.invulnerable=0;s.hit();assert.equal(s.lives,1);assert.equal(s.shield,0);s.invulnerable=0;s.hit();assert.equal(s.ended,true)});
-test('later waves increase bullet speed and the damaged boss fires five-way patterns',()=>{const s=new StarFlight();s.elapsed=40;s.bossSpawned=true;s.enemies=[{x:220,y:55,origin:220,phase:0,hp:14,boss:true}];s.enemyFire=0;s.tick(1/240,1);const shots=s.bullets.filter(b=>b.enemy);assert.equal(shots.length,5);assert.ok(shots.some(b=>Math.abs(b.vx||0)>20));assert.ok(shots.every(b=>Math.hypot(b.vx||0,b.vy||0)>140))});
+import test from "node:test";
+import assert from "node:assert/strict";
+import { StarFlight } from "../src/action-games.ts";
+import {
+  Simulation,
+  replayRun,
+  type Replay,
+  type Input,
+  rulesVersion,
+} from "../shared/simulation.ts";
+function run(version: number, active: boolean) {
+  const s = new Simulation("swarm", 314159, version),
+    events: Replay["events"] = [];
+  let last = "";
+  while (!s.ended) {
+    const i: Input = [
+      active ? (Math.floor(s.ticks / 120) % 2 ? 1 : -1) : 0,
+      0,
+      -1,
+      0,
+      -1,
+      -1,
+    ];
+    if (JSON.stringify(i) !== last) {
+      events.push([s.ticks, ...i]);
+      last = JSON.stringify(i);
+    }
+    s.advance(i);
+  }
+  return { s, replay: { version, ticks: s.ticks, events } };
+}
+test("current Swarm cannot farm with zero input; active steering survives the reported eight-second failure", () => {
+  const idle = run(2, false);
+  assert.equal(idle.s.score, 0);
+  assert.ok(idle.s.elapsed <= 12.1);
+  const active = run(2, true);
+  assert.ok(active.s.elapsed > 8);
+  assert.ok(active.s.score > 0);
+  assert.equal(replayRun("swarm", 314159, active.replay).score, active.s.score);
+  assert.equal(rulesVersion("swarm"), 2);
+});
+test("Swarm legacy rounds still validate using their original rules", () => {
+  const old = run(1, true);
+  assert.equal(replayRun("swarm", 314159, old.replay).score, old.s.score);
+});
+test("shield absorbs exactly two separated hits and never restores health", () => {
+  const s = new StarFlight();
+  s.lives = 1;
+  s.pickups.push({ x: s.x, y: s.y });
+  s.tick(1 / 240, 1);
+  assert.equal(s.lives, 1);
+  assert.equal(s.shieldHits, 2);
+  s.hit();
+  s.invulnerable = 0;
+  s.hit();
+  assert.equal(s.lives, 1);
+  assert.equal(s.shield, 0);
+  s.invulnerable = 0;
+  s.hit();
+  assert.equal(s.ended, true);
+});
+test("later waves increase bullet speed and the damaged boss fires five-way patterns", () => {
+  const s = new StarFlight();
+  s.elapsed = 40;
+  s.bossSpawned = true;
+  s.enemies = [{ x: 220, y: 55, origin: 220, phase: 0, hp: 14, boss: true }];
+  s.enemyFire = 0;
+  s.tick(1 / 240, 1);
+  const shots = s.bullets.filter((b) => b.enemy);
+  assert.equal(shots.length, 5);
+  assert.ok(shots.some((b) => Math.abs(b.vx || 0) > 20));
+  assert.ok(shots.every((b) => Math.hypot(b.vx || 0, b.vy || 0) > 140));
+});

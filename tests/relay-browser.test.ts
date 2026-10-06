@@ -15,6 +15,7 @@ import { createServer } from "node:http";
 import { once } from "node:events";
 import { spawn } from "node:child_process";
 import { fresh, singaporeDay } from "../src/state.ts";
+import { createPlazaRelay } from "../shared/plaza-relay.ts";
 import { createRelay } from "../shared/relay.ts";
 
 // Real built DOM/CSS/canvas in installed Chrome, with synthetic API responses.
@@ -102,9 +103,9 @@ for (const viewport of viewports) {
         else if (path === 'world/poll') result = { t: 'sync', at: Date.now(), world: 'fixture', p: [], d: [], gone: [] };
         else if (path === 'run') result = { id: 'synthetic-coast-run', game: data.game, seed: 7, version: 3, ranked: false, dailySeed: false, target: null, targetScore: 0 };
         else if (path === 'style-rewards') result = { tokens: 0 };
-        else if (path === 'relay/create') { room.solo=data.solo; room.status='waiting'; room.simulation=null; room.players=[room.players[0]];room.players[0].ready=false; result=structuredClone(room); }
+        else if (path === 'relay/create') { room.solo=data.solo; room.status='waiting'; room.simulation=null;if(data.course==='plaza')room.plaza=${JSON.stringify(createPlazaRelay([0]))}; room.players=[room.players[0]];room.players[0].ready=false; result=structuredClone(room); }
         else if (path === 'relay/ready') {room.players[0].ready=data.ready;result=structuredClone(room);}
-        else if (path === 'relay/start') {room.status='running';room.simulation=structuredClone(simulation);result=structuredClone(room);}
+        else if (path === 'relay/start') {room.status='running';if(!room.plaza)room.simulation=structuredClone(simulation);result=structuredClone(room);}
         else if (path === 'relay/tick' || path === 'relay/join') result=structuredClone(room);
         return new Response(JSON.stringify(result), { headers: { 'Content-Type': 'application/json' } });
         } finally {if(relayRequest) relayActive--;}
@@ -129,13 +130,28 @@ for (const viewport of viewports) {
         const key = (type, key, repeat=false) => window.dispatchEvent(new KeyboardEvent(type,{key,repeat,bubbles:true,cancelable:true}));
         try {
           await until(() => !find('#loading') && find('.lobby-dock'), 'built lobby loaded');
-          find('.lobby-dock [data-open="map"]').click();
-          find('[data-open="surroundings"]').click();
+          find('.lobby-dock [data-open="arcade"]').click();
           for(let i=0;i<5&&!find('[data-open="relay"]');i++) {
             const next=[...document.querySelectorAll('[data-page="outside"]')].find(b=>!b.disabled&&b.textContent.includes('Next'));
             check(!!next,'Relay reachable through outside pages');next.click();
           }
           find('[data-open="relay"]').click();
+          if (${viewport.name.includes("3d")}) {
+            await until(()=>find('[data-solo]'),'plaza setup');find('[data-solo]').click();
+            await until(()=>find('.plaza-running'),'world Relay running');
+            check(!find('#modal').open,'Relay uses the actual world instead of a game modal');
+            check(find('#world canvas').getBoundingClientRect().width>0,'world canvas visible');
+            advance(30);check(find('.plaza-roster').textContent.includes('Milo · CPU'),'named computer teammates');
+            const pos=find('#world canvas').dataset.position;key('keydown','w');advance(20);key('keyup','w');
+            check(find('#world canvas').dataset.position!==pos,'normal avatar keyboard movement');
+            find('[data-emote="jump"]').click();advance(10);check(Number(find('#world canvas').dataset.elevation)>.1,'normal avatar jump');
+            await flush();await new Promise(r=>setTimeout(r,300));
+            check(relayTicks().some(r=>r.data.position&&Number.isFinite(r.data.position.x)),'bounded world position reaches team transport');
+            hitTarget(find('[data-leave]'),'Leave plaza Relay');find('[data-leave]').click();await flush();
+            check(!find('.plaza-running'),'leave removes world overlay');
+            check(!requests.some(r=>(r.path==='progress'&&r.data?.event!=='visit')||r.path==='finish'),'Relay grants no round rewards; ordinary world discoveries retain their rules');
+            parent.postMessage({result:'pass',report:{viewport:${JSON.stringify(viewport)},checks}},location.origin);return;
+          }
           await until(()=>find('#relay-join'),'Relay loaded');
           check(find('.relay-setup').querySelectorAll('button').length===3,'three initial actions');
           find('#relay-join button').click();
@@ -229,7 +245,7 @@ for (const viewport of viewports) {
           key('keydown','w');advance(180);await flush();check(relayTicks().length===last,'closed panel stops polling/input');
           check(!requests.some(r=>(r.path==='progress'&&r.data?.event!=='visit')||r.path==='auth/join'||r.path.startsWith('auth/code')),'no rewards/account/email writes: '+JSON.stringify(requests.filter(r=>(r.path==='progress'&&r.data?.event!=='visit')||r.path==='auth/join'||r.path.startsWith('auth/code'))));
           // Reopen solo to leave an actual painted course screenshot.
-          find('.lobby-dock [data-open="map"]').click();find('[data-open="surroundings"]').click();
+          find('.lobby-dock [data-open="arcade"]').click();
           find('[data-open="relay"]').click();find('[data-relay="solo"]').click();
           await until(()=>find('.relay').dataset.phase==='running','final scene');
           room.difficulty='challenge';room.simulation.difficulty='challenge';room.simulation.tick=100;

@@ -60,6 +60,7 @@ export const seedFor = (game, date) =>
 const lookKeys = [
   "outfit",
   "skin",
+  "eye",
   "body",
   "hat",
   "clothing",
@@ -918,7 +919,8 @@ export class CommunityCore {
     if (
       r.status !== "started" ||
       at - r.started > 600000 ||
-      (r.version !== rulesVersion(r.game) && !(r.game === "swarm" && r.version === 1)) ||
+      (r.version !== rulesVersion(r.game) &&
+        !(r.game === "swarm" && r.version === 1)) ||
       data.replay?.version !== r.version
     )
       throw Error("This round has expired. Start a new round.");

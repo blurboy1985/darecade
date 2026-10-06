@@ -22,7 +22,13 @@ export class LegacyStarFlight {
   enemyFire = 1.8;
   seed = 71237;
   bossSpawned = false;
-  bullets: { x: number; y: number; enemy: boolean; vx?: number; vy?: number }[] = [];
+  bullets: {
+    x: number;
+    y: number;
+    enemy: boolean;
+    vx?: number;
+    vy?: number;
+  }[] = [];
   enemies: Enemy[] = [];
   pickups: { x: number; y: number }[] = [];
   random() {
@@ -163,9 +169,17 @@ export class LegacyStarFlight {
       );
     }
     for (const b of this.bullets) {
-      c.save(); c.shadowColor = b.enemy ? "#ff6736" : "#13727f"; c.shadowBlur = b.enemy ? 9 : 0;
-      c.strokeStyle = "#552c39"; c.lineWidth = 3; c.fillStyle = b.enemy ? "#ff4e27" : "#086f81";
-      c.beginPath(); c.roundRect(b.x-3,b.y-7,6,14,3); c.fill(); if(b.enemy)c.stroke(); c.restore();
+      c.save();
+      c.shadowColor = b.enemy ? "#ff6736" : "#13727f";
+      c.shadowBlur = b.enemy ? 9 : 0;
+      c.strokeStyle = "#552c39";
+      c.lineWidth = 3;
+      c.fillStyle = b.enemy ? "#ff4e27" : "#086f81";
+      c.beginPath();
+      c.roundRect(b.x - 3, b.y - 7, 6, 14, 3);
+      c.fill();
+      if (b.enemy) c.stroke();
+      c.restore();
     }
     for (const e of this.enemies) {
       c.fillStyle = e.boss ? "#7850aa" : "#bb4058";
@@ -190,7 +204,14 @@ export class LegacyStarFlight {
       c.arc(p.x, p.y, 10, 0, Math.PI * 2);
       c.fill();
       c.fillStyle = "#3b6855";
-      c.beginPath(); c.moveTo(p.x-5,p.y-5);c.lineTo(p.x+5,p.y-5);c.lineTo(p.x+4,p.y+2);c.lineTo(p.x,p.y+6);c.lineTo(p.x-4,p.y+2);c.closePath();c.fill();
+      c.beginPath();
+      c.moveTo(p.x - 5, p.y - 5);
+      c.lineTo(p.x + 5, p.y - 5);
+      c.lineTo(p.x + 4, p.y + 2);
+      c.lineTo(p.x, p.y + 6);
+      c.lineTo(p.x - 4, p.y + 2);
+      c.closePath();
+      c.fill();
     }
     c.globalAlpha = this.invulnerable > 0 ? 0.55 : 1;
     c.fillStyle = "#087d93";

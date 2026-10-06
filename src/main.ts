@@ -1,3 +1,4 @@
+import { installControls } from "./ui-controls";
 import { bindJoystick } from "./joystick";
 import { rooftops } from "./rooftops";
 import { mountPayments } from "./payments";
@@ -207,6 +208,7 @@ let sentPreferences = "";
 const preferenceKeys = [
   "outfit",
   "skin",
+  "eye",
   "body",
   "hat",
   "clothing",
@@ -618,7 +620,7 @@ function open(id: string) {
     id === "wardrobe" && !is2d,
   );
   if (id === "relay") {
-    if(world && !is2d) mountPlazaRelay(body,{save,world,close});
+    if (world && !is2d) mountPlazaRelay(body, { save, world, close });
     else mountRelay(body, { save, simple: is2d });
     return;
   }
@@ -701,7 +703,7 @@ function open(id: string) {
       body.querySelector<HTMLDetailsElement>(".setup-more")?.open ?? false;
     const medals = shared?.self?.points ?? 0;
     const shown = tryingLook?.look ?? save;
-    body.innerHTML = `<div class="wardrobe-layout"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${tryingLook ? "Trying on" : escapeText(nickname)}</strong><small>DRAG TO TURN</small><span class="look-caption">${tryingLook?.name ?? clothingNames[save.clothing]}</span><div class="try-actions" role="status"><button class="secondary" data-undo-look ${undoLook ? "" : "disabled"}>Undo</button><button class="text-button" data-reset-look>Back to my look</button></div></div><div class="wardrobe-controls">${setupGuide ? '<span class="eyebrow setup-step">STEP 1 OF 2 · NAME & LOOK</span>' : ""}${setupGuide ? "<h2>Create your driver</h2>" : `<span class="eyebrow">YOUR COLLECTION</span><h2>My look</h2><div class="style-wallet"><strong>${tokenSummary(save)}</strong><small>Tokens buy looks. +1 per 100 XP, up to +3 daily from ranked medals.</small></div>`}<details class="look-identity" ${setupGuide ? "open" : ""}><summary>Name, girl or boy, colours & daily hats</summary><form id="nickname-form" novalidate><label class="field-label" for="nickname">NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" value="${escapeText(typed)}" minlength="2" maxlength="20" autocomplete="off" placeholder="Choose your nickname" aria-describedby="nickname-status" required><button class="secondary" type="submit">Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form><label class="field-label">CHARACTER</label><div class="body-options">${["Girl", "Boy"].map((label, i) => `<button data-body="${i}" class="${save.body === i ? "active" : ""}" aria-pressed="${save.body === i}">${label}</button>`).join("")}</div><label class="field-label">OUTFIT COLOUR</label><div class="swatches">${outfits.map((c, i) => `<button data-outfit="${i}" style="--swatch:${c}" class="${save.outfit === i ? "active" : ""}" aria-label="${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][i]} outfit" aria-pressed="${save.outfit === i}"></button>`).join("")}</div><p class="fine-print">Legendary outfits use their own signature colours.</p><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">DAILY HATS</label><div class="hat-options">${["No hat", "Bucket", "Cap", "Sprout"].map((n, i) => `<button data-hat="${i}" ${save.unlockedHats.includes(i) ? "" : "disabled"} aria-pressed="${save.hat === i}">${n}${save.unlockedHats.includes(i) ? "" : " · locked"}</button>`).join("")}</div></details>${setupGuide ? `<details class="setup-more" ${moreLooksOpen ? "open" : ""}><summary>More looks & hairstyles</summary>` : ""}<div class="look-tabs" aria-label="Wardrobe sections">${wardrobeSections.map((label) => `<button data-wardrobe-section="${label}" aria-pressed="${wardrobeSection === label}">${label}</button>`).join("")}<button data-open="support">Premium</button></div><div class="collection-tabs" aria-label="Filter looks">${wardrobeFilters.map((label) => `<button data-wardrobe-filter="${label}" aria-pressed="${wardrobeFilter === label}">${label}</button>`).join("")}</div>${wardrobeSection === "Hats" ? hatShelf(save) : ""}${wardrobeSection === "Capes & back" ? '<p class="fine-print">Capes include their matching outfit. Wings use the Magic slot.</p>' : ""}${wardrobeBrowser(wardrobeSection, wardrobeFilter, save, medals, tryingLook)}<p class="fine-print">Cosmetic only. No gameplay advantage. Earn sets through play or check optional purchase availability.</p>${setupGuide ? "</details>" : ""}${setupGuide ? actionButton("setup-save", currentProfile?.account ? "Save & continue →" : "Next: save my character →") : actionButton("done-look", "Done")}</div></div>`;
+    body.innerHTML = `<div class="wardrobe-layout"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${tryingLook ? "Trying on" : escapeText(nickname)}</strong><small>DRAG TO TURN</small><span class="look-caption">${tryingLook?.name ?? clothingNames[save.clothing]}</span><div class="try-actions" role="status"><button class="secondary" data-undo-look ${undoLook ? "" : "disabled"}>Undo</button><button class="text-button" data-reset-look>Back to my look</button></div></div><div class="wardrobe-controls">${setupGuide ? '<span class="eyebrow setup-step">STEP 1 OF 2 · NAME & LOOK</span>' : ""}${setupGuide ? "<h2>Create your driver</h2>" : `<span class="eyebrow">YOUR COLLECTION</span><h2>My look</h2><div class="style-wallet"><strong>${tokenSummary(save)}</strong><small>Tokens buy looks. +1 per 100 XP, up to +3 daily from ranked medals.</small></div>`}<details class="look-identity" ${setupGuide ? "open" : ""}><summary>Name, girl or boy, colours & daily hats</summary><form id="nickname-form" novalidate><label class="field-label" for="nickname">NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" value="${escapeText(typed)}" minlength="2" maxlength="20" autocomplete="off" placeholder="Choose your nickname" aria-describedby="nickname-status" required><button class="secondary" type="submit">Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form><label class="field-label">CHARACTER</label><div class="body-options">${["Girl", "Boy"].map((label, i) => `<button data-body="${i}" class="${save.body === i ? "active" : ""}" aria-pressed="${save.body === i}">${label}</button>`).join("")}</div><label class="field-label">OUTFIT COLOUR</label><div class="swatches">${outfits.map((c, i) => `<button data-outfit="${i}" style="--swatch:${c}" class="${save.outfit === i ? "active" : ""}" aria-label="${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][i]} outfit" aria-pressed="${save.outfit === i}"></button>`).join("")}</div><p class="fine-print">Legendary outfits use their own signature colours.</p><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">EYE COLOUR</label><div class="swatches">${["#db779f", "#865035", "#328cca", "#469267", "#8763bd"].map((c, i) => `<button data-eye="${i}" style="--swatch:${c}" aria-label="${["Original", "Brown", "Blue", "Green", "Violet"][i]} eyes" aria-pressed="${(save.eye || 0) === i}"></button>`).join("")}</div><label class="field-label">DAILY HATS</label><div class="hat-options">${["No hat", "Bucket", "Cap", "Sprout"].map((n, i) => `<button data-hat="${i}" ${save.unlockedHats.includes(i) ? "" : "disabled"} aria-pressed="${save.hat === i}">${n}${save.unlockedHats.includes(i) ? "" : " · locked"}</button>`).join("")}</div></details>${setupGuide ? `<details class="setup-more" ${moreLooksOpen ? "open" : ""}><summary>More looks & hairstyles</summary>` : ""}<div class="look-tabs" aria-label="Wardrobe sections">${wardrobeSections.map((label) => `<button data-wardrobe-section="${label}" aria-pressed="${wardrobeSection === label}">${label}</button>`).join("")}<button data-open="support">Premium</button></div><div class="collection-tabs" aria-label="Filter looks">${wardrobeFilters.map((label) => `<button data-wardrobe-filter="${label}" aria-pressed="${wardrobeFilter === label}">${label}</button>`).join("")}</div>${wardrobeSection === "Hats" ? hatShelf(save) : ""}${wardrobeSection === "Capes & back" ? '<p class="fine-print">Capes include their matching outfit. Wings use the Magic slot.</p>' : ""}${wardrobeBrowser(wardrobeSection, wardrobeFilter, save, medals, tryingLook)}<p class="fine-print">Cosmetic only. No gameplay advantage. Earn sets through play or check optional purchase availability.</p>${setupGuide ? "</details>" : ""}${setupGuide ? actionButton("setup-save", currentProfile?.account ? "Save & continue →" : "Next: save my character →") : actionButton("done-look", "Done")}</div></div>`;
     const preview = body.querySelector<HTMLElement>(".character-preview")!;
     if (!is2d) {
       try {
@@ -1029,7 +1031,7 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
           (reward || !save.nameChosen || save.welcome !== "complete");
         body.innerHTML =
           id === "coast"
-            ? `<h2 class="result-score">${formatScore(id, score)}<small>YOUR THREE-LAP TIME</small></h2>${result?.race?.newBest ? '<p class="new-best">New personal best!</p>' : ""}${raceComparison(score, today, !!result?.ranked)}<div class="button-row"><button class="primary" data-action="setup-look">${setup ? "Create my name & look" : "Edit my name & look"}</button><button class="secondary" data-replay="coast">Race again</button></div><details class="race-extra-details"><summary>Race details & rewards</summary>${raceSummary}<p>${result ? `Verified round · +20 XP${reward ? " · Lilac cap unlocked · +35 bonus XP" : ""}` : "Offline · this round was not saved."}</p>${!currentProfile?.account ? '<button class="secondary" data-account>Save with email</button>' : ""}</details>`
+            ? `<h2 class="result-score">${formatScore(id, score)}<small>YOUR THREE-LAP TIME</small></h2>${result?.race?.newBest ? '<p class="new-best">New personal best!</p>' : ""}${raceComparison(score, today, !!result?.ranked)}<p class="fine-print">Every race has a 120-second limit, including Race again. Steering help stays on until your first finish.</p><div class="button-row"><button class="primary" data-replay="coast">Play again</button><button class="secondary" data-action="setup-look">${setup ? "Create my name & look" : "Edit my name & look"}</button></div><details class="race-extra-details"><summary>Race details & rewards</summary>${raceSummary}<p>${result ? `Verified round · +20 XP${reward ? " · Lilac cap unlocked · +35 bonus XP" : ""}` : "Offline · this round was not saved."}</p>${!currentProfile?.account ? '<button class="secondary" data-account>Save with email</button>' : ""}</details>`
             : '<div class="result-star">' +
               icon(target ? "trophy" : "game") +
               '</div><h2 class="result-score">' +
@@ -1062,7 +1064,9 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
                   id +
                   '">Play again</button>'
                 : reward
-                  ? '<button class="primary" data-action="welcome-wear">Wear my cap</button>'
+                  ? '<button class="primary" data-replay="' +
+                    id +
+                    '">Play again</button><button class="secondary" data-action="welcome-wear">Wear my cap</button>'
                   : '<button class="primary" data-replay="' +
                     id +
                     '">Play again</button>') +
@@ -1237,7 +1241,16 @@ document.addEventListener("click", (e) => {
     )
       return;
     wardrobeTab = b.dataset.lookTab as WardrobeTab;
-    wardrobeSection = wardrobeTab === "hair" ? "Hats" : wardrobeTab === "pet" ? "Pets" : wardrobeTab === "accessory" ? "Magic" : wardrobeTab === "sets" ? "Full sets" : "Outfits";
+    wardrobeSection =
+      wardrobeTab === "hair"
+        ? "Hats"
+        : wardrobeTab === "pet"
+          ? "Pets"
+          : wardrobeTab === "accessory"
+            ? "Magic"
+            : wardrobeTab === "sets"
+              ? "Full sets"
+              : "Outfits";
     open("wardrobe");
     return;
   }
@@ -1246,6 +1259,13 @@ document.addEventListener("click", (e) => {
     Object.hasOwn(collectionLabels, b.dataset.collection)
   ) {
     wardrobeCollection = b.dataset.collection as Collection;
+    open("wardrobe");
+    return;
+  }
+  if (b.dataset.eye !== undefined) {
+    save.eye = Number(b.dataset.eye);
+    persist();
+    world?.updateAvatar();
     open("wardrobe");
     return;
   }
@@ -1261,6 +1281,7 @@ document.addEventListener("click", (e) => {
       undoLook = {
         outfit: save.outfit,
         skin: save.skin,
+        eye: save.eye,
         body: save.body,
         hat: save.hat,
         clothing: save.clothing,
@@ -1434,6 +1455,7 @@ document.addEventListener("click", (e) => {
   for (const key of [
     "outfit",
     "skin",
+    "eye",
     "body",
     "hat",
     "clothing",
@@ -1791,6 +1813,7 @@ document.addEventListener("change", (e) => {
   for (const key of [
     "outfit",
     "skin",
+    "eye",
     "body",
     "hat",
     "clothing",
@@ -2170,7 +2193,9 @@ function enable2D() {
   renderCameraUI();
   renderWelcome();
 }
-bindJoystick(document.querySelector<HTMLElement>("#joystick")!, (x, y) => { if (world) world.joystick = { x, y }; });
+bindJoystick(document.querySelector<HTMLElement>("#joystick")!, (x, y) => {
+  if (world) world.joystick = { x, y };
+});
 function updateClock() {
   document.querySelector("#sgt-clock")!.textContent =
     new Intl.DateTimeFormat("en-SG", {
@@ -2479,7 +2504,7 @@ function renderSharedNeighbours() {
     return;
   const keepFocus = document.activeElement?.id === "neighbour-choice";
   neighbourRosterSignature = signature;
-  body.innerHTML = `<h2>Neighbours</h2>${serverNote()}<label class="field-label" for="neighbour-choice">Choose a neighbour</label><select class="destination-select" id="neighbour-choice">${players.length ? `<optgroup label="Players">${players.map((player) => `<option value="player:${player.id}">${escapeText(player.name)} · ${player.status}</option>`).join("")}</optgroup>` : ""}<optgroup label="Example neighbours">${residents.map((resident) => `<option value="resident:${resident.id}">${resident.name}</option>`).join("")}</optgroup></select><div class="simple-menu"><button class="menu-choice" data-action="visit-neighbour">Visit</button><button class="menu-choice" data-open="worlds">Worlds</button><button class="menu-choice" data-action="report-neighbour">Report or hide</button></div><details class="menu-details"><summary>Bring a friend</summary><button class="secondary" data-open="invite">Invite a friend</button></details>`;
+  body.innerHTML = `<h2>Neighbours</h2>${serverNote()}<label class="field-label" for="neighbour-choice">Choose a neighbour</label><select class="destination-select" id="neighbour-choice">${players.length ? `<optgroup label="Players">${players.map((player) => `<option value="player:${player.id}">${escapeText(player.name)} · ${player.status}</option>`).join("")}</optgroup>` : ""}</select><div class="simple-menu"><button class="menu-choice" data-action="visit-neighbour">View profile</button><button class="menu-choice" data-open="worlds">Worlds</button><button class="menu-choice" data-action="report-neighbour">Report or hide</button></div><details class="menu-details"><summary>Bring a friend</summary><button class="secondary" data-open="invite">Invite a friend</button></details>`;
   const picker = body.querySelector<HTMLSelectElement>("#neighbour-choice")!;
   if (
     selected &&
@@ -2640,15 +2665,25 @@ function renderSharedDares() {
   body.innerHTML = `${questTabs("dares")}${back}<h2>Friends & neighbours</h2>${serverNote()}${players.length ? `<label class="field-label" for="dare-choice">Choose a player</label><select class="destination-select" id="dare-choice">${players.map((p) => `<option value="${p.id}" ${p.id === selected?.id ? "selected" : ""}>${escapeText(p.name)} · ${p.status}</option>`).join("")}</select>` : "<p>Save a friend to find their scores here.</p>"}${selected ? challengeButtons(selected) : ""}${rule}`;
 }
 function renderPlayerInspector(id: string) {
-  const p = shared?.players.find((p) => p.id === id);
+  const p = [...(shared?.friends || []), ...(shared?.players || [])].find(
+    (p) => p.id === id,
+  );
   if (!p) return;
   const el = document.querySelector<HTMLElement>("#inspector")!;
   el.innerHTML = `<button class="close-button" data-action="close-inspector" aria-label="Stop inspecting neighbour">×</button><span class="eyebrow">${p.status.toUpperCase()} · SAVED NEIGHBOUR</span><h3>${escapeText(p.name)}</h3><p>${p.points} ranked medal points · ${p.wins} challenge wins<br>${activities[p.activity].icon} ${activities[p.activity].name}</p><div class="resident-outfit"><i style="background:${outfits[p.look.outfit]}"></i><span>${clothingNames[p.look.clothing || 0]} · ${petNames[p.look.pet || 0]} · ${accessoryNames[p.look.accessory || 0]}</span></div><strong>${shared?.challenged.includes(p.id) ? "Already challenged today" : shared?.competitionReady ? "Ready for a friendly challenge" : "Challenges are not open for you yet"}</strong>${challengeButtons(p)}<button class="secondary" data-join-friend="${p.id}">Join friend’s world</button><button class="secondary" data-report="${p.id}">Report or hide this player</button><p class="fine-print">${dareHoldCopy(!!shared?.competitionReady, currentProfile?.account) || "Starting uses one of your three daily challenges. Beat their saved score to win."} Drag to orbit; scroll or pinch to zoom.</p>`;
 }
 function showPlayer(id: string) {
-  if (!shared?.players.some((p) => p.id === id)) return;
+  if (
+    ![...(shared?.friends || []), ...(shared?.players || [])].some(
+      (p) => p.id === id,
+    )
+  )
+    return;
   if (is2d) {
-    const player = shared?.players.find((p) => p.id === id);
+    const player = [
+      ...(shared?.friends || []),
+      ...(shared?.players || []),
+    ].find((p) => p.id === id);
     if (!player) return;
     openShell("NEIGHBOUR");
     body.innerHTML = `<h2>${escapeText(player.name)}</h2><p>${activities[player.activity].name}</p><div class="simple-menu"><button class="secondary" data-open="dares">Challenges</button><button class="secondary" data-join-friend="${player.id}">Join their world</button><button class="secondary" data-report="${player.id}">Report or hide</button></div>`;
@@ -2687,7 +2722,7 @@ function applyWorldPlayers() {
       (p) =>
         !liveIds.has(p.id) &&
         !hiddenNeighbours.has(p.id) &&
-        p.status !== "online",
+        !!shared?.friends.some((friend) => friend.id === p.id),
     ),
   ];
   world?.syncPlayers(shared.players, shared.me, liveIds);
@@ -2703,6 +2738,7 @@ function renderWorldPresence() {
     currentProfile?.id,
     worldStatus,
     navigator.onLine,
+    world?.neighbours.length || residents.length,
   );
   if (label.textContent !== text) label.textContent = text;
 }
@@ -2838,3 +2874,24 @@ window.setInterval(() => {
   if (world && !world.paused && !modal.open && world.player?.moving)
     beep("step");
 }, 300);
+window.addEventListener("performance-mode", () => {
+  if (localStorage.getItem("playsimi-performance-explained")) return;
+  localStorage.setItem("playsimi-performance-explained", "1");
+  toast(
+    "Performance mode reduces shadows and resolution to keep movement smooth.",
+  );
+  const el = document.querySelector("#toast")!;
+  const b = document.createElement("button");
+  b.className = "secondary";
+  b.textContent = "Switch back";
+  b.onclick = () => {
+    world?.setQuality("quality");
+    localStorage.setItem("playsimi-quality", "quality");
+    el.classList.remove("show");
+  };
+  el.append(b);
+  clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => el.classList.remove("show"), 12000);
+});
+
+installControls();

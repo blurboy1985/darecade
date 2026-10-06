@@ -85,7 +85,7 @@ for (const width of [320, 390, 1440])
       const fit=()=>{const d=document.querySelector('#modal');check(document.documentElement.scrollWidth<=innerWidth+1,'page overflow');check(d.scrollWidth<=d.clientWidth+1,'dialog overflow');};
       try {
         await wait(()=>document.body.classList.contains('mode-2d')&&!document.querySelector('#loading'));
-        click('[data-open="phone-menu"]');click('[data-open="friends-menu"]');click('[data-open="competition-menu"]');click('[data-open="board"]');
+        click('[data-open="phone-menu"]');click('[data-open="quests"]');click('[data-open="board"]');
         await wait(()=>document.querySelector('#board-period')?.value==='season:opening');
         check(document.querySelector('#modal-body').textContent.includes('A fresh season'),'fresh state');
         check(document.querySelector('.standing-stats').textContent.includes('0Season XP'),'zero season XP');
@@ -99,12 +99,12 @@ for (const width of [320, 390, 1440])
         dispatchEvent(new Event('account-refresh'));
         await wait(()=>document.querySelector('#level-label').textContent==='LEVEL 4');
         await wait(()=>document.querySelector('.standing-stats')?.textContent.includes('60Season XP'));
-        click('#close-modal');click('[data-open="phone-menu"]');click('[data-open="my-stuff"]');click('[data-open="wardrobe"]');
+        click('#close-modal');click('[data-open="phone-menu"]');click('[data-open="wardrobe"]');
         check(document.querySelector('.style-wallet').textContent.includes('3 Style tokens'),'only lifetime tokens in wallet');fit();
         visible=false;profile.season=null;
         dispatchEvent(new CustomEvent('account-profile',{detail:profile}));
         dispatchEvent(new Event('account-refresh'));
-        click('#close-modal');click('[data-open="phone-menu"]');click('[data-open="friends-menu"]');click('[data-open="competition-menu"]');click('[data-open="board"]');
+        click('#close-modal');click('[data-open="phone-menu"]');click('[data-open="quests"]');click('[data-open="board"]');
         await wait(()=>!document.querySelector('#board-period option[value="season:opening"]'));
         check(document.querySelector('#board-period').value==='week','rollback restores weekly view');fit();
         visible=true;profile.season=season;
