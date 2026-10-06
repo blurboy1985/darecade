@@ -297,7 +297,6 @@ test("menu pages stay compact; quests also expose the three rooftop routes", () 
     "arcade",
     "map",
     "surroundings",
-    "emotes",
     "away",
     "shop",
     "quests",
@@ -637,4 +636,11 @@ test("slot filters retain new hair, free classes and premium full sets", () => {
   const premium = wardrobe.wardrobeBrowser("Full sets", "Premium", p, 0, null);
   assert.doesNotMatch(premium, /Lantern Mage/);
   assert.match(premium, /data-try-index="9"/);
+});
+
+test("More emotes shows all six choices immediately", () => {
+  const h = harness();
+  h.run('open("emotes")');
+  assert.equal([...h.body.innerHTML.matchAll(/data-emote=/g)].length, 6);
+  assert.doesNotMatch(h.body.innerHTML, /data-page=/);
 });

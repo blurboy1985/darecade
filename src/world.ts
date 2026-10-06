@@ -23,7 +23,13 @@ import { JumpInput, isJumpKey } from "./jump-input";
 import { rooftops } from "./rooftops.ts";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { blocked, route, visitsOnWalk, type Obstacle } from "./navigation";
+import {
+  blocked,
+  clearLanding,
+  route,
+  visitsOnWalk,
+  type Obstacle,
+} from "./navigation";
 import {
   outfits,
   skins,
@@ -661,12 +667,18 @@ export class LobbyWorld {
         )
         .reduce((y, r) => Math.max(y, r.y + 0.1), 0.1);
       if (this.elevation > surface || this.jumpVelocity > 0) {
+        const previousHeight = this.elevation;
         this.jumpVelocity -= dt * 15;
         this.elevation = Math.max(
           surface,
           this.elevation + this.jumpVelocity * dt,
         );
         if (this.elevation === surface) this.jumpVelocity = 0;
+        if (this.elevation < previousHeight) {
+          const landing = clearLanding(p.x, p.z, this.movementObstacles());
+          p.x = landing.x;
+          p.z = landing.z;
+        }
       }
       p.y = this.elevation;
     }
@@ -2029,17 +2041,18 @@ export class LobbyWorld {
         const ray = new T.Ray(focus, direction);
         for (const o of this.obstacles) {
           if (!o.cameraHeight) continue;
-          const hit = ray.intersectBox(
-            new T.Box3(
-              new T.Vector3(o.x - o.w / 2 - 0.15, 0, o.z - o.d / 2 - 0.15),
-              new T.Vector3(
-                o.x + o.w / 2 + 0.15,
-                o.cameraHeight,
-                o.z + o.d / 2 + 0.15,
-              ),
+          const bounds = new T.Box3(
+            new T.Vector3(o.x - o.w / 2 - 0.15, 0, o.z - o.d / 2 - 0.15),
+            new T.Vector3(
+              o.x + o.w / 2 + 0.15,
+              o.cameraHeight,
+              o.z + o.d / 2 + 0.15,
             ),
-            new T.Vector3(),
           );
+          // Activity rigs can sit inside a prop's coarse movement footprint.
+          // Its exit face is not an obstruction between the subject and camera.
+          if (bounds.containsPoint(focus)) continue;
+          const hit = ray.intersectBox(bounds, new T.Vector3());
           if (hit)
             distance = Math.min(
               distance,
@@ -2049,9 +2062,9 @@ export class LobbyWorld {
         return distance;
       };
       let distance = clearDistance(offset);
-      const framing = Math.min(this.followDistance, ratio > 1.4 ? 2.9 : 1.8);
+      const framing = Math.min(this.followDistance, ratio > 1.4 ? 3.6 : 3.2);
       if (distance < framing) {
-        outer: for (const pitch of [Math.max(this.pitch, 0.6), 0.9]) {
+        outer: for (const pitch of [Math.max(this.pitch, 0.6), 0.9, 1.3, 1.5]) {
           for (const turn of [0, 0.4, -0.4, 0.8, -0.8, 1.6, -1.6, Math.PI]) {
             const candidate = new T.Vector3(
               Math.sin(this.angle + turn) * Math.cos(pitch),
@@ -2067,7 +2080,9 @@ export class LobbyWorld {
           }
         }
       }
-      this.followCamera.position.copy(focus).addScaledVector(offset, distance);
+      this.followCamera.position
+        .copy(focus)
+        .addScaledVector(offset, Math.max(framing, distance));
       this.followCamera.position.y = Math.max(
         0.35,
         this.followCamera.position.y,
@@ -2126,7 +2141,7 @@ export class LobbyWorld {
     if (this.cameraMode === "third")
       this.followDistance = T.MathUtils.clamp(
         this.followDistance - delta * 4,
-        innerWidth > innerHeight ? 2.9 : 1.8,
+        innerWidth > innerHeight ? 3.6 : 3.2,
         16,
       );
     else this.zoom = T.MathUtils.clamp(this.zoom + delta, 0.7, 12);
@@ -2788,6 +2803,15 @@ export class LobbyWorld {
       this.accumulator = 0;
     }
   };
+  private movementObstacles() {
+    return this.obstacles.filter(
+      (o) =>
+        !rooftops.some(
+          (r) => this.elevation >= r.y && Math.hypot(o.x - r.x, o.z - r.z) < 5,
+        ) &&
+        (o.cameraHeight === 0 || this.elevation < o.cameraHeight),
+    );
+  }
   private move(dt: number) {
     const keys = this.movementInput.sample(this.keys, dt);
     const p = this.player.root.position;
@@ -2832,14 +2856,7 @@ export class LobbyWorld {
       const speed = Math.min(dt * (this.path.length ? 6.8 : 4.8), len);
       dx = (dx / len) * speed;
       dz = (dz / len) * speed;
-      const obstacles = this.obstacles.filter(
-        (o) =>
-          !rooftops.some(
-            (r) =>
-              this.elevation >= r.y && Math.hypot(o.x - r.x, o.z - r.z) < 5,
-          ) &&
-          (o.cameraHeight === 0 || this.elevation < o.cameraHeight),
-      );
+      const obstacles = this.movementObstacles();
       if (!blocked(p.x + dx, p.z, obstacles)) p.x += dx;
       if (!blocked(p.x, p.z + dz, obstacles)) p.z += dz;
       this.player.root.rotation.y = Math.atan2(dx, dz);

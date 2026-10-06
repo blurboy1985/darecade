@@ -413,9 +413,13 @@ dialog:has(.wardrobe-layout) {
 }
 .wardrobe-layout .wardrobe-controls {
   overflow-y: auto;
+  align-self: stretch;
   min-height: 0;
   padding-right: 8px;
   overscroll-behavior: contain;
+}
+.wardrobe-controls > * {
+  flex-shrink: 0;
 }
 .wardrobe-layout .avatar-preview {
   align-self: start;

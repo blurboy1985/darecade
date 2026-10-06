@@ -1,6 +1,35 @@
 export type Obstacle = { x: number; z: number; w: number; d: number };
 /** The walkable island. East Side extends it past the original east edge. */
 export const BOUNDS = { west: -19, east: 33, depth: 14 };
+/** Resolve a falling avatar against newly solid footprints, including overlaps. */
+export function clearLanding(x: number, z: number, obstacles: Obstacle[]) {
+  if (!blocked(x, z, obstacles)) return { x, z };
+  const xs = [
+    Math.max(BOUNDS.west, Math.min(BOUNDS.east, x)),
+    BOUNDS.west,
+    BOUNDS.east,
+  ];
+  const zs = [
+    Math.max(-BOUNDS.depth, Math.min(BOUNDS.depth, z)),
+    -BOUNDS.depth,
+    BOUNDS.depth,
+  ];
+  for (const o of obstacles) {
+    xs.push(o.x - o.w / 2 - 0.37, o.x + o.w / 2 + 0.37);
+    zs.push(o.z - o.d / 2 - 0.37, o.z + o.d / 2 + 0.37);
+  }
+  let nearest = { x, z },
+    distance = Infinity;
+  for (const cx of xs)
+    for (const cz of zs) {
+      const d = (cx - x) ** 2 + (cz - z) ** 2;
+      if (d < distance && !blocked(cx, cz, obstacles)) {
+        nearest = { x: cx, z: cz };
+        distance = d;
+      }
+    }
+  return nearest;
+}
 /** Swept circle against each prop's expanded footprint, also used by tap paths. */
 export function clearSegment(
   a: { x: number; z: number },

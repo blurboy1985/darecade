@@ -510,8 +510,7 @@ export function applyLook(
   if (starter?.prop === "staff") shown.delete("Skirt");
   if (cape && !special && !classFor(a.look.clothing!)) shown.add("Cape");
   if (below.shoes) shown.add("Shoes");
-  if (wear === "Hat_Wizard" && !look.hat && !classFor(a.look.clothing!))
-    shown.add(wear);
+  if (wear === "Hat_Wizard" && !look.hat) shown.add(wear);
   a.model.traverse((o) => {
     if (o instanceof T.Mesh) {
       o.visible = o.name === "Mitten" || shown.has(o.name);
@@ -531,6 +530,7 @@ export function applyLook(
     // The face texture is painted in the source skin tone; scale it to this one.
     face: new T.Color(tone.r / base.r, tone.g / base.g, tone.b / base.b),
     hair: new T.Color(hair.color),
+    hat: new T.Color(a.look.hair === 8 ? "#7392ac" : "#ffffff"),
     bottom: new T.Color(below.color),
     socks: new T.Color(below.socks),
     shoes: new T.Color(below.shoes ?? "#ffffff"),
@@ -624,10 +624,12 @@ export function applyLook(
     part(a.hat, "box", [0, 1.83, 0.05], [0.06, 0.3, 0.6], "#d9e4e9");
   }
   if (!look.hat && wear === "Hat_Bear") {
-    ball(a.hat, [0, 1.68, -0.02], [0.49, 0.27, 0.46], "#a8724f");
+    const fur = a.look.hair === 10 ? "#526a80" : "#a8724f";
+    const innerEar = a.look.hair === 10 ? "#b0c7db" : "#e9bc8f";
+    ball(a.hat, [0, 1.68, -0.02], [0.49, 0.27, 0.46], fur);
     for (const side of [-1, 1]) {
-      ball(a.hat, [side * 0.37, 1.94, -0.02], [0.15, 0.16, 0.1], "#a8724f");
-      ball(a.hat, [side * 0.37, 1.94, 0.055], [0.085, 0.1, 0.03], "#e9bc8f");
+      ball(a.hat, [side * 0.37, 1.94, -0.02], [0.15, 0.16, 0.1], fur);
+      ball(a.hat, [side * 0.37, 1.94, 0.055], [0.085, 0.1, 0.03], innerEar);
     }
   }
   buildHair(
@@ -647,7 +649,8 @@ export function applyLook(
     const group = new T.Group();
     build(group);
     const bounds = new T.Box3().setFromObject(group);
-    if (!bounds.isEmpty() && bounds.min.y > 1.7) group.position.y = 1.7 - bounds.min.y;
+    if (!bounds.isEmpty() && bounds.min.y > 1.7)
+      group.position.y = 1.7 - bounds.min.y;
     a.hat.add(group);
   };
   if (!look.hat && !wear && !gear && headSet < 0)
@@ -655,8 +658,10 @@ export function applyLook(
   if (hair.beard && !wear && !gear) buildBeard(a.hat, hair.color);
   if (hair.hood && !look.hat) buildHood(a.hat);
   // Wardrobe headgear sits under an earned hat's slot: the earned hat wins.
-  if (headSet >= 0 && !look.hat) seatHeadwear((group) => legendaryHead(group, headSet));
-  else if (gear && !look.hat) seatHeadwear((group) => buildHeadgear(group, gear));
+  if (headSet >= 0 && !look.hat)
+    seatHeadwear((group) => legendaryHead(group, headSet));
+  else if (gear && !look.hat)
+    seatHeadwear((group) => buildHeadgear(group, gear));
   if (previous.accessory !== a.look.accessory || !a.magic) {
     disposeMagic(a.magic);
     a.magic = buildMagic(a.extras, a.look.accessory!);

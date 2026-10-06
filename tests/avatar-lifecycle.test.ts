@@ -85,6 +85,20 @@ test("outfits never show the source bag across the chest", () => {
   }
 });
 
+test("selected wizard headwear stays visible with starter class outfits", () => {
+  const avatar = createAvatar(new T.Group(), 0, 0, outfits[0]);
+  try {
+    for (const clothing of [1, 3, 5, 6, 7]) {
+      applyLook(avatar, { outfit: 0, skin: 0, hat: 0, hair: 5, clothing });
+      assert.equal(avatar.model.getObjectByName("Hat_Wizard")?.visible, true);
+      applyLook(avatar, { outfit: 0, skin: 0, hat: 1, hair: 5, clothing });
+      assert.equal(avatar.model.getObjectByName("Hat_Wizard")?.visible, false);
+    }
+  } finally {
+    disposeAvatar(avatar);
+  }
+});
+
 test("avatar teardown disposes private materials, skeleton textures and magic once", () => {
   const scene = new T.Group();
   const remote = createAvatar(scene, 0, 0, outfits[0]);

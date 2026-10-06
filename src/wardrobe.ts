@@ -95,13 +95,13 @@ export function wardrobeBrowser(
         if (
           section === "Hair" &&
           index < HAIR_START &&
-          !/cut|bob|buns|beard|flowing hair|ponytail/i.test(name)
+          !/cut|bob|buns|beard|flowing hair|ponytail|twin tails/i.test(name)
         )
           return false;
         if (
           section === "Hats" &&
           (index >= HAIR_START ||
-            /cut|bob|buns|beard|flowing hair|ponytail/i.test(name))
+            /cut|bob|buns|beard|flowing hair|ponytail|twin tails/i.test(name))
         )
           return false;
         if (
@@ -146,9 +146,7 @@ export function thumbnailLook(slot: WardrobeTab, index: number): Look {
     pet: 0,
     accessory: 0,
   };
-  return slot === "sets"
-    ? { ...base, ...setLook(index) }
-    : { ...base, [slot]: index };
+  return itemLook(slot, index, base);
 }
 export function itemName(slot: WardrobeTab, index: number) {
   if (slot === "sets" && index < 0) return starterClasses[-index - 1]?.name;
@@ -169,7 +167,7 @@ export function itemLook(slot: WardrobeTab, index: number, worn: Look): Look {
               hat: 0,
               baseHair:
                 index >= HAIR_START ||
-                /cut|bob|buns|beard|flowing hair|ponytail/i.test(
+                /cut|bob|buns|beard|flowing hair|ponytail|twin tails/i.test(
                   hairNames[index],
                 )
                   ? index
@@ -205,7 +203,9 @@ export function wardrobeCards(
             name: s.name,
             index: -index - 1,
           })),
-          ...legendarySets.map((s, index) => ({ name: s.name, index })),
+          ...legendarySets.flatMap((s, index) =>
+            index === 9 ? [] : [{ name: s.name, index }],
+          ),
         ]
       : names[tab]
           .map((name, index) => ({ name, index }))

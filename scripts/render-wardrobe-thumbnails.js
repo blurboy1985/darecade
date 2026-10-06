@@ -19,10 +19,17 @@
       sets: legendarySets.length,
     })) {
       for (let i = 0; i < count; i++) {
-        images[`${slot}-${i}`] = preview.thumbnail(
+        const url = await preview.thumbnail(
           thumbnailLook(slot, i),
           slot === "sets" ? "set" : slot,
         );
+        const blob = await fetch(url).then((r) => r.blob());
+        images[`${slot}-${i}`] = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.readAsDataURL(blob);
+        });
+        URL.revokeObjectURL(url);
         await new Promise(requestAnimationFrame);
       }
     }

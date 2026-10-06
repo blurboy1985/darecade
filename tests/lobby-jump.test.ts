@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
+import { clearLanding } from "../src/navigation.ts";
 import { JumpInput } from "../src/jump-input.ts";
 import { Group } from "three";
 
@@ -22,13 +23,15 @@ const world = tree.statements.find(
   (node) => ts.isClassDeclaration(node) && node.name?.text === "LobbyWorld",
 );
 assert.ok(world && ts.isClassDeclaration(world));
-const methods = ["act", "animatePlayer", "jumpStep"].map((name) => {
-  const method = world.members.find(
-    (member) => member.name?.getText(tree) === name,
-  );
-  assert.ok(method, `Missing ${name}`);
-  return method.getText(tree);
-});
+const methods = ["act", "animatePlayer", "jumpStep", "movementObstacles"].map(
+  (name) => {
+    const method = world.members.find(
+      (member) => member.name?.getText(tree) === name,
+    );
+    assert.ok(method, `Missing ${name}`);
+    return method.getText(tree);
+  },
+);
 const compiled = ts.transpileModule(
   `class JumpHarness { ${methods.join("\n")} }`,
   {
@@ -40,7 +43,7 @@ function run(scenario: string) {
   vm.runInNewContext(
     `${compiled}
     const world = new JumpHarness();
-    Object.assign(world, {jumpInput: new JumpInput(), jumpSparkles: [], burstStars() {}, clock: 10, emote: '', emoteAt: 0, paused: false,
+    Object.assign(world, {jumpInput: new JumpInput(), obstacles: [], jumpSparkles: [], burstStars() {}, clock: 10, emote: '', emoteAt: 0, paused: false,
       save: {away: false}, elevation: 0.1, jumpVelocity: 0, padFlight: null, roofStars: [], inspectedId: '', interactionId: '',
       player: {root: new Group(), left: new Group(), right: new Group()}});
     ${scenario}`,
@@ -48,6 +51,7 @@ function run(scenario: string) {
       assert,
       Group,
       JumpInput,
+      clearLanding,
       rooftops: [],
       window: { dispatchEvent() {} },
       CustomEvent: class {},

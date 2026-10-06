@@ -9,7 +9,7 @@ export function mobileLobbyFixture(
   height: number,
   account = false,
   twoD = false,
-  automated = true,
+  automated: boolean | "wardrobe" = true,
 ) {
   const root = resolve("dist");
   const profile = {
@@ -53,6 +53,7 @@ export function mobileLobbyFixture(
     const path = url.pathname.slice(5);
     let result = {};
     if (path === 'auth/config') result = { now: Date.now(), privacyVersion: 'fixture', mailMode: 'outbox', origin: location.origin, storageNotice: 'Synthetic local fixture' };
+    else if (path === 'auth/session') result = new URLSearchParams(location.search).get('review')==='age' ? null : profile;
     else if (path === 'profile') { Object.assign(profile.progress, JSON.parse(init.body)); result = profile; }
     else if (path === 'auth/me') {if(new URLSearchParams(location.search).get('review')==='age') return new Response('{}',{status:401});result = profile;}
     else if (path === 'state') result = { profile, competitionReady: false, me: profile.id, self: {id: profile.id, name: profile.name, look: {}, activity: 'lobby', status: 'online', best: profile.progress.best, points: ${account ? 12 : 0}}, day:'2026-10-05', nextReset:Date.now()+86400000, week:'', weekly:[], lastWeek:[], dares:[], recentRuns:[], players:safetyReview&&!blocked.length?[neighbour]:[], friends:[], muted, challenged:[], boards:{noodle:[],hop:[],brick:[],swarm:[],coast:[]}, history:[] };
@@ -85,6 +86,28 @@ export function mobileLobbyFixture(
     const hit = el => { const r=el.getBoundingClientRect(); return el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)); };
     try {
       await wait(()=>!find('#loading') && find('#player-name')?.textContent===profile.name);
+      if (${automated === "wardrobe"}) {
+      find('#quick-emotes [data-open="emotes"]').click();
+      check(document.querySelectorAll('#modal-body [data-emote]').length===6, 'More shows all six emotes without Next');
+      check(!find('#modal-body [data-page="emotes"]'), 'emotes have no second page');
+      find('#close-modal').click();
+      find('.lobby-dock [data-open="wardrobe"]').click();
+      await wait(()=>find('.wardrobe-controls'));
+      for(const section of ['Outfits','Hair','Hats','Full sets']) {
+        find('[data-wardrobe-section="'+section+'"]').click();
+        const panel=find('.wardrobe-controls');
+        check(panel.scrollHeight>panel.clientHeight, section+' has a bounded scrolling list');
+        panel.scrollTop=panel.scrollHeight;
+        check(panel.scrollTop>0, section+' scrolls to bottom');
+        const done=find('[data-action="done-look"]');
+        done.scrollIntoView({block:'nearest'});
+        check(visible(done)&&hit(done), section+' Done is reachable at bottom');
+        panel.scrollTop=0;
+      }
+      find('#close-modal').click();
+        parent.postMessage({result:'pass',report:{width:${width},height:${height},account:${account},twoD:${twoD},checks}},location.origin);
+        return;
+      }
       check(innerWidth===${width} && innerHeight===${height}, 'exact test viewport');
       check(document.documentElement.scrollWidth<=innerWidth, 'no horizontal overflow');
       for(const id of ['level-label']) check(visible(find('#'+id)),id+' visible upfront');
@@ -109,14 +132,15 @@ export function mobileLobbyFixture(
       `
       }
       dismiss.click();
-      if (!${twoD} && ${width} <= 900) {
+      const touchControls = !matchMedia('(hover: hover) and (pointer: fine)').matches;
+      if (!${twoD} && ${width} <= 900 && touchControls) {
         const stick=find('#joystick');
         check(visible(stick) && hit(stick), 'world joystick is visible and unobstructed');
         check(getComputedStyle(stick).touchAction==='none', 'world joystick keeps native touch capture');
       }
       const jump=find('#lobby-jump');
       check(!!jump, 'jump control exists');
-      if (!${twoD}) {
+      if (!${twoD} && touchControls) {
         check(visible(jump) && hit(jump), 'Jump touch target unobstructed');
         check(jump.getBoundingClientRect().width>=44 && jump.getBoundingClientRect().height>=44, 'Jump touch target at least 44px');
         const canvas=find('#world canvas');

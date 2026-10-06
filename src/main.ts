@@ -144,7 +144,6 @@ let wardrobeCollection: Collection = "starter";
 let tryingLook: TryOn = null;
 let gamePage = 0;
 let outdoorPage = 0;
-let emotePage = 0;
 let emote2d = { id: "", until: 0 };
 let questPage = 0;
 // True while a new player is led from their first result through naming and
@@ -879,23 +878,20 @@ function open(id: string) {
     socialPanel = "board";
     renderSharedBoard();
   } else if (id === "emotes") {
-    const choices = pageChoices(
-      [
-        ["wave", "👋", "Hello, neighbour"],
-        ["cheer", "🙌", "Big cheer"],
-        ["dance", "🪩", "Tiny dance party"],
-        ["jump", "⚡", "Jump for joy"],
-        ["victory", "✌", "Nailed it"],
-        ["think", "💭", "Deep thoughts"],
-      ],
-      emotePage,
-    );
-    body.innerHTML = `<h2>Emotes</h2><p class="fine-print">Say hello in your world. No email needed.</p><div class="emote-grid">${choices.items
+    const choices = [
+      ["wave", "👋", "Hello, neighbour"],
+      ["cheer", "🙌", "Big cheer"],
+      ["dance", "🪩", "Tiny dance party"],
+      ["jump", "⚡", "Jump for joy"],
+      ["victory", "✌", "Nailed it"],
+      ["think", "💭", "Deep thoughts"],
+    ];
+    body.innerHTML = `<h2>Emotes</h2><p class="fine-print">Say hello in your world. No email needed.</p><div class="emote-grid">${choices
       .map(
         ([id, e, n]) =>
           `<button data-emote="${id}"><span>${e}</span><strong>${n}</strong></button>`,
       )
-      .join("")}</div>${pager(choices.page, choices.total, "emotes")}`;
+      .join("")}</div>`;
   } else if (id === "neighbours") {
     socialPanel = "neighbours";
     renderSharedNeighbours();
@@ -1467,10 +1463,6 @@ document.addEventListener("click", (e) => {
     if (b.dataset.page === "quests") {
       questPage = page;
       open("quests");
-    }
-    if (b.dataset.page === "emotes") {
-      emotePage = page;
-      open("emotes");
     }
     return;
   }
