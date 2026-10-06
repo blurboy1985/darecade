@@ -788,3 +788,8 @@ test("one GO tap with edge help can finish the first race in the top four", () =
   assert.ok(sim.race!.result().finished);
   assert.ok(sim.race!.place <= 4);
 });
+
+test("finish records retain minutes beyond the standard two-minute limit", () => {
+  assert.equal(raceTime(7671), "2:07.85");
+  assert.equal(raceTime(10800), "3:00.00");
+});

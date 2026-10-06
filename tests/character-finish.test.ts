@@ -36,7 +36,7 @@ test("eight hair silhouettes have distinct geometry and stay in the head envelop
   assert.equal(hairStyles.length, 8);
   assert.equal(shapes.size, 8);
   assert.deepEqual(
-    new Set(["dance", "cheer", "wave", "think"].map(expressionFor)),
+    new Set(["dance", "jump", "victory", "think"].map(expressionFor)),
     new Set(["happy", "surprised", "wink", "sleepy"]),
   );
 });
@@ -98,4 +98,12 @@ test("try-ons preserve player identity and never mutate saved progression", () =
       assert.deepEqual(loaded[key], old[key], `${legendarySets[i].id}: ${key}`);
   }
   assert.equal(JSON.stringify(save), before);
+});
+
+test("class capes flare from a narrow shoulder and have curved depth", () => {
+ const body=new T.Group();buildClassBody(body,1,false);
+ const cloth=body.getObjectByName("CurvedCape");assert.ok(cloth instanceof T.Mesh);
+ const p=cloth.geometry.getAttribute("position");let top=0,bottom=0;const depths=new Set();
+ for(let i=0;i<p.count;i++){if(p.getY(i)>-0.01)top=Math.max(top,Math.abs(p.getX(i)));if(p.getY(i)<-0.8)bottom=Math.max(bottom,Math.abs(p.getX(i)));depths.add(p.getZ(i).toFixed(3));}
+ assert.ok(bottom>top*2);assert.ok(depths.size>10);
 });

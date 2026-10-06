@@ -1,3 +1,5 @@
+import { identitySeed } from "./character-identity.ts";
+import { HAIR_START } from "./hair-catalog.ts";
 import {
   buildClassBody,
   buildClassHead,
@@ -6,6 +8,7 @@ import {
 } from "./class-costumes.ts";
 import {
   addWink,
+  blinkAmount,
   buildHair,
   buildMouth,
   expressionFor,
@@ -438,8 +441,8 @@ export function applyLook(
     if (material) {
       const tint = (material.userData.irisTint ??= new T.Color());
       tint.set(
-        ["#916136", "#3694cc", "#3a9c79", "#9666cf"][
-          (look.skin + (look.hair ?? 0)) % 4
+        ["#ce558e", "#805135", "#3a9c79", "#3694cc", "#cf922c"][
+          (look.skin + (look.hair ?? 0)) % 5
         ],
       );
     }
@@ -456,7 +459,9 @@ export function applyLook(
     ? legendaryBodies[outfitSet]
     : bodySets[a.look.clothing! % bodySets.length];
   const [hairName, wear, gear] =
-    laterHeads[extraIndexFor("hair", a.look.hair!)] ??
+    (a.look.hair! >= HAIR_START
+      ? (["slate", null, null] as const)
+      : laterHeads[extraIndexFor("hair", a.look.hair!)]) ??
     (headSet < 0
       ? headSets[a.look.hair! % headSets.length]
       : [setHair[headSet % setHair.length], null, null]);
@@ -636,18 +641,31 @@ export function animateDetails(
     reduced,
     time - a.root.userData.equippedAt,
   );
-  const blinkPhase =
-    (t + (a.look.hair ?? 0) * 0.37) % (3.4 + (a.look.skin % 4) * 0.6);
+  const blinkSeed = a.root.userData.id
+    ? identitySeed(String(a.root.userData.id))
+    : (a.look.hair ?? 0) * 37 + a.look.skin * 103;
   const expression = expressionFor(mode);
   const mouth = a.hat.getObjectByName("Mouth");
   if (mouth)
     mouth.scale.set(
-      expression === "surprised" ? 0.022 : expression === "wink" ? 0.02 : 0.027,
-      expression === "surprised"
-        ? 0.028
-        : expression === "sleepy"
-          ? 0.004
-          : 0.009,
+      mode === "cheer"
+        ? 0.06
+        : mode === "wave" || mode === "dance"
+          ? 0.045
+          : expression === "surprised"
+            ? 0.022
+            : expression === "wink"
+              ? 0.02
+              : 0.027,
+      mode === "cheer"
+        ? 0.042
+        : mode === "dance"
+          ? 0.025
+          : expression === "surprised"
+            ? 0.028
+            : expression === "sleepy"
+              ? 0.004
+              : 0.009,
       0.003,
     );
   const hairVolume = a.hat.getObjectByName("VolumetricHair");
@@ -656,20 +674,23 @@ export function animateDetails(
       Math.sin(t * (a.moving ? 10 : 1.8)) * (a.moving ? 0.045 : 0.012);
     hairVolume.position.y = 1.46 + Math.sin(t * 3) * 0.008;
   }
-  const blink =
-    !reduced && blinkPhase < 0.28
-      ? Math.sin((Math.PI * blinkPhase) / 0.28) ** 2
-      : 0;
+  const blink = reduced ? 0 : blinkAmount(t, blinkSeed);
+  const happyEyes = ["cheer", "dance"].includes(mode);
   for (const mesh of a.expressions) {
     const dictionary = mesh.morphTargetDictionary!;
     const influences = mesh.morphTargetInfluences!;
     if (dictionary.Blink !== undefined)
-      influences[dictionary.Blink] =
-        expression === "sleepy" ? Math.max(0.55, blink) : blink;
+      influences[dictionary.Blink] = happyEyes
+        ? 1
+        : expression === "sleepy"
+          ? Math.max(0.55, blink)
+          : blink;
     if (dictionary.Wink !== undefined)
       influences[dictionary.Wink] = expression === "wink" ? 0.95 : 0;
     if (dictionary.Smile !== undefined)
-      influences[dictionary.Smile] = ["wave", "dance", "pet"].includes(mode)
+      influences[dictionary.Smile] = ["wave", "cheer", "dance", "pet"].includes(
+        mode,
+      )
         ? 0.35
         : 0;
   }
@@ -718,7 +739,9 @@ export function animateDetails(
   );
   a.head.rotation.set(
     0,
-    !performing && !a.moving ? Math.sin(t * 0.8) * 0.09 : 0,
+    !performing && !a.moving
+      ? Math.sin(t * 0.8) * 0.2 * Math.max(0, Math.sin(t * 0.35))
+      : 0,
     mode === "think" ? 0.09 : 0,
   );
   a.spine.rotation.z = !performing
@@ -747,7 +770,7 @@ export function animateDetails(
     a.elbows.forEach((e) => e.rotation.set(-0.35, 0, 0));
     a.spine.rotation.set(0.05, 0, 0);
   }
-  poseSkin(a, mode);
+  poseSkin(a, mode, t, reduced);
   if (!reduced && !performing) {
     const lift = a.moving
       ? Math.abs(Math.sin(t * 10)) * 0.025
@@ -774,7 +797,9 @@ const axisZ = new T.Vector3(0, 0, 1);
 const rootQ = new T.Quaternion(),
   parentQ = new T.Quaternion(),
   targetQ = new T.Quaternion();
-function poseSkin(a: Avatar, mode: string) {
+function poseSkin(a: Avatar, mode: string, time = 0, reduced = false) {
+  const breathing =
+    !reduced && !a.moving && mode === "idle" ? Math.sin(time * 1.8) : 0;
   const pitch = -(a.legs[0].rotation.x + a.legs[1].rotation.x) / 2;
   const seated = ["rest", "bench", "swing", "dragon", "drive"].includes(mode)
     ? T.MathUtils.clamp(pitch / 1.35, 0, 1)
@@ -799,8 +824,8 @@ function poseSkin(a: Avatar, mode: string) {
   // legged rig (thigh at 0.73 m). KayKit hips sit at 0.45 m, so lift the body
   // as the thighs come forward to keep seats, swings and the slide aligned.
   a.model.position.set(
-    0,
-    0.28 * seated + bellHop + stepLift,
+    breathing * 0.012,
+    0.28 * seated + bellHop + stepLift + breathing * 0.018,
     -0.22 * seated +
       (mode === "bell"
         ? 0.28
@@ -1025,12 +1050,20 @@ export function createCharacterPreview(
     look,
   );
   a.root.rotation.y = 0.2;
+  let turnTarget: number | null = null;
   let frame = 0,
     last = 0;
   const loop = (t: number) => {
     frame = requestAnimationFrame(loop);
     if (!host.isConnected || t - last < 33) return;
     last = t;
+    if (turnTarget !== null) {
+      a.root.rotation.y += (turnTarget - a.root.rotation.y) * 0.28;
+      if (Math.abs(a.root.rotation.y - turnTarget) < 0.01) {
+        a.root.rotation.y = turnTarget;
+        turnTarget = null;
+      }
+    }
     animateDetails(a, t / 1000, "idle", look.reduced);
     if (a.pet) a.pet.root.rotation.y = a.root.rotation.y - 0.18;
     renderer.render(scene, camera);
@@ -1039,6 +1072,7 @@ export function createCharacterPreview(
   let start = 0;
   renderer.domElement.style.touchAction = "pan-y";
   renderer.domElement.onpointerdown = (e) => {
+    turnTarget = null;
     start = e.clientX;
     renderer.domElement.setPointerCapture(e.pointerId);
   };
@@ -1049,7 +1083,7 @@ export function createCharacterPreview(
     }
   };
   return {
-    thumbnail(itemLook: Look, slot = "set") {
+    async thumbnail(itemLook: Look, slot = "set") {
       const oldSize = renderer.getSize(new T.Vector2());
       const oldRatio = renderer.getPixelRatio();
       const oldPosition = camera.position.clone();
@@ -1078,7 +1112,12 @@ export function createCharacterPreview(
       a.root.visible = true;
       animateDetails(a, 1.4, "idle", true);
       renderer.render(scene, camera);
-      const image = renderer.domElement.toDataURL("image/png");
+      const image = await new Promise<string>((resolve, reject) =>
+        renderer.domElement.toBlob((blob) => {
+          if (blob) resolve(URL.createObjectURL(blob));
+          else reject(new Error("Portrait capture unavailable"));
+        }, "image/png"),
+      );
       a.root.visible = true;
       applyLook(a, look);
       a.root.rotation.y = oldTurn;
@@ -1097,6 +1136,8 @@ export function createCharacterPreview(
       look = nextLook;
       host.append(renderer.domElement);
       applyLook(a, look);
+      a.root.rotation.y = Math.PI / 2;
+      turnTarget = 0;
       camera.position.x = look.pet ? 0.3 : 0;
       observer.observe(host);
     },

@@ -33,6 +33,7 @@ export class WorldConnection {
   private connection = crypto.randomUUID();
   private generation = 0;
   private lastReceived = 0;
+  private lastSent = 0;
   constructor(
     private position: () => Movement,
     private update: (players: SharedPlayer[]) => void,
@@ -191,9 +192,10 @@ export class WorldConnection {
   private send() {
     if (this.socket?.readyState !== WebSocket.OPEN) return;
     const message = JSON.stringify(this.position());
-    if (message !== this.previous) {
+    if (message !== this.previous || Date.now() - this.lastSent >= 4000) {
       this.socket.send(message);
       this.previous = message;
+      this.lastSent = Date.now();
     }
   }
   private async poll(generation = this.generation) {

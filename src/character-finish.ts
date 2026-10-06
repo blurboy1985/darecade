@@ -1,6 +1,7 @@
+import { hairVisual } from "./hair-catalog.ts";
 import { mergeCosmeticParts } from "./cosmetic-meshes.ts";
 import * as T from "three";
-import { part, node } from "./shapes.ts";
+import { part, node, material } from "./shapes.ts";
 
 export const hairStyles = [
   "spiky",
@@ -30,25 +31,33 @@ export function buildHair(parent: T.Object3D, index: number) {
     parent.add(hair);
     return hair;
   }
-  const styleIndex =
-    index === 38 ? 2 : index === 41 ? 5 : index === 44 ? 7 : index % 8;
-  const style = hairStyles[styleIndex];
-  const color =
-    index === 38
-      ? "#f33c98"
-      : index === 41
-        ? "#f5bc28"
-        : hairPalette[styleIndex];
+  const visual = hairVisual(index);
+  const style = hairStyles[visual.shape];
+  const color = visual.color;
   const hair = node(parent, [0, 1.46, -0.07], "VolumetricHair");
   hair.userData.secondaryMotion = true;
   // Back volume stops above the nape; the face remains completely exposed.
   part(hair, "ball", [0, 0.12, -0.1], [0.44, 0.39, 0.33], color);
+  // Rear clumps break the smooth sphere silhouette from the gameplay camera.
+  for (let i = -2; i <= 2; i++) {
+    part(
+      hair,
+      "ball",
+      [i * 0.15, -0.02, -0.34],
+      [0.115, 0.28 + (2 - Math.abs(i)) * 0.035, 0.12],
+      color,
+      { rot: [-0.18, 0, -i * 0.11] },
+    );
+    part(hair, "cone", [i * 0.14, -0.29, -0.29], [0.1, 0.19, 0.1], color, {
+      rot: [Math.PI, 0, i * 0.12],
+    });
+  }
   for (let i = -2; i <= 2; i++) {
     const strand = part(
       hair,
       "ball",
       [i * 0.145, 0.22 - Math.abs(i) * 0.025, 0.275],
-      [0.125, 0.24, 0.11],
+      [0.125, style === "spiky" ? 0.14 : style === "messy" ? 0.18 : 0.24, 0.11],
       color,
     );
     strand.rotation.z = i * -0.15 + 0.12;
@@ -101,8 +110,8 @@ export function buildHair(parent: T.Object3D, index: number) {
       part(
         hair,
         "cone",
-        [i * 0.14, 0.43 - Math.abs(i) * 0.04, 0.02],
-        [0.115, style === "messy" ? 0.2 + (i % 2) * 0.06 : 0.32, 0.12],
+        [i * 0.14, 0.51 - Math.abs(i) * 0.04, 0.02],
+        [0.115, style === "messy" ? 0.36 + (i % 2) * 0.1 : 0.52, 0.12],
         color,
         { rot: [0.1, 0, -i * (style === "messy" ? 0.45 : 0.27)] },
       );
@@ -175,24 +184,38 @@ export function rimMaterial(material: T.MeshStandardMaterial) {
 }
 export type Expression = "happy" | "surprised" | "wink" | "sleepy";
 export function expressionFor(mode: string): Expression {
-  return ["jump", "cheer"].includes(mode)
+  return mode === "jump"
     ? "surprised"
-    : mode === "wave"
+    : mode === "victory"
       ? "wink"
       : ["rest", "bench", "think"].includes(mode)
         ? "sleepy"
         : "happy";
 }
+export function blinkAmount(time: number, seed: number) {
+  const period = 3 + (seed % 2000) / 1000;
+  const phase = (time + ((seed >>> 3) % 3000) / 1000) % period;
+  return phase < 0.04
+    ? phase / 0.04
+    : phase < 0.16
+      ? 1
+      : phase < 0.2
+        ? (0.2 - phase) / 0.04
+        : 0;
+}
+const smileShape = new T.Shape();
+smileShape.moveTo(-1, 0.35);
+smileShape.quadraticCurveTo(0, 0.05, 1, 0.35);
+smileShape.quadraticCurveTo(0.85, -1, 0, -1);
+smileShape.quadraticCurveTo(-0.85, -1, -1, 0.35);
+const smileGeometry = new T.ShapeGeometry(smileShape, 12);
 export function buildMouth(parent: T.Object3D, _skin: string) {
-  const face = node(parent, [0, 1.115, 0.25], "ExpressionMouth");
+  const face = node(parent, [0, 1.2, 0.285], "ExpressionMouth");
 
-  const mouth = part(
-    face,
-    "ball",
-    [0, 0, 0.027],
-    [0.027, 0.009, 0.003],
-    "#713b54",
-  );
+  const mouth = new T.Mesh(smileGeometry, material("#713b54"));
+  mouth.position.z = 0.027;
+  mouth.scale.set(0.027, 0.009, 0.003);
+  face.add(mouth);
   mouth.name = "Mouth";
   for (const side of [-1, 1])
     part(

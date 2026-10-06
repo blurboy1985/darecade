@@ -405,3 +405,22 @@ dialog:has(.wardrobe-layout) {
 .try-actions {
   flex-shrink: 0;
 }
+
+/* The preview controls stay outside the independently scrolling catalogue. */
+.wardrobe-layout .avatar-preview {
+  max-height: none;
+}
+.wardrobe-layout .try-actions {
+  min-height: 104px;
+  overflow: visible;
+}
+@media (min-width: 601px) {
+  .wardrobe-layout .character-preview {
+    height: clamp(180px, 42dvh, 330px);
+  }
+}
+@media (max-width: 600px) {
+  .wardrobe-layout .try-actions {
+    min-height: 94px;
+  }
+}

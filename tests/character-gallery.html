@@ -1,0 +1,85 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Play Simi character review</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #f6f2e6;
+        color: #35463d;
+        font: 16px system-ui;
+      }
+      header {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        padding: 20px 28px;
+        background: #faf8efee;
+        z-index: 2;
+      }
+      h1 {
+        font-size: 24px;
+        margin: 0 0 5px;
+      }
+      p {
+        margin: 4px 0;
+      }
+      button {
+        padding: 10px 20px;
+        margin: 8px 6px 0 0;
+        border: 2px solid #35463d;
+        border-radius: 12px;
+        background: #deedbb;
+        color: #35463d;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      #view {
+        width: 100vw;
+        height: 100vh;
+      }
+      #legend {
+        position: absolute;
+        bottom: 12px;
+        left: 2%;
+        right: 2%;
+        display: grid;
+        grid-template-columns: repeat(10, 1fr);
+        gap: 8px;
+        font-size: 12px;
+      }
+      #legend div {
+        padding: 8px;
+        background: #fffdf3e8;
+        border-radius: 12px;
+      }
+      #evidence {
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Play Simi · character review</h1>
+      <p>
+        Ten seeded identities · production character renderer · no account
+        changes
+      </p>
+      <button id="classes">Class sets</button><button id="front">Front</button
+      ><button id="back">Back</button><button id="cheer">Big cheer</button
+      ><button id="wave">Hello</button
+      ><button id="dance">Tiny dance party</button
+      ><button id="idle">Idle</button
+      ><button id="freeze-blink">Freeze next natural blink</button>
+      <p id="evidence">Loading shared character asset…</p>
+    </header>
+    <div id="view"></div>
+    <div id="legend"></div>
+    <script type="module" src="/tests/character-gallery.ts"></script>
+  </body>
+</html>

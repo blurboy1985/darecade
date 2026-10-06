@@ -342,10 +342,10 @@ test("emotes change the real mouth and one-eye wink without changing the saved l
   const avatar = createAvatar(new T.Group(), 0, 0, outfits[0]);
   const before = { ...avatar.look };
   const mouths = new Set<string>();
-  for (const mode of ["dance", "cheer", "wave", "think"]) {
+  for (const mode of ["dance", "cheer", "victory", "think"]) {
     animateDetails(avatar, 1.2, mode);
     mouths.add(avatar.hat.getObjectByName("Mouth")!.scale.toArray().join(","));
-    if (mode === "wave")
+    if (mode === "victory")
       for (const mesh of avatar.expressions)
         assert.equal(
           mesh.morphTargetInfluences![mesh.morphTargetDictionary!.Wink],
@@ -370,5 +370,27 @@ test("cheer wrists stay outside the large head so both hands are visible", () =>
     assert.ok(Math.abs(wrist.x) > 0.43);
     assert.ok(wrist.y > 1.2);
   }
+  disposeAvatar(a);
+});
+
+test("happy emotes close the eyes, restore idle and breathe without changing saves", () => {
+  const a = createAvatar(new T.Group(), 0, 0, outfits[0]);
+  for (const mode of ["cheer", "dance"]) {
+    animateDetails(a, 1, mode);
+    assert.ok(
+      a.expressions.every(
+        (m) => m.morphTargetInfluences![m.morphTargetDictionary!.Blink] === 1,
+      ),
+    );
+  }
+  animateDetails(a, 1, "idle");
+  const y = a.model.position.y;
+  assert.ok(
+    a.expressions.every(
+      (m) => m.morphTargetInfluences![m.morphTargetDictionary!.Blink] === 0,
+    ),
+  );
+  animateDetails(a, 2, "idle");
+  assert.ok(Math.abs(a.model.position.y - y) > 0.015);
   disposeAvatar(a);
 });

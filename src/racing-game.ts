@@ -1,3 +1,4 @@
+import { MovementInput } from "./movement-input";
 import {
   Simulation,
   rulesVersion,
@@ -53,10 +54,12 @@ export class RacingGame {
   private readonly motion = new RaceMotion();
   private readonly events: Replay["events"] = [];
   private readonly keys = new Set<string>();
+  private readonly keyboard = new MovementInput();
   private readonly pointers = new Map<number, string>();
   private previous = "";
   private frame = 0;
   private last = 0;
+  private visibleTicks = 0;
   private accumulator = 0;
   private countdown = 3;
   private status: "loading" | "ready" | "countdown" | "racing" | "finished" =
@@ -126,7 +129,7 @@ export class RacingGame {
       <div class="race-head"><span>PALM BAY <b>3 LAPS · 8 KARTS</b></span><span>7 GAME CHARACTERS</span></div>
       <div class="race-screen">
         <div class="race-view"></div>
-        <div class="race-hud"><span class="stat-pill place-pill"><small>PLACE</small><b id="race-place">8th / 8</b></span><span class="stat-pill score-pill"><small>TIME</small><b id="run-score">0:00.00</b></span><span id="run-state">LAP <b id="race-lap">1 / 3</b></span><span class="stat-pill time-pill"><small>TIME LEFT</small><b id="run-time">120s</b></span></div>
+        <div class="race-hud"><span class="stat-pill place-pill"><small>PLACE</small><b id="race-place">8th / 8</b></span><span class="stat-pill score-pill"><small>TIME</small><b id="run-score">0:00.00</b></span><span id="run-state">LAP <b id="race-lap">1 / 3</b></span><span class="stat-pill time-pill"><small>TIME LEFT</small><b id="run-time">${this.sim.race!.limitTicks / 60}s</b></span></div>
         <div class="game-pops" aria-hidden="true"></div>
         <canvas class="race-map" width="180" height="130" aria-label="All eight karts. You are coral with a white ring. Seven coloured dots are game characters. Red squares are missiles and brown squares are coconuts."></canvas>
         <div class="race-speed"><b id="race-speed">0</b><span>KM/H</span></div>
@@ -198,7 +201,10 @@ export class RacingGame {
     container
       .querySelector("#pause-game")!
       .addEventListener("click", () => this.togglePause(), listener);
-    window.addEventListener("keydown", this.keyDown, listener);
+    window.addEventListener("keydown", this.keyDown, {
+      ...listener,
+      capture: true,
+    });
     window.addEventListener("keyup", this.keyUp, listener);
     window.addEventListener("blur", this.onBlur, listener);
     document.addEventListener("visibilitychange", this.hidden, listener);
@@ -348,7 +354,9 @@ export class RacingGame {
       false;
   }
   private keyDown = (e: KeyboardEvent) => {
-    const key = e.key.toLowerCase();
+    const key = /^Key[WASDE]$/.test(e.code)
+      ? e.code.slice(3).toLowerCase()
+      : e.key.toLowerCase();
     if (
       [
         "arrowleft",
@@ -366,6 +374,7 @@ export class RacingGame {
       e.preventDefault();
       if (!this.paused && ["racing", "countdown"].includes(this.status)) {
         this.keys.add(key);
+        if (!e.repeat) this.keyboard.press(key);
         if (key === "s" || key === "arrowdown") this.cruise = false;
       }
     }
@@ -376,10 +385,15 @@ export class RacingGame {
     }
   };
   private keyUp = (e: KeyboardEvent) => {
-    this.keys.delete(e.key.toLowerCase());
+    this.keys.delete(
+      /^Key[WASDE]$/.test(e.code)
+        ? e.code.slice(3).toLowerCase()
+        : e.key.toLowerCase(),
+    );
   };
   private clearInput() {
     this.keys.clear();
+    this.keyboard.clear();
     this.pointers.clear();
     this.showHeld();
   }
@@ -434,11 +448,12 @@ export class RacingGame {
     this.container.classList.toggle("is-paused", this.paused);
     this.onPause?.(this.paused);
   }
-  private controls(): Input {
+  private controls(dt: number): Input {
+    const keys = this.keyboard.sample(this.keys, dt);
     const touch = new Set(this.pointers.values());
     let steer = kartSteeringInput(
-      touch.has("left") || this.keys.has("arrowleft") || this.keys.has("a"),
-      touch.has("right") || this.keys.has("arrowright") || this.keys.has("d"),
+      touch.has("left") || keys.has("arrowleft") || keys.has("a"),
+      touch.has("right") || keys.has("arrowright") || keys.has("d"),
     );
     if (this.assist && this.status === "racing") {
       this.assistSteer = edgeAssist(
@@ -450,7 +465,7 @@ export class RacingGame {
     }
     return [
       steer,
-      touch.has("brake") || this.keys.has("arrowdown") || this.keys.has("s")
+      touch.has("brake") || keys.has("arrowdown") || keys.has("s")
         ? -1
         : // DRIFT and ITEM hold the throttle so one thumb can do all three.
           Number(
@@ -458,11 +473,11 @@ export class RacingGame {
               touch.has("gas") ||
               touch.has("drift") ||
               touch.has("item") ||
-              this.keys.has("w") ||
-              this.keys.has("arrowup"),
+              keys.has("w") ||
+              keys.has("arrowup"),
           ),
-      Number(touch.has("item") || this.keys.has("e")),
-      Number(touch.has("drift") || this.keys.has(" ")),
+      Number(touch.has("item") || keys.has("e")),
+      Number(touch.has("drift") || keys.has(" ")),
       -1,
       -1,
     ];
@@ -473,9 +488,9 @@ export class RacingGame {
     // Rendering may be slow. Every active second still gets 60 replayable ticks.
     const dt = this.last ? Math.max(0, (now - this.last) / 1000) : 0;
     let activeDt = dt;
-    this.last = now;
+    this.last = Math.max(this.last, now);
     const race = this.sim.race!;
-    const input = this.controls();
+    const input = this.controls(dt);
     if (!this.paused && this.status === "countdown") {
       const prev = Math.ceil(this.countdown);
       this.countdown -= dt;
@@ -549,8 +564,12 @@ export class RacingGame {
     this.stats.dataset.distance = race.distance.toFixed(2);
     this.stats.dataset.offset = race.offset.toFixed(2);
     this.stats.dataset.ticks = String(race.ticks);
-    this.timer.textContent = raceTime(race.ticks);
-    const left = Math.max(0, Math.ceil((race.limitTicks - race.ticks) / 60));
+    this.visibleTicks = Math.max(this.visibleTicks, race.ticks);
+    this.timer.textContent = raceTime(this.visibleTicks);
+    const left = Math.max(
+      0,
+      Math.ceil((race.limitTicks - this.visibleTicks) / 60),
+    );
     const time = this.container.querySelector("#run-time")!;
     if (time.textContent !== `${left}s`) {
       time.textContent = `${left}s`;

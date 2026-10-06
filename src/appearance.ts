@@ -1,3 +1,4 @@
+import { newHairNames } from "./hair-catalog.ts";
 import { legendarySets, slotSize, type LookSlot } from "./collections.ts";
 type SetPiece = "outfit" | "head" | "pet" | "magic";
 // Mirrors the slot layout in collections.ts: ten sets, later items, later sets.
@@ -76,6 +77,7 @@ export const hairNames = [
     "Astronaut bubble",
     "Unicorn horn",
   ]),
+  ...newHairNames,
 ];
 export const petNames = [
   "No companion",

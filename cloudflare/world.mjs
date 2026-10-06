@@ -33,6 +33,7 @@ export class World extends DurableObject {
       }
       this.name = saved.world;
       this.state.join(saved.player, saved.player);
+      this.state.players.get(saved.player.id).seen = saved.player.seen;
       this.sockets.set(saved.player.id, ws);
       this.known.set(saved.player.id, new Map());
       this.checkpoints.set(saved.player.id, saved.checkpoint);
@@ -45,6 +46,7 @@ export class World extends DurableObject {
         if (Date.now() - item.player.seen < 15000) {
           this.name = item.world;
           this.state.join(item.player, item.player);
+          this.state.players.get(item.player.id).seen = item.player.seen;
           this.polls.set(item.player.id, item.player.seen);
           this.checkpoints.set(item.player.id, item.checkpoint);
         }
@@ -186,10 +188,9 @@ export class World extends DurableObject {
       const data = JSON.parse(message);
       if (!data || typeof data !== "object" || Array.isArray(data))
         throw Error();
-      if (this.state.move(id, data)) {
-        this.attach(id);
-        this.schedule();
-      }
+      const changed = this.state.move(id, data);
+      this.attach(id);
+      if (changed) this.schedule();
     } catch {
       ws.close(1007, "Invalid movement");
     }
@@ -339,13 +340,13 @@ export class World extends DurableObject {
     );
     if (this.state.players.size) {
       const alarm = await this.ctx.storage.getAlarm();
-      if (alarm === null || alarm > Date.now() + 10000)
-        await this.ctx.storage.setAlarm(Date.now() + 10000);
+      if (alarm === null || alarm > Date.now() + 3000)
+        await this.ctx.storage.setAlarm(Date.now() + 3000);
     } else await this.ctx.storage.deleteAlarm();
   }
   async alarm() {
-    for (const [id, seen] of this.polls)
-      if (Date.now() - seen > 15000) await this.remove(id);
+    for (const [id, player] of this.state.players)
+      if (Date.now() - player.seen >= 12000) await this.remove(id);
     if (Date.now() - this.lastSaved >= 30000) {
       // Authorization refresh keeps its cadence even when nobody has moved.
       await this.refresh();

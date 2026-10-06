@@ -195,11 +195,14 @@ function disposeArcadeFx() {
 let characterPreview: ReturnType<typeof createCharacterPreview> | null = null;
 let shared: SharedState | null = null;
 let profileReady = false;
+let sessionExpired = false;
 window.addEventListener("session-expired", () => {
   worldConnection.stop();
-  if (profileReady) {
-    profileReady = false;
-    location.reload();
+  if (profileReady && !sessionExpired) {
+    sessionExpired = true;
+    toast(
+      "Your session needs refreshing. Finish your game first; progress stays on screen.",
+    );
   }
 });
 let profileQueue = Promise.resolve();
@@ -451,6 +454,25 @@ function close() {
   if (document.activeElement instanceof HTMLButtonElement)
     document.activeElement.blur();
 }
+function updateTryOn() {
+  const shown = tryingLook?.look ?? save;
+  world?.updateAvatar(shown);
+  const preview = body.querySelector<HTMLElement>(".character-preview");
+  if (preview && characterPreview)
+    characterPreview.mount(preview, { ...shown, reduced: save.reduced });
+  const panel = body.querySelector(".avatar-preview");
+  if (!panel) return;
+  panel.querySelector("strong")!.textContent = tryingLook
+    ? "Trying on"
+    : currentProfile?.name || "Your look";
+  panel.querySelector(".look-caption")!.textContent =
+    tryingLook?.name ?? clothingNames[save.clothing];
+  const canEquip =
+    tryingLook && wearable(shown, save, shared?.self?.points ?? 0);
+  panel.querySelector(".try-actions")!.innerHTML = tryingLook
+    ? `<button class="primary" data-equip-look ${canEquip ? "" : "disabled"}>${canEquip ? "Equip look" : "Locked · preview only"}</button><button class="text-button" data-reset-look>Back to my look</button>`
+    : "<span>Tap a card to try it on</span>";
+}
 function actionButton(action: string, label: string, klass = "primary") {
   return `<button class="${klass}" data-action="${action}">${label}</button>`;
 }
@@ -473,7 +495,7 @@ function cards() {
       '<span class="jetty-deck"></span><span class="jetty-rod"></span><span class="jetty-fish">◀</span><b>CAST & CHILL</b>',
   };
   const choices = pageChoices(playIds, gamePage);
-  return `<div class="game-grid compact-games">${choices.items.map((id) => `<button class="game-card ${id}" data-game="${id}"><div class="game-art ${id}-art">${art[id]}</div><span class="eyebrow">${games[id].genre}</span><h3>${games[id].name}</h3><div><span>${id === "coast" ? "3 laps" : id === "hoops" ? "10 shots" : "60s"} · BEST ${formatScore(id, shared?.self.best[id] ?? 0)}</span>${icon("arrow")}</div></button>`).join("")}</div>${pager(choices.page, choices.total, "games")}`;
+  return `<div class="game-grid compact-games">${choices.items.map((id) => `<button class="game-card ${id}" data-game="${id}"><div class="game-art ${id}-art">${art[id]}</div><span class="eyebrow">${games[id].genre}</span><h3>${games[id].name}</h3><div><span>${id === "coast" ? "3 laps" : id === "hoops" ? "10 shots" : "60s"} · BEST ${id === "coast" && save.coastRecord.timeTicks ? raceTime(save.coastRecord.timeTicks) : formatScore(id, shared?.self.best[id] ?? 0)}</span>${icon("arrow")}</div></button>`).join("")}</div>${pager(choices.page, choices.total, "games")}`;
 }
 function open(id: string) {
   if (id === "settings") id = "preferences";
@@ -762,8 +784,8 @@ function open(id: string) {
         "",
       )}</select><div class="button-row">${actionButton("start-away", "Step away")}${actionButton("save-away", "Save choice", "secondary")}</div><p class="fine-print">Away time earns no XP.</p>`;
   } else if (id === "preferences") {
-    body.innerHTML = `<button class="text-button menu-back" data-open="phone-menu">← Back</button><h2>Preferences</h2><label class="settings-row"><span><strong>Sound effects</strong><small>Blips and sparkles</small></span><input id="setting-sound" type="checkbox" ${save.sound ? "checked" : ""}></label><label class="settings-row"><span><strong>Background music</strong><small>Lo-fi, pads and chiptune</small></span><input id="setting-music" type="checkbox" ${save.music ? "checked" : ""} ${save.sound ? "" : "disabled"}></label><label class="settings-row"><span><strong>Reduce motion</strong><small>Calmer effects</small></span><input id="setting-reduced" type="checkbox" ${save.reduced ? "checked" : ""}></label><label class="settings-row"><span><strong>Time of day</strong><small>SGT or pick a mood</small></span><select id="setting-light">${[
-      ["auto", "Follow SGT"],
+    body.innerHTML = `<button class="text-button menu-back" data-open="phone-menu">← Back</button><h2>Preferences</h2><label class="settings-row"><span><strong>Sound effects</strong><small>Blips and sparkles</small></span><input id="setting-sound" type="checkbox" ${save.sound ? "checked" : ""}></label><label class="settings-row"><span><strong>Background music</strong><small>Lo-fi, pads and chiptune</small></span><input id="setting-music" type="checkbox" ${save.music ? "checked" : ""} ${save.sound ? "" : "disabled"}></label><label class="settings-row"><span><strong>Reduce motion</strong><small>Calmer effects</small></span><input id="setting-reduced" type="checkbox" ${save.reduced ? "checked" : ""}></label><label class="settings-row"><span><strong>Time of day</strong><small>Your local clock or pick a mood</small></span><select id="setting-light">${[
+      ["auto", "Follow my local clock"],
       ["day", "Daylight"],
       ["dusk", "Golden hour"],
       ["night", "After dark"],
@@ -774,7 +796,7 @@ function open(id: string) {
       )
       .join(
         "",
-      )}</select></label><div class="settings-row"><span><strong>Lightweight lobby</strong><small>No 3D world</small></span>${actionButton("2d", is2d ? "Return to 3D" : "Use 2D", "secondary")}</div>${playtestEnabled ? '<details class="menu-details"><summary>Phone test</summary><button class="secondary" data-action="phone-test">Give feedback</button></details>' : ""}<p class="fine-print">Character model based on “Chibi Girl Character” by Syed’s Creation, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>, modified. <a href="https://sketchfab.com/3d-models/chibi-girl-character-3e795731d68d416eb0b8770a6b363e65" target="_blank" rel="noopener">Source</a>.</p>`;
+      )}</select></label><label class="settings-row"><span><strong>3D quality</strong><small>Switch back after Performance mode</small></span><select id="setting-quality"><option value="auto" ${world?.qualityMode === "auto" ? "selected" : ""}>Automatic</option><option value="high" ${world?.qualityMode === "high" ? "selected" : ""}>Full quality</option><option value="low" ${world?.qualityMode === "low" ? "selected" : ""}>Performance</option></select></label><div class="settings-row"><span><strong>Lightweight lobby</strong><small>No 3D world</small></span>${actionButton("2d", is2d ? "Return to 3D" : "Use 2D", "secondary")}</div>${playtestEnabled ? '<details class="menu-details"><summary>Phone test</summary><button class="secondary" data-action="phone-test">Give feedback</button></details>' : ""}<p class="fine-print">Character model based on “Chibi Girl Character” by Syed’s Creation, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>, modified. <a href="https://sketchfab.com/3d-models/chibi-girl-character-3e795731d68d416eb0b8770a6b363e65" target="_blank" rel="noopener">Source</a>.</p>`;
   } else if (id === "controls") {
     body.innerHTML = `<button class="text-button menu-back" data-open="phone-menu">← Back</button><h2>Camera & controls</h2><p>WASD or tap to walk. E to interact. Space to jump.</p><label class="settings-row"><span>View</span><select id="setting-camera"><option value="third" ${save.cameraMode === "third" ? "selected" : ""}>Third person</option><option value="isometric" ${save.cameraMode === "isometric" ? "selected" : ""}>Bird’s-eye</option></select></label><label class="settings-row"><span>Zoom</span><input id="setting-zoom" type="range" min="0" max="100" value="50" data-previous="50" aria-label="Camera zoom"></label><div class="camera-buttons"><button class="secondary" data-action="rotate-left" aria-label="Rotate view left">↶</button><button class="secondary" data-action="reset-view">Reset view</button><button class="secondary" data-action="rotate-right" aria-label="Rotate view right">↷</button></div>`;
   } else if (id === "surroundings") {
@@ -955,7 +977,7 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
           (reward || !save.nameChosen || save.welcome !== "complete");
         body.innerHTML =
           id === "coast"
-            ? `<h2 class="result-score">${result?.race?.finished ? raceTime(result.race.timeTicks) : score ? formatScore(id, score) : "So close — try again!"}<small>${score ? "YOUR THREE-LAP TIME" : "NO FINISH RECORDED"}</small></h2>${result?.race?.newBest ? '<p class="new-best">New personal best!</p>' : ""}${result?.race?.novice ? "<p>Your first-finish race earns XP and Play medals. Standard races unlock after your first finish; verified-email standard races enter the leaderboard.</p>" : raceComparison(score, today, !!result?.ranked)}<div class="button-row"><button class="primary" data-action="setup-look">${setup ? "Create my name & look" : "Edit my name & look"}</button><button class="secondary" data-replay="coast">Race again</button></div><details class="race-extra-details"><summary>Race details & rewards</summary>${raceSummary}<p>${result ? `Verified round · +20 XP${reward ? " · Lilac cap unlocked · +35 bonus XP" : ""}` : "Offline · this round was not saved."}</p>${!currentProfile?.account ? '<button class="secondary" data-account>Save with email</button>' : ""}</details>`
+            ? `<h2 class="result-score">${result?.race?.finished ? raceTime(result.race.timeTicks) : score ? formatScore(id, score) : "So close — try again!"}<small>${score ? "YOUR THREE-LAP TIME" : "NO FINISH RECORDED"}</small></h2>${result?.race?.newBest ? '<p class="new-best">New personal best!</p>' : ""}${result?.race?.novice ? "<p>Your first-finish race earns XP and Play medals. Standard races unlock after your first finish; verified-email standard races enter the leaderboard.</p>" : raceComparison(score, today, !!result?.ranked)}<p class="round-reward">${result ? `+20 XP${reward ? " · Lilac cap unlocked · +35 bonus XP" : ""}` : "Offline · this round was not saved."}</p>${!currentProfile?.account ? '<p>Save with email to keep it and join the leaderboard.</p><button class="secondary" data-account>Save with email</button>' : ""}<div class="button-row"><button class="primary" data-action="setup-look">${setup ? "Create my name & look" : "Edit my name & look"}</button><button class="secondary" data-replay="coast">Race again</button></div><details class="race-extra-details"><summary>Race details & rewards</summary>${raceSummary}</details>`
             : '<div class="result-star">' +
               icon(target ? "trophy" : "game") +
               '</div><h2 class="result-score">' +
@@ -1111,15 +1133,6 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
   game.onPause = (paused) => arcadeFx?.setPaused(paused);
 }
 
-document.addEventListener(
-  "pointerdown",
-  (e) => {
-    const button = (e.target as Element).closest("button");
-    if (button && !button.disabled) e.preventDefault();
-  },
-  { capture: true },
-);
-
 document.addEventListener("click", (e) => {
   const b = (e.target as Element).closest<HTMLButtonElement>("button");
   if (!b || b.disabled) return;
@@ -1155,19 +1168,12 @@ document.addEventListener("click", (e) => {
       name: itemName(slot, index),
       image: `/wardrobe/${slot}-${index}.png`,
     };
-    const scroll = modal.scrollTop;
-    open("wardrobe");
-    modal.scrollTop = scroll;
-    body
-      .querySelector<HTMLButtonElement>(
-        `[data-try-slot="${slot}"][data-try-index="${index}"]`,
-      )
-      ?.focus({ preventScroll: true });
+    updateTryOn();
     return;
   }
   if (b.hasAttribute("data-reset-look")) {
     tryingLook = null;
-    open("wardrobe");
+    updateTryOn();
     return;
   }
   if (b.hasAttribute("data-equip-look") && tryingLook) {
@@ -1636,6 +1642,11 @@ modal.addEventListener("click", (e) => {
 });
 document.addEventListener("change", (e) => {
   const el = e.target as HTMLInputElement;
+  if (el.id === "setting-quality") {
+    if (el.value === "auto" || el.value === "high" || el.value === "low")
+      world?.setQuality(el.value);
+    return;
+  }
   if (el.id === "setting-zoom") {
     world?.setZoom((Number(el.value) - Number(el.dataset.previous || 50)) / 20);
     el.dataset.previous = el.value;
@@ -1884,6 +1895,14 @@ window.addEventListener("world-interaction", (event) => {
       toast("A little moment, just for you. Try another spot.");
   }
 });
+let qualityExplained = false;
+window.addEventListener("performance-mode", () => {
+  if (qualityExplained) return;
+  qualityExplained = true;
+  toast(
+    "Performance mode is on for smoother play. Menu → Sound & display → 3D quality lets you switch back.",
+  );
+});
 window.addEventListener("world-interaction-progress", (event) => {
   (document.querySelector(".action-track i") as HTMLElement).style.width =
     `${Math.round((event as CustomEvent<number>).detail * 100)}%`;
@@ -2098,6 +2117,10 @@ const accountReady = ensureAccount().then((p) => {
 });
 window.addEventListener("account-profile", ((event: CustomEvent<Profile>) => {
   if (!profileReady) return;
+  if (sessionExpired) {
+    sessionExpired = false;
+    worldConnection.refreshSession();
+  }
   const away = save.away,
     awaySince = save.awaySince;
   const look = (s: typeof save) =>
@@ -2164,6 +2187,7 @@ requestAnimationFrame(async () => {
         document.body.classList.toggle("has-nearby", !!id);
         b.querySelector("span")!.textContent = name;
       },
+      playerName: currentProfile?.name,
       fallback: () => {
         enable2D();
         toast(
@@ -2558,7 +2582,11 @@ function applyWorldPlayers() {
         p.status !== "online",
     ),
   ];
-  world?.syncPlayers(shared.players, shared.me, liveIds);
+  world?.syncPlayers(
+    shared.players.filter((p) => liveIds.has(p.id)),
+    shared.me,
+    liveIds,
+  );
   if (modal.open && socialPanel === "neighbours") renderSharedNeighbours();
 }
 let currentWorld = "";

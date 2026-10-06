@@ -973,3 +973,10 @@ dialog.game-modal.racing-modal {
 .race-finish:has(.finish-place) h3 {
   color: #ffe28d;
 }
+
+.coast-game[data-status="finished"] .race-nameplates { display: none; }
+.race-finish:not(:has(.finish-place)) h3 {
+  font-size: clamp(25px, 5vw, 44px);
+  line-height: 1.15;
+  letter-spacing: -1px;
+}

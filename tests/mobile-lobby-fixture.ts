@@ -37,6 +37,9 @@ export function mobileLobbyFixture(
     },
   };
   const script = `<script>
+  if(new URLSearchParams(location.search).has('audit')) {
+    const script=document.createElement('script'); script.src='/qa-audit.js'; document.head.append(script);
+  }
   const profile = ${JSON.stringify(profile)};
   const baseFetch = window.fetch;
   localStorage.setItem('darecade-v1', JSON.stringify(profile.progress));

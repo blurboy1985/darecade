@@ -1,3 +1,4 @@
+import { HAIR_START, HAIR_COUNT, hairKey, hairVisual } from "./hair-catalog.ts";
 /** Stable visual choices using existing starter item IDs; no save migration. */
 export function identitySeed(id: string) {
   let value = 2166136261;
@@ -12,16 +13,26 @@ export function seededLook(id: string) {
     skin: (seed >>> 4) % 8,
     body: (seed >>> 8) % 2,
     clothing: (seed >>> 9) % 8,
-    hair: (seed >>> 13) % 8,
+    hair: HAIR_START + ((seed >>> 7) % HAIR_COUNT),
     hat: 0,
     pet: 0,
     accessory: 0,
   };
 }
 export function distinctHair(candidate: number, occupied: Set<number>) {
-  for (let step = 0; step < 8; step++) {
-    const hair = (candidate + step) % 8;
-    if (!occupied.has(hair)) return hair;
+  const used = new Set([...occupied].map(hairKey));
+  const blues = [...occupied].filter((h) => hairVisual(h).colour === 9).length;
+  for (let step = 0; step < HAIR_COUNT; step++) {
+    const hair =
+      step === 0
+        ? candidate
+        : HAIR_START +
+          ((Math.max(0, candidate - HAIR_START) + step * 9) % HAIR_COUNT);
+    if (
+      !used.has(hairKey(hair)) &&
+      !(blues >= 2 && hairVisual(hair).colour === 9)
+    )
+      return hair;
   }
   return candidate;
 }
@@ -30,9 +41,9 @@ export function separateCharacter(
   point: { x: number; z: number },
   occupied: readonly { x: number; z: number }[],
   seed: number,
-  gap = 1.25,
+  gap = 2.05,
 ) {
-  for (let pass = 0; pass < 3; pass++)
+  for (let pass = 0; pass < 12; pass++)
     for (const other of occupied) {
       const dx = point.x - other.x,
         dz = point.z - other.z;

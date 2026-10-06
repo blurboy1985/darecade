@@ -4,6 +4,8 @@ import { itemLook, type WardrobeTab } from "./wardrobe";
 // One offscreen context serves the HUD and every lazy card. Cache only visual
 // fields, never a whole Save, so XP and account changes do not invalidate images.
 const cache = new Map<string, string>();
+const pending = new Map<string, Promise<string>>();
+let studioQueue: Promise<unknown> = Promise.resolve();
 let studio: ReturnType<typeof createCharacterPreview> | undefined;
 const keyFor = (look: Look, slot: string) =>
   JSON.stringify([
@@ -22,15 +24,30 @@ export async function avatarPortrait(look: Look, slot = "portrait") {
   const key = keyFor(snapshot, slot);
   const cached = cache.get(key);
   if (cached) return cached;
-  await loadCharacter();
-  if (!studio) {
-    const host = document.createElement("div");
-    studio = createCharacterPreview(host, { ...snapshot, reduced: true });
+  const inFlight = pending.get(key);
+  if (inFlight) return inFlight;
+  const job = studioQueue.then(async () => {
+    await loadCharacter();
+    if (!studio) {
+      const host = document.createElement("div");
+      studio = createCharacterPreview(host, { ...snapshot, reduced: true });
+    }
+    const image = await studio.thumbnail(snapshot, slot);
+    cache.set(key, image);
+    if (cache.size > 128) {
+      const oldest = cache.keys().next().value!;
+      URL.revokeObjectURL(cache.get(oldest)!);
+      cache.delete(oldest);
+    }
+    return image;
+  });
+  pending.set(key, job);
+  studioQueue = job.catch(() => {});
+  try {
+    return await job;
+  } finally {
+    pending.delete(key);
   }
-  const image = studio.thumbnail(snapshot, slot);
-  cache.set(key, image);
-  if (cache.size > 128) cache.delete(cache.keys().next().value!);
-  return image;
 }
 let headshotVersion = 0;
 export function refreshHeadshot(host: HTMLElement, look: Look) {

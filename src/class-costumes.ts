@@ -1,6 +1,6 @@
 import { mergeCosmeticParts } from "./cosmetic-meshes.ts";
 import * as T from "three";
-import { node, part } from "./shapes.ts";
+import { node, part, material } from "./shapes.ts";
 
 // Visual remaps only: these numeric items have existed since save version 1.
 export const starterClasses = [
@@ -83,6 +83,33 @@ function blade(
     "#59405f",
   );
 }
+const tricornGeometry = new T.CylinderGeometry(0.64, 0.58, 0.15, 3);
+const capeGeometry = new T.PlaneGeometry(1, 1, 8, 10);
+const capePositions = capeGeometry.getAttribute("position");
+for (let i = 0; i < capePositions.count; i++) {
+  const x = capePositions.getX(i) * 2,
+    t = 0.5 - capePositions.getY(i);
+  capePositions.setXYZ(
+    i,
+    x * (0.22 + 0.29 * t),
+    -0.83 * t,
+    -0.06 -
+      0.2 * t -
+      0.05 * Math.sin(Math.PI * t) +
+      0.045 * Math.cos(x * Math.PI * 2) * t,
+  );
+}
+capeGeometry.computeVertexNormals();
+const capeMaterials = new Map<string, T.MeshStandardMaterial>();
+function capeMaterial(color: string) {
+  let m = capeMaterials.get(color);
+  if (!m) {
+    m = material(color).clone();
+    m.side = T.DoubleSide;
+    capeMaterials.set(color, m);
+  }
+  return m;
+}
 const costumeCache = new Map<string, T.Group>();
 export function buildClassBody(
   parent: T.Object3D,
@@ -113,19 +140,15 @@ export function buildClassBody(
               ? "#ff649e"
               : "#51e8e0";
   const cape = node(g, [0, 1.08, -0.27], "SwayCape");
-  // The entire garment is behind the back, flaring toward negative z.
-  for (let i = -2; i <= 2; i++) {
-    const panel = part(
-      cape,
-      "box",
-      [i * 0.14, -0.35, -0.1 - Math.abs(i) * 0.025],
-      [0.15, 0.82, 0.045],
-      backColor,
-      { rot: [0.2, 0, -i * 0.05] },
-    );
-    if (legendary)
-      part(panel, "oct", [0, -0.12, -1], [0.3, 0.07, 0.5], gold, { glow: 0.6 });
-  }
+  const cloth = new T.Mesh(capeGeometry, capeMaterial(backColor));
+  cloth.name = "CurvedCape";
+  cloth.castShadow = true;
+  cape.add(cloth);
+  part(cape, "torus", [0, 0.025, 0.08], [0.28, 0.075, 0.22], backColor, {
+    rot: [Math.PI / 2, 0, 0],
+  });
+  for (const side of [-1, 1])
+    part(cape, "ball", [side * 0.17, 0.025, 0.18], [0.045, 0.045, 0.028], gold);
   if (c?.prop === "staff") {
     part(g, "cone", [0, 0.49, 0], [0.3, 0.92, 0.23], color);
     part(g, "cyl", [0.43, 0.94, -0.48], [0.034, 1.6, 0.034], gold, {
@@ -171,12 +194,12 @@ export function buildClassBody(
           gold,
         );
     }
-    blade(g, 0.45, 0.58, 0.1, 0.85, -0.3);
-    part(g, "torus", [0.43, 0.39, 0.1], [0.14, 0.14, 0.14], gold);
+    blade(g, 0.48, 0.58, 0.1, 1.25, -0.35);
+    part(g, "torus", [0.43, 0.39, 0.1], [0.19, 0.19, 0.19], gold);
   } else if (c?.prop === "daggers") {
     part(g, "box", [0, 0.91, 0.08], [0.41, 0.25, 0.2], color);
-    blade(g, -0.35, 0.56, 0.1, 0.55, -0.4);
-    blade(g, 0.35, 0.56, 0.1, 0.55, 0.4);
+    blade(g, -0.39, 0.5, -0.16, 0.82, -0.55);
+    blade(g, 0.39, 0.5, -0.16, 0.82, 0.55);
     cape.scale.set(0.65, 0.8, 1);
     for (const side of [-1, 1])
       part(
@@ -228,14 +251,20 @@ export function buildClassHead(parent: T.Object3D, clothing: number) {
       );
   }
   if (c.prop === "cutlass") {
-    part(parent, "ball", [0, 1.8, -0.07], [0.4, 0.14, 0.3], c.color);
-    part(parent, "box", [-0.39, 1.64, -0.17], [0.13, 0.34, 0.04], c.color, {
-      rot: [0, 0, -0.3],
-    });
-    part(parent, "oct", [0, 1.83, 0.22], [0.09, 0.09, 0.025], gold);
+    const brim = new T.Mesh(tricornGeometry, material("#693450"));
+    brim.position.set(0, 1.92, -0.02);
+    brim.scale.z = 0.9;
+    brim.name = "TricornBrim";
+    parent.add(brim);
+    part(parent, "ball", [0, 2.0, -0.07], [0.34, 0.2, 0.28], c.color);
+    part(parent, "oct", [0, 2.01, 0.27], [0.1, 0.12, 0.035], gold);
   }
-  if (c.prop === "daggers")
-    part(parent, "ball", [0, 1.14, 0.22], [0.22, 0.09, 0.055], c.color);
+  if (c.prop === "daggers") {
+    part(parent, "torus", [0, 1.1, 0], [0.28, 0.12, 0.25], "#ff649e", {
+      rot: [Math.PI / 2, 0, 0],
+    });
+    part(parent, "ball", [0, 1.15, 0.26], [0.23, 0.11, 0.055], c.color);
+  }
 }
 export function animateCostume(
   parent: T.Object3D,
