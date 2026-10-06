@@ -1,3 +1,4 @@
+import { seededLook, distinctHair } from "./character-identity.ts";
 import * as T from "three";
 import { KartSteering, KartWheel, KART_WHEEL_RADIUS } from "./kart-motion";
 import { RaceCameraFollow } from "./race-camera";
@@ -212,25 +213,20 @@ export class RaceView {
     shieldMaterial.transparent = true;
     shieldMaterial.opacity = 0.22;
     shieldMaterial.depthWrite = false;
+    const rivalHair = new Set([this.look.hair ?? 0]);
     RIVALS.forEach((r, i) => {
       const kart = new T.Group();
       this.scene.add(kart);
       const wheels = this.buildKart(kart, r.color);
-      const look = {
-        ...this.look,
-        outfit: i % 6,
-        clothing: i % 8,
-        hair: i % 8,
-        pet: 0,
-        accessory: 0,
-        hat: 0,
-      };
+      const look = seededLook(`rival:${i}:${r.name}`);
+      look.hair = distinctHair(look.hair, rivalHair);
+      rivalHair.add(look.hair);
       const avatar = createAvatar(
         kart,
         0,
         -0.15,
         r.color,
-        skins[i % skins.length],
+        skins[look.skin % skins.length],
         0,
         look,
       );

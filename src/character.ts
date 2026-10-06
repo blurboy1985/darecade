@@ -347,18 +347,25 @@ export function createAvatar(
             shader.uniforms.irisTint = {
               value: m!.userData.irisTint ?? new T.Color("#795038"),
             };
+            shader.uniforms.lidSkin = {
+              value: m!.userData.lidSkin ?? new T.Color("#edc4a3"),
+            };
+            shader.uniforms.eyeClosed = m!.userData.eyeClosed ??= { value: 0 };
             shader.fragmentShader =
-              "uniform vec3 irisTint;\n" + shader.fragmentShader;
+              "uniform vec3 irisTint; uniform vec3 lidSkin; uniform float eyeClosed;\n" +
+              shader.fragmentShader;
             shader.fragmentShader = shader.fragmentShader.replace(
               "#include <map_fragment>",
               `
               #include <map_fragment>
               float irisMask = (1.0 - smoothstep(0.5, 0.85, max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b)))) * smoothstep(0.025, 0.12, max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b)));
-              diffuseColor.rgb = mix(diffuseColor.rgb, irisTint * (0.5 + diffuseColor.r), irisMask * 0.65);
+              diffuseColor.rgb = mix(diffuseColor.rgb, irisTint * (0.5 + diffuseColor.r), irisMask);
+              float whiteMask = smoothstep(0.4, 0.8, max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b)));
+              diffuseColor.rgb = mix(diffuseColor.rgb, lidSkin, eyeClosed);
             `,
             );
           };
-          m.customProgramCacheKey = () => "simi-iris-v1";
+          m.customProgramCacheKey = () => "simi-iris-v2";
           if (m.map) m.map.anisotropy = 4;
         }
         materials.set(original.name, m);
@@ -439,6 +446,7 @@ export function applyLook(
   for (const name of ["eyes", "eyes_b"]) {
     const material = a.materials.get(name);
     if (material) {
+      (material.userData.lidSkin ??= new T.Color()).set(skin);
       const tint = (material.userData.irisTint ??= new T.Color());
       tint.set(
         ["#ce558e", "#805135", "#3a9c79", "#3694cc", "#cf922c"][
@@ -554,7 +562,18 @@ export function applyLook(
     part.scale.z *= 1.85;
     part.scale.y *= 1.25;
   }
-  buildHair(a.hat, a.look.hair!);
+  buildHair(
+    a.hat,
+    a.look.hair!,
+    !!(
+      look.hat ||
+      wear ||
+      gear ||
+      hair.hood ||
+      headSet >= 0 ||
+      (starter && ["staff", "bow", "cutlass"].includes(starter.prop))
+    ),
+  );
   buildMouth(a.hat, skin);
   if (!look.hat) buildClassHead(a.hat, a.look.clothing!);
   if (hair.beard) buildBeard(a.hat, hair.color);
@@ -676,6 +695,13 @@ export function animateDetails(
   }
   const blink = reduced ? 0 : blinkAmount(t, blinkSeed);
   const happyEyes = ["cheer", "dance"].includes(mode);
+  for (const name of ["eyes", "eyes_b"]) {
+    const material = a.materials.get(name);
+    if (material)
+      (material.userData.eyeClosed ??= { value: 0 }).value = happyEyes
+        ? 1
+        : blink;
+  }
   for (const mesh of a.expressions) {
     const dictionary = mesh.morphTargetDictionary!;
     const influences = mesh.morphTargetInfluences!;

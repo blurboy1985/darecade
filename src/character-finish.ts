@@ -23,9 +23,10 @@ export const hairPalette = [
   "#f33c98",
   "#26cda6",
 ];
-const hairCache = new Map<number, T.Group>();
-export function buildHair(parent: T.Object3D, index: number) {
-  const cached = hairCache.get(index);
+const hairCache = new Map<string, T.Group>();
+export function buildHair(parent: T.Object3D, index: number, capped = false) {
+  const cacheKey = `${index}:${capped}`;
+  const cached = hairCache.get(cacheKey);
   if (cached) {
     const hair = cached.clone();
     parent.add(hair);
@@ -37,7 +38,8 @@ export function buildHair(parent: T.Object3D, index: number) {
   const hair = node(parent, [0, 1.46, -0.07], "VolumetricHair");
   hair.userData.secondaryMotion = true;
   // Back volume stops above the nape; the face remains completely exposed.
-  part(hair, "ball", [0, 0.12, -0.1], [0.44, 0.39, 0.33], color);
+  if (!capped) part(hair, "ball", [0, 0.12, -0.1], [0.44, 0.39, 0.33], color);
+  if (capped) part(hair, "ball", [0, -0.02, -0.1], [0.39, 0.25, 0.3], color);
   // Rear clumps break the smooth sphere silhouette from the gameplay camera.
   for (let i = -2; i <= 2; i++) {
     part(
@@ -66,7 +68,7 @@ export function buildHair(parent: T.Object3D, index: number) {
     part(hair, "ball", [side * 0.39, -0.1, 0.075], [0.12, 0.29, 0.17], color, {
       rot: [0, 0, side * 0.14],
     });
-    if (style === "buns")
+    if (style === "buns" && !capped)
       part(hair, "ball", [side * 0.39, 0.32, -0.08], [0.19, 0.19, 0.17], color);
     if (style === "tails") {
       part(
@@ -105,7 +107,7 @@ export function buildHair(parent: T.Object3D, index: number) {
         color,
       );
   }
-  if (style === "spiky" || style === "messy")
+  if (!capped && (style === "spiky" || style === "messy"))
     for (let i = -2; i <= 2; i++)
       part(
         hair,
@@ -130,9 +132,32 @@ export function buildHair(parent: T.Object3D, index: number) {
       );
     part(hair, "ball", [0.39, -0.84, -0.14], [0.07, 0.12, 0.07], "#ffe299");
   }
+  if (capped) {
+    // A fitted crown: compress upper strands below the brim, retaining nape and locks.
+    hair.updateMatrixWorld(true);
+    for (const child of hair.children)
+      if (child instanceof T.Mesh) {
+        const geometry = child.geometry.clone();
+        geometry.applyMatrix4(child.matrix);
+        const positions = geometry.getAttribute("position");
+        for (let i = 0; i < positions.count; i++) {
+          const y = positions.getY(i);
+          positions.setY(i, Math.min(y, 0.2));
+          if (y > 0.06) {
+            positions.setX(i, positions.getX(i) * 0.83);
+            positions.setZ(i, positions.getZ(i) * 0.83);
+          }
+        }
+        geometry.computeVertexNormals();
+        child.geometry = geometry;
+        child.position.set(0, 0, 0);
+        child.rotation.set(0, 0, 0);
+        child.scale.set(1, 1, 1);
+      }
+  }
   mergeCosmeticParts(hair);
   outlineModel(hair);
-  hairCache.set(index, hair.clone());
+  hairCache.set(cacheKey, hair.clone());
   return hair;
 }
 

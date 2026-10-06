@@ -144,11 +144,11 @@ export function buildClassBody(
   cloth.name = "CurvedCape";
   cloth.castShadow = true;
   cape.add(cloth);
-  part(cape, "torus", [0, 0.025, 0.08], [0.28, 0.075, 0.22], backColor, {
+  part(cape, "torus", [0, 0.065, 0.08], [0.38, 0.085, 0.26], backColor, {
     rot: [Math.PI / 2, 0, 0],
   });
   for (const side of [-1, 1])
-    part(cape, "ball", [side * 0.17, 0.025, 0.18], [0.045, 0.045, 0.028], gold);
+    part(cape, "ball", [side * 0.35, 0.065, 0.18], [0.065, 0.065, 0.038], gold);
   if (c?.prop === "staff") {
     part(g, "cone", [0, 0.49, 0], [0.3, 0.92, 0.23], color);
     part(g, "cyl", [0.43, 0.94, -0.48], [0.034, 1.6, 0.034], gold, {
@@ -198,15 +198,28 @@ export function buildClassBody(
     part(g, "torus", [0.43, 0.39, 0.1], [0.19, 0.19, 0.19], gold);
   } else if (c?.prop === "daggers") {
     part(g, "box", [0, 0.91, 0.08], [0.41, 0.25, 0.2], color);
-    blade(g, -0.39, 0.5, -0.16, 0.82, -0.55);
-    blade(g, 0.39, 0.5, -0.16, 0.82, 0.55);
+    for (const side of [-1, 1]) {
+      const dagger = node(g, [side * 0.39, 0.64, -0.24]);
+      dagger.rotation.z = side * 0.5;
+      part(dagger, "cyl", [0, 0, 0], [0.04, 0.2, 0.04], gold);
+      const curve = new T.CatmullRomCurve3([
+        new T.Vector3(0, -0.08, 0),
+        new T.Vector3(side * 0.09, -0.25, 0),
+        new T.Vector3(side * 0.08, -0.43, 0),
+      ]);
+      const steel = new T.Mesh(
+        new T.TubeGeometry(curve, 7, 0.055, 4, false),
+        material("#daf7ff"),
+      );
+      dagger.add(steel);
+    }
     cape.scale.set(0.65, 0.8, 1);
     for (const side of [-1, 1])
       part(
         cape,
         "box",
-        [side * 0.2, -0.4, -0.17],
-        [0.16, 1, 0.045],
+        [side * 0.2, -0.3, -0.4],
+        [0.19, 1.05, 0.045],
         backColor,
         { rot: [0.2, 0, side * 0.15] },
       );
