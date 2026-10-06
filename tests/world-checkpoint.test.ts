@@ -134,8 +134,11 @@ async function fixture(t, socketIds = ["p0"]) {
       });
       await ready;
     },
-    async tick(ms = 10000) {
+    async tick(ms = 10000, heartbeat = true) {
       t.mock.timers.tick(ms);
+      if (heartbeat)
+        for (const ws of sockets)
+          if (ws.readyState === 1) f.world.webSocketMessage(ws, "{}");
       alarm = null; // The runtime clears the fired alarm before invoking it.
       await f.world.alarm();
     },
@@ -162,12 +165,12 @@ async function fixture(t, socketIds = ["p0"]) {
   return f;
 }
 
-test("idle checkpoints keep 30-second authorization refresh and 10-second occupancy freshness", async (t) => {
+test("idle checkpoints keep 30-second authorization refresh and 3-second expiry alarm", async (t) => {
   const f = await fixture(t);
   for (let i = 0; i < 9; i++) {
     f.move({ x: 0 });
     await f.tick();
-    assert.equal(f.alarm(), Date.now() + 10000);
+    assert.equal(f.alarm(), Date.now() + 3000);
   }
   assert.deepEqual(
     f.calls.refreshes.map((r) => r.at),
@@ -422,4 +425,14 @@ test("an in-flight checkpoint cannot acknowledge a removed and rejoined player",
   f.records.worldSave = save;
   await f.world.checkpoint();
   assert.equal(f.calls.saves.at(-1).players[0].x, 4);
+});
+
+test("closed socket without a close event expires within fifteen seconds", async (t) => {
+  const f = await fixture(t);
+  f.move({ x: 4 });
+  await f.tick(11999, false);
+  assert.equal(f.world.state.players.size, 1);
+  await f.tick(3000, false);
+  assert.equal(f.world.state.players.size, 0);
+  assert.equal(f.sockets[0].readyState, 3);
 });

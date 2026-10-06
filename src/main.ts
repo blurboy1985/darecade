@@ -1,6 +1,9 @@
 import { installControls } from "./ui-controls";
 import { bindJoystick } from "./joystick";
 import { rooftops } from "./rooftops";
+import { ScoreOutbox } from "./score-outbox";
+import { raceTime } from "../shared/racing";
+import { mountAvatarCards, refreshHeadshot } from "./avatar-portraits";
 import { mountPayments } from "./payments";
 import {
   wardrobeBrowser,
@@ -42,6 +45,7 @@ import {
   ensureAccount,
   openAccount,
   reportPlayer,
+  moderatePlayer,
   acceptProfile,
   currentProfile,
   type Profile,
@@ -170,7 +174,14 @@ async function claimStyleRewards() {
 }
 let dismissStyleReward: (() => void) | null = null;
 function flushStyleTokens() {
-  if (!pendingStyleTokens || game || document.hidden) return;
+  if (
+    !pendingStyleTokens ||
+    game ||
+    modal.open ||
+    document.querySelector("dialog[open]") ||
+    document.hidden
+  )
+    return;
   const count = pendingStyleTokens;
   pendingStyleTokens = 0;
   dismissStyleReward?.();
@@ -196,13 +207,49 @@ function disposeArcadeFx() {
 let characterPreview: ReturnType<typeof createCharacterPreview> | null = null;
 let shared: SharedState | null = null;
 let profileReady = false;
+let sessionExpired = false;
 window.addEventListener("session-expired", () => {
   worldConnection.stop();
-  if (profileReady) {
-    profileReady = false;
-    location.reload();
+  if (profileReady && !sessionExpired) {
+    sessionExpired = true;
+    toast(
+      "Your session needs refreshing. Finish your game first; progress stays on screen.",
+    );
   }
 });
+type SavedRound = {
+  playMedal?: number;
+  race?: RaceResult & { newBest: boolean };
+  welcome?: boolean;
+  invite?: { xp: number } | null;
+  ranked?: boolean;
+  profile: Profile;
+  xpTokens?: number;
+};
+const scoreOutbox = new ScoreOutbox<SavedRound>(
+  localStorage,
+  (round) =>
+    api<SavedRound>("finish", {
+      id: round.id,
+      score: round.score,
+      replay: round.replay,
+    }),
+  () => currentProfile?.id || "",
+  (result) => {
+    if (result.profile.id === currentProfile?.id) {
+      acceptProfile(result.profile);
+      if (result.profile.styleRewards) void claimStyleRewards();
+    }
+  },
+  (persisted) => {
+    const checking = body.querySelector("[data-saving-score]");
+    if (checking)
+      checking.textContent = persisted
+        ? "Saved on this device. Retrying automatically when the connection returns…"
+        : "Retrying automatically. Keep this tab open until your score is saved.";
+  },
+);
+window.addEventListener("online", () => scoreOutbox.resume());
 let profileQueue = Promise.resolve();
 let sentPreferences = "";
 const preferenceKeys = [
@@ -275,8 +322,8 @@ app.innerHTML = `
   <div id="joystick" class="joystick" role="group" aria-label="Drag to walk"><span></span></div>
   <div id="fallback" class="fallback" hidden></div>
   </main>
-  <footer class="bottom-bar"><div class="profile"><span class="avatar-icon" id="avatar-icon"><i></i></span><span><strong id="player-name">New neighbour</strong><small id="medal-points">0 MEDALS</small><span id="level-label">LEVEL 1</span><span class="xp-track"><i id="xp-fill"></i></span></span></div><nav class="dock lobby-dock" aria-label="Main actions"><button class="selected" data-open="arcade" data-main-action>${icon("game")}<span>Play</span></button><button data-open="wardrobe" data-main-action>${icon("shirt")}<span>My look</span></button><button class="phone-more" data-open="phone-menu" data-main-action>${icon("settings")}<span>Menu</span></button></nav><span class="footer-note" id="quality-note">3D WORLD</span></footer>
-  <div class="world-actions"><button class="round-action" id="quick-emotes-toggle" aria-label="Favourite emotes" aria-expanded="false">${icon("smile")}</button><button class="round-action" data-emote="jump" aria-label="Jump">↑</button></div>
+  <footer class="bottom-bar"><div class="profile"><span class="avatar-icon" id="avatar-icon"><i></i></span><span><strong id="player-name">New neighbour</strong><span id="player-account" hidden>Guest mode</span><small id="medal-points">0 MEDALS</small><span id="level-label">LEVEL 1</span><span class="xp-track"><i id="xp-fill"></i></span></span></div><nav class="dock lobby-dock" aria-label="Main actions"><button class="selected" data-open="arcade" data-main-action>${icon("game")}<span>Play</span></button><button data-open="wardrobe" data-main-action>${icon("shirt")}<span>My look</span></button><button class="phone-more" data-open="phone-menu" data-main-action>${icon("settings")}<span>Menu</span></button></nav><span class="footer-note" id="quality-note">3D WORLD</span></footer>
+  <div class="world-actions"><button class="round-action" id="quick-emotes-toggle" aria-label="Favourite emotes" aria-expanded="false">${icon("smile")}</button><button id="lobby-jump" class="round-action" data-emote="jump" aria-label="Jump">↑</button></div>
   <div id="quick-emotes" hidden><button data-emote="wave" aria-label="Wave">👋</button><button data-emote="dance" aria-label="Dance">♫</button><button data-emote="cheer" aria-label="Cheer">🙌</button><button data-emote="victory" aria-label="Victory">✌</button><button data-open="emotes">More</button></div>
   <div class="world-zoom"><button data-action="zoom-out" aria-label="Zoom out">−</button><button data-action="zoom-in" aria-label="Zoom in">+</button></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -330,13 +377,7 @@ function startTune() {
   updateMusic();
 }
 function updateMusic() {
-  const hour = Number(
-    new Intl.DateTimeFormat("en-GB", {
-      hour: "numeric",
-      hourCycle: "h23",
-      timeZone: "Asia/Singapore",
-    }).format(new Date()),
-  );
+  const hour = new Date().getHours();
   const night =
     save.light === "night" ||
     save.light === "dusk" ||
@@ -355,44 +396,37 @@ let shownLevel = 0;
 let headshotLook = "";
 function renderStats() {
   audio.configure(save.sound, save.music);
+  if (currentProfile) {
+    document.querySelector("#player-name")!.textContent = currentProfile.name;
+    document.querySelector("#medal-points")!.textContent =
+      `${currentProfile.playMedals?.total ?? 0} Play medals · ${shared?.self?.points ?? 0} Ranked`;
+  }
   const level = 1 + Math.floor(save.xp / 100);
   if (shownLevel && level > shownLevel) beep("levelup");
   shownLevel = level;
-  const lookKey = [
-    save.outfit,
-    save.skin,
-    save.body,
-    save.hat,
-    save.clothing,
-    save.hair,
-  ].join(":");
-  if (world && lookKey !== headshotLook) {
-    headshotLook = lookKey;
-    const host = document.createElement("div");
-    const preview = createCharacterPreview(host, save);
-    const image = new Image();
-    image.alt = "Your character";
-    image.src = preview.thumbnail(save, "hair");
-    preview.dispose();
-    document.querySelector("#avatar-icon")!.replaceChildren(image);
-  }
   document.querySelector("#level-label")!.textContent =
-    `LEVEL ${1 + Math.floor(save.xp / 100)}`;
+    `Level ${level} · ${save.xp} XP`;
+  document.querySelector("#player-account")!.textContent =
+    currentProfile?.account ? "Saved account" : "Guest mode";
+  document
+    .querySelector(".xp-track")!
+    .setAttribute("aria-valuenow", String(save.xp % 100));
   (document.querySelector("#xp-fill") as HTMLElement).style.width =
     `${save.xp % 100}%`;
   (document.querySelector("#avatar-icon") as HTMLElement).style.setProperty(
     "--outfit",
     outfits[save.outfit],
   );
+  if (world && !is2d)
+    refreshHeadshot(document.querySelector<HTMLElement>("#avatar-icon")!, save);
   document.documentElement.classList.toggle("reduced", save.reduced);
 }
 function visit(id: string) {
   if (!save.visited.includes(id)) {
     save.visited.push(id);
-    save.xp += 10;
     progress("visit", id);
     persist();
-    toast(`Discovered ${spots.find((s) => s.id === id)?.name || id} · +10 XP`);
+    toast(`Discovered ${spots.find((s) => s.id === id)?.name || id}`);
   }
 }
 function collect(id: string) {
@@ -466,6 +500,7 @@ function openShell(kicker: string, keepPreview = false) {
   }
 }
 function close() {
+  world?.updateAvatar();
   dismissStyleReward?.();
   window.setTimeout(flushStyleTokens, 0);
   setupGuide = false;
@@ -487,11 +522,47 @@ function close() {
   const returnFocus = lastFocus?.isConnected
     ? lastFocus
     : document.querySelector<HTMLElement>(
-        firstRoundGoalPending(save)
+        firstRoundGoalPending(save) && !save.welcomeDismissed
           ? `${is2d ? "#fallback-welcome" : ".welcome-panel"} [data-action="welcome-start"]`
           : '.lobby-dock [data-open="phone-menu"]',
       );
-  returnFocus?.focus({ preventScroll: true });
+  // Return keyboard navigation to the lobby without arming a HUD button.
+  if (returnFocus instanceof HTMLButtonElement) returnFocus.blur();
+  if (document.activeElement instanceof HTMLButtonElement)
+    document.activeElement.blur();
+}
+let tryOnScroll: number | undefined;
+document.addEventListener(
+  "pointerdown",
+  (event) => {
+    if ((event.target as Element).closest("[data-try-slot],[data-reset-look]"))
+      tryOnScroll = body.scrollTop;
+  },
+  true,
+);
+function updateTryOn() {
+  const scroll = tryOnScroll ?? body.scrollTop;
+  tryOnScroll = undefined;
+  requestAnimationFrame(() => {
+    body.scrollTop = scroll;
+  });
+  const shown = tryingLook?.look ?? save;
+  world?.updateAvatar(shown);
+  const preview = body.querySelector<HTMLElement>(".character-preview");
+  if (preview && characterPreview)
+    characterPreview.mount(preview, { ...shown, reduced: save.reduced });
+  const panel = body.querySelector(".avatar-preview");
+  if (!panel) return;
+  panel.querySelector("strong")!.textContent = tryingLook
+    ? "Trying on"
+    : currentProfile?.name || "Your look";
+  panel.querySelector(".look-caption")!.textContent =
+    tryingLook?.name ?? clothingNames[save.clothing];
+  const canEquip =
+    tryingLook && wearable(shown, save, shared?.self?.points ?? 0);
+  panel.querySelector(".try-actions")!.innerHTML = tryingLook
+    ? `<button class="primary" data-equip-look ${canEquip ? "" : "disabled"}>${canEquip ? "Equip look" : "Locked · preview only"}</button><button class="text-button" data-reset-look>Back to my look</button>`
+    : "<span>Tap a card to try it on</span>";
 }
 function actionButton(action: string, label: string, klass = "primary") {
   return `<button class="${klass}" data-action="${action}">${label}</button>`;
@@ -502,18 +573,19 @@ function pager(page: number, total: number, target: string) {
 }
 function cards() {
   const art = {
-    noodle:
-      '<span class="noodle-body"></span><span class="dumpling">●</span><i>01</i>',
+    noodle: '<span class="noodle-body"></span><span class="dumpling">●</span>',
     brick: "<i></i>".repeat(12) + "<b></b><span></span>",
-    hop: '<span class="hop-roof r1"></span><span class="hop-roof r2"></span><span class="hop-character">↑</span><i>03</i>',
+    hop: '<span class="hop-roof r1"></span><span class="hop-roof r2"></span><span class="hop-character">↑</span>',
     swarm:
       '<span class="star-ship">▲</span><span class="star-enemy">▼</span><i>✦ · ✧ · ✦</i>',
-    coast: "<span>🏎</span><b>PALM BAY</b><i>05</i>",
-    hoops: "<span>🏀</span>",
-    fishing: "<span>🎣</span>",
+    coast: "<span>🏎</span><b>PALM BAY</b>",
+    hoops:
+      '<span class="court-backboard"></span><span class="court-rim"></span><span class="court-ball"></span><b>SHOOT YOUR SHOT</b>',
+    fishing:
+      '<span class="jetty-deck"></span><span class="jetty-rod"></span><span class="jetty-fish">◀</span><b>CAST & CHILL</b>',
   };
   const choices = { items: playIds, page: gamePage, total: 1 };
-  return `<div class="game-grid compact-games">${choices.items.map((id) => `<button class="game-card ${id}" data-game="${id}"><div class="game-art ${id}-art">${art[id]}</div><span class="eyebrow">${games[id].genre}</span><h3>${games[id].name}</h3><div><span>${id === "coast" ? "3 laps" : id === "hoops" ? "10 shots" : "60s"} · BEST ${formatScore(id, shared?.self.best[id] ?? 0)}</span>${icon("arrow")}</div></button>`).join("")}</div>${pager(choices.page, choices.total, "games")}`;
+  return `<div class="game-grid compact-games">${choices.items.map((id) => `<button class="game-card ${id}" data-game="${id}"><div class="game-art ${id}-art">${art[id]}</div><span class="eyebrow">${games[id].genre}</span><h3>${games[id].name}</h3><div><span>${id === "coast" ? "3 laps" : id === "hoops" ? "10 shots" : "60s"} · BEST ${id === "coast" && save.coastRecord.timeTicks ? raceTime(save.coastRecord.timeTicks) : formatScore(id, shared?.self.best[id] ?? 0)}</span>${icon("arrow")}</div></button>`).join("")}</div>${pager(choices.page, choices.total, "games")}`;
 }
 function questTabs(active: string) {
   return `<nav class="quest-tabs" aria-label="Quests & rankings">${[
@@ -547,6 +619,7 @@ function open(id: string) {
   if (id !== "wardrobe") {
     setupGuide = false;
     tryingLook = null;
+    world?.updateAvatar();
   }
   if (id.startsWith("player:")) {
     showPlayer(id.slice(7));
@@ -615,7 +688,7 @@ function open(id: string) {
           : ["fishing", "hoops", "plots"].includes(id)
             ? "EAST SIDE"
             : id === "stage"
-              ? "SIMI PLAZA"
+              ? "ARCADE ROW"
               : "PLAY SIMI",
     id === "wardrobe" && !is2d,
   );
@@ -665,6 +738,7 @@ function open(id: string) {
     socialPanel = "worlds";
     void worldPicker.open();
   } else if (isMenuPage(id)) {
+    modal.classList.add("directory-panel");
     const page = menuPages[id];
     body.innerHTML = `<h2>${page.title}</h2><div class="simple-menu" aria-label="Menu">${page.actions.map((action) => `<button class="menu-choice" data-open="${action.target}">${icon(action.icon)}<span>${action.label}</span>${icon("arrow")}</button>`).join("")}<button class="menu-choice" ${currentProfile?.account ? 'data-action="logout"' : 'data-action="save-email"'}>${icon("settings")}<span>${currentProfile?.account ? "Log out" : "Save with email"}</span>${icon("arrow")}</button></div><div class="menu-links"><button class="text-button" data-open="privacy">Privacy & data</button><button class="text-button" data-open="help">Help/Report</button></div>`;
   } else if (id === "arcade") {
@@ -697,13 +771,14 @@ function open(id: string) {
     const nickname =
       currentProfile?.name || shared?.self?.name || "New neighbour";
     const typed =
-      body.querySelector<HTMLInputElement>("#nickname")?.value ??
-      (setupGuide && !save.nameChosen ? "" : nickname);
+      body.querySelector<HTMLInputElement>("#nickname")?.value ?? nickname;
     const moreLooksOpen =
       body.querySelector<HTMLDetailsElement>(".setup-more")?.open ?? false;
     const medals = shared?.self?.points ?? 0;
     const shown = tryingLook?.look ?? save;
-    body.innerHTML = `<div class="wardrobe-layout"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${tryingLook ? "Trying on" : escapeText(nickname)}</strong><small>DRAG TO TURN</small><span class="look-caption">${tryingLook?.name ?? clothingNames[save.clothing]}</span><div class="try-actions" role="status"><button class="secondary" data-undo-look ${undoLook ? "" : "disabled"}>Undo</button><button class="text-button" data-reset-look>Back to my look</button></div></div><div class="wardrobe-controls">${setupGuide ? '<span class="eyebrow setup-step">STEP 1 OF 2 · NAME & LOOK</span>' : ""}${setupGuide ? "<h2>Create your driver</h2>" : `<span class="eyebrow">YOUR COLLECTION</span><h2>My look</h2><div class="style-wallet"><strong>${tokenSummary(save)}</strong><small>Tokens buy looks. +1 per 100 XP, up to +3 daily from ranked medals.</small></div>`}<details class="look-identity" ${setupGuide ? "open" : ""}><summary>Name, girl or boy, colours & daily hats</summary><form id="nickname-form" novalidate><label class="field-label" for="nickname">NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" value="${escapeText(typed)}" minlength="2" maxlength="20" autocomplete="off" placeholder="Choose your nickname" aria-describedby="nickname-status" required><button class="secondary" type="submit">Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form><label class="field-label">CHARACTER</label><div class="body-options">${["Girl", "Boy"].map((label, i) => `<button data-body="${i}" class="${save.body === i ? "active" : ""}" aria-pressed="${save.body === i}">${label}</button>`).join("")}</div><label class="field-label">OUTFIT COLOUR</label><div class="swatches">${outfits.map((c, i) => `<button data-outfit="${i}" style="--swatch:${c}" class="${save.outfit === i ? "active" : ""}" aria-label="${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][i]} outfit" aria-pressed="${save.outfit === i}"></button>`).join("")}</div><p class="fine-print">Legendary outfits use their own signature colours.</p><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">EYE COLOUR</label><div class="swatches">${["#db779f", "#865035", "#328cca", "#469267", "#8763bd"].map((c, i) => `<button data-eye="${i}" style="--swatch:${c}" aria-label="${["Original", "Brown", "Blue", "Green", "Violet"][i]} eyes" aria-pressed="${(save.eye || 0) === i}"></button>`).join("")}</div><label class="field-label">DAILY HATS</label><div class="hat-options">${["No hat", "Bucket", "Cap", "Sprout"].map((n, i) => `<button data-hat="${i}" ${save.unlockedHats.includes(i) ? "" : "disabled"} aria-pressed="${save.hat === i}">${n}${save.unlockedHats.includes(i) ? "" : " · locked"}</button>`).join("")}</div></details>${setupGuide ? `<details class="setup-more" ${moreLooksOpen ? "open" : ""}><summary>More looks & hairstyles</summary>` : ""}<div class="look-tabs" aria-label="Wardrobe sections">${wardrobeSections.map((label) => `<button data-wardrobe-section="${label}" aria-pressed="${wardrobeSection === label}">${label}</button>`).join("")}<button data-open="support">Premium</button></div><div class="collection-tabs" aria-label="Filter looks">${wardrobeFilters.map((label) => `<button data-wardrobe-filter="${label}" aria-pressed="${wardrobeFilter === label}">${label}</button>`).join("")}</div>${wardrobeSection === "Hats" ? hatShelf(save) : ""}${wardrobeSection === "Capes & back" ? '<p class="fine-print">Capes include their matching outfit. Wings use the Magic slot.</p>' : ""}${wardrobeBrowser(wardrobeSection, wardrobeFilter, save, medals, tryingLook)}<p class="fine-print">Cosmetic only. No gameplay advantage. Earn sets through play or check optional purchase availability.</p>${setupGuide ? "</details>" : ""}${setupGuide ? actionButton("setup-save", currentProfile?.account ? "Save & continue →" : "Next: save my character →") : actionButton("done-look", "Done")}</div></div>`;
+    world?.updateAvatar(shown);
+    body.innerHTML = `<div class="wardrobe-layout"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${tryingLook ? "Trying on" : escapeText(nickname)}</strong><small>DRAG TO TURN</small><span class="look-caption">${tryingLook?.name ?? clothingNames[save.clothing]}</span><div class="try-actions" role="status"><button class="secondary" data-undo-look ${undoLook ? "" : "disabled"}>Undo</button><button class="text-button" data-reset-look>Back to my look</button></div></div><div class="wardrobe-controls">${setupGuide ? '<span class="eyebrow setup-step">STEP 1 OF 2 · NAME & LOOK</span>' : ""}${setupGuide ? "<h2>Make it yours</h2>" : `<span class="eyebrow">YOUR COLLECTION</span><h2>My look</h2><div class="style-wallet"><strong>${tokenSummary(save)}</strong><small>Tokens buy looks. +1 per 100 XP, up to +3 daily from ranked medals.</small></div>`}<details class="look-identity" ${setupGuide ? "open" : ""}><summary>Name, girl or boy, colours & daily hats</summary><form id="nickname-form" novalidate><label class="field-label" for="nickname">NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" ${currentProfile?.account ? "" : "readonly"} value="${escapeText(typed)}" minlength="2" maxlength="20" autocomplete="off" placeholder="Choose your nickname" aria-describedby="nickname-status" required><button class="secondary" type="submit" ${currentProfile?.account ? "" : "disabled"}>Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form><label class="field-label">CHARACTER</label><div class="body-options">${["Girl", "Boy"].map((label, i) => `<button data-body="${i}" class="${save.body === i ? "active" : ""}" aria-pressed="${save.body === i}">${label}</button>`).join("")}</div><label class="field-label">OUTFIT COLOUR</label><div class="swatches">${outfits.map((c, i) => `<button data-outfit="${i}" style="--swatch:${c}" class="${save.outfit === i ? "active" : ""}" aria-label="${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][i]} outfit" aria-pressed="${save.outfit === i}"></button>`).join("")}</div><p class="fine-print">Legendary outfits use their own signature colours.</p><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">EYE COLOUR</label><div class="swatches">${["#db779f", "#865035", "#328cca", "#469267", "#8763bd"].map((c, i) => `<button data-eye="${i}" style="--swatch:${c}" aria-label="${["Original", "Brown", "Blue", "Green", "Violet"][i]} eyes" aria-pressed="${(save.eye || 0) === i}"></button>`).join("")}</div><label class="field-label">DAILY HATS</label><div class="hat-options">${["No hat", "Bucket", "Cap", "Sprout"].map((n, i) => `<button data-hat="${i}" ${save.unlockedHats.includes(i) ? "" : "disabled"} aria-pressed="${save.hat === i}">${n}${save.unlockedHats.includes(i) ? "" : " · locked"}</button>`).join("")}</div></details>${setupGuide ? `<details class="setup-more" ${moreLooksOpen ? "open" : ""}><summary>More looks & hairstyles</summary>` : ""}<div class="look-tabs" aria-label="Wardrobe sections">${wardrobeSections.map((label) => `<button data-wardrobe-section="${label}" aria-pressed="${wardrobeSection === label}">${label}</button>`).join("")}<button data-open="support">Premium</button></div><div class="collection-tabs" aria-label="Filter looks">${wardrobeFilters.map((label) => `<button data-wardrobe-filter="${label}" aria-pressed="${wardrobeFilter === label}">${label}</button>`).join("")}</div>${wardrobeSection === "Hats" ? hatShelf(save) : ""}${wardrobeSection === "Capes & back" ? '<p class="fine-print">Capes include their matching outfit. Wings use the Magic slot.</p>' : ""}${wardrobeBrowser(wardrobeSection, wardrobeFilter, save, medals, tryingLook)}<p class="fine-print">Cosmetic only. No gameplay advantage. Earn sets through play or check optional purchase availability.</p>${setupGuide ? "</details>" : ""}${setupGuide ? actionButton("setup-save", currentProfile?.account ? "Save & continue →" : "Next: save my character →") : actionButton("done-look", "Done")}</div></div>`;
+    mountAvatarCards(body, save);
     const preview = body.querySelector<HTMLElement>(".character-preview")!;
     if (!is2d) {
       try {
@@ -820,8 +895,8 @@ function open(id: string) {
         "",
       )}</select><div class="button-row">${actionButton("start-away", "Step away")}${actionButton("save-away", "Save choice", "secondary")}</div><p class="fine-print">Away time earns no XP.</p>`;
   } else if (id === "preferences") {
-    body.innerHTML = `<button class="text-button menu-back" data-open="phone-menu">← Back</button><h2>Sound & display</h2><label class="settings-row"><span>Display quality</span><select id="setting-quality">${["auto", "quality", "performance"].map((q) => `<option value="${q}" ${localStorage.getItem("playsimi-quality") === q ? "selected" : ""}>${q === "auto" ? "Automatic" : q === "quality" ? "Quality" : "Performance"}</option>`).join("")}</select></label><label class="settings-row"><span><strong>Sound effects</strong><small>Blips and sparkles</small></span><input id="setting-sound" type="checkbox" ${save.sound ? "checked" : ""}></label><label class="settings-row"><span><strong>Background music</strong><small>Lo-fi, pads and chiptune</small></span><input id="setting-music" type="checkbox" ${save.music ? "checked" : ""} ${save.sound ? "" : "disabled"}></label><label class="settings-row"><span><strong>Reduce motion</strong><small>Calmer effects</small></span><input id="setting-reduced" type="checkbox" ${save.reduced ? "checked" : ""}></label><label class="settings-row"><span><strong>Time of day</strong><small>SGT or pick a mood</small></span><select id="setting-light">${[
-      ["auto", "Follow SGT"],
+    body.innerHTML = `<button class="text-button menu-back" data-open="phone-menu">← Back</button><h2>Sound & display</h2><label class="settings-row"><span>Display quality</span><select id="setting-quality">${["auto", "quality", "performance"].map((q) => `<option value="${q}" ${localStorage.getItem("playsimi-quality") === q ? "selected" : ""}>${q === "auto" ? "Automatic" : q === "quality" ? "Quality" : "Performance"}</option>`).join("")}</select></label><label class="settings-row"><span><strong>Sound effects</strong><small>Blips and sparkles</small></span><input id="setting-sound" type="checkbox" ${save.sound ? "checked" : ""}></label><label class="settings-row"><span><strong>Background music</strong><small>Lo-fi, pads and chiptune</small></span><input id="setting-music" type="checkbox" ${save.music ? "checked" : ""} ${save.sound ? "" : "disabled"}></label><label class="settings-row"><span><strong>Reduce motion</strong><small>Calmer effects</small></span><input id="setting-reduced" type="checkbox" ${save.reduced ? "checked" : ""}></label><label class="settings-row"><span><strong>Time of day</strong><small>Your local clock or pick a mood</small></span><select id="setting-light">${[
+      ["auto", "Follow my local clock"],
       ["day", "Daylight"],
       ["dusk", "Golden hour"],
       ["night", "After dark"],
@@ -844,7 +919,7 @@ function open(id: string) {
         walk: false,
         open: true,
       },
-      { id: "dragon", label: "Dragon slide", emoji: "🐉", walk: false },
+      { id: "dragon", label: "Dragon rooftop run", emoji: "🐉", walk: false },
       { id: "swing", label: "Swings", emoji: "✦", walk: false },
       { id: "pet", label: "Pet Kopi", emoji: "🐈", walk: false },
       { id: "fishing", label: "Fishing", emoji: "🎣", walk: true },
@@ -868,7 +943,7 @@ function open(id: string) {
   } else if (id === "garden") {
     body.innerHTML = `<div class="garden-portrait">${icon("leaf")}</div><h2>Pocket Garden</h2><p class="lead">Nothing to chase. Just breathe.</p><button class="primary" data-environment="bench0">Sit & read →</button>`;
   } else if (id === "playground") {
-    body.innerHTML = `<div class="dragon-portrait">✦</div><h2>Dragon playground</h2><button class="primary" data-environment="dragon">Ride the dragon →</button><button class="secondary" data-environment="swing">Swing</button>`;
+    body.innerHTML = `<div class="dragon-portrait">✦</div><h2>Dragon Rooftop</h2><p class="lead">Ride, flip, and pose for photos.</p><button class="primary" data-environment="dragon">Ride the rooftop →</button><button class="secondary" data-action="dragon-pose">Strike a pose</button>`;
   } else if (id === "soon") {
     body.innerHTML = `<h2>Play</h2>${cards()}<h3>Play outside</h3><div class="outside-cards">${[
       ["relay", "Neighbourhood Relay", "🎒"],
@@ -917,7 +992,8 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
         : "ARCADE ROW",
   );
   const generation = gameGeneration;
-  body.innerHTML = "<h2>Loading…</h2>";
+  body.innerHTML =
+    '<h2>Getting the grid ready…</h2><progress aria-label="Loading race session"></progress>';
   let run: Run | null = null;
   try {
     run = await api<Run>("run", {
@@ -966,15 +1042,7 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
   if (!outdoor) boardGame = id;
   if (id === "coast") modal.classList.add("racing-modal");
   const onFinish = async (score: number, replay: Replay) => {
-    type Finished = {
-      playMedal?: number;
-      race?: RaceResult & { newBest: boolean };
-      welcome?: boolean;
-      invite?: { xp: number } | null;
-      ranked?: boolean;
-      profile: Profile;
-      xpTokens?: number;
-    };
+    type Finished = SavedRound;
     const racing = game instanceof RacingGame ? game : null;
     const endNote = game instanceof ArcadeGame ? game.endNote() : "";
     const raceSummary =
@@ -985,13 +1053,13 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
     playtestEvent("round-finished");
     const send = async () => {
       await profileQueue;
-      const result = await api<Finished>("finish", {
+      const result = await scoreOutbox.submit({
+        owner: currentProfile!.id,
         id: run!.id,
         score,
         replay,
+        queuedAt: Date.now(),
       });
-      acceptProfile(result.profile);
-      if (result.profile.styleRewards) void claimStyleRewards();
       return result;
     };
     // The race is saved while its finish sequence plays, so closing the
@@ -1005,7 +1073,8 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
     game = null;
     flushStyleTokens();
     updateMusic();
-    body.innerHTML = "<h2>Checking score…</h2>";
+    body.innerHTML =
+      '<h2 data-saving-score>Saving your round…</h2><button class="secondary" data-open="arcade">Back to Games</button>';
     const render = async () => {
       try {
         let result: Finished | null = null;
@@ -1031,11 +1100,13 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
           (reward || !save.nameChosen || save.welcome !== "complete");
         body.innerHTML =
           id === "coast"
-            ? `<h2 class="result-score">${formatScore(id, score)}<small>YOUR THREE-LAP TIME</small></h2>${result?.race?.newBest ? '<p class="new-best">New personal best!</p>' : ""}${raceComparison(score, today, !!result?.ranked)}<p class="fine-print">Every race has a 120-second limit, including Race again. Steering help stays on until your first finish.</p><div class="button-row"><button class="primary" data-replay="coast">Play again</button><button class="secondary" data-action="setup-look">${setup ? "Create my name & look" : "Edit my name & look"}</button></div><details class="race-extra-details"><summary>Race details & rewards</summary>${raceSummary}<p>${result ? `Verified round · +20 XP${reward ? " · Lilac cap unlocked · +35 bonus XP" : ""}` : "Offline · this round was not saved."}</p>${!currentProfile?.account ? '<button class="secondary" data-account>Save with email</button>' : ""}</details>`
+            ? `<h2 class="result-score">${result?.race?.finished ? raceTime(result.race.timeTicks) : formatScore(id, score)}<small>YOUR THREE-LAP TIME</small></h2>${result?.race?.newBest ? '<p class="new-best">New personal best!</p>' : ""}${raceComparison(score, today, !!result?.ranked)}<p class="fine-print">Races allow 180 seconds until your first finish, including Play again; standard races then allow 120 seconds.</p><div class="button-row"><button class="primary" data-replay="coast">Play again</button><button class="secondary" data-action="setup-look">${setup ? "Create my name & look" : "Edit my name & look"}</button></div><details class="race-extra-details"><summary>Race details & rewards</summary>${raceSummary}<p>${result ? `Verified round · +20 XP${reward ? " · Lilac cap unlocked · +35 bonus XP" : ""}` : "Offline · this round was not saved."}</p>${!currentProfile?.account ? '<button class="secondary" data-account>Save with email</button>' : ""}</details>`
             : '<div class="result-star">' +
               icon(target ? "trophy" : "game") +
               '</div><h2 class="result-score">' +
-              formatScore(id, score) +
+              (score > 0
+                ? formatScore(id, score)
+                : "Try again — you’ve got this!") +
               "<small>" +
               "GAME SCORE" +
               "</small></h2>" +
@@ -1073,7 +1144,7 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
               '<button class="secondary" data-action="close">Neighbourhood</button></div>' +
               '<div class="note">' +
               (result
-                ? "✓ Verified · " +
+                ? (result.ranked ? "✓ Verified · " : "") +
                   (result.ranked
                     ? outdoor
                       ? "East Side rounds build personal bests and Play medals."
@@ -1111,10 +1182,10 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
           "afterbegin",
           '<div class="finish-effects" aria-hidden="true"></div>',
         );
-        if (arcadeFx) {
+        if (score > 0 && arcadeFx) {
           arcadeFx.setUrgency(0);
           arcadeFx.fire("end");
-        } else if (!is2d && !save.reduced) {
+        } else if (score > 0 && !is2d && !save.reduced) {
           try {
             disposeCelebration = celebrate(
               body.querySelector(".finish-effects")!,
@@ -1152,7 +1223,7 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
           mount,
           onFinish,
           (name) => beep(name),
-          run?.seed ?? 314159,
+          run?.seed ?? (save.coastRecord.timeTicks ? 314159 : -314160),
           save,
           {
             reduced: save.reduced,
@@ -1172,10 +1243,17 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
             id,
             onFinish,
             (name) => beep(name),
-            run?.seed ?? 314159,
+            run?.seed ?? (save.coastRecord.timeTicks ? 314159 : -314160),
             { reduced: save.reduced, simple: save.twoD },
           )
-        : new ArcadeGame(id, mount, onFinish, (name) => beep(name), run?.seed);
+        : new ArcadeGame(
+            id,
+            mount,
+            onFinish,
+            (name) => beep(name),
+            run?.seed,
+            save,
+          );
   game.onFx = (event, amount) => {
     arcadeFx?.fire(event, amount);
     if (event === "hurt" && !save.reduced) {
@@ -1202,6 +1280,7 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
 document.addEventListener("click", (e) => {
   const b = (e.target as Element).closest<HTMLButtonElement>("button");
   if (!b || b.disabled) return;
+  b.blur();
   if (b.dataset.joinFriend) {
     void worldPicker.join({ friend: b.dataset.joinFriend });
     return;
@@ -1308,7 +1387,7 @@ document.addEventListener("click", (e) => {
   }
   if (b.hasAttribute("data-reset-look")) {
     tryingLook = null;
-    open("wardrobe");
+    updateTryOn();
     return;
   }
   if (b.hasAttribute("data-equip-look") && tryingLook) {
@@ -1375,7 +1454,23 @@ document.addEventListener("click", (e) => {
     return;
   }
   if (b.dataset.account !== undefined) {
+    close();
     void openAccount();
+    return;
+  }
+  if (b.dataset.moderate && b.dataset.target) {
+    const action = b.dataset.moderate;
+    if (action === "block" || action === "mute" || action === "unmute")
+      moderatePlayer(b.dataset.target, action);
+    return;
+  }
+  if (b.dataset.acceptFriend) {
+    void api<SharedPlayer[]>("friends", {
+      target: b.dataset.acceptFriend,
+    }).then((friends) => {
+      if (shared) shared.friends = friends;
+      renderSharedDares();
+    });
     return;
   }
   if (b.dataset.report) {
@@ -1402,6 +1497,7 @@ document.addEventListener("click", (e) => {
     return;
   }
   if (b.dataset.open) {
+    if (b.dataset.open === "arcade") gamePage = 0;
     open(b.dataset.open);
     return;
   }
@@ -1525,6 +1621,10 @@ document.addEventListener("click", (e) => {
   }
   if (b.dataset.action) {
     const a = b.dataset.action;
+    if (a === "jump") {
+      world?.act("jump");
+      return;
+    }
     if (a === "save-email") {
       close();
       void openAccount({ create: true });
@@ -1558,6 +1658,9 @@ document.addEventListener("click", (e) => {
     if (a === "welcome-skip") {
       save.welcomeDismissed = true;
       persist();
+      document
+        .querySelector<HTMLButtonElement>('.lobby-dock [data-open="arcade"]')
+        ?.focus({ preventScroll: true });
       return;
     }
     if (a === "setup-look") {
@@ -1598,7 +1701,10 @@ document.addEventListener("click", (e) => {
         b.disabled = true;
         try {
           await profileQueue;
-          if (!save.nameChosen || name !== currentProfile?.name) {
+          if (
+            currentProfile?.account &&
+            (!save.nameChosen || name !== currentProfile?.name)
+          ) {
             acceptProfile(await api<Profile>("profile", { name }));
           }
           if (save.rounds > 0 && save.welcome !== "complete") {
@@ -1771,10 +1877,18 @@ document.addEventListener("click", (e) => {
       toast("Take your time. You’re right where you need to be.");
   }
 });
-document.querySelector("#close-modal")!.addEventListener("click", close);
+document.querySelector("#close-modal")!.addEventListener("click", () => {
+  const fromGame = modal.classList.contains("game-modal");
+  close();
+  if (fromGame) {
+    gamePage = 0;
+    open("arcade");
+  }
+});
 modal.addEventListener("cancel", (e) => {
   e.preventDefault();
-  close();
+  if (game instanceof RacingGame) game.pause();
+  else close();
 });
 modal.addEventListener("click", (e) => {
   if (e.target === modal) {
@@ -1998,18 +2112,22 @@ function startOutdoor(id: string) {
 }
 window.addEventListener("world-interaction", (event) => {
   const d = (event as CustomEvent).detail;
-  const active = ["loading", "walking", "playing"].includes(d.phase);
+  const active = ["loading", "walking", "playing", "registered"].includes(
+    d.phase,
+  );
   if (d.id === "cabinet-noodle") playtestEvent(`welcome-${d.phase}`);
   const banner = document.querySelector<HTMLElement>("#action-banner")!;
   banner.hidden = !active;
   document.body.classList.toggle("is-interacting", active);
   banner.querySelector("strong")!.textContent = d.title || "";
-  banner.querySelector(".action-status")!.textContent =
-    d.phase === "playing"
-      ? "PLAYING"
-      : d.phase === "loading"
-        ? "GETTING READY"
-        : "WALKING OVER";
+  banner.querySelector(".action-status")!.textContent = [
+    "playing",
+    "registered",
+  ].includes(d.phase)
+    ? "PLAYING"
+    : d.phase === "loading"
+      ? "GETTING READY"
+      : "WALKING OVER";
   (banner.querySelector(".action-track i") as HTMLElement).style.width = "0%";
   renderCameraUI();
   renderAway();
@@ -2041,7 +2159,7 @@ window.addEventListener("world-interaction", (event) => {
                   : "click",
     );
   if (d.phase === "error") toast(d.message);
-  if (d.phase === "complete") {
+  if (d.phase === "complete" || (d.phase === "registered" && d.id === "pet")) {
     if (d.id === "pet" && !save.cat) {
       save.cat = true;
       progress("cat");
@@ -2058,6 +2176,23 @@ window.addEventListener("world-interaction-progress", (event) => {
     `${Math.round((event as CustomEvent<number>).detail * 100)}%`;
 });
 window.addEventListener("keydown", (e) => {
+  if (
+    [
+      "w",
+      "a",
+      "s",
+      "d",
+      " ",
+      "arrowup",
+      "arrowdown",
+      "arrowleft",
+      "arrowright",
+    ].includes(e.key.toLowerCase()) &&
+    document.activeElement instanceof HTMLButtonElement
+  ) {
+    e.preventDefault();
+    document.activeElement.blur();
+  }
   if (e.key === "Escape" && !modal.open) dismissInspector();
 });
 function dismissInspector() {
@@ -2197,13 +2332,14 @@ bindJoystick(document.querySelector<HTMLElement>("#joystick")!, (x, y) => {
   if (world) world.joystick = { x, y };
 });
 function updateClock() {
-  document.querySelector("#sgt-clock")!.textContent =
-    new Intl.DateTimeFormat("en-SG", {
-      timeZone: "Asia/Singapore",
+  document.querySelector("#sgt-clock")!.textContent = new Intl.DateTimeFormat(
+    "en-SG",
+    {
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
-    }).format(new Date()) + " SGT";
+    },
+  ).format(new Date());
   if (save.week !== singaporeWeek()) {
     save.week = singaporeWeek();
     save.coins = [];
@@ -2231,6 +2367,7 @@ setInterval(() => {
 renderStats();
 captureInvite();
 const accountReady = ensureAccount().then((p) => {
+  scoreOutbox.resume();
   try {
     if (!localStorage.getItem("darecade-preview-backup")) {
       const old = localStorage.getItem("darecade-v1");
@@ -2258,6 +2395,10 @@ const accountReady = ensureAccount().then((p) => {
 });
 window.addEventListener("account-profile", ((event: CustomEvent<Profile>) => {
   if (!profileReady) return;
+  if (sessionExpired) {
+    sessionExpired = false;
+    worldConnection.refreshSession();
+  }
   const away = save.away,
     awaySince = save.awaySince;
   const look = (s: typeof save) =>
@@ -2309,6 +2450,10 @@ requestAnimationFrame(async () => {
       return;
     }
     await loadCharacter();
+    // Warm the race module while the player explores; the driver is shared.
+    window.setTimeout(() => {
+      void import("./race-view").catch(() => {});
+    }, 1500);
     world = new LobbyWorld(document.querySelector("#world")!, save, {
       interact: open,
       visit,
@@ -2320,6 +2465,7 @@ requestAnimationFrame(async () => {
         document.body.classList.toggle("has-nearby", !!id);
         b.querySelector("span")!.textContent = name;
       },
+      playerName: currentProfile?.name,
       fallback: () => {
         enable2D();
         toast(
@@ -2380,8 +2526,8 @@ function presenceData() {
   return {
     away: save.away,
     activity: save.awayActivity,
-    x: world?.player.root.position.x,
-    z: world?.player.root.position.z,
+    x: world?.player.root.position.x ?? 0,
+    z: world?.player.root.position.z ?? 10,
     yaw: world?.player.root.rotation.y,
     emote: is2d
       ? Date.now() < emote2d.until
@@ -2460,7 +2606,7 @@ async function syncSocial() {
     const me = shared.self;
     document.querySelector("#player-name")!.textContent = me.name;
     document.querySelector("#medal-points")!.textContent =
-      `${shared.profile.playMedals?.total ?? 0} PLAY MEDAL POINTS · ${me.points} RANKED`;
+      `${shared.profile.playMedals?.total ?? 0} Play medals · ${me.points} Ranked`;
     savedNeighbours = shared.players;
     hiddenNeighbours.clear();
     applyWorldPlayers();
@@ -2527,7 +2673,10 @@ function renderSeasonBoard(season: SeasonStanding) {
   const date = new Date(season.startsAt).toLocaleDateString("en-SG", {
     timeZone: "Asia/Singapore",
   });
-  body.innerHTML = `<span class="eyebrow">LEAGUE</span><h2>Rankings</h2>${serverNote()}${playMedalGoal(currentProfile?.playMedals)}<section class="your-standing"><div><span>YOUR SEASON RANK</span><strong>${season.rank ? `#${season.rank}` : "—"}</strong><small>${past ? "Past season" : "Medals settle at midnight"}</small></div><div class="standing-stats"><span><b>${season.points}</b>Season medals</span><span><b>${season.xp}</b>Season XP</span><span><b>${save.xp}</b>Lifetime XP</span></div></section>${rankingPeriodPicker()}<p class="fine-print">${escapeText(season.name)} · from ${date} SGT. Daily medals build this ranking. XP keeps your lifetime level and earns tokens once.</p><div class="leaderboard">${rows.map((p) => `<div class="${p.id === shared?.me ? "you-row" : ""}"><b>#${p.rank}</b><span>${escapeText(p.name)}${p.id === shared?.me ? " · You" : ""}</span><strong>${p.points}<small>MEDAL PTS</small></strong></div>`).join("") || `<section class="board-empty"><h3>${past ? "No medals" : "A fresh season"}</h3><p>${past ? "No saved medal results for this season." : "Play today. Top daily ranks earn medals at 00:00 SGT. Your earlier progress stays saved."}</p>${past ? "" : `<button class="primary" data-game="${boardGame}">Play ${games[boardGame].name}</button>`}</section>`}</div><details class="scoring-guide"><summary>Lifetime & history</summary><p>${shared?.self.points || 0} lifetime medal points · ${save.xp} lifetime XP · Level ${1 + Math.floor(save.xp / 100)}.</p><p>Earlier scores, outfits and tokens stay saved. Past seasons are in Show. Your personal bests are on each game card.</p></details>${!currentProfile?.account ? `<details class="scoring-guide"><summary>How guest progress is saved</summary><p>${guestSaveCopy}</p><p>${emailSaveCopy}</p><button class="secondary" data-account>Link an email</button></details>` : ""}`;
+  body.innerHTML = `<span class="eyebrow">LEAGUE</span><h2>Rankings</h2>${personalBestCards()}${serverNote()}${playMedalGoal(currentProfile?.playMedals)}<section class="your-standing"><div><span>YOUR SEASON RANK</span><strong>${season.rank ? `#${season.rank}` : "—"}</strong><small>${past ? "Past season" : "Medals settle at midnight"}</small></div><div class="standing-stats"><span><b>${season.points}</b>Season medals</span><span><b>${season.xp}</b>Season XP</span><span><b>${save.xp}</b>Lifetime XP</span></div></section>${rankingPeriodPicker()}<p class="fine-print">${escapeText(season.name)} · from ${date} SGT. Daily medals build this ranking. XP keeps your lifetime level and earns tokens once.</p><div class="leaderboard">${rows.map((p) => `<div class="${p.id === shared?.me ? "you-row" : ""}"><b>#${p.rank}</b><span>${escapeText(p.name)}${p.id === shared?.me ? " · You" : ""}</span><strong>${p.points}<small>MEDAL PTS</small></strong></div>`).join("") || `<section class="board-empty"><h3>${past ? "No medals" : "A fresh season"}</h3><p>${past ? "No saved medal results for this season." : "Play today. Top daily ranks earn medals at 00:00 SGT. Your earlier progress stays saved."}</p>${past ? "" : `<button class="primary" data-game="${boardGame}">Play ${games[boardGame].name}</button>`}</section>`}</div><details class="scoring-guide"><summary>Lifetime & history</summary><p>${shared?.self.points || 0} lifetime medal points · ${save.xp} lifetime XP · Level ${1 + Math.floor(save.xp / 100)}.</p><p>Earlier scores, outfits and tokens stay saved. Past seasons are in Show. Your personal bests are on each game card.</p></details>${!currentProfile?.account ? `<details class="scoring-guide"><summary>How guest progress is saved</summary><p>${guestSaveCopy}</p><p>${emailSaveCopy}</p><button class="secondary" data-account>Link an email</button></details>` : ""}`;
+}
+function personalBestCards() {
+  return `<details class="menu-details"><summary>Your game bests · all seven games</summary><div class="daily-personal-bests">${playIds.map((id) => `<button class="secondary" data-game="${id}">${games[id].name}<strong>${id === "coast" && save.coastRecord.timeTicks ? raceTime(save.coastRecord.timeTicks) : formatScore(id, shared?.self.best[id] || 0)}</strong></button>`).join("")}</div><p class="fine-print">Personal bests match Games. Ranked daily scores below count verified-email rounds only.</p></details>`;
 }
 function renderSharedBoard() {
   if (shared?.season && !boardPeriodChosen && boardTab !== "daily")
@@ -2593,7 +2742,7 @@ function renderSharedBoard() {
   const awarded = weekEnds
     ? "They are awarded at 00:00 SGT and count for this week, which closes then: look under Last week’s champions tomorrow."
     : "They are awarded at 00:00 SGT and then appear here.";
-  body.innerHTML = `${questTabs("board")}<span class="eyebrow">LEAGUE</span><h2>Rankings</h2>${serverNote()}${playMedalGoal(currentProfile?.playMedals)}${guest ? '<details class="scoring-guide"><summary>Ranked medal standings</summary>' : ""}<section class="your-standing"><div><span>YOUR ${boardTab === "week" ? "WEEKLY" : "DAILY"} RANK</span><strong>${rank ? "#" + rank : "—"}</strong><small>${rank ? "Nice!" : waiting}</small></div><div class="standing-stats"><span><b>${ownWeek?.points || 0}</b>This week</span><span><b>${pending ? "+" + pending : "0"}</b>Pending tonight</span><span><b>${me?.points || 0}</b>Lifetime</span></div></section>${guest ? "</details>" : ""}${rankingPeriodPicker()}${boardTab === "daily" ? `<label class="field-label" for="board-game">Game</label><select class="destination-select" id="board-game">${gameIds.map((g) => `<option value="${g}" ${g === boardGame ? "selected" : ""}>${games[g].name}</option>`).join("")}</select><p class="fine-print">${games[boardGame].name}${boardGame === "coast" ? " · Fastest three-lap time wins" : ""} · Your best today: <b>${formatScore(boardGame, ownDay?.score || 0)}</b> · Each player’s best score of the day is listed, so a lower replay does not replace it. Medals are pending until 00:00 SGT.</p>` : `<p class="fine-print">Week of ${shared?.week || "Monday"} · resets Monday 00:00 SGT</p>`}<div class="podium-cards">${podium.length ? podium.map((p) => `<article class="podium-card medal-${p.rank} ${p.id === shared?.me ? "is-you" : ""}"><span class="podium-medal">${["🥇", "🥈", "🥉"][p.rank - 1]}</span><small>RANK ${p.rank}${p.id === shared?.me ? " · YOU" : ""}</small><h3>${escapeText(p.name)}</h3><strong>${p.value}</strong><small>${unit}${boardTab === "daily" ? ` · +${4 - p.rank} PENDING` : ""}</small></article>`).join("") : `<div class="board-empty"><span>✦</span><h3>${guest ? "Nothing yet!" : boardTab !== "week" ? "Be the first!" : playedToday ? "Medals land at midnight" : "Nothing yet!"}</h3><p>${guest ? "Earn Play medals with the daily goal above. Email adds ranked arcade rounds; top 3 daily scores win ranked medals at midnight." : boardTab !== "week" ? "Finish a round to claim #1." : pending ? `Your scores today are worth +${pending} medal points so far. ${awarded}` : playedToday ? "Your rounds today are on Today’s scores. Top 3 in a game win medals at midnight." : "Top 3 daily scores win medals at midnight."}</p>${boardTab === "week" && playedToday ? '<button class="primary" data-board-tab="daily">See today’s scores →</button>' : `<button class="primary" data-game="${boardGame}">Play ${games[boardGame].name} →</button>`}</div>`}</div>${list.length ? `<div class="leaderboard">${list.map((p) => `<div class="${p.id === shared?.me ? "you-row" : ""}"><b>#${p.rank}</b><span>${escapeText(p.name)}${p.id === shared?.me ? " · You" : ""}</span><strong>${p.value}<small>${unit}</small></strong></div>`).join("")}</div>` : ""}${boardTab === "daily" && ownDay && board[0] ? `<div class="score-target"><label>${boardGame === "coast" ? "Your time / today’s fastest" : "Your score compared with today’s leader"} <b>${formatScore(boardGame, ownDay.score)} / ${formatScore(boardGame, board[0].score)}</b></label><progress value="${ownDay.score}" max="${Math.max(1, board[0].score)}"></progress></div>` : ""}${boardTab === "daily" && podium.length ? `<button class="primary" data-game="${boardGame}">Play ${games[boardGame].name}</button>` : ""}${challenge}<details class="scoring-guide"><summary>How scores become ranked medals</summary><div class="medal-rule"><span>🥇<b>+3</b>Gold</span><span>🥈<b>+2</b>Silver</span><span>🥉<b>+1</b>Bronze</span></div><p>1. Play any of the five daily games. Your best positive score counts. Coast Rush ranks fastest three-lap times.</p><p>2. At midnight Singapore time, each game awards its top three ranks. Gold earns 3 Style tokens, silver 2, bronze 1. Medal tokens cap at 3 per day across games.</p><p>3. Daily medals build your weekly total. The weekly board resets Monday; lifetime medals stay.</p><p class="fine-print">Ties share a rank (1, 1, 3). Pending medals can change before midnight. Cosmetic XP levels up your avatar and never affects ranks. Challenges record wins separately.</p></details><details class="scoring-guide"><summary>Last week’s champions</summary><div class="leaderboard">${(shared?.lastWeek || []).map((p) => `<div><b>#${p.rank}</b><span>${escapeText(p.name)}</span><strong>${p.points}<small>MEDAL PTS</small></strong></div>`).join("") || "<p>No completed week yet.</p>"}</div></details>${guest ? `<details class="scoring-guide"><summary>How guest progress is saved</summary><p>${guestSaveCopy}</p><p>${emailSaveCopy}</p><button class="secondary" data-account>Link an email</button></details>` : !shared?.competitionReady ? '<button class="secondary" data-account>Account & challenges →</button>' : ""}`;
+  body.innerHTML = `${questTabs("board")}<span class="eyebrow">LEAGUE</span><h2>Rankings</h2>${personalBestCards()}${serverNote()}${playMedalGoal(currentProfile?.playMedals)}${guest ? '<details class="scoring-guide"><summary>Ranked medal standings</summary>' : ""}<section class="your-standing"><div><span>YOUR ${boardTab === "week" ? "WEEKLY" : "DAILY"} RANK</span><strong>${rank ? "#" + rank : "—"}</strong><small>${rank ? "Nice!" : waiting}</small></div><div class="standing-stats"><span><b>${ownWeek?.points || 0}</b>This week</span><span><b>${pending ? "+" + pending : "0"}</b>Pending tonight</span><span><b>${me?.points || 0}</b>Lifetime</span></div></section>${guest ? "</details>" : ""}${rankingPeriodPicker()}${boardTab === "daily" ? `<label class="field-label" for="board-game">Game</label><select class="destination-select" id="board-game">${gameIds.map((g) => `<option value="${g}" ${g === boardGame ? "selected" : ""}>${games[g].name}</option>`).join("")}</select><p class="fine-print">${games[boardGame].name}${boardGame === "coast" ? " · Fastest three-lap time wins" : ""} · Your personal best: <b>${boardGame === "coast" && save.coastRecord.timeTicks ? raceTime(save.coastRecord.timeTicks) : formatScore(boardGame, shared?.self.best[boardGame] || 0)}</b> · Each player’s best score of the day is listed, so a lower replay does not replace it. Medals are pending until 00:00 SGT.</p>` : `<p class="fine-print">Week of ${shared?.week || "Monday"} · resets Monday 00:00 SGT</p>`}<div class="podium-cards">${podium.length ? podium.map((p) => `<article class="podium-card medal-${p.rank} ${p.id === shared?.me ? "is-you" : ""}"><span class="podium-medal">${["🥇", "🥈", "🥉"][p.rank - 1]}</span><small>RANK ${p.rank}${p.id === shared?.me ? " · YOU" : ""}</small><h3>${escapeText(p.name)}</h3><strong>${p.value}</strong><small>${unit}${boardTab === "daily" ? ` · +${4 - p.rank} PENDING` : ""}</small></article>`).join("") : `<div class="board-empty"><span>✦</span><h3>${guest ? "Nothing yet!" : boardTab !== "week" ? "Be the first!" : playedToday ? "Medals land at midnight" : "Nothing yet!"}</h3><p>${guest ? "Earn Play medals with the daily goal above. Email adds ranked arcade rounds; top 3 daily scores win ranked medals at midnight." : boardTab !== "week" ? "Finish a round to claim #1." : pending ? `Your scores today are worth +${pending} medal points so far. ${awarded}` : playedToday ? "Your rounds today are on Today’s scores. Top 3 in a game win medals at midnight." : "Top 3 daily scores win medals at midnight."}</p>${boardTab === "week" && playedToday ? '<button class="primary" data-board-tab="daily">See today’s scores →</button>' : `<button class="primary" data-game="${boardGame}">Play ${games[boardGame].name} →</button>`}</div>`}</div>${list.length ? `<div class="leaderboard">${list.map((p) => `<div class="${p.id === shared?.me ? "you-row" : ""}"><b>#${p.rank}</b><span>${escapeText(p.name)}${p.id === shared?.me ? " · You" : ""}</span><strong>${p.value}<small>${unit}</small></strong></div>`).join("")}</div>` : ""}${boardTab === "daily" && ownDay && board[0] ? `<div class="score-target"><label>${boardGame === "coast" ? "Your time / today’s fastest" : "Your score compared with today’s leader"} <b>${formatScore(boardGame, ownDay.score)} / ${formatScore(boardGame, board[0].score)}</b></label><progress value="${ownDay.score}" max="${Math.max(1, board[0].score)}"></progress></div>` : ""}${boardTab === "daily" && podium.length ? `<button class="primary" data-game="${boardGame}">Play ${games[boardGame].name}</button>` : ""}${challenge}<details class="scoring-guide"><summary>How scores become ranked medals</summary><div class="medal-rule"><span>🥇<b>+3</b>Gold</span><span>🥈<b>+2</b>Silver</span><span>🥉<b>+1</b>Bronze</span></div><p>1. Play any of the five daily games. Your best positive score counts. Coast Rush ranks fastest three-lap times.</p><p>2. At midnight Singapore time, each game awards its top three ranks. Gold earns 3 Style tokens, silver 2, bronze 1. Medal tokens cap at 3 per day across games.</p><p>3. Daily medals build your weekly total. The weekly board resets Monday; lifetime medals stay.</p><p class="fine-print">Ties share a rank (1, 1, 3). Pending medals can change before midnight. Cosmetic XP levels up your avatar and never affects ranks. Challenges record wins separately.</p></details><details class="scoring-guide"><summary>Last week’s champions</summary><div class="leaderboard">${(shared?.lastWeek || []).map((p) => `<div><b>#${p.rank}</b><span>${escapeText(p.name)}</span><strong>${p.points}<small>MEDAL PTS</small></strong></div>`).join("") || "<p>No completed week yet.</p>"}</div></details>${guest ? `<details class="scoring-guide"><summary>How guest progress is saved</summary><p>${guestSaveCopy}</p><p>${emailSaveCopy}</p><button class="secondary" data-account>Link an email</button></details>` : !shared?.competitionReady ? '<button class="secondary" data-account>Account & challenges →</button>' : ""}`;
 }
 function challengeButtons(p: SharedPlayer) {
   const best = p.challengeScores
@@ -2626,11 +2775,11 @@ function renderSharedDares() {
   const eligibility = dareHoldCopy(ready, currentProfile?.account);
   const rule = `<p class="fine-print">${eligibility || `${left}/3 left today. Score freezes at start. Resets midnight SGT.`}</p>`;
   if (dareView === "home") {
-    body.innerHTML = `${questTabs("dares")}<h2>Challenges</h2>${serverNote()}<p>Beat a saved score.</p><div class="simple-menu"><button class="menu-choice" data-open="dares-neighbour">Friends & neighbours</button><button class="menu-choice" data-open="dares-board">Today’s scores</button><button class="menu-choice" data-open="dares-find">Save a friend</button></div>${rule}<details class="menu-details"><summary>Recent challenges</summary><div class="challenge-history">${shared?.history.map((r) => `<div><strong>${escapeText(r.challenger)} → ${escapeText(r.defender)}</strong><span>${games[r.game].name} · ${r.status === "finished" ? `${formatScore(r.game, r.score || 0)} vs ${formatScore(r.game, r.targetScore)} · ${r.score! > r.targetScore ? "WON" : r.score === r.targetScore ? "TIED" : "HELD"}` : "ENDED"}</span></div>`).join("") || "<p>No challenges yet.</p>"}</div></details>`;
+    body.innerHTML = `${questTabs("dares")}<h2>Challenges</h2>${serverNote()}<p>Beat a saved score.</p><div class="simple-menu"><button class="menu-choice" data-open="dares-neighbour">Friends & requests</button><button class="menu-choice" data-open="dares-board">Today’s scores</button><button class="menu-choice" data-open="dares-find">Find a friend</button></div>${rule}<details class="menu-details"><summary>Recent challenges</summary><div class="challenge-history">${shared?.history.map((r) => `<div><strong>${escapeText(r.challenger)} → ${escapeText(r.defender)}</strong><span>${games[r.game].name} · ${r.status === "finished" ? `${formatScore(r.game, r.score || 0)} vs ${formatScore(r.game, r.targetScore)} · ${r.score! > r.targetScore ? "WON" : r.score === r.targetScore ? "TIED" : "HELD"}` : "ENDED"}</span></div>`).join("") || "<p>No challenges yet.</p>"}</div></details>`;
     return;
   }
   if (dareView === "find") {
-    body.innerHTML = `${questTabs("dares")}${back}<h2>Save a friend</h2><p>Ask for their exact nickname.</p><form id="save-friend"><label>Nickname<input name="name" minlength="2" maxlength="20" required autocomplete="off"></label><button class="primary">Save friend</button><p role="status"></p></form>`;
+    body.innerHTML = `${questTabs("dares")}${back}<h2>Find a friend</h2><p>Ask for their exact nickname.</p><form id="save-friend"><label>Nickname<input name="name" minlength="2" maxlength="20" required autocomplete="off"></label><button class="primary">Send friend request</button><p role="status"></p></form>`;
     body.querySelector<HTMLFormElement>("#save-friend")!.onsubmit = async (
       event,
     ) => {
@@ -2656,21 +2805,27 @@ function renderSharedDares() {
   }
   const players = [
     ...new Map(
-      [...(shared?.friends || []), ...(shared?.players || [])]
+      [...(shared?.friends || [])]
         .filter((p) => p.id !== shared?.me)
         .map((p) => [p.id, p]),
     ).values(),
   ];
   const selected = players.find((p) => p.id === previous) || players[0];
-  body.innerHTML = `${questTabs("dares")}${back}<h2>Friends & neighbours</h2>${serverNote()}${players.length ? `<label class="field-label" for="dare-choice">Choose a player</label><select class="destination-select" id="dare-choice">${players.map((p) => `<option value="${p.id}" ${p.id === selected?.id ? "selected" : ""}>${escapeText(p.name)} · ${p.status}</option>`).join("")}</select>` : "<p>Save a friend to find their scores here.</p>"}${selected ? challengeButtons(selected) : ""}${rule}`;
+  body.innerHTML = `${questTabs("dares")}${back}<h2>Friends & requests</h2>${serverNote()}${players.length ? `<label class="field-label" for="dare-choice">Choose a player</label><select class="destination-select" id="dare-choice">${players.map((p) => `<option value="${p.id}" ${p.id === selected?.id ? "selected" : ""}>${escapeText(p.name)} · ${p.relationship || "friend"}</option>`).join("")}</select>` : "<p>Find a friend to find their scores here.</p>"}${selected?.relationship === "incoming" ? `<button class="primary" data-accept-friend="${selected.id}">Accept friend request</button>` : selected?.relationship === "outgoing" ? "<p>Request pending. They must accept before you can visit.</p>" : selected ? challengeButtons(selected) : ""}${rule}`;
+}
+function playerProfile(p: SharedPlayer) {
+  const friend = shared?.friends?.some(
+    (f) => f.id === p.id && f.relationship === "friend",
+  );
+  return `<h3>${escapeText(p.name)}</h3><p>${p.points} ranked medal points</p><div class="resident-outfit"><i style="background:${outfits[p.look.outfit]}"></i><span>${clothingNames[p.look.clothing || 0]}</span></div>${friend ? `<p>${p.status} · ${activities[p.activity].name}</p><button class="secondary" data-join-friend="${p.id}">Join friend’s world</button>${shared?.competitionReady ? "" : "<p>Challenges are not open for you yet.</p>"}${challengeButtons(p)}<p>${dareHoldCopy(!!shared?.competitionReady, currentProfile?.account)}</p>` : "<p>Status, activity and world are private.</p>"}<details class="menu-details"><summary>Block, mute or report</summary><div class="button-row"><button class="secondary" data-moderate="block" data-target="${p.id}">Block</button><button class="secondary" data-moderate="${shared?.muted?.includes(p.id) ? "unmute" : "mute"}" data-target="${p.id}">${shared?.muted?.includes(p.id) ? "Unmute" : "Mute"} emotes</button><button class="secondary" data-report="${p.id}">Report</button></div></details>`;
 }
 function renderPlayerInspector(id: string) {
   const p = [...(shared?.friends || []), ...(shared?.players || [])].find(
     (p) => p.id === id,
   );
   if (!p) return;
-  const el = document.querySelector<HTMLElement>("#inspector")!;
-  el.innerHTML = `<button class="close-button" data-action="close-inspector" aria-label="Stop inspecting neighbour">×</button><span class="eyebrow">${p.status.toUpperCase()} · SAVED NEIGHBOUR</span><h3>${escapeText(p.name)}</h3><p>${p.points} ranked medal points · ${p.wins} challenge wins<br>${activities[p.activity].icon} ${activities[p.activity].name}</p><div class="resident-outfit"><i style="background:${outfits[p.look.outfit]}"></i><span>${clothingNames[p.look.clothing || 0]} · ${petNames[p.look.pet || 0]} · ${accessoryNames[p.look.accessory || 0]}</span></div><strong>${shared?.challenged.includes(p.id) ? "Already challenged today" : shared?.competitionReady ? "Ready for a friendly challenge" : "Challenges are not open for you yet"}</strong>${challengeButtons(p)}<button class="secondary" data-join-friend="${p.id}">Join friend’s world</button><button class="secondary" data-report="${p.id}">Report or hide this player</button><p class="fine-print">${dareHoldCopy(!!shared?.competitionReady, currentProfile?.account) || "Starting uses one of your three daily challenges. Beat their saved score to win."} Drag to orbit; scroll or pinch to zoom.</p>`;
+  document.querySelector<HTMLElement>("#inspector")!.innerHTML =
+    `<button class="close-button" data-action="close-inspector" aria-label="Close profile">×</button>${playerProfile(p)}`;
 }
 function showPlayer(id: string) {
   if (
@@ -2686,7 +2841,7 @@ function showPlayer(id: string) {
     ].find((p) => p.id === id);
     if (!player) return;
     openShell("NEIGHBOUR");
-    body.innerHTML = `<h2>${escapeText(player.name)}</h2><p>${activities[player.activity].name}</p><div class="simple-menu"><button class="secondary" data-open="dares">Challenges</button><button class="secondary" data-join-friend="${player.id}">Join their world</button><button class="secondary" data-report="${player.id}">Report or hide</button></div>`;
+    body.innerHTML = playerProfile(player);
     return;
   }
   if (modal.open) close();
@@ -2705,7 +2860,14 @@ let savedNeighbours: SharedPlayer[] = [];
 let liveNeighbours: SharedPlayer[] = [];
 const hiddenNeighbours = new Set<string>();
 function applyWorldPlayers() {
-  if (!shared) return;
+  if (!shared) {
+    world?.syncPlayers(
+      liveNeighbours,
+      currentProfile?.id ?? "",
+      new Set(liveNeighbours.map((p) => p.id)),
+    );
+    return;
+  }
   const liveIds = new Set(liveNeighbours.map((p) => p.id));
   const cards = new Map(savedNeighbours.map((p) => [p.id, p]));
   shared.players = [
@@ -2725,7 +2887,15 @@ function applyWorldPlayers() {
         !!shared?.friends.some((friend) => friend.id === p.id),
     ),
   ];
-  world?.syncPlayers(shared.players, shared.me, liveIds);
+  world?.syncPlayers(
+    shared.players
+      .filter((p) => liveIds.has(p.id))
+      .map((p) =>
+        shared?.muted?.includes(p.id) ? { ...p, emote: undefined } : p,
+      ),
+    shared.me,
+    liveIds,
+  );
   if (modal.open && socialPanel === "neighbours") renderSharedNeighbours();
 }
 let currentWorld = "";
@@ -2791,18 +2961,25 @@ function firstRacePending() {
 }
 function renderWelcome() {
   const firstRace = firstRoundGoalPending(save);
-  document.body.classList.toggle("first-race", firstRace);
-  document.body.classList.toggle("welcome-active", firstRace);
+  document.body.classList.toggle(
+    "first-race",
+    firstRace && !save.welcomeDismissed,
+  );
+  document.body.classList.toggle(
+    "welcome-active",
+    firstRace && !save.welcomeDismissed,
+  );
   document.body.classList.toggle("welcome-played", save.welcome === "played");
-  const invitation = `<div class="eyebrow">${firstVisitCopy.kicker}</div><h1>${firstVisitCopy.title}</h1><p>${firstVisitCopy.detail}</p><p class="welcome-explore">${firstVisitCopy.explore}</p><button class="primary" data-action="welcome-start" data-main-action>Play now ${icon("arrow")}</button><div class="welcome-options"><button class="text-button" data-open="settings">Settings</button><button class="text-button" data-account>Account & privacy</button></div>`;
+  const invitation = `<div class="cap-goal-copy"><strong>${firstVisitCopy.title}</strong><span>${firstVisitCopy.detail}</span></div><button class="primary" data-action="welcome-start" aria-label="Race at Palm Bay for your cap">Race</button><button class="cap-goal-dismiss" data-action="welcome-skip" aria-label="Dismiss cap goal" title="Explore first">×</button>`;
   const el = document.querySelector<HTMLElement>(".welcome-panel")!;
-  el.hidden = !firstRace;
+  el.hidden = !firstRace || save.welcomeDismissed;
   const html = firstRace ? invitation : "";
   if (el.dataset.welcome !== String(firstRace)) {
     el.innerHTML = html;
     el.dataset.welcome = String(firstRace);
   }
   const fallback = document.querySelector("#fallback-welcome");
+  if (fallback instanceof HTMLElement) fallback.hidden = el.hidden;
   if (
     fallback instanceof HTMLElement &&
     fallback.dataset.welcome !== String(firstRace)
@@ -2895,3 +3072,26 @@ window.addEventListener("performance-mode", () => {
 });
 
 installControls();
+
+window.addEventListener("account-opening", () => {
+  if (modal.open) close();
+  dismissInspector();
+});
+window.addEventListener("player-moderated", ((
+  event: CustomEvent<{ target: string; action: string }>,
+) => {
+  if (!shared) return;
+  const { target, action } = event.detail;
+  if (action === "block") {
+    shared.players = shared.players.filter((p) => p.id !== target);
+    liveNeighbours = liveNeighbours.filter((p) => p.id !== target);
+    savedNeighbours = savedNeighbours.filter((p) => p.id !== target);
+    hiddenNeighbours.add(target);
+  } else
+    shared.muted =
+      action === "mute"
+        ? [...(shared.muted || []), target]
+        : (shared.muted || []).filter((id) => id !== target);
+  applyWorldPlayers();
+  renderWorldPresence();
+}) as EventListener);

@@ -146,7 +146,7 @@ for (const viewport of viewports) {
           await openCoast();
           check(find('.game-progress').textContent.includes('First goal: finish all 3 laps'), 'Coast first finish goal');
           check(find('.level-reward').textContent.includes('1 XP to your next Style token'), '99 XP boundary');
-          check(find('.game-progress').textContent.includes('Verified round: +20 XP'), 'existing Coast XP copy');
+          check(find('.game-progress').textContent.includes('Guests earn +20 XP'), 'existing Coast XP copy');
           const cover = find('.race-cover'), guide = find('.race-guide');
           check(getComputedStyle(cover).overflowY === 'auto', 'Coast cover can scroll');
           await until(()=>find('.coast-game').dataset.status !== 'ready','card starts race directly');

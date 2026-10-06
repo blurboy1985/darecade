@@ -951,3 +951,32 @@ dialog.game-modal.racing-modal {
   font-size: 12px;
   font-weight: 700;
 }
+
+.race-pause {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  background: #20364be8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+  color: #fff8e8;
+}
+.race-loading {
+  width: min(260px, 80%);
+  height: 10px;
+  accent-color: #8ee1ce;
+  margin: 12px 0;
+}
+.race-finish:has(.finish-place) h3 {
+  color: #ffe28d;
+}
+
+.coast-game[data-status="finished"] .race-nameplates { display: none; }
+.race-finish:not(:has(.finish-place)) h3 {
+  font-size: clamp(25px, 5vw, 44px);
+  line-height: 1.15;
+  letter-spacing: -1px;
+}

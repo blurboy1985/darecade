@@ -1,4 +1,21 @@
 import { part, ball } from "./shapes.ts";
+import { identitySeed } from "./character-identity.ts";
+import { HAIR_START } from "./hair-catalog.ts";
+import {
+  buildClassBody,
+  buildClassHead,
+  classFor,
+  animateCostume,
+} from "./class-costumes.ts";
+import {
+  addWink,
+  blinkAmount,
+  buildHair,
+  buildMouth,
+  expressionFor,
+  outlineModel,
+  rimMaterial,
+} from "./character-finish.ts";
 import { extraIndexFor, legendarySets, setIndexFor } from "./collections.ts";
 import { legendaryHead, legendaryBody } from "./legendary.ts";
 import * as T from "three";
@@ -70,6 +87,7 @@ export function loadCharacter() {
     .loadAsync("/models/neighbour-chibi2.glb?v=6")
     .then((g) => {
       template = g.scene;
+      addWink(template);
       template.scale.setScalar(CHARACTER_SCALE);
     })
     .catch((error: unknown) => {
@@ -255,7 +273,7 @@ const alwaysShown = [
   "Head",
   "Lashes",
   "Shirt",
-  "Trim",
+  // The source's "Trim" is a bag/strap crossing the outfit, not garment trim.
   "Socks",
 ];
 const unitBall = new T.SphereGeometry(1, 12, 8);
@@ -325,26 +343,32 @@ export function createAvatar(
       if (!m) {
         // Each avatar colours its own copies; the textures stay shared.
         m = original.clone();
+        rimMaterial(m);
         if (original.name === "eyes" || original.name === "eyes_b") {
-          const tint = { value: new T.Color("#468fc2") },
-            enabled = { value: 0 };
-          m.userData.eyeTint = tint;
-          m.userData.eyeEnabled = enabled;
           m.onBeforeCompile = (shader) => {
-            shader.uniforms.eyeTint = tint;
-            shader.uniforms.eyeEnabled = enabled;
+            shader.uniforms.irisTint = {
+              value: m!.userData.irisTint ?? new T.Color("#795038"),
+            };
+            shader.uniforms.lidSkin = {
+              value: m!.userData.lidSkin ?? new T.Color("#edc4a3"),
+            };
+            shader.uniforms.eyeClosed = m!.userData.eyeClosed ??= { value: 0 };
             shader.fragmentShader =
-              "uniform vec3 eyeTint; uniform float eyeEnabled;\n" +
+              "uniform vec3 irisTint; uniform vec3 lidSkin; uniform float eyeClosed;\n" +
               shader.fragmentShader;
             shader.fragmentShader = shader.fragmentShader.replace(
               "#include <map_fragment>",
-              `#include <map_fragment>
-            float chroma=max(diffuseColor.r,max(diffuseColor.g,diffuseColor.b))-min(diffuseColor.r,min(diffuseColor.g,diffuseColor.b));
-            float iris=step(0.07,chroma)*step(diffuseColor.g*1.1,max(diffuseColor.r,diffuseColor.b))*eyeEnabled;
-            diffuseColor.rgb=mix(diffuseColor.rgb,eyeTint*(0.3+0.7*max(diffuseColor.r,diffuseColor.b)),iris);`,
+              `
+              #include <map_fragment>
+              float chroma=max(diffuseColor.r,max(diffuseColor.g,diffuseColor.b))-min(diffuseColor.r,min(diffuseColor.g,diffuseColor.b)); float irisMask=step(0.07,chroma)*step(diffuseColor.g*1.1,max(diffuseColor.r,diffuseColor.b));
+              diffuseColor.rgb = mix(diffuseColor.rgb, irisTint * (0.5 + diffuseColor.r), irisMask);
+              float whiteMask = smoothstep(0.4, 0.8, max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b)));
+              diffuseColor.rgb = mix(diffuseColor.rgb, lidSkin, eyeClosed);
+            `,
             );
           };
-          m.customProgramCacheKey = () => "playsimi-iris-v1";
+          m.customProgramCacheKey = () => "simi-iris-v2";
+          if (m.map) m.map.anisotropy = 4;
         }
         if (original.name === "cape") {
           const time = { value: 0 },
@@ -375,6 +399,7 @@ export function createAvatar(
       o.receiveShadow = false;
     }
   });
+  outlineModel(model);
   model.updateMatrixWorld(true);
   const rig = new Map<string, { bone: T.Object3D; rest: T.Quaternion }>();
   model.traverse((bone) => {
@@ -420,6 +445,13 @@ export function createAvatar(
     rig,
     expressions,
   };
+  for (const suffix of ["r", "l"]) {
+    const wrist = rig.get("wrist" + suffix)?.bone;
+    if (wrist) {
+      const mitten = ellipsoid(wrist, [0, 0, 0], [0.075, 0.09, 0.065], skin);
+      mitten.name = "Mitten";
+    }
+  }
   root.add(a.hat, a.extras, a.costume);
   root.userData.avatar = a;
   applyLook(a, a.look, color, skin);
@@ -433,17 +465,35 @@ export function applyLook(
   skin = skins[look.skin],
 ) {
   const previous = a.look;
+  for (const name of ["eyes", "eyes_b"]) {
+    const material = a.materials.get(name);
+    if (material) {
+      (material.userData.lidSkin ??= new T.Color()).set(skin);
+      const tint = (material.userData.irisTint ??= new T.Color());
+      tint.set(
+        look.eye
+          ? ["#db779f", "#865035", "#328cca", "#469267", "#8763bd"][look.eye]
+          : ["#ce558e", "#805135", "#3a9c79", "#3694cc", "#cf922c"][
+              (look.skin + (look.hair ?? 0)) % 5
+            ],
+      );
+    }
+  }
   const outfitSet = setIndexFor("clothing", look.clothing ?? 0);
   const headSet = setIndexFor("hair", look.hair ?? 0);
   const special = legendarySets[outfitSet];
+  const starter = classFor(look.clothing ?? 0);
   if (special) color = special.color;
+  else if (starter) color = starter.color;
   a.look = { body: 0, clothing: 0, hair: 0, pet: 0, accessory: 0, ...look };
   const boy = a.look.body === 1;
   const [top, legs, cape] = special
     ? legendaryBodies[outfitSet]
     : bodySets[a.look.clothing! % bodySets.length];
   const [hairName, wear, gear] =
-    laterHeads[extraIndexFor("hair", a.look.hair!)] ??
+    (a.look.hair! >= HAIR_START
+      ? (["slate", null, null] as const)
+      : laterHeads[extraIndexFor("hair", a.look.hair!)]) ??
     (headSet < 0
       ? headSets[a.look.hair! % headSets.length]
       : [setHair[headSet % setHair.length], null, null]);
@@ -451,18 +501,27 @@ export function applyLook(
   const below = bottoms[legs];
   const shown = new Set([
     ...alwaysShown,
-    ...hairParts[hair.style],
+
     boy ? "EyesB" : "Eyes",
     boy && below.part === "Skirt" ? "Shorts" : below.part,
   ]);
   if (tops[top].jacket) shown.add("Jacket");
-  if (cape) shown.add("Cape");
+  if (starter?.prop === "staff") shown.delete("Skirt");
+  if (cape && !special && !classFor(a.look.clothing!)) shown.add("Cape");
   if (below.shoes) shown.add("Shoes");
-  if (wear === "Hat_Wizard" && !look.hat) shown.add(wear);
+  if (wear === "Hat_Wizard" && !look.hat && !classFor(a.look.clothing!))
+    shown.add(wear);
   a.model.traverse((o) => {
-    if (o instanceof T.Mesh) o.visible = shown.has(o.name);
+    if (o instanceof T.Mesh) {
+      o.visible = o.name === "Mitten" || shown.has(o.name);
+      if (o.userData.outline) o.userData.selected = o.visible;
+      if (o.name === "Mitten") o.material = mat(skin);
+    }
   });
   const primary = new T.Color(color);
+  const hsl = { h: 0, s: 0, l: 0 };
+  primary.getHSL(hsl);
+  primary.setHSL(hsl.h, Math.min(1, hsl.s * 1.5), Math.min(0.58, hsl.l));
   const tone = new T.Color(skin),
     base = new T.Color(BASE_SKIN);
   const paint: Record<string, T.Color> = {
@@ -476,6 +535,11 @@ export function applyLook(
     cape: primary.clone().multiplyScalar(0.7),
     ...tops[top].paint(primary),
   };
+  if (starter) {
+    paint.jacket = primary;
+    paint.shirt = primary;
+    paint.bottom = primary.clone().multiplyScalar(0.7);
+  }
   if (special) {
     // Sets wear their two signature colours from collar to hem.
     const accent = new T.Color(special.accent);
@@ -487,15 +551,6 @@ export function applyLook(
   }
   for (const [name, value] of Object.entries(paint))
     a.materials.get(name)?.color.copy(value);
-  for (const key of ["eyes", "eyes_b"]) {
-    const m = a.materials.get(key);
-    if (m?.userData.eyeTint) {
-      m.userData.eyeTint.value.set(
-        ["#db779f", "#865035", "#328cca", "#469267", "#8763bd"][look.eye || 0],
-      );
-      m.userData.eyeEnabled.value = look.eye ? 1 : 0;
-    }
-  }
   a.costume.clear();
   // Set trim was sized for a broader chest; draw it in to this one.
   a.costume.scale.setScalar(0.82);
@@ -521,6 +576,9 @@ export function applyLook(
     );
     collar.name = "CapeCollar";
   }
+  buildClassBody(a.costume, a.look.clothing!, !!special);
+  a.root.userData.equippedAt = null;
+  delete a.root.userData.detailLevel;
   a.hat.clear();
   if (look.hat === 1) {
     ellipsoid(a.hat, [0, 1.83, 0], [0.24, 0.12, 0.22], "#e7a769");
@@ -545,7 +603,7 @@ export function applyLook(
   for (const part of a.hat.children) {
     part.position.x *= 1.85;
     part.position.z *= 1.85;
-    part.position.y -= 0.16;
+    part.position.y += 0.04;
     part.scale.x *= 1.85;
     part.scale.z *= 1.85;
     part.scale.y *= 1.25;
@@ -570,6 +628,20 @@ export function applyLook(
       ball(a.hat, [side * 0.37, 1.94, 0.055], [0.085, 0.1, 0.03], "#e9bc8f");
     }
   }
+  buildHair(
+    a.hat,
+    a.look.hair!,
+    !!(
+      look.hat ||
+      wear ||
+      gear ||
+      hair.hood ||
+      headSet >= 0 ||
+      (starter && ["staff", "bow", "cutlass"].includes(starter.prop))
+    ),
+  );
+  buildMouth(a.hat, skin);
+  if (!look.hat) buildClassHead(a.hat, a.look.clothing!);
   if (hair.beard) buildBeard(a.hat, hair.color);
   if (hair.hood && !look.hat) buildHood(a.hat);
   // Wardrobe headgear sits under an earned hat's slot: the earned hat wins.
@@ -653,16 +725,71 @@ export function animateDetails(
   a.moving = travel > 0.008;
   a.last.copy(a.root.position);
   const t = reduced ? 0 : time;
-  const blinkPhase = t % 4.6;
-  const blink =
-    blinkPhase < 0.18 ? Math.sin((Math.PI * blinkPhase) / 0.18) ** 2 : 0;
+  a.root.userData.equippedAt ??= time;
+  animateCostume(
+    a.costume,
+    t,
+    a.moving,
+    reduced,
+    time - a.root.userData.equippedAt,
+  );
+  const blinkSeed = a.root.userData.id
+    ? identitySeed(String(a.root.userData.id))
+    : (a.look.hair ?? 0) * 37 + a.look.skin * 103;
+  const expression = expressionFor(mode);
+  const mouth = a.hat.getObjectByName("Mouth");
+  if (mouth)
+    mouth.scale.set(
+      mode === "cheer"
+        ? 0.06
+        : mode === "wave" || mode === "dance"
+          ? 0.045
+          : expression === "surprised"
+            ? 0.022
+            : expression === "wink"
+              ? 0.02
+              : 0.027,
+      mode === "cheer"
+        ? 0.042
+        : mode === "dance"
+          ? 0.025
+          : expression === "surprised"
+            ? 0.028
+            : expression === "sleepy"
+              ? 0.004
+              : 0.009,
+      0.003,
+    );
+  const hairVolume = a.hat.getObjectByName("VolumetricHair");
+  if (hairVolume) {
+    hairVolume.rotation.z =
+      Math.sin(t * (a.moving ? 10 : 1.8)) * (a.moving ? 0.045 : 0.012);
+    hairVolume.position.y = 1.46 + Math.sin(t * 3) * 0.008;
+  }
+  const blink = reduced ? 0 : blinkAmount(t, blinkSeed);
+  const happyEyes = ["cheer", "dance"].includes(mode);
+  for (const name of ["eyes", "eyes_b"]) {
+    const material = a.materials.get(name);
+    if (material)
+      (material.userData.eyeClosed ??= { value: 0 }).value =
+        mode === "nap" || happyEyes ? 1 : blink;
+  }
   for (const mesh of a.expressions) {
     const dictionary = mesh.morphTargetDictionary!;
     const influences = mesh.morphTargetInfluences!;
     if (dictionary.Blink !== undefined)
-      influences[dictionary.Blink] = mode === "nap" ? 1 : blink;
+      influences[dictionary.Blink] =
+        mode === "nap" || happyEyes
+          ? 1
+          : expression === "sleepy"
+            ? Math.max(0.55, blink)
+            : blink;
+    if (dictionary.Wink !== undefined)
+      influences[dictionary.Wink] = expression === "wink" ? 0.95 : 0;
     if (dictionary.Smile !== undefined)
-      influences[dictionary.Smile] = ["wave", "dance", "pet"].includes(mode)
+      influences[dictionary.Smile] = ["wave", "cheer", "dance", "pet"].includes(
+        mode,
+      )
         ? 0.35
         : 0;
   }
@@ -713,10 +840,16 @@ export function animateDetails(
   );
   a.head.rotation.set(
     0,
-    !performing && !a.moving ? Math.sin(t * 0.8) * 0.09 : 0,
+    !performing && !a.moving
+      ? Math.sin(t * 0.8) * 0.2 * Math.max(0, Math.sin(t * 0.35))
+      : 0,
     mode === "think" ? 0.09 : 0,
   );
-  a.spine.rotation.z = !performing && a.moving ? gait * 0.025 : 0;
+  a.spine.rotation.z = !performing
+    ? a.moving
+      ? gait * 0.025
+      : Math.sin(t * 1.2) * 0.018
+    : 0;
   // The older clip bends the whole root toward Kopi. Keep the larger KayKit
   // head upright while crouching so its face does not intersect the cat.
   a.spine.rotation.x = mode === "pet" ? -0.25 : 0;
@@ -746,7 +879,15 @@ export function animateDetails(
     a.elbows.forEach((e) => e.rotation.set(-0.35, 0, 0));
     a.spine.rotation.set(0.05, 0, 0);
   }
-  poseSkin(a, mode);
+  poseSkin(a, mode, t, reduced);
+  if (!reduced && !performing) {
+    const lift = a.moving
+      ? Math.abs(Math.sin(t * 10)) * 0.025
+      : Math.sin(t * 2) * 0.009;
+    a.model.position.y += lift;
+    a.hat.position.y += lift;
+    a.costume.position.y += lift;
+  }
   if (a.pet) {
     const target = new T.Vector3(0.8, 0.02, 0.9)
       .applyAxisAngle(new T.Vector3(0, 1, 0), a.root.rotation.y)
@@ -765,7 +906,9 @@ const axisZ = new T.Vector3(0, 0, 1);
 const rootQ = new T.Quaternion(),
   parentQ = new T.Quaternion(),
   targetQ = new T.Quaternion();
-function poseSkin(a: Avatar, mode: string) {
+function poseSkin(a: Avatar, mode: string, time = 0, reduced = false) {
+  const breathing =
+    !reduced && !a.moving && mode === "idle" ? Math.sin(time * 1.8) : 0;
   const pitch = -(a.legs[0].rotation.x + a.legs[1].rotation.x) / 2;
   const seated = [
     "rest",
@@ -798,8 +941,8 @@ function poseSkin(a: Avatar, mode: string) {
   // legged rig (thigh at 0.73 m). KayKit hips sit at 0.45 m, so lift the body
   // as the thighs come forward to keep seats, swings and the slide aligned.
   a.model.position.set(
-    0,
-    0.28 * seated + bellHop + stepLift,
+    breathing * 0.012,
+    0.28 * seated + bellHop + stepLift + breathing * 0.018,
     -0.22 * seated +
       (mode === "bell"
         ? 0.28
@@ -975,7 +1118,10 @@ export function createCharacterPreview(
 ) {
   const renderer = new T.WebGLRenderer({ alpha: true, antialias: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
-  renderer.setSize(host.clientWidth, Math.max(160, host.clientHeight));
+  renderer.setSize(
+    Math.max(1, host.clientWidth),
+    Math.max(80, host.clientHeight),
+  );
   renderer.setClearColor("#e8eadc", 0);
   host.append(renderer.domElement);
   const scene = new T.Scene();
@@ -985,7 +1131,7 @@ export function createCharacterPreview(
   scene.add(light);
   const camera = new T.PerspectiveCamera(
     35,
-    host.clientWidth / Math.max(160, host.clientHeight),
+    Math.max(1, host.clientWidth) / Math.max(80, host.clientHeight),
     0.1,
     30,
   );
@@ -998,7 +1144,7 @@ export function createCharacterPreview(
   camera.lookAt(look.pet ? 0.3 : 0, 1.13, 0);
   const observer = new ResizeObserver(() => {
     const w = host.clientWidth,
-      h = Math.max(160, host.clientHeight);
+      h = Math.max(80, host.clientHeight);
     if (!w) return;
     renderer.setSize(w, h);
     camera.aspect = w / h;
@@ -1021,12 +1167,20 @@ export function createCharacterPreview(
     look,
   );
   a.root.rotation.y = 0.2;
+  let turnTarget: number | null = null;
   let frame = 0,
     last = 0;
   const loop = (t: number) => {
     frame = requestAnimationFrame(loop);
-    if (t - last < 33) return;
+    if (!host.isConnected || t - last < 33) return;
     last = t;
+    if (turnTarget !== null) {
+      a.root.rotation.y += (turnTarget - a.root.rotation.y) * 0.28;
+      if (Math.abs(a.root.rotation.y - turnTarget) < 0.01) {
+        a.root.rotation.y = turnTarget;
+        turnTarget = null;
+      }
+    }
     animateDetails(a, t / 1000, "idle", look.reduced);
     if (a.pet) a.pet.root.rotation.y = a.root.rotation.y - 0.18;
     renderer.render(scene, camera);
@@ -1035,6 +1189,7 @@ export function createCharacterPreview(
   let start = 0;
   renderer.domElement.style.touchAction = "pan-y";
   renderer.domElement.onpointerdown = (e) => {
+    turnTarget = null;
     start = e.clientX;
     renderer.domElement.setPointerCapture(e.pointerId);
   };
@@ -1045,7 +1200,7 @@ export function createCharacterPreview(
     }
   };
   return {
-    thumbnail(itemLook: Look, slot = "set") {
+    async thumbnail(itemLook: Look, slot = "set") {
       const oldSize = renderer.getSize(new T.Vector2());
       const oldRatio = renderer.getPixelRatio();
       const oldPosition = camera.position.clone();
@@ -1057,22 +1212,29 @@ export function createCharacterPreview(
       camera.aspect = 240 / 220;
       // [x, camera height, distance, target height] for each kind of card.
       const [x, y, z, aim] =
-        slot === "hair"
-          ? [0, 1.75, 3.1, 1.68]
-          : slot === "pet"
-            ? [0.85, 0.8, 2.8, 0.5]
-            : slot === "clothing"
-              ? [0, 1.35, 4, 1.02]
-              : [0.25, 1.5, 5.2, 1.15];
+        slot === "portrait"
+          ? [0, 1.45, 2.1, 1.43]
+          : slot === "hair"
+            ? [0, 1.75, 3.1, 1.68]
+            : slot === "pet"
+              ? [0.4, 1.4, 5.0, 1.05]
+              : slot === "clothing"
+                ? [0, 1.35, 4, 1.02]
+                : [0.25, 1.5, 5.2, 1.15];
       camera.position.set(x, y, z);
       camera.lookAt(x, aim, 0);
       camera.updateProjectionMatrix();
       applyLook(a, itemLook);
       a.root.rotation.y = 0.15;
-      a.root.visible = slot !== "pet";
+      a.root.visible = true;
       animateDetails(a, 1.4, "idle", true);
       renderer.render(scene, camera);
-      const image = renderer.domElement.toDataURL("image/png");
+      const image = await new Promise<string>((resolve, reject) =>
+        renderer.domElement.toBlob((blob) => {
+          if (blob) resolve(URL.createObjectURL(blob));
+          else reject(new Error("Portrait capture unavailable"));
+        }, "image/png"),
+      );
       a.root.visible = true;
       applyLook(a, look);
       a.root.rotation.y = oldTurn;
@@ -1089,8 +1251,11 @@ export function createCharacterPreview(
       observer.unobserve(host);
       host = nextHost;
       look = nextLook;
-      host.append(renderer.domElement);
+      if (renderer.domElement.parentElement !== host)
+        host.append(renderer.domElement);
       applyLook(a, look);
+      a.root.rotation.y = Math.PI / 2;
+      turnTarget = 0;
       camera.position.x = look.pet ? 0.3 : 0;
       observer.observe(host);
     },
@@ -1104,4 +1269,16 @@ export function createCharacterPreview(
       renderer.domElement.remove();
     },
   };
+}
+
+/** At gameplay distance, keep the silhouette but drop subpixel outline draws. */
+export function setAvatarDetail(a: Avatar, near: boolean) {
+  if (a.root.userData.detailLevel === near) return;
+  a.root.userData.detailLevel = near;
+  a.model.traverse((o) => {
+    if (o.userData.outline) o.visible = near && !!o.userData.selected;
+  });
+  a.hat.traverse((o) => {
+    if (o.userData.outline) o.visible = near;
+  });
 }

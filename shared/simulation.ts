@@ -1,4 +1,4 @@
-import { CoastRace, RACE_TICKS } from "./racing.ts";
+import { CoastRace, RACE_TICKS, FIRST_RACE_TICKS } from "./racing.ts";
 import { HopRun, StarFlight, type EndReason } from "../src/action-games.ts";
 export type { EndReason } from "../src/action-games.ts";
 import { FishingRound, HoopsRound } from "./outdoor.ts";
@@ -68,8 +68,8 @@ export class Simulation {
     )
       throw Error("Invalid game.");
     this.id = id;
-    this.seed = seed >>> 0;
-    this.race = id === "coast" ? new CoastRace(this.seed) : null;
+    this.seed = (id === "swarm" && seed < 0 ? -seed - 1 : seed) >>> 0;
+    this.race = id === "coast" ? new CoastRace(seed) : null;
     this.outdoor =
       id === "hoops"
         ? new HoopsRound(this.seed)
@@ -82,7 +82,10 @@ export class Simulation {
         : id === "swarm"
           ? new StarFlight(version >= 2)
           : null;
-    if (this.action instanceof StarFlight) this.action.seed = this.seed;
+    if (this.action instanceof StarFlight) {
+      this.action.seed = this.seed;
+      this.action.needsInput = version === 1 && seed < 0;
+    }
     if (this.action instanceof HopRun) this.action.count = this.seed % 3;
     this.ball.vx = 110 + (this.seed % 41);
     for (let row = 0; row < 5; row++)
@@ -146,7 +149,12 @@ export class Simulation {
     } else
       for (let i = 0; i < 4 && !this.ended; i++) {
         if (this.action instanceof StarFlight)
-          this.action.tick(1 / 240, ax / length, ay / length);
+          this.action.tick(
+            1 / 240,
+            ax / length,
+            ay / length,
+            px >= 0 || !!jump,
+          );
         else if (this.action) this.action.tick(1 / 240);
         else this.tickBrick(1 / 240);
         if (this.action) {
@@ -359,9 +367,11 @@ export function replayRun(game: string, seed: number, replay: Replay) {
       !(game === "swarm" && replay.version === 1)) ||
     !Number.isInteger(replay.ticks) ||
     replay.ticks < 1 ||
-    replay.ticks > (game === "coast" ? RACE_TICKS : 3600) ||
+    replay.ticks >
+      (game === "coast" ? (seed < 0 ? FIRST_RACE_TICKS : RACE_TICKS) : 3600) ||
     !Array.isArray(replay.events) ||
-    replay.events.length > (game === "coast" ? RACE_TICKS : 3600)
+    replay.events.length >
+      (game === "coast" ? (seed < 0 ? FIRST_RACE_TICKS : RACE_TICKS) : 3600)
   )
     throw Error("Invalid replay.");
   let previous = -1;

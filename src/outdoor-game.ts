@@ -72,7 +72,7 @@ export class OutdoorGame {
             ? '<div class="outdoor-meter shot-meter" aria-hidden="true"><i class="shot-zone"><i></i></i><i class="shot-marker"></i></div>'
             : '<div class="outdoor-meter reel-meter" aria-hidden="true"><span>REEL<i><b id="reel-progress"></b></i></span><span>LINE<i><b id="reel-tension"></b></i></span></div>'
         }
-        <div class="game-cover" id="game-cover"><span class="eyebrow">EAST SIDE</span><h3>${hoops ? "Ten shots. Four seconds each." : "One minute on the jetty."}</h3><p>${
+        <div class="game-cover" id="game-cover"><span class="eyebrow">${id === "hoops" ? "HOOPS COURT" : "FISHING JETTY"}</span><h3>${hoops ? "Ten shots. Four seconds each." : "One minute on the jetty."}</h3><p>${
           hoops
             ? `${press} to stop the marker in the green. The bright centre is a swish worth 3; the rest of the green is worth 2. Baskets in a row add up to 3 more. The green narrows, and from the fourth shot it slides.`
             : `${press} to cast, then again the moment the float dips. Hold to reel, and let go while the fish thrashes or the line snaps. Rare fish score more and fight harder.`
@@ -185,7 +185,7 @@ export class OutdoorGame {
       false;
     this.action.disabled = false;
     this.root.dataset.status = "playing";
-    this.root.focus();
+    this.root.focus({ preventScroll: true });
     this.sound("go");
     this.onFx?.("start", 0);
     this.last = performance.now();
@@ -328,7 +328,7 @@ export class OutdoorGame {
           : round.state === "bite"
             ? "HOOK!"
             : round.state === "reeling"
-              ? round.surging
+              ? round.surging || round.tension > 0.7
                 ? "LET GO!"
                 : "HOLD TO REEL"
               : "…";

@@ -378,7 +378,7 @@ test("progress rewards cannot repeat; reports hide players and deletion revokes 
       /not ready/,
     );
     assert.throws(() => s.community.patch(a.me.id, { hat: 3 }), /Unlock/);
-    s.community.report(a.me.id, b.me.id, "under-age");
+    s.community.moderate(a.me.id, b.me.id, "block");
     assert.ok(
       !s.community.state(a.me.id).players.some((p) => p.id === b.me.id),
     );
@@ -587,7 +587,7 @@ test("account, saved avatar and session survive a database restart", async () =>
     );
     const account = community.verifyCode("restart@example.test", message.code);
     community.patch(account.me.id, {
-      name: "Moon Mochi",
+      name: "MoonMochi",
       sound: true,
       music: false,
       gender: 1,
@@ -610,7 +610,7 @@ test("account, saved avatar and session survive a database restart", async () =>
     store = new Store(join(directory, "test.sqlite"));
     community = new Community(store, { directory });
     assert.equal(community.lookup(account.token), account.me.id);
-    assert.equal(community.privateProfile(account.me.id).name, "Moon Mochi");
+    assert.equal(community.privateProfile(account.me.id).name, "MoonMochi");
     assert.equal(community.privateProfile(account.me.id).progress.sound, true);
     assert.equal(community.privateProfile(account.me.id).progress.music, false);
     assert.equal(
@@ -676,7 +676,7 @@ test("hiding a player does not improve your weekly rank", async () => {
       s.community.state(a.me.id).weekly.find((p) => p.id === a.me.id).rank,
       2,
     );
-    s.community.report(a.me.id, b.me.id, "suspected-cheating");
+    s.community.moderate(a.me.id, b.me.id, "block");
     const own = s.community.state(a.me.id).weekly;
     assert.equal(own.length, 1);
     assert.equal(own[0].id, a.me.id);
@@ -713,8 +713,10 @@ test("nickname and appearance edits validate before writing and never award rank
       assert.equal(s.community.privateProfile(id).progress.nameChosen, false);
       assert.equal(s.community.privateProfile(id).progress.pet, 0);
     }
+    assert.throws(() => s.community.patch(id,{name:"MoonMochi"}), /generated names/);
+    s.store.db.prepare("INSERT INTO accounts VALUES(?,?,?)").run(id,"nickname@example.test",0);
     const p = s.community.patch(id, {
-      name: "  Moon   Mochi ",
+      name: "MoonMochi",
       gender: 3,
       clothing: 7,
       hair: 7,
@@ -723,7 +725,7 @@ test("nickname and appearance edits validate before writing and never award rank
       xp: 999,
       points: 999,
     });
-    assert.equal(p.name, "Moon Mochi");
+    assert.equal(p.name, "MoonMochi");
     assert.equal(p.progress.nameChosen, true);
     assert.equal(s.community.privateProfile(id).progress.nameChosen, true);
     assert.throws(

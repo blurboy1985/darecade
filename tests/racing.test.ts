@@ -1,3 +1,4 @@
+import { edgeAssist } from "../src/race-assist.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -190,6 +191,9 @@ test("verified race times drive daily medals, weekly totals and three distinct-n
       store.db
         .prepare("INSERT INTO accounts VALUES(?,?,?)")
         .run(p, `racer${i}@example.test`, time - 172800000);
+      const progress = community.privateProfile(p).progress;
+      progress.coastRecord = { version: 3, timeTicks: 7000, place: 8 };
+      community.save(p, progress);
       return p;
     });
     const submit = (
@@ -248,7 +252,7 @@ test("verified race times drive daily medals, weekly totals and three distinct-n
     assert.ok(
       !JSON.stringify(guestState.boards.coast).includes("@example.test"),
     );
-    community.report(guest, people[0], "inappropriate-name");
+    community.moderate(guest, people[0], "block");
     assert.ok(
       !community.state(guest).boards.coast.some((p) => p.id === people[0]),
       "blocked racers remain hidden from guest timing comparisons",
@@ -755,4 +759,37 @@ test("old-loop times are archived when the route changes; earlier days still set
     store.close();
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("first-finish seeds allow 180 seconds, replay exactly and keep standard seeds unchanged", () => {
+  for (const seed of [1, 42, 20261006, 4294967295]) {
+    const first = drive(-seed - 1, "clean");
+    assert.equal(first.race.limitTicks, 10800);
+    assert.ok(first.race.result().finished);
+    assert.ok(first.race.place <= 4, `seed ${seed}: ${first.race.place}`);
+    assert.equal(
+      replayRun("coast", -seed - 1, first.replay).score,
+      first.score,
+    );
+    assert.equal(new CoastRace(seed).limitTicks, 7200);
+  }
+  const unfinished = drive(-43, "brake");
+  assert.equal(unfinished.replay.ticks, 10800);
+  assert.equal(unfinished.score, 0);
+});
+
+test("one GO tap with edge help can finish the first race in the top four", () => {
+  const sim = new Simulation("coast", -43);
+  let steer = 0;
+  while (!sim.ended) {
+    steer = edgeAssist(sim.race!.offset, 0, steer);
+    sim.advance([steer, 1, -1, 0, -1, -1]);
+  }
+  assert.ok(sim.race!.result().finished);
+  assert.ok(sim.race!.place <= 4);
+});
+
+test("finish records retain minutes beyond the standard two-minute limit", () => {
+  assert.equal(raceTime(7671), "2:07.85");
+  assert.equal(raceTime(10800), "3:00.00");
 });

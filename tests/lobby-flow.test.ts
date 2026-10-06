@@ -63,6 +63,7 @@ for (const name of ["", "   ", "x", " x "]) {
             disabled: false,
             dataset: { action: "setup-save" },
             hasAttribute: () => false,
+            blur: () => {},
           }),
         },
       },
@@ -100,6 +101,7 @@ for (const outcome of [
       disabled: false,
       dataset: { action: "setup-save" },
       hasAttribute: () => false,
+      blur: () => {},
     };
     const status = { textContent: "" };
     const input = {
@@ -114,7 +116,7 @@ for (const outcome of [
     };
     const context = vm.createContext({
       Error,
-      save: { nameChosen: false, rounds: 1, welcome: "complete" },
+      save: { nameChosen: false, rounds: 1, welcome: "played" },
       gameGeneration: 1,
       modal: { open: true },
       body,
@@ -222,6 +224,7 @@ function click(
           disabled: false,
           dataset,
           hasAttribute: () => false,
+          blur: () => {},
         }),
       },
     },

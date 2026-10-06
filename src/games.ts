@@ -1,4 +1,6 @@
 import { bindJoystick, joystickMarkup } from "./joystick";
+import { avatarPortrait } from "./avatar-portraits";
+import type { Look } from "./character";
 import type { CabinetId } from "./catalog";
 import { games, endReasonText, holdsForFirstMove } from "./catalog";
 import type { Sfx } from "./audio";
@@ -38,6 +40,8 @@ export class ArcadeGame extends Simulation {
   private readonly coarse: boolean;
 
   private shownBonus = 0;
+  private avatar?: HTMLImageElement;
+  private countdown = 0;
   /** Optional cosmetic hook for visual effects; never affects the simulation. */
   onFx: ((event: FxEvent, amount: number) => void) | null = null;
   onTime: ((secondsLeft: number) => void) | null = null;
@@ -48,9 +52,22 @@ export class ArcadeGame extends Simulation {
     public finish: (score: number, replay: Replay) => void,
     public sound: (name: Sfx) => void,
     seed = 314159,
+    look?: Look,
   ) {
     super(id, seed);
     this.waiting = holdsForFirstMove(id);
+    if (look)
+      void avatarPortrait(look, id === "hop" ? "clothing" : "portrait")
+        .then((src) => {
+          if (!this.disposed) {
+            const image = new Image();
+            image.onload = () => {
+              this.avatar = image;
+            };
+            image.src = src;
+          }
+        })
+        .catch(() => {});
     this.coarse =
       matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
     const info = games[id];
@@ -109,21 +126,23 @@ export class ArcadeGame extends Simulation {
     }
     container.querySelector("#start-game")!.addEventListener("click", () => {
       this.started = true;
+      this.countdown = id === "hop" ? 3 : 0;
       container.querySelector("#game-cover")!.remove();
       container
         .querySelector(".game-screen")!
         .insertAdjacentHTML(
           "beforeend",
-          '<div class="go-splash" aria-hidden="true">GO!</div>',
+          `<div class="go-splash" aria-hidden="true">${this.countdown ? "3" : "GO!"}</div>`,
         );
-      setTimeout(() => container.querySelector(".go-splash")?.remove(), 1100);
+      if (!this.countdown)
+        setTimeout(() => container.querySelector(".go-splash")?.remove(), 1100);
       container.querySelector("#run-state")!.textContent = this.waiting
         ? this.startPrompt()
         : this.status();
       this.onFx?.("start", 0);
       (container.querySelector("#pause-game") as HTMLButtonElement).disabled =
         false;
-      this.canvas.focus();
+      this.canvas.focus({preventScroll:true});
       this.sound("start");
     });
     container
@@ -177,6 +196,9 @@ export class ArcadeGame extends Simulation {
    * the reason on screen, so the player sees what ended it.
    */
   private conclude() {
+    this.container.querySelector("#run-score")!.textContent = String(
+      this.score,
+    );
     const replay = {
       version: rulesVersion(this.id),
       ticks: this.ticks,
@@ -206,6 +228,12 @@ export class ArcadeGame extends Simulation {
     if (this.id === "hop" && [" ", "arrowup", "w"].includes(k)) {
       e.preventDefault();
       if (!e.repeat) this.turn("up");
+      return;
+    }
+    if (k === " ") {
+      e.preventDefault();
+      this.begin();
+      this.input[3] = 1;
       return;
     }
     const map: Record<string, string> = {
@@ -408,6 +436,17 @@ export class ArcadeGame extends Simulation {
     const dt = this.last ? Math.min((now - this.last) / 1000, 0.15) : 0;
     this.last = now;
     this.frameDt = this.paused ? 0 : dt;
+    if (this.countdown > 0 && !this.paused) {
+      this.countdown = Math.max(0, this.countdown - dt);
+      const splash = this.container.querySelector(".go-splash");
+      if (splash) {
+        splash.textContent = String(Math.ceil(this.countdown));
+        if (!this.countdown) splash.remove();
+      }
+      this.input[3] = 0;
+      this.draw();
+      return;
+    }
     if (this.started && !this.ended && !this.paused && !this.waiting) {
       this.accumulator += dt;
       while (this.accumulator >= 1 / 60 && !this.ended) {
@@ -482,9 +521,9 @@ export class ArcadeGame extends Simulation {
   }
   private draw() {
     const c = this.ctx;
-    c.fillStyle = "#172e38";
+    c.fillStyle = "#fbf1d9";
     c.fillRect(0, 0, 440, 440);
-    c.strokeStyle = "#203b43";
+    c.strokeStyle = "#e5d9bb";
     c.lineWidth = 1;
     for (let i = 0; i <= 20; i++) {
       c.beginPath();
@@ -495,7 +534,7 @@ export class ArcadeGame extends Simulation {
       c.stroke();
     }
     if (this.action) {
-      this.action.draw(c);
+      this.action.draw(c, this.avatar);
     } else if (this.id === "noodle") {
       const f = this.food;
       c.fillStyle = "#f2bd88";
@@ -505,7 +544,7 @@ export class ArcadeGame extends Simulation {
       c.fillStyle = "#fcdfac";
       c.fillRect(f.x * 22 + 6, f.y * 22 + 6, 9, 3);
       this.snake.forEach((p, i) => {
-        c.fillStyle = i === 0 ? "#dcffa3" : "#abd377";
+        c.fillStyle = i === 0 ? "#ffd45a" : "#edbd53";
         c.beginPath();
         c.roundRect(p.x * 22 + 1, p.y * 22 + 1, 20, 20, i === 0 ? 6 : 4);
         c.fill();
@@ -513,6 +552,7 @@ export class ArcadeGame extends Simulation {
           c.fillStyle = "#26433c";
           c.fillRect(p.x * 22 + 6, p.y * 22 + 6, 3, 3);
           c.fillRect(p.x * 22 + 13, p.y * 22 + 6, 3, 3);
+          c.fillRect(p.x * 22 + 9, p.y * 22 + 13, 5, 2);
         }
       });
     } else {
@@ -571,6 +611,8 @@ export class ArcadeGame extends Simulation {
         c.beginPath();
         c.roundRect(this.paddle - half, 412, half * 2, 10, 5);
         c.fill();
+        if (this.avatar)
+          c.drawImage(this.avatar, this.paddle - 14, 390, 28, 28);
       }
       for (const ball of [this.ball, ...this.extra]) {
         c.fillStyle = ball === this.ball ? "#ffdab0" : "#ffb3d1";

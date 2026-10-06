@@ -288,7 +288,7 @@ test("5. saving a guest to an email that already has a character never swaps the
   try {
     const email = "daniel@example.test";
     const first = s.community.join(consent);
-    s.community.patch(first.me.id, { name: "Daniel" });
+    s.store.db.prepare("UPDATE players SET name=? WHERE id=?").run("Daniel",first.me.id); // Existing guest name remains intact.
     await s.community.requestCode(first.me.id, email);
     const owner = s.community.verifyCode(email, emailedCode(s, email));
     assert.equal(owner.me.id, first.me.id, "a new email keeps the character");

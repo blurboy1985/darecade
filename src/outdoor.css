@@ -118,7 +118,7 @@
   background: linear-gradient(90deg, #ffe27a, #ff5a4a);
 }
 .outdoor-game:not([data-state="reeling"]) .reel-meter {
-  opacity: 0.35;
+  opacity: 0.85;
 }
 .outdoor-game[data-surging="true"][data-state="reeling"] .reel-meter i {
   box-shadow: 0 0 0 2px #ff7a5c;

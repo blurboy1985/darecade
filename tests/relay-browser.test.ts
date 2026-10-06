@@ -91,7 +91,7 @@ for (const viewport of viewports) {
         const url = new URL(String(input), location.href);
         if (!url.pathname.startsWith('/api/')) return nativeFetch(input, init);
         const path = url.pathname.slice(5), data = init?.body ? JSON.parse(init.body) : null;
-        requests.push({ path, data });
+        requests.push({ path, data, at: frameTime });
         const relayRequest=path.startsWith('relay/');
         if(relayRequest) {relayActive++;relayMaxActive=Math.max(relayMaxActive,relayActive);}
         try {
@@ -174,6 +174,23 @@ for (const viewport of viewports) {
             check(!!find('.relay-scene canvas[aria-hidden]'),'actual Three.js WebGL canvas available without unsafe flags');
             check(find('.relay-map').hidden,'3D replaces map');
           } else check(!find('.relay-map').hidden&&find('.relay-map').getContext('2d').getImageData(300,200,1,1).data[3]>0,'actual lightweight canvas draws');
+          await flush();
+          const pressAt=frameTime;key('keydown','w');
+          for(let i=0;i<6;i++){advance();await new Promise(r=>setTimeout(r,1));}
+          check(relayTicks().some(r=>r.at>=pressAt&&r.at-pressAt<=100.01&&r.data.input.z===1),'keyboard press sent within 100ms');
+          const releaseAt=frameTime;key('keyup','w');
+          for(let i=0;i<6;i++){advance();await new Promise(r=>setTimeout(r,1));}
+          check(relayTicks().some(r=>r.at>=releaseAt&&r.at-releaseAt<=100.01&&r.data.input.z===0),'keyboard release sent within 100ms');
+          holdPaths.add('relay/tick');advance(20);await until(()=>delayed.some(r=>r.path==='relay/tick'),'delayed movement packet');
+          key('keydown','d');key('keyup','d');key('keydown','a');
+          holdPaths.delete('relay/tick');const deliveryAt=frameTime;delayed.shift().resolve();
+          for(let i=0;i<6;i++){advance();await new Promise(r=>setTimeout(r,1));}
+          check(relayTicks().some(r=>r.at>=deliveryAt&&r.at-deliveryAt<=100.01&&r.data.input.x===-1),'latest input survives in-flight request');
+          check(relayMaxActive===1,'movement requests remain single-flight');key('keyup','a');await flush();
+          const cadenceAt=frameTime;
+          for(let i=0;i<60;i++){advance();await new Promise(r=>setTimeout(r,1));}
+          const cadence=relayTicks().filter(r=>r.at>=cadenceAt);
+          check(cadence.length>=9&&cadence.length<=13,'running updates at 10Hz with a bounded budget');
           key('keydown','w');await flush();
           check(relayTicks().at(-1).data.input.z===1,'keyboard forward reaches transport');
           key('keyup','w');await flush();check(relayTicks().at(-1).data.input.z===0,'keyboard release clears movement');
@@ -251,7 +268,7 @@ for (const viewport of viewports) {
           room.difficulty='challenge';room.simulation.difficulty='challenge';room.simulation.tick=100;
           room.simulation.bag.owner=null;room.simulation.bag.flight={from:0,to:0,startTick:60,endTick:114,x0:-3.8,z0:28,x1:-3.2,z1:29.3,solo:true};
           // Deliver one authoritative packet, then advance only presentation.
-          await new Promise(r=>setTimeout(r,20));window.dispatchEvent(new Event('blur'));
+          await new Promise(r=>setTimeout(r,20));advance(6);
           await new Promise(r=>setTimeout(r,20));advance(1);
           check(find('.relay-cue').textContent.includes('Watch the bag'),'Challenge cue waits before catch window');
           const cueTickCount=relayTicks().length;advance(4);

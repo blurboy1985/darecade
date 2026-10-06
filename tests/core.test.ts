@@ -54,7 +54,7 @@ test("malformed saves recover without invalid avatar parts or duplicate collecti
     },
     f,
   );
-  assert.equal(s.outfit, 0);
+  assert.equal(s.outfit, f.outfit);
   assert.equal(s.skin, 0);
   assert.equal(s.hat, 0);
   assert.equal(s.xp, 0);
@@ -135,5 +135,30 @@ test("all five hunt coins can be reached around the actual structural footprints
     const path = route({ x: 0, z: 10 }, { x, z }, obstacles);
     assert.ok(path.length > 0, `coin at ${x},${z} is reachable`);
     assert.deepEqual(path.at(-1), { x, z });
+  }
+});
+
+test("auto-walk joins the grid without cutting through a planter corner", () => {
+  const obstacles = [{ x: 11, z: 10, w: 6, d: 4 }];
+  for (const start of [
+    { x: 14.5, z: 11.7 },
+    { x: 14.5, z: 7.35 },
+    { x: 7.5, z: 12.5 },
+  ]) {
+    const path = route(start, { x: 0, z: 10 }, obstacles);
+    assert.ok(path.length);
+    let last = start;
+    for (const point of path) {
+      for (let i = 1; i <= 20; i++)
+        assert.equal(
+          blocked(
+            last.x + ((point.x - last.x) * i) / 20,
+            last.z + ((point.z - last.z) * i) / 20,
+            obstacles,
+          ),
+          false,
+        );
+      last = point;
+    }
   }
 });

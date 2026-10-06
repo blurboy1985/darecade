@@ -8,6 +8,8 @@ type Enemy = {
   boss: boolean;
 };
 export class LegacyStarFlight {
+  needsInput = false;
+  activated = false;
   elapsed = 0;
   score = 0;
   ended = false;
@@ -35,9 +37,18 @@ export class LegacyStarFlight {
     this.seed = (this.seed * 1664525 + 1013904223) >>> 0;
     return this.seed / 4294967296;
   }
-  tick(dt: number, dx = 0, dy = 0) {
+  tick(dt: number, dx = 0, dy = 0, input = false) {
     if (this.ended) return;
     this.elapsed += dt;
+    this.activated ||= input || dx !== 0 || dy !== 0;
+    if (this.needsInput && !this.activated) {
+      if (this.elapsed >= 8) {
+        this.lives = 0;
+        this.ended = true;
+        this.endReason = "lives";
+      }
+      return;
+    }
     this.x = Math.max(20, Math.min(420, this.x + dx * 250 * dt));
     this.y = Math.max(120, Math.min(414, this.y + dy * 250 * dt));
     this.invulnerable = Math.max(0, this.invulnerable - dt);

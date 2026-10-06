@@ -54,7 +54,7 @@ test("first visit and 2D retain privacy and player reporting routes", () => {
   assert.match(source, /data-open="neighbours">Nearby players/);
   const invitation =
     source.match(/const invitation =[\s\S]*?;\r?\n/)?.[0] || "";
-  assert.match(invitation, /data-account>Account & privacy/);
+  assert.match(invitation, /data-action="welcome-skip"/);
   const playerPanel = source.slice(
     source.indexOf("function showPlayer("),
     source.indexOf(
@@ -62,7 +62,7 @@ test("first visit and 2D retain privacy and player reporting routes", () => {
       source.indexOf("function showPlayer("),
     ),
   );
-  assert.match(playerPanel, /if \(is2d\)[\s\S]*?data-report/);
+  assert.match(playerPanel, /if \(is2d\)[\s\S]*?playerProfile/);
 });
 
 test("closing setup prevents a delayed name save from reopening email", () => {

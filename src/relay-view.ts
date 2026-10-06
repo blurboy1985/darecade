@@ -218,7 +218,7 @@ export class RelayView {
     const reset = this.leg !== (state?.leg ?? -1);
     if (changed) {
       this.interval = Math.min(
-        0.25,
+        0.08,
         Math.max(0.05, ((state?.tick ?? 0) - this.tick) / RELAY_TICK_RATE),
       );
       this.blend = 0;

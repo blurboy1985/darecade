@@ -9,11 +9,13 @@ export function worldPresenceCopy(
   neighbours = 5,
 ) {
   if (!networkOnline || status === "offline" || status === "reconnecting")
-    return "Player count unavailable";
+    return `${neighbours} neighbours · player count unavailable`;
   const ids = new Set(
-    players.filter((p) => p.status !== "offline").map((p) => p.id),
+    players
+      .filter((p) => p.status === "online" || p.status === "resting")
+      .map((p) => p.id),
   );
   if (me && (status === "connected" || ids.size)) ids.add(me);
   if (!ids.size) return `Joining world · ${neighbours} neighbours`;
-  return `${ids.size} players · ${neighbours} neighbours`;
+  return `${ids.size} player${ids.size === 1 ? "" : "s"} · ${neighbours} neighbours`;
 }

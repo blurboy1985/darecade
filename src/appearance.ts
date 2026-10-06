@@ -1,3 +1,4 @@
+import { newHairNames } from "./hair-catalog.ts";
 import { legendarySets, slotSize, type LookSlot } from "./collections.ts";
 type SetPiece = "outfit" | "head" | "pet" | "magic";
 // Mirrors the slot layout in collections.ts: ten sets, later items, later sets.
@@ -11,13 +12,13 @@ const later = (piece: SetPiece, extras: string[]) => [
 // looks keep their meaning; later entries are additions.
 export const clothingNames = [
   "Everyday cardigan",
-  "Everyday cardigan & cape",
+  "Lantern Mage robe & staff",
   "Summer vest & shorts",
-  "Summer vest & cape",
+  "Dawn Warrior armour & sword",
   "School blazer",
-  "School blazer & cape",
-  "Explorer jacket",
-  "Explorer jacket & cloak",
+  "Orchard Archer cloak & bow",
+  "Velvet Thief jacket & daggers",
+  "Coral Pirate coat & cutlass",
   "Cardigan & smart trousers",
   "Caped cardigan",
   "Cardigan, shorts & cape",
@@ -37,11 +38,11 @@ export const clothingNames = [
   ...later("outfit", []),
 ];
 export const hairNames = [
-  "Slate short cut",
-  "Warm brown bob",
+  "Sky spiky cut",
+  "Cherry flowing hair",
   "Midnight twin buns",
-  "Grey beard",
-  "Green hood",
+  "Silver messy hair & beard",
+  "Golden ponytail & hood",
   "Wizard hat",
   "Knight helmet",
   "Bear hat",
@@ -72,10 +73,11 @@ export const hairNames = [
     "Honey blonde bob",
     "Frog hat",
     "Strawberry beret",
-    "Mint twin buns",
+    "Mint twin tails",
     "Astronaut bubble",
     "Unicorn horn",
   ]),
+  ...newHairNames,
 ];
 export const petNames = [
   "No companion",

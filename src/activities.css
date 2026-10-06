@@ -200,17 +200,6 @@
   width: 100%;
   height: 100%;
 }
-.water-trail:has(.plot-3d-ready) .trail-cell {
-  z-index: 1;
-  background: transparent;
-  border-color: transparent;
-}
-.water-trail:has(.plot-3d-ready) .trail-cell.turnable {
-  border-color: #8a570d;
-}
-.water-trail:has(.plot-3d-ready) .trail-cell svg {
-  visibility: hidden;
-}
 .trail-rule {
   max-width: 340px;
   font-size: 13px;
@@ -273,6 +262,18 @@
 }
 .trail-cell:active:not(:disabled) {
   background: #f9cf6b;
+}
+/* Keep wet and pressed HTML tiles transparent above the rendered pipes. */
+.water-trail:has(.plot-3d-ready) .trail-cell {
+  z-index: 1;
+  background: transparent;
+  border-color: transparent;
+}
+.water-trail:has(.plot-3d-ready) .trail-cell.turnable {
+  border-color: #8a570d;
+}
+.water-trail:has(.plot-3d-ready) .trail-cell svg {
+  visibility: hidden;
 }
 .trail-meter {
   font-weight: 800;

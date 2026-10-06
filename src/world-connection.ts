@@ -32,6 +32,8 @@ export class WorldConnection {
   private world = "";
   private connection = crypto.randomUUID();
   private generation = 0;
+  private lastReceived = 0;
+  private lastSent = 0;
   constructor(
     private position: () => Movement,
     private update: (players: SharedPlayer[]) => void,
@@ -69,7 +71,8 @@ export class WorldConnection {
     if (!this.stopped) return;
     this.stopped = false;
     this.generation++;
-    this.status(this.world ? "reconnecting" : "joining");
+    if (Date.now() - this.lastReceived > 15000)
+      this.status(this.world ? "reconnecting" : "joining");
     // HTTP assigns the room immediately, including on hosts without sockets.
     // A stale bootstrap must never replace a refreshed session or chosen room.
     void this.bootstrap();
@@ -99,7 +102,7 @@ export class WorldConnection {
         generation !== this.generation
       )
         return;
-      this.status("offline");
+      this.startPolling();
     }
     this.connect();
   }
@@ -161,7 +164,9 @@ export class WorldConnection {
         this.socket = undefined;
         // An established session reconnects; two failed attempts enable polling.
         if (!opened) this.failures++;
-        if (!this.polling) this.status("reconnecting");
+        this.startPolling();
+        if (this.lastReceived && Date.now() - this.lastReceived > 15000)
+          this.status("reconnecting");
         this.retry();
       };
       ws.onerror = () => ws.close();
@@ -186,11 +191,21 @@ export class WorldConnection {
     this.pollTimer = setTimeout(() => void this.poll(generation), 2000);
   }
   private send() {
+    if (
+      this.lastReceived &&
+      Date.now() - this.lastReceived > 15000 &&
+      this.players.size
+    ) {
+      this.players.clear();
+      this.update([]);
+      if (!navigator.onLine) this.status("offline");
+    }
     if (this.socket?.readyState !== WebSocket.OPEN) return;
     const message = JSON.stringify(this.position());
-    if (message !== this.previous) {
+    if (message !== this.previous || Date.now() - this.lastSent >= 4000) {
       this.socket.send(message);
       this.previous = message;
+      this.lastSent = Date.now();
     }
   }
   private async poll(generation = this.generation) {
@@ -216,7 +231,9 @@ export class WorldConnection {
         connection === this.connection &&
         generation === this.generation
       )
-        this.status("offline");
+        if (!navigator.onLine) this.status("offline");
+        else if (this.lastReceived && Date.now() - this.lastReceived > 15000)
+          this.status("reconnecting");
     }
     if (
       !this.stopped &&
@@ -228,6 +245,7 @@ export class WorldConnection {
   }
   private receive(packet: Packet) {
     if (packet.t !== "sync" && packet.t !== "delta") return;
+    this.lastReceived = Date.now();
     this.status("connected");
     if (packet.world) {
       this.world = packet.world;

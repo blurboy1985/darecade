@@ -1,0 +1,116 @@
+Play Simi — round 4 implementation and verification
+Date: 6 October 2026
+Production: https://playsimi.danielquek.com
+Final deployed Worker version: 8bb2c121-3b4f-4f48-bb15-25a1a5b7bb3f
+
+PHASES
+1 — Safety
+Accepted mutual friends can visit/join; explicit room codes remain available. Removed visit XP. Stranger profiles omit live status/activity/location; the friend picker contains friends and pending requests. Block, Mute and Report are separate actions with Cancel. Block removes avatars and stops invitations; Mute suppresses emotes. New guests retain generated names; verified account handles pass a Unicode-normalized profanity/contact/name-pattern filter. Added nickname hint, optional email guardian notice and expandable privacy notice. Under-18 purchases explain why disabled. Privacy deletion has danger styling, confirmation and Cancel. Guest account UI has consistent 30-day session copy and no Sign out.
+2 — Reliability
+All seven game finish paths use a durable, owner-scoped outbox, automatic backoff and offline recovery. Server finishes remain valid for 24 hours; starting another game no longer abandons queued earlier results. Finish retries remain idempotent. Stale client snapshots clear after 15 seconds; first connection retries quietly. Header separates players from NPC neighbours. Capped nameplates; retained movement latch/first-click handling and novice race-again rules. Performance fallback explains itself once and offers Switch back.
+3 — Characters
+Hat-safe hair hides the crown while preserving fitted sides/back. Full hair remains for non-covering class equipment. Fixed the server guest sanitizer that incorrectly reset new free hair IDs to blue default. CPU racers use varied seeded identities; iris tint is now fully applied. Closed eyes use skin-tone lids. Class cape clasps are larger; Thief has long rear scarf tails and shorter curved daggers. Existing cape sway retained.
+4 — Arcade
+Daytime pastel cabinet/frame replaces dark arcade treatment. Hop Hop uses the player's avatar; Star Swarm has their head in the cockpit; Brick Bash has an avatar paddle badge; Noodle Run has a noodle face. Hop Hop has a pre-run countdown. New Star Swarm rounds require input and end at zero after eight idle seconds; legacy replay seeds retain compatibility. Fishing gives LET GO cues. Zero scores get retry copy without confetti. Improved landscape layout, intro covers and label contrast; hide Coast Rush's ghost title. Closing a game returns to Games page 1.
+5 — Shop, world and phone polish
+Premium cards use the same cached avatar render pipeline as wardrobe sets. Enlarged CLAIM controls, styled settings/selects/links and labelled rotation controls. Kopi awards its quest after the registered scratch even if Esc ends the remaining animation. Auto-walk is faster; activities already within reach start without Walking over. Personal-best section covers all seven games and uses accurate all-time wording alongside daily rankings. Make it yours uses the correct title/current name. Portrait and landscape HUD/joystick fixes; wardrobe preview/actions fit landscape and coordinate try-on preserves scroll.
+
+VERIFICATION
+- Full app suite: 431 tests, 403 passed, 28 skipped, zero failures. Skipped browser tests are not counted as verified.
+- Cloudflare/real Durable Object suite: 14 passed, zero failures.
+- Final proximity follow-up: interactions/world tests, 7 passed, zero failures.
+- TypeScript and Vite production build passed; git diff whitespace check passed.
+- Isolated browser review: stranger privacy, separate mute/block/report controls, email notice, under-18 store, own-avatar try-on, class backs/expressions, Hop Hop countdown, Hoops intro/game/result, Fishing first cast and labels, Star Swarm zero-input result, menu/camera first clicks and native W tap.
+- W tap moved world position from (0,10) to (0,9.56), without toggling camera.
+- All seven finish retry paths tested with injected timeouts/backoff. Actual server tests cover offline run surviving a newer run and 11-minute settlement, then accepting one award on repeated finish calls. Browser Hoops and Star Swarm results saved without manual Retry.
+- Race-again server regression keeps novice rules after an abandoned race. A full driving race was not repeated this round; prior-round audit remains in reports/round3-verification.txt.
+- At 390x844, bottom HUD measured 96px (11.4%) and ended at y=844. At 844x390, HUD measured 54px (13.85%) and ended at y=390; joystick was visible at (18,242), 76x76.
+- Age gate checked in both phone orientations. Wardrobe initial row and try-on controls checked in both. Landscape final Hop Hop controls and labels checked visually.
+- Ten-avatar gallery: one blue-haired character, distinct hair pairs; inspected class rear silhouettes and happy closed-lid expressions. Production and local final load captured no console warnings/errors.
+
+SAVE AND PURCHASE SAFETY
+No avatar save format or item ID changes. The new mute table is additive. Pending scores use a separate local storage key.
+tests/save-refresh.test.ts reopens a real SQLite version-1 profile and deep-compares XP 2740, medal tokens 19, spent 12, unlocked and purchased sets, hair/skin/clothing/hat IDs, round/coin totals and a saved race record. Account/session and token state survive reopening.
+tests/character-finish.test.ts verifies try-on does not mutate the save and legendary serialization preserves numeric IDs and ownership/progression.
+tests/community.test.ts covers persisted account session/profile/email restart behavior.
+tests/payments.test.ts verifies simulated payment webhook/reconciliation idempotency, one entitlement per order, ownership/refund behavior and unchanged XP/token state. No real purchase or charge was made.
+Legacy saved guest nicknames/looks are preserved; generated-name enforcement applies to new guests and guest edits are disabled.
+
+LIMITS / NOT FULLY VERIFIED
+This is not an assertion that every acceptance item passed on screen. The following still need broader device/visual QA:
+- Every hat crossed with every hairstyle was not rendered; class headwear and representative try-ons were inspected.
+- Every screen in both phone orientations was not exhaustively visited; priority layouts were checked.
+- Real sustained physical keyboard holds could not be generated by the available browser controller. Native taps and existing automated movement/replay tests passed.
+- No mid-range physical-phone 60fps/4G/100ms benchmark was performed.
+- The requested softer performance-mode ground replacement was not implemented; current low mode retains antialiased rendering and reduces pixel ratio/shadows. The reported pixelated fallback needs reproduction on an affected device.
+- Seven-game automatic retry behavior is tested, but not seven complete manual on-screen rounds.
+- Daily personal bests are now accurately labelled as all-time personal bests; Hoops/Fishing appear there, not as new ranked daily leaderboards.
+- Nickname filtering is heuristic, not a guarantee of detecting every real name or profanity in every language.
+
+SCREENSHOTS (absolute paths; local QA fixtures unless stated)
+/Users/danielquek/playsimi/.browser/round4/phase1-email.png
+/Users/danielquek/playsimi/.browser/round4/phase1-profile.png
+/Users/danielquek/playsimi/.browser/round4/phase1-under18-shop.png
+/Users/danielquek/playsimi/.browser/round4/phase3-class-backs.png
+/Users/danielquek/playsimi/.browser/round4/phase3-expressions.png
+/Users/danielquek/playsimi/.browser/round4/phase4-hoops-landscape.png
+/Users/danielquek/playsimi/.browser/round4/phase4-hop-countdown.png
+/Users/danielquek/playsimi/.browser/round4/phase4-hop-landscape.png
+/Users/danielquek/playsimi/.browser/round4/phase4-zero-score.png
+/Users/danielquek/playsimi/.browser/round4/phase5-age-landscape.png
+/Users/danielquek/playsimi/.browser/round4/phase5-shop.png
+/Users/danielquek/playsimi/.browser/round4/phase5-wardrobe-landscape.png
+/Users/danielquek/playsimi/.browser/round4/phase5-wardrobe-portrait.png
+
+EVERY CHANGED FILE (relative to round-3 commit e194890)
+cloudflare/api.mjs — friend acceptance and independent moderation API routes.
+cloudflare/worker.mjs — mutual-friend world directory privacy.
+scripts/character-review.mjs — isolated browser QA finish validation for all seven games.
+server/community-core.mjs — friend/privacy/moderation/nickname rules, queued finish window, new Swarm seed namespace and free guest hair preservation.
+server/index.mjs — local API parity for safety actions.
+server/local-worlds.mjs — friend-only world directory/join parity.
+server/store-core.mjs — preserve queued runs across new games and expire after 24 hours.
+shared/nickname.ts — shared normalized nickname validation.
+shared/simulation.ts — input-gated new Swarm rounds with compatible legacy replay RNG.
+src/account.css — danger action styling.
+src/account.ts — privacy/guardian/session copy, separate safety confirmation and guest controls.
+src/action-games.ts — daytime game drawing, avatar rendering and no-input Swarm logic.
+src/arcade-fx.ts — pastel daytime shared 3D arcade backdrop.
+src/arcade-theme.css — daytime bezel, contrast, covers and landscape game layout.
+src/character-finish.ts — cached hat-safe hair geometry.
+src/character.ts — hat-safe application, iris/lid rendering and small preview sizing.
+src/class-costumes.ts — larger clasps and distinct rear Thief scarf/curved blades.
+src/games.ts — own-avatar images, countdown, keyboard activation, noodle theme and score sync.
+src/lobby-presence.ts — separate live-player and NPC counts.
+src/main.ts — safety UI, outbox integration, result/picker behavior, quests, bests, settings and stable try-on scroll.
+src/mobile-lobby.css — bounded landscape HUD and visible joystick.
+src/outdoor-game.ts — Fishing tension cue, correct intro labels and focus without scroll.
+src/outdoor.css — readable inactive Fishing meter labels.
+src/payments.ts — age purchase reason and cached premium set art.
+src/race-view.ts — varied seeded CPU racer identities.
+src/score-outbox.ts — durable owner-scoped finish queue/backoff.
+src/social.ts — preserve HTTP status for retry classification.
+src/style.css — shop, safety, claim, settings, select and responsive layout polish.
+src/wardrobe.css — natural card heights, stable scrolling and landscape preview/actions.
+src/world-connection.ts — snapshot expiry and quiet initial retry.
+src/world.ts — tag caps, faster walking, early Kopi registration and immediate nearby activities.
+tests/arcade-fairness.test.ts — first-crate jumping, no-input Swarm and legacy seed tests.
+tests/cloudflare.test.mjs — adapt existing tests to generated guest names, mutual-friend safety, separate Report/Block or no visit XP; retain original feature coverage.
+tests/community.test.ts — adapt existing tests to generated guest names, mutual-friend safety, separate Report/Block or no visit XP; retain original feature coverage.
+tests/eastside.test.ts — adapt existing tests to generated guest names, mutual-friend safety, separate Report/Block or no visit XP; retain original feature coverage.
+tests/first-minute.test.ts — adapt existing tests to generated guest names, mutual-friend safety, separate Report/Block or no visit XP; retain original feature coverage.
+tests/gameplay-rewards.test.ts — adapt existing tests to generated guest names, mutual-friend safety, separate Report/Block or no visit XP; retain original feature coverage.
+tests/lobby-flow.test.ts — adapt existing tests to generated guest names, mutual-friend safety, separate Report/Block or no visit XP; retain original feature coverage.
+tests/lobby-menu.test.ts — adapt existing tests to generated guest names, mutual-friend safety, separate Report/Block or no visit XP; retain original feature coverage.
+tests/lobby-render.test.ts — accurate personal-best and seven-game UI expectations.
+tests/mobile-lobby-fixture.ts — isolated age/safety browser fixtures and correct per-game QA seeds.
+tests/onboarding-account.test.ts — adapt existing tests to generated guest names, mutual-friend safety, separate Report/Block or no visit XP; retain original feature coverage.
+tests/playtest-fixes.test.ts — adapt existing tests to generated guest names, mutual-friend safety, separate Report/Block or no visit XP; retain original feature coverage.
+tests/racing.test.ts — adapt existing tests to generated guest names, mutual-friend safety, separate Report/Block or no visit XP; retain original feature coverage.
+tests/records.test.ts — adapt existing tests to generated guest names, mutual-friend safety, separate Report/Block or no visit XP; retain original feature coverage.
+tests/relay-server.test.ts — adapt existing tests to generated guest names, mutual-friend safety, separate Report/Block or no visit XP; retain original feature coverage.
+tests/score-outbox.test.ts — all-seven-game retry, backoff, persistence and owner isolation tests.
+tests/seasons.test.ts — adapt existing tests to generated guest names, mutual-friend safety, separate Report/Block or no visit XP; retain original feature coverage.
+tests/social-safety.test.ts — new safety, actual guest variety, queued-save and novice replay regression tests.
+tests/stage.test.ts — adapt existing tests to generated guest names, mutual-friend safety, separate Report/Block or no visit XP; retain original feature coverage.
+reports/round4-verification.txt — this implementation, evidence, compatibility and limits report.

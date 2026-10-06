@@ -60,9 +60,11 @@ const compiled = ts.transpileModule(
       "rankingPeriodPicker",
       "renderSeasonBoard",
       "renderSharedBoard",
+      "personalBestCards",
       "challengeButtons",
       "renderSharedDares",
       "renderPlayerInspector",
+      "playerProfile",
       "openDares",
     ]
       .map(extract)
@@ -182,6 +184,7 @@ function harness() {
     shared: {
       self: { best: {}, outgoing: 0, points: 0 },
       players,
+      friends: players.map((p) => ({ ...p, relationship: "friend" })),
       me: "self",
       competitionReady: true,
       challenged: [],
@@ -218,6 +221,7 @@ function harness() {
     playtestEnabled: false,
     socialPanel: "",
     characterPreview: null,
+    mountAvatarCards: noop,
     profileQueue: Promise.resolve(),
     worldPicker: { open: noop },
     startOutdoor: noop,
@@ -290,7 +294,6 @@ test("menu pages stay compact; quests also expose the three rooftop routes", () 
   ];
   h.context.shared.recentRuns = [{ id: "r1", game: "hop", score: 100 }];
   for (const id of [
-    ...Object.keys(menus.menuPages),
     "arcade",
     "map",
     "surroundings",
@@ -325,7 +328,7 @@ test("wardrobe renders previews before selection without equipping them", () => 
     ];
     assert.ok(cards.length > 0, tab);
     for (const [card] of cards) {
-      assert.match(card, /<img[^>]+src="\/wardrobe\//);
+      assert.match(card, /<img[^>]+data-thumbnail=/);
       assert.match(card, /aria-label="(?:Equip|Preview) /);
     }
     assert.match(html, /data-undo-look/);
@@ -418,7 +421,6 @@ test("first-visit settings paths never start a race and Back returns to welcome"
     "settings",
     "preferences",
     "controls",
-    "safety-menu",
     "neighbours",
     "away",
   ]) {
@@ -432,6 +434,17 @@ test("first-visit settings paths never start a race and Back returns to welcome"
   h.context.save.unlockedHats.push(2);
   h.run('open("settings")');
   assert.match(h.body.innerHTML, /data-open="phone-menu">← Back/);
+  h.run('open("phone-menu")');
+  for (const action of menus.menuPages["phone-menu"].actions) {
+    assert.ok(
+      h.body.innerHTML.includes(
+        action.target === "account"
+          ? "data-account"
+          : `data-open="${action.target}"`,
+      ),
+      action.target,
+    );
+  }
 });
 
 // The remaining tests cover bugs from the 4 October 2026 playtest.
@@ -516,7 +529,8 @@ test("the weekly board tells a player with scores today when their medals arrive
   h.context.boardGame = "hop";
   h.run("renderSharedBoard()");
   html = h.body.innerHTML;
-  assert.match(html, /Your best today: <b>93<\/b>/);
+  assert.match(html, /Your personal best: <b>0<\/b>/);
+  assert.match(html, /Hop Hop<strong>0<\/strong>/);
   assert.match(html, /a lower replay does not replace it/);
   // A player with no round today still gets the original invitation.
   h.context.shared.boards.hop = [];
@@ -609,4 +623,18 @@ test("Rankings shows a guest the board and never opens the account dialog", () =
   h.run('open("board")');
   assert.match(h.body.innerHTML, /Finish a round to join the board/);
   assert.doesNotMatch(h.body.innerHTML, /Guest rounds|Save with email/);
+});
+
+test("slot filters retain new hair, free classes and premium full sets", () => {
+  const p = state.fresh();
+  const hair = wardrobe.wardrobeBrowser("Hair", "All", p, 0, null);
+  const hats = wardrobe.wardrobeBrowser("Hats", "All", p, 0, null);
+  assert.match(hair, /data-try-index="54"/);
+  assert.doesNotMatch(hats, /data-try-index="54"/);
+  const free = wardrobe.wardrobeBrowser("Full sets", "Free", p, 0, null);
+  assert.match(free, /Lantern Mage/);
+  assert.doesNotMatch(free, /Solar Sentinel/);
+  const premium = wardrobe.wardrobeBrowser("Full sets", "Premium", p, 0, null);
+  assert.doesNotMatch(premium, /Lantern Mage/);
+  assert.match(premium, /data-try-index="9"/);
 });

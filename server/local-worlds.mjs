@@ -52,7 +52,11 @@ export class LocalWorlds {
         count: world.players.size,
       });
       for (const p of world.players.values())
-        if (p.id !== id && !blocked.has(p.id))
+        if (
+          p.id !== id &&
+          !blocked.has(p.id) &&
+          this.community.isFriend(id, p.id)
+        )
           neighbours.push({ id: p.id, name: p.name, world: name });
     }
     return { worlds, neighbours: neighbours.slice(0, 40) };

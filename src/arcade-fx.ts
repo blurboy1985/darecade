@@ -112,7 +112,14 @@ export function createArcadeFx(host: HTMLElement, id: GameId): ArcadeFx {
   } catch {
     return NOOP; // CSS gradient backdrop stays visible.
   }
-  const theme = themes[id];
+  const theme = {
+    ...themes[id],
+    sky: "#cbe9e8",
+    fog: "#f6edda",
+    grid: "#d5dbc1",
+    sunTop: "#ffe6a1",
+    sunBottom: "#ffd2a6",
+  };
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
   renderer.setClearColor(theme.sky);
   renderer.domElement.className = "arcade-fx-canvas";

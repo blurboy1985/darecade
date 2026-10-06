@@ -12,6 +12,7 @@ import {
 } from "../src/character.ts";
 import { outfits, skins } from "../src/state.ts";
 import { buildMagic } from "../src/magic.ts";
+import { appearanceLimits } from "../src/appearance.ts";
 
 let source: T.Group;
 // Exercise the real GLB meshes and rig in Node. Only embedded image decoding is
@@ -64,6 +65,23 @@ test("a failed character download can retry, and successful loading is shared", 
     assert.equal(attempts, 2, "Success stays cached after a retry");
   } finally {
     GLTFLoader.prototype.loadAsync = originalLoad;
+  }
+});
+
+test("outfits never show the source bag across the chest", () => {
+  const avatar = createAvatar(new T.Group(), 0, 0, outfits[0]);
+  try {
+    const bag = avatar.model.getObjectByName("Trim");
+    assert.ok(bag instanceof T.Mesh);
+    for (const body of [0, 1]) {
+      for (let clothing = 0; clothing < appearanceLimits.clothing; clothing++) {
+        applyLook(avatar, { outfit: 0, skin: 0, hat: 0, body, clothing });
+        assert.equal(bag.visible, false, `body ${body}, outfit ${clothing}`);
+        assert.equal(avatar.model.getObjectByName("Shirt")?.visible, true);
+      }
+    }
+  } finally {
+    disposeAvatar(avatar);
   }
 });
 
@@ -223,7 +241,7 @@ test("facial morphs blink independently and stay open with reduced animation", (
     3,
     "Both pairs of eyes and the lashes blink",
   );
-  animateDetails(local, 0.09, "wave");
+  animateDetails(local, 0.14, "wave");
   for (const mesh of local.expressions) {
     assert.equal(
       mesh.morphTargetInfluences![mesh.morphTargetDictionary!.Blink],
@@ -237,7 +255,7 @@ test("facial morphs blink independently and stay open with reduced animation", (
     );
   animateDetails(local, 9.29, "idle", true);
   for (const mesh of local.expressions)
-    assert.deepEqual(mesh.morphTargetInfluences, [0]);
+    assert.ok(mesh.morphTargetInfluences!.every((value) => value === 0));
   disposeAvatar(local);
   disposeAvatar(remote);
 });
@@ -267,7 +285,11 @@ test("skin and outfit colours belong to each avatar and leave the shared eye pai
       "#" + avatar.materials.get(name)!.color.getHexString();
     assert.equal(hex(remote, "skin"), skins[6]);
     assert.equal(hex(local, "skin"), skins[0]);
-    assert.equal(hex(local, "jacket"), outfits[1]);
+    assert.equal(
+      hex(local, "jacket"),
+      "#996fff",
+      "Character palette is more saturated than the world",
+    );
     const base = new T.Color("#ffc8b6");
     for (let i = 0; i < 30; i++) {
       applyLook(local, {
@@ -291,7 +313,11 @@ test("skin and outfit colours belong to each avatar and leave the shared eye pai
         );
       const visible: string[] = [];
       local.model.traverse((object) => {
-        if (object instanceof T.Mesh && object.visible)
+        if (
+          object instanceof T.Mesh &&
+          object.visible &&
+          !object.userData.outline
+        )
           visible.push(object.name);
       });
       assert.equal(visible.includes("EyesB"), i % 2 === 1);
@@ -310,4 +336,61 @@ test("skin and outfit colours belong to each avatar and leave the shared eye pai
   } finally {
     eyeMaterials.forEach((material) => (material.map = null));
   }
+});
+
+test("emotes change the real mouth and one-eye wink without changing the saved look", () => {
+  const avatar = createAvatar(new T.Group(), 0, 0, outfits[0]);
+  const before = { ...avatar.look };
+  const mouths = new Set<string>();
+  for (const mode of ["dance", "cheer", "victory", "think"]) {
+    animateDetails(avatar, 1.2, mode);
+    mouths.add(avatar.hat.getObjectByName("Mouth")!.scale.toArray().join(","));
+    if (mode === "victory")
+      for (const mesh of avatar.expressions)
+        assert.equal(
+          mesh.morphTargetInfluences![mesh.morphTargetDictionary!.Wink],
+          0.95,
+        );
+  }
+  assert.equal(mouths.size, 4);
+  assert.deepEqual(avatar.look, before);
+  disposeAvatar(avatar);
+});
+
+test("cheer wrists stay outside the large head so both hands are visible", () => {
+  const a = createAvatar(new T.Group(), 0, 0, outfits[0]);
+  a.left.rotation.z = -2.1;
+  a.right.rotation.z = 2.1;
+  animateDetails(a, 1, "cheer");
+  a.root.updateMatrixWorld(true);
+  for (const side of ["r", "l"]) {
+    const wrist = a.rig
+      .get("wrist" + side)!
+      .bone.getWorldPosition(new T.Vector3());
+    assert.ok(Math.abs(wrist.x) > 0.43);
+    assert.ok(wrist.y > 1.2);
+  }
+  disposeAvatar(a);
+});
+
+test("happy emotes close the eyes, restore idle and breathe without changing saves", () => {
+  const a = createAvatar(new T.Group(), 0, 0, outfits[0]);
+  for (const mode of ["cheer", "dance"]) {
+    animateDetails(a, 1, mode);
+    assert.ok(
+      a.expressions.every(
+        (m) => m.morphTargetInfluences![m.morphTargetDictionary!.Blink] === 1,
+      ),
+    );
+  }
+  animateDetails(a, 1, "idle");
+  const y = a.model.position.y;
+  assert.ok(
+    a.expressions.every(
+      (m) => m.morphTargetInfluences![m.morphTargetDictionary!.Blink] === 0,
+    ),
+  );
+  animateDetails(a, 2, "idle");
+  assert.ok(Math.abs(a.model.position.y - y) > 0.015);
+  disposeAvatar(a);
 });

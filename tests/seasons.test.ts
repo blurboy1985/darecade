@@ -207,9 +207,9 @@ test("season XP counts trusted deltas once while lifetime token thresholds and o
     s.community.progression(id, "visit", "plots");
     s.community.progression(id, "visit", "stage");
     let profile = s.community.privateProfile(id);
-    assert.equal(profile.progress.xp, 310);
-    assert.equal(profile.season.xp, 60);
-    assert.equal(styleTokens(profile.progress), 3);
+    assert.equal(profile.progress.xp, 280);
+    assert.equal(profile.season.xp, 30);
+    assert.equal(styleTokens(profile.progress), 2);
     s.community.progression(id, "visit", "stage");
     assert.throws(() => s.community.progression(id, "gift", 0));
     s.community.patch(id, {
@@ -218,21 +218,21 @@ test("season XP counts trusted deltas once while lifetime token thresholds and o
       seasonalXp: 99999,
     });
     profile = s.community.privateProfile(id);
-    assert.equal(profile.progress.xp, 310);
-    assert.equal(profile.season.xp, 60);
+    assert.equal(profile.progress.xp, 280);
+    assert.equal(profile.season.xp, 30);
     s.community.progression(id, "cat");
     s.community.progression(id, "visit", "shop");
     s.community.progression(id, "visit", "board");
     s.community.progression(id, "visit", "fishing");
-    assert.equal(s.community.privateProfile(id).season.xp, 105);
-    assert.equal(styleTokens(s.community.privateProfile(id).progress), 3);
+    assert.equal(s.community.privateProfile(id).season.xp, 45);
+    assert.equal(styleTokens(s.community.privateProfile(id).progress), 2);
     assert.equal(
       s.store.db
         .prepare(
           "SELECT SUM(tokens) n FROM style_reward_notices WHERE player=?",
         )
         .get(id).n,
-      3,
+      2,
     );
   } finally {
     s.close();
@@ -387,15 +387,15 @@ test("season transitions archive earlier totals and display rollback keeps offli
     assert.equal(s.community.privateProfile(host).season, null);
     s.community.progression(host, "visit", "garden");
     s.community.seasons.show = true;
-    assert.equal(s.community.privateProfile(host).season.xp, 40);
+    assert.equal(s.community.privateProfile(host).season.xp, 30);
     s.set(start + 7 * 86400000);
     const current = s.community.state(host);
     assert.equal(current.season.id, "second");
     assert.equal(current.season.xp, 0);
     assert.equal(current.seasonHistory[0].id, "opening");
-    assert.equal(current.seasonHistory[0].xp, 40);
+    assert.equal(current.seasonHistory[0].xp, 30);
     s.community.progression(host, "visit", "plots");
-    assert.equal(s.community.privateProfile(host).season.xp, 10);
+    assert.equal(s.community.privateProfile(host).season.xp, 0);
     const hidden = new Community(s.store, {
       directory: s.directory,
       seasonView: false,
@@ -406,8 +406,8 @@ test("season transitions archive earlier totals and display rollback keeps offli
       directory: s.directory,
       seasonView: true,
     });
-    assert.equal(restored.privateProfile(host).season.xp, 20);
-    assert.equal(restored.export(host).seasons[0].xp, 40);
+    assert.equal(restored.privateProfile(host).season.xp, 0);
+    assert.equal(restored.export(host).seasons[0].xp, 30);
     restored.delete(guest);
     assert.equal(
       s.store.db
@@ -415,7 +415,7 @@ test("season transitions archive earlier totals and display rollback keeps offli
         .get(guest).n,
       0,
     );
-    assert.equal(restored.privateProfile(host).season.xp, 20);
+    assert.equal(restored.privateProfile(host).season.xp, 0);
   } finally {
     s.close();
   }

@@ -28,7 +28,7 @@ function fixture() {
     store.db
       .prepare("INSERT INTO accounts VALUES(?,?,?)")
       .run(p.id, `${name}@example.test`, now - 2 * DAY);
-    community.patch(p.id, { name });
+    store.db.prepare("UPDATE players SET name=? WHERE id=?").run(name,p.id);
     return p.id;
   }
   function score(
@@ -400,7 +400,7 @@ test("friend scores outside rankings remain accessible and board challenges free
       () => s.community.begin(a, "noodle", b, null, shown),
       /no validated score/,
     );
-    s.community.report(a, b, "suspected-cheating");
+    s.community.moderate(a, b, "block");
     assert.equal(s.community.friends(a).length, 0);
     assert.throws(() => s.community.begin(a, "hop", b), /unavailable/);
   } finally {

@@ -47,7 +47,7 @@ export const interactionSpecs: InteractionSpec[] = [
   {
     id: "dragon",
     kind: "dragon",
-    title: "Ride the dragon slide",
+    title: "Dragon Rooftop · ride, flip, pose",
     anchor: [11, 0, 10],
     yaw: 0,
     approach: [14.5, 7.35],

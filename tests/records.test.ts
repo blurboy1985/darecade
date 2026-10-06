@@ -130,8 +130,8 @@ test("presence selects recent neighbours, filters both sides of blocks, and neve
       tick(1);
       store.heartbeat(`p${i}`, { connection: "tab", away: i % 2 === 0 });
     }
-    community.report("p79", "p64", "unsafe-behaviour");
-    community.report("p63", "p79", "unsafe-behaviour");
+    community.moderate("p79", "p64", "block");
+    community.moderate("p63", "p79", "block");
     db.prepare("INSERT INTO suspensions VALUES(?,?)").run("p62", store.now());
     tick(31000);
     for (let i = 40; i < 65; i++)
@@ -140,12 +140,12 @@ test("presence selects recent neighbours, filters both sides of blocks, and neve
     assert.deepEqual(Object.keys(presence), ["players"]);
     assert.equal(store.cachedSnapshot, cached);
     assert.equal(
-      presence.players.filter((p) => p.status !== "offline").length,
-      22,
+      presence.players.filter((p) => p.status === "private").length,
+      29,
     );
     assert.equal(
       presence.players.filter((p) => p.status === "offline").length,
-      8,
+      1,
     );
     assert.ok(presence.players.some((p) => p.id === "p60"));
     assert.ok(
@@ -181,7 +181,7 @@ test("snapshots expire at 30 seconds and midnight, refresh after events, and iso
     assert.equal(community.cachedSnapshot.base.boards.noodle[0].score, 999);
     db.prepare("UPDATE runs SET seed=1 WHERE id=?").run(run.id);
     assert.throws(() => community.postDare("p11", run.id), /saved score/);
-    community.report("p10", "p11", "suspected-cheating");
+    community.moderate("p10", "p11", "block");
     assert.ok(
       !community.state("p10").boards.noodle.some((p) => p.id === "p11"),
     );

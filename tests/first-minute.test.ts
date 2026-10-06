@@ -31,12 +31,12 @@ test("presence counts live people including self, deduplicates and never counts 
   );
   assert.equal(
     worldPresenceCopy([], "me", "connected"),
-    "1 players · 5 neighbours",
+    "1 player · 5 neighbours",
   );
   const me = { id: "me", status: "online" } as const;
   assert.equal(
     worldPresenceCopy([me], "me", "connected"),
-    "1 players · 5 neighbours",
+    "1 player · 5 neighbours",
   );
   const players = [
     me,
@@ -52,16 +52,17 @@ test("presence counts live people including self, deduplicates and never counts 
   for (const state of ["offline", "reconnecting"] as const)
     assert.equal(
       worldPresenceCopy(players, "me", state),
-      "Player count unavailable",
+      "5 neighbours · player count unavailable",
     );
   assert.equal(
     worldPresenceCopy(players, "me", "connected", false),
-    "Player count unavailable",
+    "5 neighbours · player count unavailable",
   );
 });
 
 test("the first-race goal names the real cap reward and town access without changing rewards", () => {
-  assert.match(firstVisitCopy.detail, /Finish a round.*lilac cap/);
+  assert.match(firstVisitCopy.title, /lilac cap/);
+  assert.match(firstVisitCopy.detail, /Finish a round.*Palm Bay/);
   assert.match(firstVisitCopy.explore, /town is open/);
   assert.doesNotMatch(JSON.stringify(firstVisitCopy), /open the town/);
   const progress = fresh();

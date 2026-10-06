@@ -2,6 +2,7 @@ import type { GameId, ActivityId } from "./catalog";
 import type { Profile } from "./account";
 import type { SeasonStanding } from "./season";
 export type SharedPlayer = {
+  relationship?: "friend" | "incoming" | "outgoing";
   id: string;
   name: string;
   look: {
@@ -21,7 +22,7 @@ export type SharedPlayer = {
   z: number;
   yaw: number;
   emote?: string;
-  status: "online" | "resting" | "offline";
+  status: "online" | "resting" | "offline" | "private";
   best: Record<GameId, number>;
   challengeScores?: Partial<Record<GameId, { score: number; runId: string }>>;
   points: number;
@@ -30,6 +31,7 @@ export type SharedPlayer = {
   wins: number;
 };
 export type SharedState = {
+  muted?: string[];
   season?: SeasonStanding | null;
   seasonHistory?: SeasonStanding[];
   profile: Profile;
@@ -90,6 +92,9 @@ export async function api<T>(path: string, data?: unknown): Promise<T> {
   if (response.status === 401 && path !== "auth/me")
     window.dispatchEvent(new Event("session-expired"));
   if (!response.ok)
-    throw Error(result.error || "The neighbourhood server is unavailable.");
+    throw Object.assign(
+      new Error(result.error || "The neighbourhood server is unavailable."),
+      { status: response.status },
+    );
   return result;
 }

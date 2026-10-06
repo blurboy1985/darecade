@@ -1,3 +1,4 @@
+import { HAIR_START, HAIR_COUNT } from "./hair-catalog.ts";
 // Stable indices are shared by save validation, the wardrobe and all renderers.
 // Each slot is laid out as: original items, the first ten sets, later single
 // items ("extras"), then every later set. Append sets freely; never reorder.
@@ -249,9 +250,13 @@ export const lookBundles = [
 ] as const;
 export const tokenLooks = [...legendarySets, ...lookBundles];
 export const slotSize = (slot: LookSlot) =>
-  setStarts[slot] + legendarySets.length + extraCounts[slot];
+  setStarts[slot] +
+  legendarySets.length +
+  extraCounts[slot] +
+  (slot === "hair" ? HAIR_COUNT : 0);
 /** Position of an item among the sets, or -1 for a single item. */
 export function setIndexFor(slot: LookSlot, index: number) {
+  if (slot === "hair" && index >= HAIR_START) return -1;
   const i = index - setStarts[slot];
   if (i < 0 || index >= slotSize(slot)) return -1;
   if (i < firstSets) return i;
@@ -270,6 +275,8 @@ export function setForItem(slot: LookSlot, index: number) {
   return legendarySets[setIndexFor(slot, index)];
 }
 export function collectionFor(slot: LookSlot, index: number) {
+  if (slot === "hair" && index >= HAIR_START && index < HAIR_START + HAIR_COUNT)
+    return "starter";
   const extra = extraIndexFor(slot, index);
   // Later single items: a third each are free, Street and Weekend.
   const tier =

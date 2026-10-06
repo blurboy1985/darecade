@@ -142,3 +142,5 @@
   font-size: 14px;
   line-height: 1.5;
 }
+.danger { background:#a4323f; color:#fff; border:2px solid #7c2330; border-radius:12px; padding:12px 18px; font:inherit; font-weight:700; cursor:pointer; }
+.account-dialog #account-cancel { margin-top:18px; }

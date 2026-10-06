@@ -1,0 +1,81 @@
+Play Simi — round 3 implementation and verification
+Date: 6 October 2026
+Production: https://playsimi.danielquek.com
+Final deployed Worker version: c344c4bc-d8a0-447c-a289-1cff42acc5bb
+
+PHASES SHIPPED
+1. Stability: removed the background-401 page reload; retain the running game and accept its returned progress. Fixed-step race time uses a monotonic timestamp and a nondecreasing display. The initial limit comes from the same race configuration. W taps/holds use the movement latch. BEST uses recorded ticks. Removed the global pointerdown cancellation. Idle clients send four-second heartbeats; the server expires stale presence after 12 seconds, checked every three seconds. Offline social cards no longer become live world avatars.
+2. Variety: append-only hair IDs 53–132 provide eight shapes in ten colours. Existing IDs 0–52 retain their mappings. New guest identities are seeded by ID. NPCs avoid occupied hair combinations and limit blue choices; the collision pass also runs when live neighbours join. Added rear clumps/nape points and five iris colours. Existing saved/custom player looks remain intact.
+3. Life: natural blinks use per-character 3–5 second periods with 120 ms fully closed; breathing now survives skeleton posing. Added weight shift/look-around and restored emote faces. NPCs wander among fixed points of interest independently of the player, with 2.05 m visual separation. NPC labels fade on overlap; the player's highlighted label and ring remain visible.
+4. Classes/wardrobe: shared curved cape geometry widens toward the hem, with collars and clasps and existing sway. Pirate gets a volumetric tricorn and larger cutlass; Thief gets a neck scarf and larger daggers. Try-on updates only the preview/actions and turns to the front, preserving the item-list DOM and scroll.
+5. Polish: upfront guest XP and separate email-saving copy, no 'Verified round'. Finished-race nameplates are hidden and quit titles sized to avoid overlap. Automatic performance fallback announces itself once; Preferences offers a return to full quality. Portraits use serialized asynchronous capture and a bounded cache. HTML no-transform prevents automatic Cloudflare beacon injection. Phone opening view includes Daily Board and Mama Shop and eases closer on movement. Building walk-to-open already worked and was verified without changing that logic.
+
+VERIFICATION
+- Application suite: 416 tests, 388 passed, 28 existing skips, zero failures.
+- A repeat run with several active 3D tabs hit the existing database rebuild timing threshold (329 ms vs 300 ms). After closing the test scenes, the isolated test passed with rebuilds of 48–57 ms and cached p95 1.60 ms.
+- Cloudflare suite: 14 passed, zero failures; includes real Durable Object integration.
+- TypeScript/Vite production build and Wrangler dry run passed.
+- Full first-race browser run: held W, 1:39.40 finish, initial 180s, 1,800 sampled clock readings, zero backwards readings. Injected the session-expired event on lap 3: no reload. XP increased 235 -> 255 and Play medals 4 -> 5 on return to lobby. The local fixture validates the actual replay through the server; account/profile responses are synthetic.
+- Actual WEBGL_lose_context injection at 0:03.13 paused the race. One Resume click continued in simple view without navigation or clock reset. Escape opened pause. Quit produced a no-finish result; Race again and Race! each worked on one click, with elapsed time zero during countdown.
+- BEST formatter regression covers 7,671 ticks -> 2:07.85 and 10,800 ticks -> 3:00.00.
+- Stale heartbeat regression removes a silent socket within 14,999 ms while active sockets remain. A two-real-account closed-window presence check was not performed.
+- Ten-character visual gallery uses selected seeded IDs to cover all eight shapes and ten colours: one blue, no identical hair pairs. It uses the production character renderer, not mock images. Rear hair and class backs inspected on screen.
+- Natural idle blink captured by freezing the next organically generated closed-eye frame; no forced blink expression. Cheer screenshot shows closed happy eyes and open smiles. Skeleton tests confirm breathing and restoration to idle. NPC movement and player marker inspected in the world.
+- Try-on preserved an observed item-list scrollTop of 541 before and after; Back to my look remained visible. Pirate/Thief previews retained the player's pink hair and face.
+- 390 x 844 phone opening screenshot includes both landmarks. Clicking Mama Shop walked the avatar there and opened the shop before a race.
+- Production first load: zero captured console errors or warnings, including no ReadPixels warning. Production HTML response is HTTP 200 with Cache-Control: public, no-cache, no-transform and no injected Cloudflare insights script.
+- Production preferences successfully switched Performance -> Full quality -> Automatic.
+
+SAVE SAFETY
+No save-format change or migration. Version remains 1. The existing-save database-reopen regression compares the complete before/after private profile, including account, XP, token balance, spent tokens, unlocked/purchased collections, legacy hair 38, clothing 24, hats, rounds, coins and race record. It also checks the persisted player look and computed Style-token balance. The final suite passed this test. New hair IDs pass normalisation and wearability tests; old item IDs are not removed. The production guest profile reloaded with its existing Cosmic Cat 17 name/look, 175 XP and one Play medal. No production account or balance was edited for testing.
+
+LIMITS / NOT CLAIMED
+- Physical mid-range-phone 60 fps, under-100-ms input and 4G startup targets were not benchmarked. Responsive layout was checked in Chrome at 390 x 844.
+- The blue-hair cap and collision rerolls apply to generated NPCs/default review identities. Real players can deliberately choose matching saved hair; their owned/custom looks are not silently rewritten. Thus the strict 'any screenshot of ten arbitrary live players' condition is not guaranteed.
+- Browser checks cover the interactions listed above, not every possible button, viewport, emote timing or GPU. Automatic low-FPS toast was implemented but not induced with a measured slow physical device.
+- This work does not establish a subjective 9–10/10 visual score.
+
+SCREENSHOT EVIDENCE (local, ignored by Git)
+.browser/round3/phase2-front.png — ten seeded character identities
+.browser/round3/phase2-back.png — rear hair clumps and silhouettes
+.browser/round3/phase3-cheer.png — happy emote faces
+.browser/round3/phase3-blink.png — natural blink, mint character in back row
+.browser/round3/phase3-world.png — wandering NPCs and highlighted player
+.browser/round3/phase4-capes.png — class capes, props, Pirate/Thief backs
+.browser/round3/phase4-wardrobe.png — try-on/back controls and retained scroll
+.browser/round3/phase5-phone.png — initial phone framing
+.browser/round3/final-race.png — finished first race and guest reward copy
+.browser/round3/final-race-audit.json — final clock audit
+.browser/round3/context-recovered.png — resumed simple view after real context loss
+.browser/round3/production-world.png — deployed world and existing guest
+
+EVERY FILE CHANGED
+cloudflare/world.mjs — heartbeat timestamps survive hibernation; 12-second stale presence expiry and three-second alarms.
+public/_headers — no-transform on HTML to prevent automatic beacon injection.
+scripts/character-review.mjs — serves the isolated race audit and validates local replay submissions.
+scripts/race-browser-audit.js — test-only full-race keyboard/clock/session/context-loss browser audit.
+src/appearance.ts — append the new hairstyle labels.
+src/avatar-portraits.ts — serialize capture, coalesce pending jobs, cache and evict object URLs.
+src/character-finish.ts — rear hair volume, new colour/shape lookup, revised blink timing and emote expressions.
+src/character-identity.ts — seeded full-palette defaults, visual hair collision checks, blue cap for generated neighbours, 2.05 m spacing.
+src/character.ts — append-only hairstyle rendering, iris palette, smile geometry, breathing/look-around, front-turn try-on and async thumbnail capture.
+src/class-costumes.ts — tapered curved cape mesh/collars, tricorn, larger cutlass/daggers and scarf.
+src/collections.ts — appended free hair slots without shifting old collection IDs.
+src/hair-catalog.ts — shared eight-shape/ten-colour append-only catalogue and legacy visual mappings.
+src/main.ts — no background-auth reload, accepted reward recovery, true BEST ticks, stable try-on updates, input fix, guest reward copy, quality controls/toast, player label name and live-only world avatars.
+src/racing-game.ts — correct initial limit, monotonic display/clock and latched captured keyboard movement.
+src/racing.css — hide final nameplates and size early-exit title.
+src/wardrobe.css — reserve action space and constrain preview so reset/equip controls stay visible.
+src/world-connection.ts — send idle pose heartbeat every four seconds.
+src/world.ts — varied/wandering/spaced NPCs, player label/ring, label overlap handling, quality restoration and phone opening framing.
+tests/avatar-lifecycle.test.ts — real model happy-face restoration and breathing regression.
+tests/character-finish.test.ts — blink/expression and tapered curved cape geometry checks.
+tests/character-gallery.html — browser visual-review controls and layout.
+tests/character-gallery.ts — ten seeded production avatars, class/emote/rear views and natural-blink capture.
+tests/character-identity.test.ts — shape/colour/skin coverage, free-item compatibility, spacing and ten-character uniqueness.
+tests/mobile-lobby-fixture.ts — load the isolated browser race audit when explicitly requested by query flag.
+tests/racing.test.ts — minute formatting regression above two minutes.
+tests/world-checkpoint.test.ts — heartbeat-aware fixture and stale socket expiry regression.
+reports/round3-verification.txt — this phase/file/evidence/save verification report.
+
+Deployment history: Phase 1 e4d48c51-70db-4ca6-aa6c-6672ff5ef904; Phase 2 c0380e5e-1a93-47e3-80dd-4e824c0c15b8; Phase 3 335e67f5-f06b-42ee-945d-91e2db6416e5; Phase 4 cb209f85-bec0-4af5-8512-f89eb99b82e7; Phase 5 104ce576-52c3-48c2-9721-70502be018f8; final neighbour-join collision follow-up c344c4bc-d8a0-447c-a289-1cff42acc5bb.

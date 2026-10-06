@@ -1,3 +1,4 @@
+import { mountAvatarCards } from "./avatar-portraits";
 import { api } from "./social";
 import {
   acceptProfile,
@@ -84,7 +85,7 @@ export async function mountPayments(
         return '<button class="secondary premium-age-lock" disabled>🔒 18+ only</button>';
       if (!config.enabled || !p)
         return '<button class="secondary" disabled>Payments coming soon</button>';
-      return `<button class="primary" data-checkout="${text(p.id)}" ${currentProfile?.account ? "" : "disabled"}>${p.kind === "donation" ? "Donate" : "Buy set"} · ${money(p.amount)}</button>`;
+      return `<button class="primary" data-checkout="${text(p.id)}" ${currentProfile?.account && currentProfile.ageBand === "18+" ? "" : "disabled"}>${p.kind === "donation" ? "Donate" : "Buy set"} · ${money(p.amount)}</button>`;
     };
     panel.innerHTML = `<button class="text-button" data-open="wardrobe">← My look</button><span class="eyebrow">PREMIUM · 18+ PURCHASES</span><h2>${selected ? text(selected.name) : "Premium"}</h2><p class="lead">Help keep the neighbourhood growing.</p><p class="payment-status" role="status">${text(message)}</p>${!config.enabled ? '<div class="note">Payments are not open yet. Prices will appear when checkout is ready. You can still earn every Legendary set by playing.</div>' : config.testMode ? '<div class="note">Test checkout. No real payments.</div>' : ""}${!currentProfile?.account ? '<p>Save your account with email to keep purchases across devices.</p><button class="secondary" data-payment-account>Save my account</button>' : ""}<section><h3>Premium looks</h3><p>One payment unlocks the complete outfit, headwear, pet and magic. No medal requirement or token deduction. All looks are cosmetic.</p><div class="payment-products">${(selected
       ? [selected]
@@ -92,14 +93,15 @@ export async function mountPayments(
     )
       .map(
         (s) =>
-          `<article class="payment-product"><img src="/wardrobe/sets-${legendarySets.indexOf(s)}.png" alt="${text(s.name)}" width="100" height="92" loading="lazy"><div><strong>${text(s.name)}</strong><small>All four pieces · yours to mix & match</small>${purchase(
+          `<article class="payment-product"><img class="avatar-thumbnail is-ready" src="/wardrobe/sets-${legendarySets.indexOf(s)}.png" data-thumbnail="sets:${legendarySets.indexOf(s)}" alt="${text(s.name)}" width="100" height="92" loading="lazy"><div><strong>${text(s.name)}</strong><small>All four pieces · yours to mix & match</small>${purchase(
             config.products.find((p) => p.id === s.id),
             s.id,
           )}</div></article>`,
       )
       .join(
         "",
-      )}</div></section><section><h3>Make a donation</h3><p>A one-time contribution to the game. Donations do not grant items, tokens or leaderboard benefits.</p><div class="payment-donations">${donations.length ? donations.map((p) => purchase(p, p.id)).join("") : '<button class="secondary" disabled>Donations coming soon</button>'}</div></section><p class="fine-print">${config.enabled ? "Stripe handles card details on its hosted checkout. The next step shows your total before you pay. No subscriptions." : "No payment details are collected while checkout is unavailable."}</p><details><summary>Payment history</summary>${orders.length ? orders.map((o) => `<div class="payment-order"><span>${text(productName(o.product))}<small>${new Date(o.created).toLocaleDateString("en-SG", { timeZone: "Asia/Singapore" })} · ${text(o.status)}</small></span><strong>${money(o.amount)}</strong></div>`).join("") : "<p>No payments yet.</p>"}</details><div class="payment-links"><button class="secondary" data-payment-refresh>Refresh payment status</button><button class="secondary" data-open="wardrobe">Back to My look</button></div>`;
+      )}</div></section>${currentProfile?.ageBand === "18+" ? `<section><h3>Make a donation</h3><p>A one-time contribution to the game. Donations do not grant items, tokens or leaderboard benefits.</p><div class="payment-donations">${donations.length ? donations.map((p) => purchase(p, p.id)).join("") : '<button class="secondary" disabled>Donations coming soon</button>'}</div></section>` : ""}<p class="fine-print">${config.enabled ? "Stripe handles card details on its hosted checkout. The next step shows your total before you pay. No subscriptions." : "No payment details are collected while checkout is unavailable."}</p><details><summary>Payment history</summary>${orders.length ? orders.map((o) => `<div class="payment-order"><span>${text(productName(o.product))}<small>${new Date(o.created).toLocaleDateString("en-SG", { timeZone: "Asia/Singapore" })} · ${text(o.status)}</small></span><strong>${money(o.amount)}</strong></div>`).join("") : "<p>No payments yet.</p>"}</details><div class="payment-links"><button class="secondary" data-payment-refresh>Refresh payment status</button><button class="secondary" data-open="wardrobe">Back to My look</button></div>`;
+    if (currentProfile) mountAvatarCards(panel, currentProfile.progress);
     panel
       .querySelector("[data-payment-account]")
       ?.addEventListener("click", () => void openAccount({ create: true }));

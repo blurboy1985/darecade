@@ -1,3 +1,5 @@
+import { HAIR_START } from "./hair-catalog.ts";
+import { starterClasses } from "./class-costumes.ts";
 import {
   clothingNames,
   hairNames,
@@ -74,7 +76,7 @@ export function wardrobeBrowser(
   trying: TryOn,
 ) {
   const slots: WardrobeTab[] =
-    section === "Capes & back"
+    section === "Capes & back" || section === "Props"
       ? ["clothing", "accessory"]
       : [
           section === "Outfits"
@@ -90,9 +92,17 @@ export function wardrobeBrowser(
   return slots
     .map((slot) =>
       wardrobeCards(slot, null, p, medals, trying, (name, index, owned) => {
-        if (section === "Hair" && !/cut|bob|buns|beard/i.test(name))
+        if (
+          section === "Hair" &&
+          index < HAIR_START &&
+          !/cut|bob|buns|beard|flowing hair|ponytail/i.test(name)
+        )
           return false;
-        if (section === "Hats" && /cut|bob|buns|beard/i.test(name))
+        if (
+          section === "Hats" &&
+          (index >= HAIR_START ||
+            /cut|bob|buns|beard|flowing hair|ponytail/i.test(name))
+        )
           return false;
         if (
           section === "Capes & back" &&
@@ -101,7 +111,9 @@ export function wardrobeBrowser(
           return false;
         if (
           section === "Props" &&
-          !/ribbon|crown|hoop|keep it simple/i.test(name)
+          !/staff|sword|dagger|cutlass|bow|ribbon|crown|hoop|keep it simple/i.test(
+            name,
+          )
         )
           return false;
         if (section === "Magic" && /wings|ribbon|crown|hoop/i.test(name))
@@ -111,7 +123,10 @@ export function wardrobeBrowser(
         if (filter === "Owned") return owned;
         if (filter === "Free")
           return (
-            !set && slot !== "sets" && collectionFor(slot, index) === "starter"
+            (slot === "sets" && index < 0) ||
+            (!set &&
+              slot !== "sets" &&
+              collectionFor(slot, index) === "starter")
           );
         if (filter === "Legendary" || filter === "Premium") return !!set;
         if (filter !== "All")
@@ -136,9 +151,14 @@ export function thumbnailLook(slot: WardrobeTab, index: number): Look {
     : { ...base, [slot]: index };
 }
 export function itemName(slot: WardrobeTab, index: number) {
+  if (slot === "sets" && index < 0) return starterClasses[-index - 1]?.name;
   return slot === "sets" ? legendarySets[index]?.name : names[slot][index];
 }
 export function itemLook(slot: WardrobeTab, index: number, worn: Look): Look {
+  if (slot === "sets" && index < 0) {
+    const starter = starterClasses[-index - 1];
+    return { ...worn, clothing: starter.clothing, hat: 0 };
+  }
   return slot === "sets"
     ? { ...worn, ...setLook(index) }
     : { ...worn, [slot]: index, ...(slot === "hair" ? { hat: 0 } : {}) };
@@ -164,7 +184,14 @@ export function wardrobeCards(
 ) {
   const entries =
     tab === "sets"
-      ? legendarySets.map((s, index) => ({ name: s.name, index }))
+      ? [
+          { name: legendarySets[9].name, index: 9 },
+          ...starterClasses.map((s, index) => ({
+            name: s.name,
+            index: -index - 1,
+          })),
+          ...legendarySets.map((s, index) => ({ name: s.name, index })),
+        ]
       : names[tab]
           .map((name, index) => ({ name, index }))
           .filter(
@@ -173,6 +200,10 @@ export function wardrobeCards(
           );
   return `<div class="collection-grid">${entries
     .map(({ name, index }) => {
+      if (tab === "sets" && index < 0) {
+        if (!include(name, index, true)) return "";
+        return `<article class="collection-card"><button class="try-item" data-try-slot="sets" data-try-index="${index}" aria-label="Preview ${name}"><span class="item-art"><img class="avatar-thumbnail" data-thumbnail="sets:${index}" alt="${name}" width="240" height="220"></span><span class="item-state">Free starter class</span><strong>${name}</strong></button></article>`;
+      }
       const set =
         tab === "sets" ? legendarySets[index] : setForItem(tab, index);
       const owned =
@@ -201,7 +232,7 @@ export function wardrobeCards(
             : `${tier} · owned`
           : `${tier} · preview`;
       const thumb = `${tab}:${index}`;
-      return `<article class="collection-card ${selected ? "is-previewing" : ""}" style="--collection-color:${set?.color ?? "#b4a0f5"}"><button class="try-item" data-try-slot="${tab}" data-try-index="${index}" aria-label="${owned ? "Equip" : "Preview"} ${name}" aria-pressed="${selected}"><span class="item-art"><img data-thumbnail="${thumb}" src="/wardrobe/${thumb.replace(":", "-")}.png" loading="lazy" alt="${name}" width="240" height="220"></span><span class="item-state${set ? " is-premium" : ""}">${state}</span><strong>${name}</strong>${set ? `<small>${tab === "sets" ? set.theme : set.name}</small>` : ""}</button>${!owned && tab !== "sets" ? (set ? `<button class="secondary" data-buy-set="${set.id}">Get set</button>` : `<button class="secondary" data-redeem-set="${collectionFor(tab, index)}">Get · ${lookBundles.find((b) => b.id === collectionFor(tab, index))?.cost} Style tokens</button>`) : ""}${tab === "sets" && set ? `<div class="set-requirement"><small>Outfit + headwear + pet + magic</small>${owned ? `<span>Yours to mix & match</span>` : `<span>${set.cost} Style tokens</span><button class="secondary" data-redeem-set="${set.id}" ${canRedeem(set, p, medals) ? "" : "disabled"}>${canRedeem(set, p, medals) ? "Exchange tokens" : "Keep playing to unlock"}</button><button class="text-button" data-buy-set="${set.id}">Get set</button>`}</div>` : ""}</article>`;
+      return `<article class="collection-card ${selected ? "is-previewing" : ""}" style="--collection-color:${set?.color ?? "#b4a0f5"}"><button class="try-item" data-try-slot="${tab}" data-try-index="${index}" aria-label="${owned ? "Equip" : "Preview"} ${name}" aria-pressed="${selected}"><span class="item-art"><img data-thumbnail="${thumb}" class="avatar-thumbnail" src="/wardrobe/${thumb.replace(":", "-")}.png" loading="lazy" alt="${name}" width="240" height="220"></span><span class="item-state${set ? " is-premium" : ""}">${state}</span><strong>${name}</strong>${set ? `<small>${tab === "sets" ? set.theme : set.name}</small>` : ""}</button>${!owned && tab !== "sets" ? (set ? `<button class="secondary" data-buy-set="${set.id}">Get set</button>` : `<button class="secondary" data-redeem-set="${collectionFor(tab, index)}">Get · ${lookBundles.find((b) => b.id === collectionFor(tab, index))?.cost} Style tokens</button>`) : ""}${tab === "sets" && set ? `<div class="set-requirement"><small>Outfit + headwear + pet + magic</small>${owned ? `<span>Yours to mix & match</span>` : `<span>${set.cost} Style tokens</span><button class="secondary" data-redeem-set="${set.id}" ${canRedeem(set, p, medals) ? "" : "disabled"}>${canRedeem(set, p, medals) ? "Exchange tokens" : "Keep playing to unlock"}</button><button class="text-button" data-buy-set="${set.id}">Get set</button>`}</div>` : ""}</article>`;
     })
     .join("")}</div>`;
 }

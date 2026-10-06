@@ -132,12 +132,12 @@ export class HopRun {
       this.endReason = "time";
     }
   }
-  draw(c: CanvasRenderingContext2D) {
-    c.fillStyle = "#243b50";
+  draw(c: CanvasRenderingContext2D, avatar?: CanvasImageSource) {
+    c.fillStyle = "#bee7e7";
     c.fillRect(0, 0, 440, 440);
     for (let i = 0; i < 9; i++) {
       const x = ((((i * 65 - this.elapsed * 13) % 585) + 585) % 585) - 70;
-      c.fillStyle = i % 2 ? "#344c60" : "#3e5668";
+      c.fillStyle = i % 2 ? "#eed0b9" : "#d2c6e9";
       c.fillRect(x, 130 + (i % 3) * 24, 48, 200);
       c.fillStyle = "#b6c599";
       for (let y = 160 + (i % 3) * 24; y < 320; y += 30)
@@ -203,6 +203,10 @@ export class HopRun {
       c.fillStyle = "#ffe27a";
       c.fillRect(152, 24, (136 * this.power) / HOP_POWER_SECONDS, 6);
     }
+    if (avatar) {
+      c.drawImage(avatar, 55, y - 58, 66, 78);
+      return;
+    }
     c.fillStyle = "#bce98e";
     c.fillRect(76, y - 31, 23, 22);
     c.fillStyle = "#f1cca1";
@@ -233,9 +237,9 @@ export class StarFlight extends LegacyStarFlight {
   get wave() {
     return 1 + Math.floor(this.elapsed / 12);
   }
-  override tick(dt: number, dx = 0, dy = 0) {
+  override tick(dt: number, dx = 0, dy = 0, input = false) {
     if (!this.modern) {
-      super.tick(dt, dx, dy);
+      super.tick(dt, dx, dy, input);
       return;
     }
     if (this.ended) return;
@@ -388,8 +392,9 @@ export class StarFlight extends LegacyStarFlight {
       this.endReason = "lives";
     }
   }
-  override draw(c: CanvasRenderingContext2D) {
+  override draw(c: CanvasRenderingContext2D, avatar?: CanvasImageSource) {
     super.draw(c);
+    if (avatar) c.drawImage(avatar, this.x - 13, this.y - 20, 26, 28);
     c.font = "bold 13px sans-serif";
     c.textAlign = "left";
     c.fillStyle = "#294d63";

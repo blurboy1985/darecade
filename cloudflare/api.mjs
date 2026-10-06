@@ -1,3 +1,4 @@
+import { RELAY_TICK_BUDGET } from "../shared/relay-protocol.ts";
 import { paymentBody } from "../server/payments.mjs";
 import { randomUUID } from "node:crypto";
 
@@ -149,7 +150,7 @@ export async function handleApi(
       rate(
         "relay:" + action,
         action === "tick"
-          ? 300
+          ? RELAY_TICK_BUDGET
           : action === "create"
             ? 6
             : action === "join"
@@ -206,9 +207,18 @@ export async function handleApi(
     if (method === "POST" && path === "/api/style-rewards")
       return json(c.takeStyleRewards(id));
     if (method === "POST" && path === "/api/friends")
-      return json(c.saveFriend(id, data.name));
+      return json(
+        data.target
+          ? c.acceptFriend(id, data.target)
+          : c.saveFriend(id, data.name),
+      );
     if (method === "POST" && path === "/api/dares")
       return json(c.postDare(id, data.run));
+    if (method === "POST" && path === "/api/moderate") {
+      const result = c.moderate(id, data.target, data.action);
+      await worlds?.refresh(id, data.target);
+      return json(result);
+    }
     if (method === "POST" && path === "/api/report") {
       const result = c.report(id, data.target, data.reason);
       await worlds?.refresh(id, data.target);

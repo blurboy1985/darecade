@@ -148,6 +148,7 @@ dialog:has(.wardrobe-layout) {
 }
 .collection-grid {
   display: grid;
+  align-items: start;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
@@ -309,7 +310,7 @@ dialog:has(.wardrobe-layout) {
     padding: 4px;
   }
   .wardrobe-layout .character-preview {
-    grid-row: 1 / 5;
+    grid-row: 1 / 6;
     height: 170px;
   }
   .wardrobe-layout .avatar-preview > strong,
@@ -357,6 +358,45 @@ dialog:has(.wardrobe-layout) {
 .hat-shelf [aria-pressed="true"] {
   border-color: #7a5cd6;
   background: #e4dcff;
+}
+/* Avatar thumbnails reserve their final space before the first render. */
+.item-art {
+  background: linear-gradient(120deg, #f6e8ff, #dff5ee);
+}
+.item-art:has(.avatar-thumbnail:not(.is-ready))::before {
+  content: "✦";
+  display: grid;
+  place-items: center;
+  position: absolute;
+  inset: 0;
+  color: #9c79bd;
+  font-size: 32px;
+}
+.item-art {
+  position: relative;
+}
+.avatar-thumbnail {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.avatar-thumbnail.is-ready {
+  opacity: 1;
+}
+#avatar-icon {
+  background: #eadcf7;
+  overflow: hidden;
+  border-radius: 50%;
+}
+#avatar-icon::before,
+#avatar-icon::after {
+  display: none;
+}
+#avatar-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.45);
+  image-rendering: auto;
 }
 
 .premium-age-lock {
@@ -452,11 +492,28 @@ dialog:has(.wardrobe-layout) {
   }
 }
 @media (max-height: 480px) and (min-width: 701px) {
-  dialog .wardrobe-layout .avatar-preview { padding: 0; }
-  dialog .wardrobe-layout .character-preview { height: 135px !important; }
-  dialog .wardrobe-layout .avatar-preview > .look-caption { display: none; }
-  dialog .wardrobe-layout .try-actions { flex-direction: row; flex-wrap: nowrap; padding: 4px; gap: 4px; }
-  dialog .wardrobe-layout .try-actions button { min-height: 36px; padding: 5px; font-size: 11px; width: auto; flex: 1; }
+  dialog .wardrobe-layout .avatar-preview {
+    padding: 0;
+  }
+  dialog .wardrobe-layout .character-preview {
+    height: 135px !important;
+  }
+  dialog .wardrobe-layout .avatar-preview > .look-caption {
+    display: none;
+  }
+  dialog .wardrobe-layout .try-actions {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    padding: 4px;
+    gap: 4px;
+  }
+  dialog .wardrobe-layout .try-actions button {
+    min-height: 36px;
+    padding: 5px;
+    font-size: 11px;
+    width: auto;
+    flex: 1;
+  }
   .wardrobe-layout {
     display: grid;
     grid-template-columns: 200px minmax(0, 1fr);
@@ -469,5 +526,27 @@ dialog:has(.wardrobe-layout) {
   .wardrobe-layout .avatar-preview > small,
   .wardrobe-layout .look-caption {
     display: none;
+  }
+}
+
+@media (max-height: 480px) and (min-width: 701px) {
+  dialog .wardrobe-layout .avatar-preview {
+    display: flex;
+    flex-direction: column;
+    height: 190px;
+    min-height: 0;
+    gap: 0;
+  }
+  dialog .wardrobe-layout .character-preview {
+    flex: 0 0 145px;
+    height: 145px !important;
+    width: 100%;
+    margin: 0;
+  }
+  dialog .wardrobe-layout .try-actions {
+    flex: 0 0 40px;
+    min-height: 0;
+    height: 40px;
+    margin: 0;
   }
 }

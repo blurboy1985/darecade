@@ -1,5 +1,6 @@
 /** Coast Rush physics. No rendering, wall clock or avatar stats. Item draws are seeded. */
 export const RACE_TICKS = 120 * 60;
+export const FIRST_RACE_TICKS = 180 * 60;
 export const RACE_LAPS = 3;
 export const ROAD_HALF_WIDTH = 5.4;
 const TAU = Math.PI * 2;
@@ -163,6 +164,7 @@ export type RaceResult = {
   bestLap: number;
   pickups: number;
   penaltyTicks: number;
+  novice?: boolean;
 };
 
 export class CoastRace {
@@ -209,8 +211,12 @@ export class CoastRace {
   private previousLapTick = 0;
   private itemHeld = false;
   private readonly seed: number;
+  readonly novice: boolean;
+  readonly limitTicks: number;
   constructor(seed = 0) {
-    this.seed = seed >>> 0;
+    this.novice = seed < 0;
+    this.limitTicks = this.novice ? FIRST_RACE_TICKS : RACE_TICKS;
+    this.seed = (seed < 0 ? -seed - 1 : seed) >>> 0;
   }
   get offroad() {
     return Math.abs(this.offset) > ROAD_HALF_WIDTH;
@@ -239,6 +245,7 @@ export class CoastRace {
       bestLap: this.lapTicks.length ? Math.min(...this.lapTicks) : 0,
       pickups: this.pickupCount,
       penaltyTicks: this.penaltyTicks,
+      ...(this.novice ? { novice: true } : {}),
     };
   }
   /** throttle is -1 brake, 0 coast, 1 accelerate. Item use is edge-triggered. */
@@ -261,7 +268,17 @@ export class CoastRace {
         r.stun--;
         r.speed = 0;
       } else {
-        const top = r.slow ? r.pace * 0.55 : r.pace;
+        // Onboarding rivals ease off ahead of the player. Standard seeds retain
+        // their exact historical physics and replay results.
+        const lead = r.distance - this.distance;
+        const support = this.novice
+          ? Math.max(0.42, Math.min(0.94, 0.85 - lead / 180))
+          : 1;
+        const pace = (r.slow ? r.pace * 0.55 : r.pace) * support;
+        const top =
+          this.novice && this.rivals.indexOf(r) >= 3 && lead > -18
+            ? Math.min(pace, Math.max(3, this.speed * 0.8))
+            : pace;
         r.speed =
           r.speed > top
             ? Math.max(top, r.speed - dt * 30)
@@ -385,9 +402,9 @@ export class CoastRace {
       }
     }
     if (this.distance >= RACE_DISTANCE) {
-      this.score = raceScore(this.ticks);
+      this.score = this.limitTicks + 1 - this.ticks;
       this.ended = true;
-    } else if (this.ticks >= RACE_TICKS) this.ended = true;
+    } else if (this.ticks >= this.limitTicks) this.ended = true;
   }
   private use(item: NonNullable<RaceItem>) {
     if (item === "shield") this.shield = 3;

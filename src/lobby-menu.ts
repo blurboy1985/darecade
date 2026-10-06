@@ -2,7 +2,6 @@ type MenuAction = { label: string; target: string; icon: string };
 export const menuPages = {
   "phone-menu": {
     title: "Menu",
-    back: null,
     actions: [
       { label: "My look", target: "wardrobe", icon: "shirt" },
       { label: "Quests & rankings", target: "quests", icon: "trophy" },
@@ -18,8 +17,8 @@ export function isMenuPage(id: string): id is keyof typeof menuPages {
 
 export const firstVisitCopy = {
   kicker: "YOUR FIRST RACE",
-  title: "Race for your cap.",
-  detail: "Finish a round at Palm Bay to unlock your lilac cap.",
+  title: "Earn your lilac cap",
+  detail: "Finish a round at Palm Bay.",
   explore: "The town is open to explore.",
 } as const;
 
