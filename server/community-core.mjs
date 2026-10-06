@@ -5,6 +5,7 @@ import {
   canWear,
   tokenLooks,
   setStarts,
+  setForItem,
 } from "../src/collections.ts";
 import { randomBytes, randomInt, randomUUID, createHash } from "node:crypto";
 import { day, gameIds } from "./store-core.mjs";
@@ -312,7 +313,7 @@ export class CommunityCore {
       Object.assign(save, normalise({ ...save, ...look }, save));
       // Legacy looks predate Legendary ownership; never import an unowned set.
       for (const [slot, start] of Object.entries(setStarts))
-        if (save[slot] >= start) save[slot] = 0;
+        if (setForItem(slot, save[slot])) save[slot] = 0;
       this.db
         .prepare("UPDATE players SET look=? WHERE id=?")
         .run(

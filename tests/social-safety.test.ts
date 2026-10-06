@@ -1,3 +1,4 @@
+import { Simulation } from "../shared/simulation.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -89,4 +90,74 @@ test("nickname filtering rejects contact, real-name patterns and profanity", () 
     assert.ok(nicknameError(name), name);
   for (const name of ["CloudFox", "MintMochi7", "PixelOtter"])
     assert.equal(nicknameError(name), null);
+});
+
+test("actual guest creation keeps seeded free hairstyles and existing saves unchanged", () => {
+  const directory = mkdtempSync(join(tmpdir(), "simi-guest-looks-"));
+  const store = new Store(":memory:");
+  const c = new Community(store, { directory });
+  try {
+    const hairs = new Set<number>(),
+      eyes = new Set<number>();
+    for (let i = 0; i < 40; i++) {
+      const { me } = c.join({
+        month: 1,
+        year: 2000,
+        consent: true,
+        privacyVersion: PRIVACY_VERSION,
+      });
+      const p = c.privateProfile(me.id);
+      const saved = JSON.stringify(p.progress);
+      assert.ok(p.progress.hair >= 53);
+      hairs.add(p.progress.hair);
+      eyes.add((p.progress.skin + p.progress.hair) % 5);
+      assert.equal(JSON.stringify(c.privateProfile(me.id).progress), saved);
+    }
+    assert.ok(hairs.size >= 15);
+    assert.equal(eyes.size, 5);
+  } finally {
+    store.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("queued finish survives another game and presence settlement; Race again remains novice", () => {
+  const directory = mkdtempSync(join(tmpdir(), "simi-queued-finish-"));
+  let now = Date.now();
+  const store = new Store(":memory:", () => now);
+  const c = new Community(store, { directory });
+  try {
+    const { me } = c.join({
+      month: 1,
+      year: 2000,
+      consent: true,
+      privacyVersion: PRIVACY_VERSION,
+    });
+    const race = c.begin(me.id, "coast");
+    assert.ok(race.seed < 0);
+    store.abandon(me.id, race.id);
+    assert.ok(c.begin(me.id, "coast").seed < 0);
+    const run = c.begin(me.id, "swarm"),
+      sim = new Simulation("swarm", run.seed);
+    while (!sim.ended) sim.advance([0, 0, -1, 0, -1, -1]);
+    now += 11 * 60 * 1000;
+    c.begin(me.id, "brick");
+    store.settle();
+    const data = {
+      id: run.id,
+      score: sim.score,
+      replay: {
+        version: 1,
+        ticks: sim.ticks,
+        events: [[0, 0, 0, -1, 0, -1, -1]],
+      },
+    };
+    const result = c.finish(me.id, data);
+    const xp = result.profile.progress.xp;
+    assert.equal(c.finish(me.id, data).profile.progress.xp, xp);
+    assert.ok(xp >= 20);
+  } finally {
+    store.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
 });

@@ -15,9 +15,13 @@ createServer(async (req, res) => {
     for await (const chunk of req) body += chunk;
     try {
       const data = JSON.parse(body);
+      const game =
+        ["hop", "brick", "swarm", "noodle", "hoops", "fishing"].find(
+          (g) => data.id === `qa-${g}`,
+        ) || "coast";
       const checked = replayRun(
-        "coast",
-        data.id === "qa-standard" ? 42 : -43,
+        game,
+        game === "swarm" || data.id === "qa-race" ? -43 : 42,
         data.replay,
       );
       if (checked.score !== data.score) throw Error("Replay score mismatch");

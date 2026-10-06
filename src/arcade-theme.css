@@ -735,9 +735,9 @@ dialog.game-modal .dpad button {
   width: 64px !important;
   height: 56px !important;
   border-radius: 16px !important;
-  border: 3px solid #fff !important;
-  background: #ffffff22 !important;
-  color: #fff !important;
+  border: 3px solid #8d8066 !important;
+  background: #fff6e3 !important;
+  color: #354b43 !important;
   font-size: 26px !important;
   font-family: var(--chunk);
   box-shadow: 0 5px 0 #0b1430aa;
@@ -1286,4 +1286,101 @@ dialog.game-modal .result-score {
 }
 .game-art small {
   display: none;
+}
+@media (max-height: 450px) and (orientation: landscape) {
+  dialog.game-modal .modal-top {
+    margin-bottom: 4px;
+    min-height: 36px;
+  }
+  dialog.game-modal .game-stats {
+    margin: 0 0 6px;
+  }
+  dialog.game-modal .stat-pill {
+    padding: 3px 10px;
+  }
+  dialog.game-modal .stat-pill b {
+    font-size: 23px !important;
+  }
+  dialog.game-modal .stat-pill small {
+    font-size: 10px;
+  }
+  .outdoor-screen {
+    min-height: 150px;
+    height: 150px;
+  }
+  .outdoor-game .outdoor-action {
+    min-height: 38px;
+    padding: 5px;
+    margin: 6px 0;
+  }
+  dialog.game-modal .game-controls {
+    margin: 4px 0;
+    font-size: 12px;
+  }
+  .outdoor-game .game-cover {
+    position: fixed;
+    inset: 48px auto auto 50%;
+    transform: translateX(-50%);
+    width: 320px;
+    max-width: 80vw;
+    height: 290px;
+    z-index: 5;
+  }
+}
+dialog.game-modal #run-state b {
+  color: #fff8e8 !important;
+}
+.outdoor-status:empty {
+  display: none;
+}
+.outdoor-game .game-cover {
+  border-radius: 18px;
+  box-shadow: 0 5px 0 #bba485;
+}
+@media (max-height: 450px) and (orientation: landscape) {
+  dialog.game-modal:not(.racing-modal):not([data-game="hoops"]):not(
+      [data-game="fishing"]
+    )
+    #game-mount {
+    --screen: calc(100dvh - 90px);
+    display: grid;
+    grid-template-columns: var(--screen) 180px;
+    grid-template-rows: auto auto 1fr;
+    gap: 8px 16px;
+    width: max-content;
+    max-width: 94vw;
+    margin: auto;
+    align-items: start;
+  }
+  dialog.game-modal:not(.racing-modal) #game-mount > .game-screen {
+    grid-column: 1;
+    grid-row: 1 / 4;
+  }
+  dialog.game-modal:not(.racing-modal) #game-mount > .game-stats {
+    grid-column: 2;
+    grid-row: 1;
+    width: 180px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 5px;
+  }
+  dialog.game-modal:not(.racing-modal) #game-mount > .game-controls {
+    grid-column: 2;
+    grid-row: 2;
+    width: 180px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+  dialog.game-modal:not(.racing-modal) #game-mount > .dpad {
+    grid-column: 2;
+    grid-row: 3;
+    width: 180px;
+    margin: 4px 0;
+  }
+  dialog.game-modal:not(.racing-modal) #game-mount > .dpad button {
+    min-height: 40px;
+  }
 }

@@ -424,3 +424,109 @@ dialog:has(.wardrobe-layout) {
     min-height: 94px;
   }
 }
+.wardrobe-layout,
+dialog:has(.wardrobe-layout),
+dialog:has(.wardrobe-layout) #modal-body {
+  overflow-anchor: none;
+}
+@media (max-height: 450px) and (orientation: landscape) {
+  .wardrobe-layout {
+    display: grid;
+    grid-template-columns: 210px minmax(0, 1fr);
+    gap: 16px;
+  }
+  .wardrobe-layout .avatar-preview {
+    position: sticky;
+    top: 0;
+  }
+  .wardrobe-layout .character-preview {
+    height: 110px;
+  }
+  .wardrobe-layout .try-actions {
+    min-height: 84px;
+    padding: 3px;
+  }
+  .wardrobe-layout .avatar-preview > small,
+  .wardrobe-layout .style-wallet small,
+  .wardrobe-layout .collection-description {
+    display: none;
+  }
+  .wardrobe-controls h2 {
+    font-size: 22px;
+    margin: 4px 0;
+  }
+  .wardrobe-layout .style-wallet {
+    padding: 6px;
+    margin: 4px 0;
+  }
+  .wardrobe-layout .look-tabs {
+    margin: 6px 0;
+  }
+}
+@media (max-height: 450px) and (orientation: landscape) {
+  .wardrobe-layout .avatar-preview {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 100px 18px 18px 76px;
+    gap: 0;
+    padding: 4px;
+    min-height: 0;
+    height: 220px;
+  }
+  .wardrobe-layout .character-preview {
+    height: 100px;
+    grid-row: 1;
+    grid-column: 1;
+  }
+  .wardrobe-layout .avatar-preview > strong,
+  .wardrobe-layout .avatar-preview > .look-caption {
+    font-size: 11px;
+    padding: 0;
+    margin: 0;
+    line-height: 18px;
+  }
+  .wardrobe-layout .avatar-preview > small,
+  .wardrobe-controls > .eyebrow,
+  .wardrobe-controls > p {
+    display: none;
+  }
+  .wardrobe-layout .try-actions {
+    min-height: 0;
+    height: 76px;
+    padding: 2px;
+    gap: 2px;
+  }
+  .wardrobe-layout .try-actions .primary {
+    min-height: 36px;
+    padding: 6px;
+    margin: 0;
+    font-size: 12px !important;
+  }
+  .wardrobe-layout .try-actions .text-button {
+    min-height: 28px;
+    padding: 2px;
+  }
+  .wardrobe-controls h2,
+  .wardrobe-controls h3 {
+    font-size: 17px !important;
+    margin: 2px 0;
+  }
+  .wardrobe-layout .style-wallet {
+    padding: 3px 8px;
+    margin: 3px 0;
+  }
+  .wardrobe-layout .look-tabs button {
+    min-height: 32px;
+    padding: 4px;
+    font-size: 12px !important;
+  }
+  .wardrobe-layout .look-tabs {
+    margin: 4px 0;
+  }
+  .wardrobe-layout .item-art {
+    height: 50px !important;
+  }
+  .wardrobe-layout .collection-card strong {
+    font-size: 11px;
+  }
+}

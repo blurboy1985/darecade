@@ -118,7 +118,7 @@ export class ArcadeGame extends Simulation {
       this.onFx?.("start", 0);
       (container.querySelector("#pause-game") as HTMLButtonElement).disabled =
         false;
-      this.canvas.focus();
+      this.canvas.focus({preventScroll:true});
       this.sound("start");
     });
     container
@@ -583,6 +583,8 @@ export class ArcadeGame extends Simulation {
         c.beginPath();
         c.roundRect(this.paddle - half, 412, half * 2, 10, 5);
         c.fill();
+        if (this.avatar)
+          c.drawImage(this.avatar, this.paddle - 14, 390, 28, 28);
       }
       for (const ball of [this.ball, ...this.extra]) {
         c.fillStyle = ball === this.ball ? "#ffdab0" : "#ffb3d1";

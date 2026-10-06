@@ -1,3 +1,4 @@
+import { mountAvatarCards } from "./avatar-portraits";
 import { api } from "./social";
 import {
   acceptProfile,
@@ -90,7 +91,7 @@ export async function mountPayments(
     )
       .map(
         (s) =>
-          `<article class="payment-product"><img src="/wardrobe/sets-${legendarySets.indexOf(s)}.png" alt="${text(s.name)}" width="100" height="92" loading="lazy"><div><strong>${text(s.name)}</strong><small>All four pieces · yours to mix & match</small>${purchase(
+          `<article class="payment-product"><img class="avatar-thumbnail" data-thumbnail="sets:${legendarySets.indexOf(s)}" alt="${text(s.name)}" width="100" height="92" loading="lazy"><div><strong>${text(s.name)}</strong><small>All four pieces · yours to mix & match</small>${purchase(
             config.products.find((p) => p.id === s.id),
             s.id,
           )}</div></article>`,
@@ -98,6 +99,7 @@ export async function mountPayments(
       .join(
         "",
       )}</div></section>${currentProfile?.ageBand === "18+" ? `<section><h3>Make a donation</h3><p>A one-time contribution to the game. Donations do not grant items, tokens or leaderboard benefits.</p><div class="payment-donations">${donations.length ? donations.map((p) => purchase(p, p.id)).join("") : '<button class="secondary" disabled>Donations coming soon</button>'}</div></section>` : ""}<p class="fine-print">${config.enabled ? "Stripe handles card details on its hosted checkout. The next step shows your total before you pay. No subscriptions." : "No payment details are collected while checkout is unavailable."}</p><details><summary>Payment history</summary>${orders.length ? orders.map((o) => `<div class="payment-order"><span>${text(productName(o.product))}<small>${new Date(o.created).toLocaleDateString("en-SG", { timeZone: "Asia/Singapore" })} · ${text(o.status)}</small></span><strong>${money(o.amount)}</strong></div>`).join("") : "<p>No payments yet.</p>"}</details><div class="payment-links"><button class="secondary" data-payment-refresh>Refresh payment status</button><button class="secondary" data-open="wardrobe">Back to My look</button></div>`;
+    if (currentProfile) mountAvatarCards(panel, currentProfile.progress);
     if (!selected) {
       const premium = panel
         .querySelector(".payment-products")

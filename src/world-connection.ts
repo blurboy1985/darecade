@@ -165,7 +165,8 @@ export class WorldConnection {
         // An established session reconnects; two failed attempts enable polling.
         if (!opened) this.failures++;
         this.startPolling();
-        if (Date.now() - this.lastReceived > 15000) this.status("reconnecting");
+        if (this.lastReceived && Date.now() - this.lastReceived > 15000)
+          this.status("reconnecting");
         this.retry();
       };
       ws.onerror = () => ws.close();
@@ -230,7 +231,9 @@ export class WorldConnection {
         connection === this.connection &&
         generation === this.generation
       )
-        if (Date.now() - this.lastReceived > 15000) this.status("offline");
+        if (!navigator.onLine) this.status("offline");
+        else if (this.lastReceived && Date.now() - this.lastReceived > 15000)
+          this.status("reconnecting");
     }
     if (
       !this.stopped &&

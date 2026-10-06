@@ -1029,7 +1029,7 @@ export function createCharacterPreview(
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
   renderer.setSize(
     Math.max(1, host.clientWidth),
-    Math.max(160, host.clientHeight),
+    Math.max(80, host.clientHeight),
   );
   renderer.setClearColor("#e8eadc", 0);
   host.append(renderer.domElement);
@@ -1040,7 +1040,7 @@ export function createCharacterPreview(
   scene.add(light);
   const camera = new T.PerspectiveCamera(
     35,
-    Math.max(1, host.clientWidth) / Math.max(160, host.clientHeight),
+    Math.max(1, host.clientWidth) / Math.max(80, host.clientHeight),
     0.1,
     30,
   );
@@ -1053,7 +1053,7 @@ export function createCharacterPreview(
   camera.lookAt(look.pet ? 0.3 : 0, 1.13, 0);
   const observer = new ResizeObserver(() => {
     const w = host.clientWidth,
-      h = Math.max(160, host.clientHeight);
+      h = Math.max(80, host.clientHeight);
     if (!w) return;
     renderer.setSize(w, h);
     camera.aspect = w / h;
@@ -1160,7 +1160,8 @@ export function createCharacterPreview(
       observer.unobserve(host);
       host = nextHost;
       look = nextLook;
-      host.append(renderer.domElement);
+      if (renderer.domElement.parentElement !== host)
+        host.append(renderer.domElement);
       applyLook(a, look);
       a.root.rotation.y = Math.PI / 2;
       turnTarget = 0;

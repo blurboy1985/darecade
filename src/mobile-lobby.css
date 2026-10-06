@@ -637,3 +637,55 @@ body:has(dialog[open]) .lobby-jump {
     min-height: 38px;
   }
 }
+@media (max-height: 450px) and (orientation: landscape) {
+  .bottom-bar {
+    height: 54px !important;
+    min-height: 0 !important;
+    max-height: 14dvh !important;
+    bottom: 0 !important;
+  }
+  .lobby-dock > button {
+    min-height: 42px !important;
+  }
+  #joystick {
+    position: fixed !important;
+    top: auto !important;
+    bottom: 72px !important;
+    left: 18px !important;
+    display: flex !important;
+    width: 76px;
+    height: 76px;
+    border: 3px solid #71657d;
+    border-radius: 50%;
+    background: #c8bfd9b8;
+    box-shadow: 0 4px 12px #3a284b40;
+  }
+  #joystick > span {
+    position: absolute;
+    left: 22px;
+    top: 22px;
+    width: 26px;
+    height: 26px;
+    background: #fffaf0;
+    border: 2px solid #746184;
+    border-radius: 50%;
+  }
+  .is-interacting #joystick,
+  .inspecting #joystick,
+  .is-away #joystick {
+    display: none !important;
+  }
+}
+@media (max-height: 450px) and (orientation: landscape) {
+  .topbar .location-pill {
+    display: flex !important;
+    position: absolute;
+    left: 24px;
+    top: 57px;
+    font-size: 10px;
+    padding: 3px 8px;
+  }
+  .welcome-panel {
+    top: 88px !important;
+  }
+}

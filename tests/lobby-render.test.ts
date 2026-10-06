@@ -58,6 +58,7 @@ const compiled = ts.transpileModule(
       "rankingPeriodPicker",
       "renderSeasonBoard",
       "renderSharedBoard",
+      "personalBestCards",
       "challengeButtons",
       "renderSharedDares",
       "renderPlayerInspector",
@@ -179,7 +180,7 @@ function harness() {
     shared: {
       self: { best: {}, outgoing: 0, points: 0 },
       players,
-      friends: players.map(p=>({...p,relationship:"friend"})),
+      friends: players.map((p) => ({ ...p, relationship: "friend" })),
       me: "self",
       competitionReady: true,
       challenged: [],
@@ -507,7 +508,8 @@ test("the weekly board tells a player with scores today when their medals arrive
   h.context.boardGame = "hop";
   h.run("renderSharedBoard()");
   html = h.body.innerHTML;
-  assert.match(html, /Your best today: <b>93<\/b>/);
+  assert.match(html, /Your personal best: <b>0<\/b>/);
+  assert.match(html, /Hop Hop<strong>0<\/strong>/);
   assert.match(html, /a lower replay does not replace it/);
   // A player with no round today still gets the original invitation.
   h.context.shared.boards.hop = [];

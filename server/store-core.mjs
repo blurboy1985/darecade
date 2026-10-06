@@ -258,7 +258,7 @@ export class StoreCore {
       .prepare(
         "UPDATE runs SET status='abandoned' WHERE status='started' AND started<?",
       )
-      .run(this.now() - 600000);
+      .run(this.now() - 86400000);
     const today = day(this.now());
     if (this.settledThrough === today) return;
     const first = this.db.prepare("SELECT MIN(created) n FROM players").get().n;
@@ -329,11 +329,9 @@ export class StoreCore {
         if (!targetScore)
           throw Error("This neighbour has not set a score in that game yet.");
       }
-      this.db
-        .prepare(
-          "UPDATE runs SET status='abandoned' WHERE player=? AND status='started'",
-        )
-        .run(id);
+      // Completed replays may still be in the browser's offline outbox.
+      // Explicit Quit abandons a run; starting another must not destroy it.
+
       const run = { id: randomUUID(), game, target, targetScore };
       this.db
         .prepare(

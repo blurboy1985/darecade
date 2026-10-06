@@ -54,7 +54,7 @@ export function mobileLobbyFixture(
     let result = {};
     if (path === 'auth/config') result = { now: Date.now(), privacyVersion: 'fixture', mailMode: 'outbox', origin: location.origin, storageNotice: 'Synthetic local fixture' };
     else if (path === 'profile') { Object.assign(profile.progress, JSON.parse(init.body)); result = profile; }
-    else if (path === 'auth/me') result = profile;
+    else if (path === 'auth/me') {if(new URLSearchParams(location.search).get('review')==='age') return new Response('{}',{status:401});result = profile;}
     else if (path === 'state') result = { profile, competitionReady: false, me: profile.id, self: {id: profile.id, name: profile.name, look: {}, activity: 'lobby', status: 'online', best: profile.progress.best, points: ${account ? 12 : 0}}, day:'2026-10-05', nextReset:Date.now()+86400000, week:'', weekly:[], lastWeek:[], dares:[], recentRuns:[], players:safetyReview&&!blocked.length?[neighbour]:[], friends:[], muted, challenged:[], boards:{noodle:[],hop:[],brick:[],swarm:[],coast:[]}, history:[] };
     else if (path === 'finish') {
       result = await baseFetch('/qa-finish', init).then(r=>r.json());
@@ -65,7 +65,7 @@ export function mobileLobbyFixture(
       if (result.playMedal) profile.playMedals.games.push('coast');
       result.profile = profile;
     }
-    else if (path === 'run') result = {id: profile.progress.coastRecord.timeTicks ? 'qa-standard' : 'qa-race',seed: profile.progress.coastRecord.timeTicks ? 42 : -43, ranked:false};
+    else if (path === 'run') {const game=JSON.parse(init.body).game;result = game==='coast'?{id: profile.progress.coastRecord.timeTicks ? 'qa-standard' : 'qa-race',seed: profile.progress.coastRecord.timeTicks ? 42 : -43, ranked:false}:{id:'qa-'+game,seed:game==='swarm'?-43:42,ranked:false};}
     else if(path==='payments/config')result={enabled:true,testMode:true,products:[{id:'solar',kind:'set',amount:500,currency:'sgd'}]};
     else if(path==='payments/history')result=[];
     else if(path==='moderate'){const data=JSON.parse(init.body);if(data.action==='block')blocked.push(data.target);else if(data.action==='mute')muted.push(data.target);else muted.splice(muted.indexOf(data.target),1);result={ok:true};}

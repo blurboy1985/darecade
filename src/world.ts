@@ -1627,6 +1627,15 @@ export class LobbyWorld {
       );
       return;
     }
+    if (
+      Math.hypot(
+        this.player.root.position.x - spec.approach[0],
+        this.player.root.position.z - spec.approach[1],
+      ) < 1.6
+    ) {
+      this.beginInteraction(id);
+      return;
+    }
     this.interactionEvent("walking", spec);
     this.walkTo(...spec.approach, `perform:${id}`);
     if (!this.path.length && !this.interactions.active && this.interactionId) {
@@ -1667,6 +1676,7 @@ export class LobbyWorld {
     if (!this.interactionId) return;
     const spec = interactionSpecs.find((s) => s.id === this.interactionId)!;
     const wasPlaying = !!this.interactions.active;
+    this.interactionRegistered = false;
     this.interactions.stop();
     this.interactionId = "";
     this.path = [];
@@ -1897,6 +1907,7 @@ export class LobbyWorld {
     if (spots.some((s) => s.id === id)) this.onVisit(id);
     this.onInteract(id);
   }
+  private interactionRegistered = false;
   private walkTo(x: number, z: number, pending = "") {
     this.phoneOverview = false;
     if (this.save.away || this.inspectedId) return false;
@@ -2174,6 +2185,17 @@ export class LobbyWorld {
     if (!this.paused) {
       if (this.interactions.active) {
         const finished = this.interactions.sample(dt, this.player);
+        if (
+          this.interactionId === "pet" &&
+          !this.interactionRegistered &&
+          this.interactions.elapsed >= 2
+        ) {
+          this.interactionRegistered = true;
+          this.interactionEvent(
+            "registered",
+            interactionSpecs.find((s) => s.id === "pet")!,
+          );
+        }
         this.renderer.domElement.dataset.interactionTime =
           this.interactions.elapsed.toFixed(2);
         const duration = this.interactions.active.clip.duration;
@@ -2493,7 +2515,7 @@ export class LobbyWorld {
     }
     const len = Math.hypot(dx, dz);
     if (len) {
-      const speed = Math.min(dt * 4.8, len);
+      const speed = Math.min(dt * (this.path.length ? 6.8 : 4.8), len);
       dx = (dx / len) * speed;
       dz = (dz / len) * speed;
       if (!blocked(p.x + dx, p.z, this.obstacles)) p.x += dx;
