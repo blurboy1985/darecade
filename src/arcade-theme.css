@@ -1179,3 +1179,111 @@ dialog.game-modal[data-game="coast"] .round-breakdown strong {
 .first-race .welcome-panel {
   max-width: calc(100vw - 32px);
 }
+
+/* Daytime cabinet frame, shared by every arcade screen. */
+dialog.game-modal[open] {
+  background: linear-gradient(#cbe9e8 0%, #f6edda 65%) !important;
+  color: #354b43;
+  --glow: #e7bd79;
+}
+dialog.game-modal .modal-top > .eyebrow,
+dialog.game-modal #modal-body > h2:not(.result-score),
+dialog.game-modal .game-controls {
+  color: #354b43;
+  text-shadow: none;
+}
+dialog.game-modal .game-screen {
+  border: 7px solid #edd3a9;
+  background: #fff6e3;
+  box-shadow:
+    0 0 0 2px #8d8066,
+    0 8px 0 #bba485,
+    0 14px 28px #5c685c25;
+}
+.game-cover {
+  background: #fff8e9ed !important;
+  color: #354b43;
+  overflow-y: auto;
+}
+.game-cover h3 {
+  color: #354b43;
+  text-shadow: none;
+  font-size: clamp(24px, 5vh, 48px) !important;
+}
+.game-cover p {
+  color: #43584d !important;
+  font-size: clamp(13px, 2.1vh, 18px) !important;
+}
+.game-cover > .eyebrow {
+  color: #786030 !important;
+}
+.game-cover .primary {
+  margin-top: 12px !important;
+}
+dialog.game-modal #run-state {
+  white-space: nowrap;
+  font-size: clamp(12px, 2vw, 20px) !important;
+  letter-spacing: 0;
+  background: #354b43;
+  border-radius: 14px;
+  padding: 6px 10px;
+  color: #fff8e8 !important;
+  text-shadow: none;
+}
+.outdoor-status,
+.reel-meter span {
+  background: #354b43e8;
+  border-radius: 12px;
+  padding: 6px 10px;
+  color: #fffaf0;
+}
+.outdoor-view canvas {
+  width: 100% !important;
+}
+.race-cover {
+  overflow: visible !important;
+  max-height: none !important;
+}
+dialog.game-modal.racing-modal #modal-body > h2 {
+  display: none;
+}
+@media (max-height: 450px) {
+  dialog.game-modal[open] {
+    padding: 6px 12px !important;
+    --screen: min(58vw, calc(100dvh - 110px));
+  }
+  .game-cover {
+    padding: 12px !important;
+    gap: 4px;
+  }
+  .game-cover h3 {
+    font-size: 24px !important;
+    margin: 4px !important;
+  }
+  .game-cover p {
+    font-size: 12px !important;
+    margin: 4px !important;
+  }
+  .game-cover .primary {
+    font-size: 17px !important;
+    padding: 8px 20px !important;
+  }
+  .outdoor-screen {
+    min-height: 190px;
+    height: calc(100dvh - 135px);
+  }
+}
+dialog.game-modal .dpad button,
+dialog.game-modal .game-controls .text-button {
+  background: #fff6e3;
+  color: #354b43;
+  border-color: #8d8066;
+  text-shadow: none;
+}
+dialog.game-modal .result-score {
+  color: #354b43;
+  text-shadow: none;
+}
+.game-art small {
+  display: none;
+}

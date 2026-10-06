@@ -328,7 +328,7 @@ export class OutdoorGame {
           : round.state === "bite"
             ? "HOOK!"
             : round.state === "reeling"
-              ? round.surging
+              ? round.surging || round.tension > 0.7
                 ? "LET GO!"
                 : "HOLD TO REEL"
               : "…";

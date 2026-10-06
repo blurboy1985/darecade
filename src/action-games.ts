@@ -130,12 +130,12 @@ export class HopRun {
       this.endReason = "time";
     }
   }
-  draw(c: CanvasRenderingContext2D) {
-    c.fillStyle = "#243b50";
+  draw(c: CanvasRenderingContext2D, avatar?: CanvasImageSource) {
+    c.fillStyle = "#bee7e7";
     c.fillRect(0, 0, 440, 440);
     for (let i = 0; i < 9; i++) {
       const x = ((((i * 65 - this.elapsed * 13) % 585) + 585) % 585) - 70;
-      c.fillStyle = i % 2 ? "#344c60" : "#3e5668";
+      c.fillStyle = i % 2 ? "#eed0b9" : "#d2c6e9";
       c.fillRect(x, 130 + (i % 3) * 24, 48, 200);
       c.fillStyle = "#b6c599";
       for (let y = 160 + (i % 3) * 24; y < 320; y += 30)
@@ -201,6 +201,10 @@ export class HopRun {
       c.fillStyle = "#ffe27a";
       c.fillRect(152, 24, (136 * this.power) / HOP_POWER_SECONDS, 6);
     }
+    if (avatar) {
+      c.drawImage(avatar, 55, y - 58, 66, 78);
+      return;
+    }
     c.fillStyle = "#bce98e";
     c.fillRect(76, y - 31, 23, 22);
     c.fillStyle = "#f1cca1";
@@ -224,6 +228,8 @@ type Enemy = {
   boss: boolean;
 };
 export class StarFlight {
+  needsInput = false;
+  activated = false;
   elapsed = 0;
   score = 0;
   ended = false;
@@ -245,9 +251,18 @@ export class StarFlight {
     this.seed = (this.seed * 1664525 + 1013904223) >>> 0;
     return this.seed / 4294967296;
   }
-  tick(dt: number, dx = 0, dy = 0) {
+  tick(dt: number, dx = 0, dy = 0, input = false) {
     if (this.ended) return;
     this.elapsed += dt;
+    this.activated ||= input || dx !== 0 || dy !== 0;
+    if (this.needsInput && !this.activated) {
+      if (this.elapsed >= 8) {
+        this.lives = 0;
+        this.ended = true;
+        this.endReason = "lives";
+      }
+      return;
+    }
     this.x = Math.max(20, Math.min(420, this.x + dx * 250 * dt));
     this.y = Math.max(120, Math.min(414, this.y + dy * 250 * dt));
     this.invulnerable = Math.max(0, this.invulnerable - dt);
@@ -366,11 +381,11 @@ export class StarFlight {
       this.endReason = "lives";
     }
   }
-  draw(c: CanvasRenderingContext2D) {
-    c.fillStyle = "#192d43";
+  draw(c: CanvasRenderingContext2D, avatar?: CanvasImageSource) {
+    c.fillStyle = "#cce9ec";
     c.fillRect(0, 0, 440, 440);
     for (let i = 0; i < 65; i++) {
-      c.fillStyle = i % 3 ? "#6d879b" : "#dee7cd";
+      c.fillStyle = i % 3 ? "#ffffff" : "#ffe5a7";
       c.fillRect(
         (i * 83) % 440,
         (i * 61 + this.elapsed * 25) % 440,
@@ -419,6 +434,7 @@ export class StarFlight {
     c.fill();
     c.fillStyle = "#f2cb91";
     c.fillRect(this.x - 4, this.y + 13, 8, 8);
+    if (avatar) c.drawImage(avatar, this.x - 13, this.y - 20, 26, 28);
     c.globalAlpha = 1;
     if (this.shield > 0) {
       c.strokeStyle = "#b9e894";

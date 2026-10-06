@@ -68,7 +68,7 @@ export class Simulation {
     )
       throw Error("Invalid game.");
     this.id = id;
-    this.seed = seed >>> 0;
+    this.seed = (id === "swarm" && seed < 0 ? -seed - 1 : seed) >>> 0;
     this.race = id === "coast" ? new CoastRace(seed) : null;
     this.outdoor =
       id === "hoops"
@@ -78,7 +78,10 @@ export class Simulation {
           : null;
     this.action =
       id === "hop" ? new HopRun() : id === "swarm" ? new StarFlight() : null;
-    if (this.action instanceof StarFlight) this.action.seed = this.seed;
+    if (this.action instanceof StarFlight) {
+      this.action.seed = this.seed;
+      this.action.needsInput = seed < 0;
+    }
     if (this.action instanceof HopRun) this.action.count = this.seed % 3;
     this.ball.vx = 110 + (this.seed % 41);
     for (let row = 0; row < 5; row++)
@@ -142,7 +145,12 @@ export class Simulation {
     } else
       for (let i = 0; i < 4 && !this.ended; i++) {
         if (this.action instanceof StarFlight)
-          this.action.tick(1 / 240, ax / length, ay / length);
+          this.action.tick(
+            1 / 240,
+            ax / length,
+            ay / length,
+            px >= 0 || !!jump,
+          );
         else if (this.action) this.action.tick(1 / 240);
         else this.tickBrick(1 / 240);
         if (this.action) {

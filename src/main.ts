@@ -517,12 +517,12 @@ function pager(page: number, total: number, target: string) {
 function cards() {
   const art = {
     noodle:
-      '<span class="noodle-body"></span><span class="dumpling">●</span><i>01</i>',
+      '<span class="noodle-body"></span><span class="dumpling">●</span>',
     brick: "<i></i>".repeat(12) + "<b></b><span></span>",
-    hop: '<span class="hop-roof r1"></span><span class="hop-roof r2"></span><span class="hop-character">↑</span><i>03</i>',
+    hop: '<span class="hop-roof r1"></span><span class="hop-roof r2"></span><span class="hop-character">↑</span>',
     swarm:
       '<span class="star-ship">▲</span><span class="star-enemy">▼</span><i>✦ · ✧ · ✦</i>',
-    coast: "<span>🏎</span><b>PALM BAY</b><i>05</i>",
+    coast: "<span>🏎</span><b>PALM BAY</b>",
     hoops:
       '<span class="court-backboard"></span><span class="court-rim"></span><span class="court-ball"></span><b>SHOOT YOUR SHOT</b>',
     fishing:
@@ -1007,7 +1007,7 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
             : '<div class="result-star">' +
               icon(target ? "trophy" : "game") +
               '</div><h2 class="result-score">' +
-              formatScore(id, score) +
+              (score > 0 ? formatScore(id, score) : "Try again — you’ve got this!") +
               "<small>" +
               "GAME SCORE" +
               "</small></h2>" +
@@ -1043,7 +1043,7 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
               '<button class="secondary" data-action="close">Neighbourhood</button></div>' +
               '<div class="note">' +
               (result
-                ? "✓ Verified · " +
+                ? (result.ranked ? "✓ Verified · " : "") +
                   (result.ranked
                     ? outdoor
                       ? "East Side rounds build personal bests and Play medals."
@@ -1081,10 +1081,10 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
           "afterbegin",
           '<div class="finish-effects" aria-hidden="true"></div>',
         );
-        if ((id !== "coast" || score > 0) && arcadeFx) {
+        if (score > 0 && arcadeFx) {
           arcadeFx.setUrgency(0);
           arcadeFx.fire("end");
-        } else if ((id !== "coast" || score > 0) && !is2d && !save.reduced) {
+        } else if (score > 0 && !is2d && !save.reduced) {
           try {
             disposeCelebration = celebrate(
               body.querySelector(".finish-effects")!,
@@ -1145,7 +1145,14 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
             run?.seed ?? (save.coastRecord.timeTicks ? 314159 : -314160),
             { reduced: save.reduced, simple: save.twoD },
           )
-        : new ArcadeGame(id, mount, onFinish, (name) => beep(name), run?.seed);
+        : new ArcadeGame(
+            id,
+            mount,
+            onFinish,
+            (name) => beep(name),
+            run?.seed,
+            save,
+          );
   game.onFx = (event, amount) => {
     arcadeFx?.fire(event, amount);
     if (event === "hurt" && !save.reduced) {
@@ -1667,7 +1674,14 @@ document.addEventListener("click", (e) => {
       toast("Take your time. You’re right where you need to be.");
   }
 });
-document.querySelector("#close-modal")!.addEventListener("click", close);
+document.querySelector("#close-modal")!.addEventListener("click", () => {
+  const fromGame = modal.classList.contains("game-modal");
+  close();
+  if (fromGame) {
+    gamePage = 0;
+    open("arcade");
+  }
+});
 modal.addEventListener("cancel", (e) => {
   e.preventDefault();
   if (game instanceof RacingGame) game.pause();

@@ -873,6 +873,7 @@ export class CommunityCore {
       !this.privateProfile(id).progress.coastRecord.timeTicks
     )
       seed = -seed - 1;
+    if (game === "swarm" && !target && !dareId) seed = -Math.abs(seed) - 1;
     const run = this.store.begin(id, game, target, {
       at,
       allowOnline: !!dare,
