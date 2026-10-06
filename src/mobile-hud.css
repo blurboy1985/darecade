@@ -575,3 +575,15 @@ body:has(dialog[open]) .world-actions {
 .bottom-bar .profile .xp-track {
   display: block;
 }
+@media (max-width: 900px), (pointer: coarse) {
+  .hud #joystick {
+    display: block;
+  }
+}
+.mode-2d .hud #joystick,
+.is-away .hud #joystick,
+.is-interacting .hud #joystick,
+.inspecting .hud #joystick,
+body:has(dialog[open]) .hud #joystick {
+  display: none;
+}
