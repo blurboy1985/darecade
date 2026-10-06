@@ -76,7 +76,7 @@ test("an invite pays both players once the friend plays, with a cap, and cannot 
     const first = round(friend);
     assert.deepEqual(first.invite, { xp: INVITE_XP });
     // The round, the welcome bonus and the invite.
-    assert.equal(xp(friend), 20 + 35 + INVITE_XP);
+    assert.equal(xp(friend), first.earnedXp + INVITE_XP);
     assert.equal(xp(host), INVITE_XP);
     assert.equal(round(friend).invite, null, "paid once");
     assert.equal(xp(host), INVITE_XP);

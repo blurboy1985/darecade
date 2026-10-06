@@ -30,14 +30,14 @@ function run(version: number, active: boolean) {
   return { s, replay: { version, ticks: s.ticks, events } };
 }
 test("current Swarm cannot farm with zero input; active steering survives the reported eight-second failure", () => {
-  const idle = run(2, false);
+  const idle = run(3, false);
   assert.equal(idle.s.score, 0);
   assert.ok(idle.s.elapsed <= 12.1);
-  const active = run(2, true);
+  const active = run(3, true);
   assert.ok(active.s.elapsed > 8);
   assert.ok(active.s.score > 0);
   assert.equal(replayRun("swarm", 314159, active.replay).score, active.s.score);
-  assert.equal(rulesVersion("swarm"), 2);
+  assert.equal(rulesVersion("swarm"), 3);
 });
 test("Swarm legacy rounds still validate using their original rules", () => {
   const old = run(1, true);
@@ -61,7 +61,7 @@ test("shield absorbs exactly two separated hits and never restores health", () =
 });
 test("later waves increase bullet speed and the damaged boss fires five-way patterns", () => {
   const s = new StarFlight();
-  s.elapsed = 40;
+  s.elapsed = 95;
   s.bossSpawned = true;
   s.enemies = [{ x: 220, y: 55, origin: 220, phase: 0, hp: 14, boss: true }];
   s.enemyFire = 0;

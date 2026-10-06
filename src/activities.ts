@@ -32,12 +32,12 @@ export function mountFishing(host: HTMLElement, ctx: ActivityContext) {
     )
     .join(
       "",
-    )}</div><p class="fine-print">+20 XP a round, +10 XP for each new species. Everything goes back in the pond.</p>`;
+    )}</div><p class="fine-print">Up to 20 XP based on score, +10 XP for each new species. Everything goes back in the pond.</p>`;
 }
 
 export function mountHoops(host: HTMLElement, ctx: ActivityContext) {
   const { root } = panel(host, "hoops");
-  root.innerHTML = `<h2>Hoops Court</h2><p class="lead">Ten shots, four seconds each. Stop the marker in the green; the bright centre is a swish. From the fourth shot the green slides.</p><div class="hoops-score"><span>BEST ROUND<b>${ctx.save.best.hoops}</b></span><span>MOST BASKETS<b>${ctx.save.hoopsBest} / ${HOOPS_SHOTS}</b></span></div><button class="primary" data-game="hoops">Play a round →</button><button class="secondary" data-open="dares">Challenge a neighbour</button><p class="fine-print">+20 XP a round, +5 XP for each basket you beat your most by.</p>`;
+  root.innerHTML = `<h2>Hoops Court</h2><p class="lead">Ten shots, four seconds each. Stop the marker in the green; the bright centre is a swish. From the fourth shot the green slides.</p><div class="hoops-score"><span>BEST ROUND<b>${ctx.save.best.hoops}</b></span><span>MOST BASKETS<b>${ctx.save.hoopsBest} / ${HOOPS_SHOTS}</b></span></div><button class="primary" data-game="hoops">Play a round →</button><button class="secondary" data-open="dares">Challenge a neighbour</button><p class="fine-print">Up to 20 XP based on score, +5 XP for each basket you beat your most by.</p>`;
 }
 
 export { mountPlots } from "./plots";

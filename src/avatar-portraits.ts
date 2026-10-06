@@ -17,6 +17,7 @@ const keyFor = (look: Look, slot: string) =>
     look.hat,
     look.clothing ?? 0,
     look.hair ?? 0,
+    look.baseHair ?? look.hair ?? 0,
     look.pet ?? 0,
     look.accessory ?? 0,
   ]);
@@ -89,7 +90,7 @@ export function mountAvatarCards(host: HTMLElement, worn: Look) {
       .querySelectorAll<HTMLImageElement>("[data-thumbnail]")
       .forEach((img) => {
         const [slot, index] = (img.dataset.thumbnail || "").split(":");
-        img.src = `/wardrobe/${slot}-${Number(index) < 0 ? 0 : index}.png`;
+        img.src = `/wardrobe/${slot}-${index}.png`;
         img.classList.add("is-ready");
       });
     return;
@@ -130,7 +131,12 @@ export function mountAvatarCards(host: HTMLElement, worn: Look) {
     { rootMargin: "80px" },
   );
   cards = observer;
-  host
-    .querySelectorAll<HTMLImageElement>("[data-thumbnail]")
-    .forEach((img) => observer.observe(img));
+  host.querySelectorAll<HTMLImageElement>("[data-thumbnail]").forEach((img) => {
+    const [slot, index] = (img.dataset.thumbnail || "").split(":");
+    if (Number.isInteger(Number(index))) {
+      img.src = `/wardrobe/${slot}-${index}.png`;
+      img.classList.add("is-ready");
+    }
+    observer.observe(img);
+  });
 }

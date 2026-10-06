@@ -19,6 +19,7 @@ import type { SharedPlayer } from "./social";
 import { MovementBuffer } from "./movement-buffer";
 import * as T from "three";
 import { WorldMotion } from "./world-motion.ts";
+import { JumpInput, isJumpKey } from "./jump-input";
 import { rooftops } from "./rooftops.ts";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
@@ -298,10 +299,15 @@ export class LobbyWorld {
   private motion = new WorldMotion();
   private quality: "auto" | "quality" | "performance" = "auto";
   private jumpVelocity = 0;
+  private jumpInput = new JumpInput();
   private elevation = 0.1;
   private padFlight: { from: T.Vector3; to: T.Vector3; time: number } | null =
     null;
   private roofStars: T.Group[] = [];
+  private afterPadFlight: { x: number; z: number; pending: string } | null =
+    null;
+  private jumpSparkles: { mesh: T.Mesh; life: number; velocity: T.Vector3 }[] =
+    [];
   private roofStarDay = singaporeDay();
   private beforeAway: T.Vector3 | null = null;
   private phoneOverview = true;
@@ -533,11 +539,28 @@ export class LobbyWorld {
     z: number,
     w: number,
     d: number,
-    cameraHeight = 0,
+    cameraHeight = 1.4,
   ) {
     this.obstacles.push({ x, z, w, d, cameraHeight });
   }
+  private burstStars(position: T.Vector3) {
+    for (const [i, spark] of this.jumpSparkles.entries()) {
+      spark.mesh.position.copy(position).y += 0.4;
+      spark.life = 0.65;
+      spark.velocity.set(
+        Math.cos(i * 2.4) * 2,
+        2 + (i % 3),
+        Math.sin(i * 2.4) * 2,
+      );
+      spark.mesh.visible = true;
+    }
+  }
   private buildRooftops() {
+    for (let i = 0; i < 16; i++) {
+      const mesh = sphere(this.root, 0, 0, 0, 0.08, "#ffe28a");
+      mesh.visible = false;
+      this.jumpSparkles.push({ mesh, life: 0, velocity: new T.Vector3() });
+    }
     for (const roof of rooftops) {
       const pad = cylinder(
         this.root,
@@ -563,8 +586,18 @@ export class LobbyWorld {
       ).rotation.x = -Math.PI / 2;
       const star = new T.Group();
       star.position.set(roof.x, roof.y + 2.2, roof.z);
+      const outline = new T.Shape();
+      for (let i = 0; i < 10; i++) {
+        const angle = (i * Math.PI) / 5 + Math.PI / 2;
+        const radius = i % 2 ? 0.18 : 0.42;
+        const x = Math.cos(angle) * radius,
+          y = Math.sin(angle) * radius;
+        if (i) outline.lineTo(x, y);
+        else outline.moveTo(x, y);
+      }
+      outline.closePath();
       const jewel = new T.Mesh(
-        new T.OctahedronGeometry(0.36),
+        new T.ExtrudeGeometry(outline, { depth: 0.12, bevelEnabled: false }),
         new T.MeshStandardMaterial({
           color: "#ffd261",
           emissive: "#e9a32e",
@@ -574,6 +607,7 @@ export class LobbyWorld {
       star.add(jewel);
       star.name = `RooftopStar-${roof.id}`;
       star.userData.roof = roof.id;
+      star.userData.baseY = star.position.y;
       star.userData.avatar = undefined;
       star.visible =
         this.save.roofDay !== singaporeDay() ||
@@ -585,6 +619,24 @@ export class LobbyWorld {
   }
   private jumpStep(dt: number) {
     const p = this.player.root.position;
+    if (this.jumpInput.take(!this.jumpVelocity && !this.padFlight)) {
+      const roof = rooftops.find(
+        (r) =>
+          Math.hypot(p.x - r.pad[0], p.z - r.pad[1]) < 1.3 &&
+          this.elevation < 0.3,
+      );
+      if (roof)
+        this.padFlight = {
+          from: p.clone(),
+          to: new T.Vector3(roof.x, roof.y + 0.1, roof.z),
+          time: 0,
+        };
+      else this.jumpVelocity = 6.8;
+      this.burstStars(p);
+      window.dispatchEvent(
+        new CustomEvent("world-jump", { detail: { pad: !!roof } }),
+      );
+    }
     if (this.padFlight) {
       const f = this.padFlight;
       f.time = Math.min(1, f.time + dt / 1.5);
@@ -592,7 +644,13 @@ export class LobbyWorld {
       p.y += Math.sin(Math.PI * f.time) * 3.8;
       this.elevation = p.y;
       this.motion.reset();
-      if (f.time === 1) this.padFlight = null;
+      if (f.time === 1) {
+        this.padFlight = null;
+        const destination = this.afterPadFlight;
+        this.afterPadFlight = null;
+        if (destination)
+          this.walkTo(destination.x, destination.z, destination.pending);
+      }
     } else {
       const surface = rooftops
         .filter(
@@ -612,14 +670,24 @@ export class LobbyWorld {
       }
       p.y = this.elevation;
     }
+    for (const spark of this.jumpSparkles) {
+      if (spark.life <= 0) continue;
+      spark.life -= dt;
+      spark.mesh.visible = spark.life > 0;
+      spark.mesh.position.addScaledVector(spark.velocity, dt);
+      spark.velocity.y -= dt * 7;
+      spark.mesh.scale.setScalar(Math.max(0, spark.life / 0.65));
+    }
     for (const star of this.roofStars) {
       star.rotation.y = this.clock;
+      star.position.y = star.userData.baseY + Math.sin(this.clock * 2.4) * 0.16;
       if (
         star.visible &&
         Math.hypot(p.x - star.position.x, p.z - star.position.z) < 0.7 &&
-        Math.abs(p.y + 1 - star.position.y) < 0.55
+        Math.abs(p.y + 1.3 - star.position.y) < 1.1
       ) {
         star.visible = false;
+        this.burstStars(star.position);
         this.onCoin(`roof:${star.userData.roof}`);
       }
     }
@@ -874,6 +942,7 @@ export class LobbyWorld {
     for (const x of [-2.3, 2.3]) {
       cylinder(r, x, 1.95, -2.1, 0.07, 3.3, "#3a4250");
       box(r, x * 0.87, 0.75, -1.9, 0.6, 0.9, 0.5, "#232833");
+      this.obstacle(x * 0.87, -1.9, 0.6, 0.5, 1.3);
       cylinder(r, x * 0.87, 0.8, -1.64, 0.2, 0.04, "#596273").rotation.x =
         Math.PI / 2;
     }
@@ -1333,7 +1402,8 @@ export class LobbyWorld {
     const placeholder = new T.Group();
     placeholder.position.set(11, 0.3, 10);
     this.root.add(placeholder);
-    this.obstacle(11, 10, 6, 4);
+    this.obstacle(11, 10, 6, 4, 3.5);
+    this.obstacle(7.6, 10, 1.4, 2.6, 2.8);
     // The authored Blender mesh is optional; the procedural shape keeps the scene usable if it fails to load.
     for (let i = 0; i < 5; i++) {
       const a = i * 0.5;
@@ -1434,6 +1504,7 @@ export class LobbyWorld {
         "skin",
         "body",
         "hair",
+        "baseHair",
         "clothing",
         "hat",
         "pet",
@@ -1456,7 +1527,8 @@ export class LobbyWorld {
       const other = resident.avatar.look;
       const hair = distinctHair(other.hair ?? 0, occupied);
       occupied.add(hair);
-      if (hair !== other.hair) applyLook(resident.avatar, { ...other, hair });
+      if (hair !== other.hair)
+        applyLook(resident.avatar, { ...other, hair, baseHair: hair });
     }
   }
   syncPlayers(
@@ -1848,6 +1920,7 @@ export class LobbyWorld {
       this.elevation = this.player.root.position.y;
       this.jumpVelocity = 0;
       this.padFlight = null;
+      this.afterPadFlight = null;
       this.motion.reset();
       this.player.legs.forEach((l) => (l.rotation.x = 0));
       this.inspectedId = "";
@@ -1949,7 +2022,51 @@ export class LobbyWorld {
         Math.cos(this.angle) * Math.cos(this.pitch),
       );
       this.followCamera.fov = this.mobile ? 60 : 52;
-      const distance = this.followDistance;
+      // Only static props participate. Choose a nearby clear view when pulling
+      // inward would put the camera inside the player's head.
+      const clearDistance = (direction: T.Vector3) => {
+        let distance = this.followDistance;
+        const ray = new T.Ray(focus, direction);
+        for (const o of this.obstacles) {
+          if (!o.cameraHeight) continue;
+          const hit = ray.intersectBox(
+            new T.Box3(
+              new T.Vector3(o.x - o.w / 2 - 0.15, 0, o.z - o.d / 2 - 0.15),
+              new T.Vector3(
+                o.x + o.w / 2 + 0.15,
+                o.cameraHeight,
+                o.z + o.d / 2 + 0.15,
+              ),
+            ),
+            new T.Vector3(),
+          );
+          if (hit)
+            distance = Math.min(
+              distance,
+              Math.max(0.05, focus.distanceTo(hit) - 0.15),
+            );
+        }
+        return distance;
+      };
+      let distance = clearDistance(offset);
+      const framing = Math.min(this.followDistance, ratio > 1.4 ? 2.9 : 1.8);
+      if (distance < framing) {
+        outer: for (const pitch of [Math.max(this.pitch, 0.6), 0.9]) {
+          for (const turn of [0, 0.4, -0.4, 0.8, -0.8, 1.6, -1.6, Math.PI]) {
+            const candidate = new T.Vector3(
+              Math.sin(this.angle + turn) * Math.cos(pitch),
+              Math.sin(pitch),
+              Math.cos(this.angle + turn) * Math.cos(pitch),
+            );
+            const clear = clearDistance(candidate);
+            if (clear > distance) {
+              distance = clear;
+              offset.copy(candidate);
+            }
+            if (distance >= framing) break outer;
+          }
+        }
+      }
       this.followCamera.position.copy(focus).addScaledVector(offset, distance);
       this.followCamera.position.y = Math.max(
         0.35,
@@ -2009,7 +2126,7 @@ export class LobbyWorld {
     if (this.cameraMode === "third")
       this.followDistance = T.MathUtils.clamp(
         this.followDistance - delta * 4,
-        2.7,
+        innerWidth > innerHeight ? 2.9 : 1.8,
         16,
       );
     else this.zoom = T.MathUtils.clamp(this.zoom + delta, 0.7, 12);
@@ -2035,7 +2152,32 @@ export class LobbyWorld {
   walkTo(x: number, z: number, pending = "") {
     this.phoneOverview = false;
     if (this.save.away || this.inspectedId) return false;
-    this.path = route(this.player.root.position, { x, z }, this.obstacles);
+    const start = this.player.root.position;
+    const roof = rooftops.find(
+      (r) =>
+        this.elevation >= r.y &&
+        Math.abs(start.x - r.x) < r.w / 2 &&
+        Math.abs(start.z - r.z) < r.d / 2,
+    );
+    if (roof) {
+      // Return along the pad's clear arc before routing on the ground. A
+      // straight ground route from a roof would descend inside its building.
+      this.path = [];
+      this.pending = "";
+      this.jumpVelocity = 0;
+      this.afterPadFlight = { x, z, pending };
+      this.padFlight = {
+        from: start.clone(),
+        to: new T.Vector3(roof.pad[0], 0.1, roof.pad[1]),
+        time: 0,
+      };
+      this.burstStars(start);
+      window.dispatchEvent(
+        new CustomEvent("world-jump", { detail: { pad: true } }),
+      );
+      return true;
+    }
+    this.path = route(start, { x, z }, this.obstacles);
     this.pending = pending;
     if (this.path.length) {
       const end = this.path[this.path.length - 1];
@@ -2246,7 +2388,7 @@ export class LobbyWorld {
       )
         this.movementInput.press(k);
       if (k === "e" && !e.repeat && this.near) this.onInteract(this.near);
-      if (k === " " && !e.repeat) this.act("jump");
+      if (isJumpKey(k) && !e.repeat) this.act("jump");
     }
   };
   private keyUp = (e: KeyboardEvent) => {
@@ -2270,18 +2412,7 @@ export class LobbyWorld {
         this.interactionId
       )
         return;
-      if (this.jumpVelocity || this.padFlight) return;
-      const p = this.player.root.position;
-      const roof = rooftops.find(
-        (r) => Math.hypot(p.x - r.pad[0], p.z - r.pad[1]) < 1 && p.y < 0.3,
-      );
-      if (roof)
-        this.padFlight = {
-          from: p.clone(),
-          to: new T.Vector3(roof.x, roof.y + 0.1, roof.z),
-          time: 0,
-        };
-      else this.jumpVelocity = 6.8;
+      this.jumpInput.press();
       return;
     }
     this.emote = id;
@@ -2290,6 +2421,12 @@ export class LobbyWorld {
   placePlayer(x: number, z: number) {
     this.cancelInteraction();
     this.path = [];
+    if (blocked(x, z, this.obstacles)) {
+      const free = route({ x: 2, z: 5 }, { x, z }, this.obstacles);
+      const safe = free.at(-1);
+      x = safe?.x ?? 2;
+      z = safe?.z ?? 5;
+    }
     this.player.root.position.set(x, 0.1, z);
     this.elevation = 0.1;
     this.jumpVelocity = 0;
@@ -2523,7 +2660,20 @@ export class LobbyWorld {
       ...this.neighbours,
     ];
     const labelPoints: T.Vector3[] = [];
+    const sizeLabel = (label: T.Object3D) => {
+      if (!(label instanceof T.Mesh)) return;
+      const height = (label.geometry as T.PlaneGeometry).parameters.height;
+      const distance = this.camera.position.distanceTo(
+        label.getWorldPosition(new T.Vector3()),
+      );
+      const span =
+        this.camera instanceof T.PerspectiveCamera
+          ? 2 * distance * Math.tan(T.MathUtils.degToRad(this.camera.fov / 2))
+          : this.mapCamera.top - this.mapCamera.bottom;
+      label.scale.setScalar((17 * span) / this.host.clientHeight / height);
+    };
     const you = this.player.root.getObjectByName("PlayerNameTag");
+    if (you) sizeLabel(you);
     if (you)
       you.quaternion
         .copy(this.player.root.quaternion)
@@ -2538,6 +2688,7 @@ export class LobbyWorld {
       occupiedPositions.push(neighbour.avatar.root.position);
       for (const label of neighbour.avatar.root.children)
         if (label.userData.playerLabel) {
+          sizeLabel(label);
           label.position.y = 2.45 + (index % 3) * 0.18;
           label.quaternion
             .copy(neighbour.avatar.root.quaternion)
@@ -2606,9 +2757,9 @@ export class LobbyWorld {
       this.cameraMode === "third",
     );
     this.renderer.render(this.scene, this.camera);
-    this.renderer.domElement.dataset.position = `${this.player.root.position.x.toFixed(2)},${this.player.root.position.z.toFixed(2)}`;
     this.renderer.domElement.dataset.elevation =
       this.player.root.position.y.toFixed(2);
+    this.renderer.domElement.dataset.position = `${this.player.root.position.x.toFixed(2)},${this.player.root.position.z.toFixed(2)}`;
     this.accumulator += elapsed;
     this.frames++;
     if (++this.monitor >= 120) {

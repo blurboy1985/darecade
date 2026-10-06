@@ -14,6 +14,7 @@ export type PlazaRunner = {
   y: number;
   z: number;
   seen: number;
+  active: number;
   name: string;
 };
 export type PlazaRelay = {
@@ -37,10 +38,11 @@ export function createPlazaRelay(slots: number[]): PlazaRelay {
       slot,
       bot: slot >= 4 || !slots.includes(slot),
       team: slot < 4 ? 0 : 1,
-      x: PLAZA_START.x + (slot % 4) * 0.4,
+      x: PLAZA_START.x + (slot % 4) * 1.4,
       y: 0.1,
-      z: PLAZA_START.z + (slot >= 4 ? 1 : 0),
+      z: PLAZA_START.z + (slot >= 4 ? 2 : 0),
       seen: 0,
+      active: 0,
       name: ["You", "Milo", "Pandan", "Peach", "Coco", "Bao", "Luna", "Kaya"][
         slot
       ],
@@ -71,6 +73,7 @@ export function plazaPosition(
   const seconds = Math.min(3, Math.max(0.25, (s.tick - r.seen) / 60));
   if (Math.hypot(p.x - r.x, p.z - r.z) > seconds * 8 + 1)
     throw Error("Stay on the plaza course.");
+  if (Math.hypot(p.x - r.x, p.y - r.y, p.z - r.z) > 0.03) r.active = s.tick;
   r.x = p.x;
   r.y = p.y;
   r.z = p.z;
@@ -85,10 +88,11 @@ export function advancePlazaRelay(s: PlazaRelay) {
     const target = PLAZA_STOPS[leg],
       owner = s.runners[s.owners[team]];
     for (const r of s.runners.filter((r) => r.team === team && r.bot)) {
-      const dx = target.x - r.x,
-        dz = target.z - r.z,
+      const offset = r.slot === owner.slot ? 0 : ((r.slot % 4) - 1.5) * 1.3;
+      const dx = target.x + offset - r.x,
+        dz = target.z + (r.slot === owner.slot ? 0 : 2) - r.z,
         d = Math.hypot(dx, dz),
-        step = (r.slot === owner.slot ? 2.5 : 3) / 60;
+        step = (r.slot === owner.slot ? (team === 0 ? 2.2 : 1.35) : 2.4) / 60;
       if (d > 0.35) {
         r.x += (dx / d) * Math.min(d, step);
         r.z += (dz / d) * Math.min(d, step);
@@ -99,17 +103,16 @@ export function advancePlazaRelay(s: PlazaRelay) {
           : 0.1;
     }
     // A disconnected teammate is replaced by an explicitly labelled computer.
-    if (!owner.bot && s.tick - owner.seen > 300) {
+    if (!owner.bot && s.tick - (owner.active ?? owner.seen) > 2700) {
       owner.bot = true;
       owner.name = "Relief runner";
     }
-    if (
-      Math.hypot(owner.x - target.x, owner.z - target.z) < 1.25 &&
-      (!target.jump || owner.y > 0.7)
-    ) {
+    if (Math.hypot(owner.x - target.x, owner.z - target.z) < 1.65) {
       const next = s.runners[team * 4 + ((leg + 1) % 4)];
-      if (leg < 3 && Math.hypot(next.x - owner.x, next.z - owner.z) > 2.8)
-        continue;
+      if (next.bot) {
+        next.x = owner.x;
+        next.z = owner.z;
+      }
       s.legs[team]++;
       s.owners[team] = next.slot;
       s.handoffs++;
@@ -120,6 +123,6 @@ export function advancePlazaRelay(s: PlazaRelay) {
       }
     }
   }
-  if (s.legs.every((l) => l === 4)) s.status = "finished";
+  if (s.legs.some((l) => l === 4)) s.status = "finished";
   else if (s.tick >= 7200) s.status = "timeout";
 }

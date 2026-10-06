@@ -161,7 +161,22 @@ export function itemLook(slot: WardrobeTab, index: number, worn: Look): Look {
   }
   return slot === "sets"
     ? { ...worn, ...setLook(index) }
-    : { ...worn, [slot]: index, ...(slot === "hair" ? { hat: 0 } : {}) };
+    : {
+        ...worn,
+        [slot]: index,
+        ...(slot === "hair"
+          ? {
+              hat: 0,
+              baseHair:
+                index >= HAIR_START ||
+                /cut|bob|buns|beard|flowing hair|ponytail/i.test(
+                  hairNames[index],
+                )
+                  ? index
+                  : (worn.baseHair ?? worn.hair ?? 38),
+            }
+          : {}),
+      };
 }
 export function wearable(
   look: Look,
@@ -232,7 +247,7 @@ export function wardrobeCards(
             : `${tier} · owned`
           : `${tier} · preview`;
       const thumb = `${tab}:${index}`;
-      return `<article class="collection-card ${selected ? "is-previewing" : ""}" style="--collection-color:${set?.color ?? "#b4a0f5"}"><button class="try-item" data-try-slot="${tab}" data-try-index="${index}" aria-label="${owned ? "Equip" : "Preview"} ${name}" aria-pressed="${selected}"><span class="item-art"><img data-thumbnail="${thumb}" class="avatar-thumbnail" src="/wardrobe/${thumb.replace(":", "-")}.png" loading="lazy" alt="${name}" width="240" height="220"></span><span class="item-state${set ? " is-premium" : ""}">${state}</span><strong>${name}</strong>${set ? `<small>${tab === "sets" ? set.theme : set.name}</small>` : ""}</button>${!owned && tab !== "sets" ? (set ? `<button class="secondary" data-buy-set="${set.id}">Get set</button>` : `<button class="secondary" data-redeem-set="${collectionFor(tab, index)}">Get · ${lookBundles.find((b) => b.id === collectionFor(tab, index))?.cost} Style tokens</button>`) : ""}${tab === "sets" && set ? `<div class="set-requirement"><small>Outfit + headwear + pet + magic</small>${owned ? `<span>Yours to mix & match</span>` : `<span>${set.cost} Style tokens</span><button class="secondary" data-redeem-set="${set.id}" ${canRedeem(set, p, medals) ? "" : "disabled"}>${canRedeem(set, p, medals) ? "Exchange tokens" : "Keep playing to unlock"}</button><button class="text-button" data-buy-set="${set.id}">Get set</button>`}</div>` : ""}</article>`;
+      return `<article class="collection-card ${selected ? "is-previewing" : ""}" style="--collection-color:${set?.color ?? "#b4a0f5"}"><button class="try-item" data-try-slot="${tab}" data-try-index="${index}" aria-label="${owned ? "Equip" : "Preview"} ${name}" aria-pressed="${selected || equipped}"><span class="item-art"><img data-thumbnail="${thumb}" class="avatar-thumbnail" src="/wardrobe/${thumb.replace(":", "-")}.png" loading="lazy" alt="${name}" width="240" height="220"></span><span class="item-state${set ? " is-premium" : ""}">${state}</span><strong>${name}</strong>${set ? `<small>${tab === "sets" ? set.theme : set.name}</small>` : ""}</button>${!owned && tab !== "sets" ? (set ? `<button class="secondary" data-buy-set="${set.id}">Get set</button>` : `<button class="secondary" data-redeem-set="${collectionFor(tab, index)}">Get · ${lookBundles.find((b) => b.id === collectionFor(tab, index))?.cost} Style tokens</button>`) : ""}${tab === "sets" && set ? `<div class="set-requirement"><small>Outfit + headwear + pet + magic</small>${owned ? `<span>Yours to mix & match</span>` : `<span>${set.cost} Style tokens</span><button class="secondary" data-redeem-set="${set.id}" ${canRedeem(set, p, medals) ? "" : "disabled"}>${canRedeem(set, p, medals) ? "Exchange tokens" : "Keep playing to unlock"}</button><button class="text-button" data-buy-set="${set.id}">Get set</button>`}</div>` : ""}</article>`;
     })
     .join("")}</div>`;
 }
@@ -243,14 +258,18 @@ export const hatNames = [
   "Just a Little Sprout",
 ];
 /** Daily-gift and reward hats the player owns, shown with the rest of the headwear. */
-export function hatShelf(p: { hat: number; unlockedHats: number[] }) {
+export function hatShelf(p: {
+  hat: number;
+  hair?: number;
+  unlockedHats: number[];
+}) {
   const owned = hatNames
     .map((name, index) => ({ name, index }))
     .filter(({ index }) => !index || p.unlockedHats.includes(index));
-  return `<section class="hat-shelf" aria-label="Your hats"><h3>Your hats</h3>${
+  return `<section class="hat-shelf" aria-label="Your hats"><h3>Your hats</h3>${!p.hat && p.hair !== undefined ? `<p class="collection-note">Selected: ${hairNames[p.hair]}</p>` : ""}${
     owned.length > 1
       ? `<div class="hat-options">${owned.map(({ name, index }) => `<button data-hat="${index}" aria-pressed="${p.hat === index}">${name}${p.hat === index && index ? " · wearing" : ""}</button>`).join("")}</div><p class="collection-note">Hats sit on top of any hairstyle. Trying a hairstyle below takes the hat off.</p>`
-      : '<p class="collection-note">No hats yet. Pick a free one at the Mama Shop each day, or finish a round for the Lilac cap.</p>'
+      : '<p class="collection-note">No hats yet. Pick a free one at the Mama Shop each day, or finish Palm Bay for the Lilac cap.</p>'
   }</section>`;
 }
 export function collectionDescription(

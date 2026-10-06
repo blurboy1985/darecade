@@ -1,0 +1,156 @@
+{
+  "origin": "https://playsimi.danielquek.com",
+  "checkedAt": "2026-10-06T15:26:42.254Z",
+  "assets": [
+    {
+      "path": "assets/brick-fx-B6F_a5yb.js",
+      "sha256": "bcf15342cde9760242b39e8c6622896158e58204eaa1503a0ae670b30307c6c6"
+    },
+    {
+      "path": "assets/character-DLrGkhQF.js",
+      "sha256": "8f748ffa5514401b01ff77cf029910ae50323b2cef6cd237a840035ba8b6e2b9"
+    },
+    {
+      "path": "assets/index-CksSs3m3.js",
+      "sha256": "ae278ce925d258288ac51a3b53a14cecac5f31e50c15f10e3f1b48d37d8abc39"
+    },
+    {
+      "path": "assets/kart-motion-CVfjp1iW.js",
+      "sha256": "7e73bc3412cf914106856c86082b23a89eb70bd9c72dacdf1e43dbff6dda8722"
+    },
+    {
+      "path": "assets/main-Cvws5b-7.js",
+      "sha256": "078312cf0cf4bdab4c3fff1fb0cffce21d34193e4594d96881ab133ddf2468ad"
+    },
+    {
+      "path": "assets/main-YHQTbhre.css",
+      "sha256": "e2a58fc1383ea602be0ad1ce3774d6e8f5f0c664b083965902a64ae11a10a269"
+    },
+    {
+      "path": "assets/outdoor-onelrAyL.js",
+      "sha256": "473b42c2ab09b4bf8493223330f4e42e1434791f490de0d53c8e9d511671bf28"
+    },
+    {
+      "path": "assets/outdoor-view-wj23I_PW.js",
+      "sha256": "88b16a5a71c5db1f93d3154aceef93a12e2925589324282746aa513837dba64a"
+    },
+    {
+      "path": "assets/plot-view-E2eAUVTN.js",
+      "sha256": "904808e3ebdf80880ffcf19fc30edae2a11ec944dedcb5f85717228fc4b1c3aa"
+    },
+    {
+      "path": "assets/preload-helper-DjzSQ1t3.js",
+      "sha256": "66c990b6727d220a346b45d00ee48d433c8d59ef03fbf8b91c6cdadeeadfdf3f"
+    },
+    {
+      "path": "assets/race-view-B1JyslEc.js",
+      "sha256": "5b52ab0fb6c8044300363c25a5fc01d9069c87edf0b2bfbd0997364c212be87d"
+    },
+    {
+      "path": "assets/relay-motion-Cm_mOWhK.js",
+      "sha256": "8b49892565dd24680df504840269983cade5e58022f170eade85888a93721dc2"
+    },
+    {
+      "path": "assets/relay-view-QREYYkio.js",
+      "sha256": "d3adb65ceeef74d4b4fd437acf0a7e00c7bee8af947fcda57c2ea8c73a33fda7"
+    },
+    {
+      "path": "assets/stage-view-BRxa7fLK.js",
+      "sha256": "83bd8df843f055aff46eb0836cd221b60f1d01e5e74b42dd3add0bad9371d793"
+    },
+    {
+      "path": "assets/state-CnZ5P9CX.js",
+      "sha256": "15c20c5a96f17f46f6b4ec754de2c788aeb0a6847529fb4c845bd8ecb8e95c13"
+    },
+    {
+      "path": "assets/three.module-C5nl2SBU.js",
+      "sha256": "c8bf249a2ebfc1b9d5ffce6e5e62e2dc36b6702d28118a39e96d7ccd3753ee3f"
+    },
+    {
+      "path": "models/neighbour-chibi2.glb",
+      "sha256": "e0022307fae06f61ff5d4752444961739c90c0bcb6064cbfea48e489cb289928"
+    },
+    {
+      "path": "hoops-card.svg",
+      "sha256": "05274881b5c1eea5ab9f8e5a4f32a885aab325aec382611c91c59bfe8d067241"
+    },
+    {
+      "path": "fishing-card.svg",
+      "sha256": "167747d7e1e299bfe75ea26129ef2b2b76a1c5eda30eae6675a543fcc997494b"
+    },
+    {
+      "path": "wardrobe/hair-0.png",
+      "sha256": "ec505f4a346c3444bc21fca4e15f7a73ae7524326b5bb1fce353bf4a9ff66ef8"
+    },
+    {
+      "path": "wardrobe/hair-38.png",
+      "sha256": "619b9cd47a677657ea8db9869ad58e4a21095e94c87399970e2383cf0ba2c242"
+    },
+    {
+      "path": "wardrobe/hair-132.png",
+      "sha256": "265037706bcd3bbafceca70f3f6646f4761621efe062b19a3a8de672de241a9e"
+    },
+    {
+      "path": "wardrobe/sets--1.png",
+      "sha256": "a22f5ae445cdf0af4dd2527209a5eca5267fe675b2891b7237447afa2fb58f0d"
+    }
+  ],
+  "checks": [
+    "Live HTML references the local build entries",
+    "Health ready and anonymous session returns 200 without a 401",
+    "Birth-date-free consent and separate adult confirmation preserve guest progress",
+    "Existing purchase catalogue available; no checkout was created",
+    "13+ guest CPU Relay starts and leaves cleanly",
+    "Live validated zero-score Swarm run grants zero XP and retry grants nothing",
+    "Guest export works"
+  ],
+  "cleanup": [
+    "Disposable guest deleted and session revoked"
+  ],
+  "workerVersion": "60adca84-2262-41fc-a021-cef7d83aae40",
+  "sourceBase": "fb09d6f9399ad27a813653508a992682fed45c59",
+  "tests": {
+    "node": {
+      "passed": 423,
+      "failed": 0,
+      "skipped": 28
+    },
+    "cloudflare": {
+      "passed": 14,
+      "failed": 0
+    }
+  },
+  "browser": [
+    {
+      "viewport": "390x844",
+      "touch": true,
+      "ageGateFits": true,
+      "errors": []
+    },
+    {
+      "viewport": "844x390",
+      "touch": true,
+      "ageGateFits": true,
+      "errors": []
+    },
+    {
+      "viewport": "1280x900",
+      "touch": false,
+      "ageGateFits": true,
+      "errors": []
+    }
+  ],
+  "limitations": [
+    "Physical iOS and Android devices were not tested.",
+    "Live Star Swarm evidence reaches 61 seconds; the boss threshold is simulation-tested.",
+    "No real purchase or email was sent."
+  ],
+  "screenshots": [
+    "live-age-390x844.png",
+    "live-age-844x390.png",
+    "phase1-relay-result-390x844.png",
+    "phase2-swarm-61s-390x844.png",
+    "phase3-zero-result-390x844.png",
+    "phase3-coast-results-844x390.png"
+  ]
+}

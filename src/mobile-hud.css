@@ -461,7 +461,6 @@ dialog.game-modal .game-controls .text-button {
 }
 
 .mode-2d .world-actions,
-.is-away .world-actions,
 .is-interacting .world-actions,
 .inspecting .world-actions,
 body:has(dialog[open]) .world-actions {
@@ -581,7 +580,6 @@ body:has(dialog[open]) .world-actions {
   }
 }
 .mode-2d .hud #joystick,
-.is-away .hud #joystick,
 .is-interacting .hud #joystick,
 .inspecting .hud #joystick,
 body:has(dialog[open]) .hud #joystick {
@@ -596,4 +594,282 @@ body:has(dialog[open]) .hud #joystick {
 }
 .hud #joystick::before {
   display: none;
+}
+
+/* Round-six fit: reserve a column for time and let results use the whole card. */
+canvas,
+.hud,
+button,
+img {
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+#camera-toggle,
+.world-zoom button,
+.menu-links button {
+  min-width: 44px;
+  min-height: 44px;
+}
+.topbar > .demo-tag {
+  right: 64px;
+  max-width: calc(100vw - 186px);
+  pointer-events: auto;
+  font-size: 11px;
+}
+.bottom-bar > .profile {
+  width: 104px;
+}
+#quick-emotes {
+  bottom: 16px;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  gap: 2px;
+  padding: 3px;
+}
+#quick-emotes button {
+  width: 44px;
+  height: 44px;
+  font-size: 17px;
+}
+body:has(dialog[open]) #quick-emotes {
+  display: none;
+}
+#away-banner {
+  z-index: 60;
+  bottom: 82px;
+  top: auto;
+}
+.game-stats {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  width: 100%;
+  gap: 6px;
+  box-sizing: border-box;
+}
+.game-stats > span:nth-child(2) {
+  min-width: 0;
+  font-size: 12px !important;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.stat-pill {
+  min-width: 0;
+  padding: 8px !important;
+}
+.game-stats .time-pill {
+  position: static !important;
+  flex-shrink: 0;
+}
+[data-controls="hop"] .game-touch [data-joystick] {
+  display: none !important;
+}
+[data-controls="hop"] .game-touch {
+  justify-content: flex-end;
+}
+#modal.game-modal #modal-body:has(.result-score) {
+  overflow: visible;
+  max-height: none;
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px !important;
+}
+#modal.game-modal:has(.result-score) {
+  overflow: visible;
+  height: auto !important;
+  max-height: calc(100dvh - 20px);
+}
+#modal.game-modal #modal-body:has(.result-score) .button-row {
+  position: static;
+  margin: 4px 0;
+  padding: 0;
+  background: none;
+}
+#modal.game-modal #modal-body:has(.result-score) .note,
+#modal.game-modal #modal-body:has(.result-score) .menu-details,
+#modal.game-modal #modal-body:has(.result-score) > .lead:empty {
+  display: none;
+}
+#modal.game-modal .result-score {
+  opacity: 1 !important;
+  animation: none !important;
+  margin: 0 !important;
+  font-size: 52px !important;
+  line-height: 1;
+}
+.result-encouragement {
+  font-size: 14px;
+  text-align: center;
+  margin: 0;
+}
+#modal.game-modal .round-end-note {
+  margin: 0;
+  font-size: 13px;
+}
+#modal.game-modal .round-breakdown {
+  padding: 8px;
+  margin: 0;
+}
+#modal.game-modal .play-medal-result {
+  margin: 0;
+}
+@media (hover: hover) and (pointer: fine) {
+  .hud #joystick,
+  .game-touch,
+  .race-touch,
+  #lobby-jump {
+    display: none !important;
+  }
+}
+@media (pointer: coarse) {
+  kbd {
+    display: none !important;
+  }
+}
+@media (max-height: 500px) {
+  #modal.game-modal #modal-body:has(.result-score) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-content: center;
+    gap: 5px 16px;
+  }
+  #modal.game-modal .result-score {
+    font-size: 42px !important;
+  }
+  #modal.game-modal .result-score small {
+    margin-top: 4px;
+  }
+  #modal.game-modal .button-row {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    flex-direction: column;
+  }
+  #modal.game-modal #modal-body:has(.result-score) > .fine-print {
+    display: none;
+  }
+  #modal.game-modal .finish-effects {
+    position: absolute;
+  }
+  #quick-emotes {
+    bottom: 8px;
+  }
+  .topbar > .demo-tag {
+    top: 10px;
+  }
+  .wardrobe-layout {
+    height: calc(100dvh - 100px);
+    min-height: 0;
+    overflow: hidden;
+  }
+  .wardrobe-layout .wardrobe-controls {
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+.outside-cards,
+.outdoor-grid {
+  margin-top: 18px;
+}
+
+.game-art.hoops-art {
+  background: url("/hoops-card.svg") center / cover;
+  color: transparent;
+}
+.game-art.fishing-art {
+  background: url("/fishing-card.svg") center / cover;
+  color: transparent;
+}
+.game-art.hoops-art *,
+.game-art.fishing-art * {
+  visibility: hidden;
+}
+.topbar > .demo-tag {
+  min-height: 36px;
+  top: 12px;
+  padding: 3px 8px;
+  border: 0;
+  white-space: normal;
+  line-height: 1.2;
+}
+@media (max-width: 600px) {
+  #quick-emotes {
+    bottom: 88px;
+  }
+}
+
+@media (max-height: 500px) {
+  #modal.game-modal #modal-body:has(.result-score) {
+    min-height: 0 !important;
+    height: auto !important;
+    padding: 10px 16px !important;
+    align-content: start;
+  }
+  #modal.game-modal .round-breakdown strong {
+    font-size: 24px;
+    line-height: 1.1;
+  }
+  #modal.game-modal .round-breakdown span {
+    padding: 6px;
+  }
+  #modal.game-modal .result-score small {
+    font-size: 11px;
+    line-height: 1;
+  }
+  #modal.game-modal .play-medal-result {
+    padding: 8px;
+    font-size: 12px;
+  }
+  #modal.game-modal .play-medal-result p {
+    margin: 4px 0;
+  }
+  #modal.game-modal #modal-body:has(.result-score) > details {
+    display: none;
+  }
+  #modal.game-modal #modal-body:has(.result-score) > hr {
+    display: none;
+  }
+}
+
+#modal.game-modal #modal-body:has(.result-score) {
+  animation: none !important;
+  opacity: 1 !important;
+}
+body.is-away #away-banner {
+  display: flex !important;
+  bottom: 152px;
+  max-width: calc(100vw - 32px);
+  z-index: 60;
+}
+@media (pointer: coarse) {
+  body.is-away .hud #joystick {
+    display: grid !important;
+  }
+}
+@media (max-height: 500px) {
+  body.is-away #away-banner {
+    bottom: 64px;
+    max-width: 390px;
+  }
+}
+
+/* Match the compact result layout even when an arcade theme sizes h2 directly. */
+#modal.game-modal #modal-body > h2.result-score {
+  letter-spacing: -0.5px !important;
+  font-variant-numeric: tabular-nums;
+  font-size: 52px !important;
+}
+@media (max-height: 500px) {
+  #modal.game-modal #modal-body > h2.result-score {
+    font-size: 42px !important;
+  }
+  #modal.game-modal #modal-body > .new-best {
+    margin: 0;
+    padding: 5px 8px;
+    font-size: 16px;
+  }
 }

@@ -293,9 +293,9 @@ test("forged, premature and wrong-owner results never award XP; retries are idem
     const result = s.community.finish(a.me.id, data);
     assert.equal(result.verified, true);
     assert.equal(result.ranked, true, "new accounts are ranked without a wait");
-    assert.equal(result.profile.progress.xp, 55);
+    assert.equal(result.profile.progress.xp, 1);
     const retry = s.community.finish(a.me.id, data);
-    assert.equal(retry.profile.progress.xp, 55);
+    assert.equal(retry.profile.progress.xp, 1);
     assert.equal(retry.ranked, true);
     assert.throws(
       () => s.community.finish(a.me.id, { ...data, score: 0 }),
@@ -407,10 +407,18 @@ test("rooftop stars award once per Singapore day without changing purchases", as
   try {
     const a = await register(s, "rooftop@example.test");
     const before = s.community.privateProfile(a.me.id).progress;
-    for (const id of ["arcade", "shop", "dragon", "arcade", "dragon"])
+    for (const id of [
+      "arcade",
+      "shop",
+      "dragon",
+      "arcade-east",
+      "shop-east",
+      "arcade",
+      "dragon",
+    ])
       s.community.progression(a.me.id, "rooftop", id);
     const after = s.community.privateProfile(a.me.id).progress;
-    assert.equal(after.xp, before.xp + 60);
+    assert.equal(after.xp, before.xp + 80);
     assert.deepEqual(after.wardrobePurchased, before.wardrobePurchased);
     assert.deepEqual(after.coins, before.coins);
     assert.throws(
@@ -421,7 +429,7 @@ test("rooftop stars award once per Singapore day without changing purchases", as
     s.community.progression(a.me.id, "rooftop", "arcade");
     assert.equal(
       s.community.privateProfile(a.me.id).progress.xp,
-      before.xp + 70,
+      before.xp + 90,
     );
   } finally {
     s.close();
@@ -713,8 +721,13 @@ test("nickname and appearance edits validate before writing and never award rank
       assert.equal(s.community.privateProfile(id).progress.nameChosen, false);
       assert.equal(s.community.privateProfile(id).progress.pet, 0);
     }
-    assert.throws(() => s.community.patch(id,{name:"MoonMochi"}), /generated names/);
-    s.store.db.prepare("INSERT INTO accounts VALUES(?,?,?)").run(id,"nickname@example.test",0);
+    assert.throws(
+      () => s.community.patch(id, { name: "MoonMochi" }),
+      /generated names/,
+    );
+    s.store.db
+      .prepare("INSERT INTO accounts VALUES(?,?,?)")
+      .run(id, "nickname@example.test", 0);
     const p = s.community.patch(id, {
       name: "MoonMochi",
       gender: 3,

@@ -35,12 +35,14 @@ export function mountPlazaRelay(
     busy = false,
     dead = false,
     started = false,
+    soloMode = false,
     seq = 0,
     code = "",
     frame = 0;
   const group = new T.Group();
   ctx.world.scene.add(group);
   const avatars = new Map<number, Avatar>();
+  const labels: T.Sprite[] = [];
   const rings: T.Mesh[] = [];
   const q = (s: string) => root.querySelector<HTMLElement>(s)!;
   async function request(action: string, data: Record<string, unknown>) {
@@ -65,6 +67,10 @@ export function mountPlazaRelay(
     if (!snap) return;
     const s = snap;
     if (s.status === "running" && !started) launch();
+    if (!started && soloMode) {
+      q(".plaza-room").textContent = "Starting your CPU race…";
+      return;
+    }
     if (!started) {
       q(".plaza-room").innerHTML =
         `<strong>${code ? `Team code: ${escape(code)}` : "Your team"}</strong><p>${s.players.map((p) => `${escape(p.name)} · ${p.ready ? "ready" : "joining"}`).join("<br>")}</p><button class="primary" data-ready>Ready</button>${s.host === s.slot ? '<button class="secondary" data-start>Start relay</button>' : ""}<p>Any empty places become computer teammates. Opponents are computer players.</p>`;
@@ -90,6 +96,20 @@ export function mountPlazaRelay(
               : `${owner.slot === s.slot ? "You have the baton" : `${s.players.find((v) => v.slot === owner.slot)?.name || owner.name}${owner.bot ? " · CPU" : ""} has the baton`} · ${PLAZA_STOPS[leg].name}${PLAZA_STOPS[leg].jump ? " · Jump through!" : ""}`;
     q("[data-next]").textContent =
       leg < 4 ? "Walk to next gate" : "Course complete";
+    if (
+      s.status === "running" &&
+      mine &&
+      !mine.bot &&
+      p.tick - mine.active > 2100
+    )
+      q(".plaza-cue").textContent +=
+        " · Move now: CPU takes over after 45s away";
+    if (s.status !== "running") {
+      q(".plaza-cue").textContent =
+        `${p.winner === 0 ? "1st place" : "2nd place"} · ${(p.tick / 60).toFixed(1)}s · ${leg}/4 gates`;
+      q("[data-next]").hidden = true;
+      root.classList.add("plaza-result");
+    }
     if (mine?.bot)
       q(".plaza-cue").textContent += " · Your place was filled while away";
     for (const [i, r] of rings.entries())
@@ -100,7 +120,7 @@ export function mountPlazaRelay(
   function launch() {
     started = true;
     ctx.world.placePlayer(
-      PLAZA_START.x + (snap!.slot % 4) * 0.4,
+      PLAZA_START.x + (snap!.slot % 4) * 1.4,
       PLAZA_START.z,
     );
     ctx.world.setCameraMode("third");
@@ -152,6 +172,26 @@ export function mountPlazaRelay(
               outfit: r.slot % 6,
             },
           );
+          const canvas = document.createElement("canvas");
+          canvas.width = 256;
+          canvas.height = 48;
+          const paint = canvas.getContext("2d")!;
+          paint.fillStyle = r.team ? "#783f42" : "#245b55";
+          paint.fillRect(0, 0, 256, 48);
+          paint.fillStyle = "white";
+          paint.font = "bold 28px sans-serif";
+          paint.textAlign = "center";
+          paint.fillText(`${r.name}${r.bot ? " · CPU" : ""}`, 128, 34);
+          const label = new T.Sprite(
+            new T.SpriteMaterial({
+              map: new T.CanvasTexture(canvas),
+              depthTest: true,
+            }),
+          );
+          label.position.y = 2.65 + (r.slot % 2) * 0.3;
+          label.scale.set(1.5, 0.28, 1);
+          a.root.add(label);
+          labels.push(label);
           avatars.set(r.slot, a);
         }
         const p = a.root.position;
@@ -177,8 +217,11 @@ export function mountPlazaRelay(
     frame = requestAnimationFrame(draw);
   }
   async function create(solo: boolean) {
+    soloMode = solo;
+    root.classList.toggle("is-solo", solo);
     await request("create", { solo, difficulty: "standard", course: "plaza" });
     if (solo && snap) {
+      q(".plaza-room").textContent = "Starting your CPU race…";
       await request("ready", { room: snap.room, ready: true });
       await request("start", { room: snap.room });
     }
@@ -220,7 +263,7 @@ export function mountPlazaRelay(
       stop();
       return;
     }
-    if (!snap) return;
+    if (!snap || (started && snap.status !== "running")) return;
     const p = ctx.world.player.root.position;
     void request("tick", {
       room: snap.room,
@@ -239,6 +282,10 @@ export function mountPlazaRelay(
     abort.abort();
     root.remove();
     group.removeFromParent();
+    for (const label of labels) {
+      label.material.map?.dispose();
+      label.material.dispose();
+    }
     for (const a of avatars.values()) disposeAvatar(a);
     for (const r of rings) {
       r.geometry.dispose();

@@ -8,7 +8,7 @@ test("new Star Swarm runs give no score without input and end early; replay agre
   assert.equal(sim.score, 0);
   assert.ok(sim.elapsed <= 12.1);
   const replay: Replay = {
-    version: 2,
+    version: 3,
     ticks: sim.ticks,
     events: [[0, 0, 0, -1, 0, -1, -1]],
   };

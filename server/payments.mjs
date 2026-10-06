@@ -145,13 +145,13 @@ export class Payments {
         503,
       );
     const profile = this.c.privateProfile(player);
-    if (profile.ageBand !== "18+")
+    if (!profile.purchasesConfirmed)
       fail("Purchases are for players aged 18 and over only.", 403);
     if (!profile.account)
       fail("Save your account with email before making a payment.", 403);
     const product = this.catalog().find((p) => p.id === productId);
     if (!product) fail("This item is not available for purchase.");
-    if (product.kind === "donation" && profile.ageBand !== "18+")
+    if (product.kind === "donation" && !profile.purchasesConfirmed)
       fail("Donations are available to adults only.", 403);
     if (product.kind === "set" && ownsSet(profile.progress, product.id))
       fail("You already own this set.");

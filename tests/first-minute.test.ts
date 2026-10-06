@@ -71,7 +71,7 @@ test("the first-race goal names the real cap reward and town access without chan
   assert.ok(progress.unlockedHats.includes(2));
   assert.equal(firstRoundGoalPending(progress), false);
   assert.equal(completeWelcomeRound(progress), false);
-  assert.equal(firstRoundGoalPending({ rounds: 1, unlockedHats: [0] }), false);
+  assert.equal(firstRoundGoalPending({ rounds: 1, unlockedHats: [0] }), true);
   assert.equal(
     firstRoundGoalPending({ rounds: 0, unlockedHats: [0, 2] }),
     false,

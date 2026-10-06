@@ -61,6 +61,7 @@ export class RacingGame {
   private frame = 0;
   private last = 0;
   private visibleTicks = 0;
+  private driveStarted = false;
   private accumulator = 0;
   private countdown = 3;
   private stick: ReturnType<typeof bindJoystick>;
@@ -432,6 +433,12 @@ export class RacingGame {
   pause() {
     if (!this.paused) this.togglePause();
   }
+  requestQuit() {
+    if (!["racing", "countdown"].includes(this.status)) return false;
+    this.pause();
+    this.pausePanel.querySelector("h3")!.textContent = "Leave this race?";
+    return true;
+  }
   private quit() {
     if (!["racing", "countdown"].includes(this.status)) return;
     // A quit is a local incomplete result, never a fabricated replay finish.
@@ -443,8 +450,7 @@ export class RacingGame {
     this.container.classList.remove("is-paused");
     this.notice.textContent = "";
     this.clearInput();
-    this.finishCard.innerHTML =
-      '<h3>See you on the next grid</h3><p>Race left early · no finish recorded.</p><button data-replay="coast" class="primary">Race again</button><button data-action="close" class="secondary">Back to world</button>';
+    this.finishCard.innerHTML = `<h3>Race result</h3><p>${raceTime(this.sim.ticks)} · ${ordinal(this.sim.race!.place)} place · Race left early</p><button data-replay="coast" class="primary">Race again</button><button data-action="close" class="secondary">Back to world</button>`;
     this.finishCard.hidden = false;
   }
   private togglePause() {
@@ -537,7 +543,8 @@ export class RacingGame {
       }
     }
     if (!this.paused && this.status === "racing") {
-      this.accumulator += activeDt;
+      this.driveStarted ||= input[1] > 0;
+      if (this.driveStarted) this.accumulator += activeDt;
       while (this.accumulator >= 1 / 60 && !this.sim.ended) {
         const stamp = JSON.stringify(input);
         if (stamp !== this.previous) {
@@ -657,7 +664,7 @@ export class RacingGame {
     this.container.querySelector<HTMLButtonElement>("#pause-game")!.disabled =
       true;
     this.sound(result.finished ? "checkered" : "timeup");
-    this.finishCard.innerHTML = `<span class="eyebrow">PALM BAY · THREE LAPS</span><h3>${result.finished ? (result.place === 1 ? "WINNER!" : "FINISH!") : `So close! Lap ${this.sim.race!.lap} of 3 — try again?`}</h3>${result.finished ? `<p class="finish-place">${ordinal(result.place)}<small> / 8</small></p>` : ""}<div class="finish-stats"><span>TIME<b>${result.finished ? raceTime(result.timeTicks) : "No finish"}</b></span><span>BEST LAP<b>${result.bestLap ? raceTime(result.bestLap) : "—"}</b></span><span>SHELLS<b>${result.pickups} / ${SHELLS}</b></span></div><button class="primary">See results →</button>`;
+    this.finishCard.innerHTML = `<span class="eyebrow">PALM BAY · THREE LAPS</span><h3>${result.finished ? (result.place === 1 ? "WINNER!" : "FINISH!") : `So close! Lap ${this.sim.race!.lap} of 3 — try again?`}</h3>${result.finished ? `<p class="finish-place">${ordinal(result.place)}<small> / 8</small></p>` : ""}<div class="finish-stats"><span>TIME<b>${raceTime(result.timeTicks)}</b></span><span>BEST LAP<b>${result.bestLap ? raceTime(result.bestLap) : "—"}</b></span><span>SHELLS<b>${result.pickups} / ${SHELLS}</b></span></div><button class="primary">See results →</button>`;
     this.finishCard.hidden = false;
     this.finish(this.sim.score, {
       version: rulesVersion("coast"),

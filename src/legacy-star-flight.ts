@@ -185,9 +185,10 @@ export class LegacyStarFlight {
       c.shadowBlur = b.enemy ? 9 : 0;
       c.strokeStyle = "#552c39";
       c.lineWidth = 3;
-      c.fillStyle = b.enemy ? "#ff4e27" : "#086f81";
+      c.fillStyle = b.enemy ? "#ffd34b" : "#086f81";
       c.beginPath();
-      c.roundRect(b.x - 3, b.y - 7, 6, 14, 3);
+      if (b.enemy) c.arc(b.x, b.y, 5, 0, Math.PI * 2);
+      else c.roundRect(b.x - 3, b.y - 7, 6, 14, 3);
       c.fill();
       if (b.enemy) c.stroke();
       c.restore();

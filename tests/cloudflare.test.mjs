@@ -285,6 +285,10 @@ test(
         (await api("payments/config", undefined, user.cookie)).data.enabled,
         true,
       );
+      assert.equal(
+        (await api("auth/adult", { over18: true }, user.cookie)).status,
+        200,
+      );
       const checkout = await api(
         "payments/checkout",
         { product: "solar", amount: 1 },
@@ -913,8 +917,8 @@ test(
         users[3].data.id,
       );
       assert.equal(membership[0].world, "world-2");
-      await api("friends",{name:users[3].data.name},users[4].cookie);
-      await api("friends",{target:users[4].data.id},users[3].cookie);
+      await api("friends", { name: users[3].data.name }, users[4].cookie);
+      await api("friends", { target: users[4].data.id }, users[3].cookie);
       const friend = await api(
         "worlds/join",
         { friend: users[3].data.id },
@@ -1044,6 +1048,7 @@ test(
         Date.now() - 172800000,
         id,
       );
+      let expectedXp = 35; // Palm Bay cap bonus, plus score-based round XP.
       for (const game of ["noodle", "brick", "hop", "swarm", "coast"]) {
         const run = await api("run", { game }, cookie);
         assert.equal(run.status, 200);
@@ -1095,6 +1100,11 @@ test(
             true,
           );
         }
+        assert.equal(
+          result.data.earnedXp,
+          replay.score > 0 ? Math.min(20, Math.ceil(replay.score / 50)) : 0,
+        );
+        expectedXp += result.data.earnedXp;
         assert.equal(result.data.ranked, game !== "coast");
         assert.equal(
           (await api("finish", { id: run.data.id, ...replay }, cookie)).data
@@ -1104,7 +1114,7 @@ test(
       }
       const me = await api("auth/me", undefined, cookie);
       assert.equal(me.data.progress.rounds, 5);
-      assert.equal(me.data.progress.xp, 135);
+      assert.equal(me.data.progress.xp, expectedXp);
       assert.equal(me.data.playMedals.total, 3);
       assert.equal(me.data.progress.medalTokens, 0);
       const state = await api("state", undefined, cookie);

@@ -29,6 +29,7 @@ function setup(secretKey = "sk_test_fixture", livemode = false) {
     consent: true,
     privacyVersion: PRIVACY_VERSION,
   }).me.id;
+  c.confirmAdult(player, { over18: true });
   const env = {
     PAYMENTS_ENABLED: "true",
     STRIPE_SECRET_KEY: secretKey,
@@ -132,10 +133,17 @@ function setup(secretKey = "sk_test_fixture", livemode = false) {
 test("under-18 checkout is rejected before any Stripe request", async () => {
   const s = setup();
   try {
-    s.store.db.prepare("UPDATE profiles SET age_band='13–17' WHERE player=?").run(s.player);
+    s.store.db
+      .prepare("DELETE FROM adult_confirmations WHERE player=?")
+      .run(s.player);
+    s.store.db
+      .prepare("UPDATE profiles SET age_band='13–17' WHERE player=?")
+      .run(s.player);
     await assert.rejects(s.payments.checkout(s.player, "solar"), /18 and over/);
     assert.equal(s.sessions.size, 0);
-  } finally { s.close(); }
+  } finally {
+    s.close();
+  }
 });
 
 test("payment configuration stays closed without secrets and saved accounts; prices stay server-owned", async () => {
@@ -370,6 +378,9 @@ test("under-18 donation attempts fail before contacting Stripe", async () => {
     f.store.db
       .prepare("UPDATE profiles SET age_band=? WHERE player=?")
       .run("13–17", f.player);
+    f.store.db
+      .prepare("DELETE FROM adult_confirmations WHERE player=?")
+      .run(f.player);
     const before = f.calls();
     await assert.rejects(
       f.payments.checkout(f.player, "donation-small"),

@@ -35,6 +35,7 @@ export type Save = {
   body: number;
   clothing: number;
   hair: number;
+  baseHair: number;
   pet: number;
   accessory: number;
   hat: number;
@@ -105,6 +106,7 @@ export function fresh(): Save {
     clothing: 0,
     // New players start as the source character: pink twin buns (free).
     hair: 38,
+    baseHair: 38,
     pet: 0,
     accessory: 0,
     hat: 0,
@@ -177,6 +179,8 @@ export function normalise(raw: unknown, fallback: Save): Save {
   if (typeof r.away === "boolean") s.away = r.away;
   if (Number.isFinite(r.awaySince) && r.awaySince! >= 0)
     s.awaySince = Math.min(Date.now(), r.awaySince!);
+  if (r.baseHair === undefined && Number.isInteger(r.hair))
+    s.baseHair = r.hair!;
   for (const key of [
     "outfit",
     "skin",
@@ -186,6 +190,7 @@ export function normalise(raw: unknown, fallback: Save): Save {
     "gift",
     "clothing",
     "hair",
+    "baseHair",
     "pet",
     "accessory",
   ] as const)
@@ -200,6 +205,7 @@ export function normalise(raw: unknown, fallback: Save): Save {
           body: 2,
           hat: 4,
           gift: 3,
+          baseHair: appearanceLimits.hair,
           ...appearanceLimits,
         }[key]
     )
@@ -268,7 +274,9 @@ export function normalise(raw: unknown, fallback: Save): Save {
     s.roofDay = r.roofDay;
     s.roofStars = [
       ...new Set(
-        r.roofStars.filter((v) => ["arcade", "shop", "dragon"].includes(v)),
+        r.roofStars.filter((v) =>
+          ["arcade", "shop", "dragon", "arcade-east", "shop-east"].includes(v),
+        ),
       ),
     ];
   }
@@ -341,7 +349,7 @@ export function completeWelcomeRound(s: Save) {
 export function firstRoundGoalPending(
   s: Pick<Save, "rounds" | "unlockedHats">,
 ) {
-  return s.rounds === 0 && !s.unlockedHats.includes(2);
+  return !s.unlockedHats.includes(2);
 }
 export function claimGift(s: Save, choice: number, day = singaporeDay()) {
   if (

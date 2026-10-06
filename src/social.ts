@@ -13,6 +13,7 @@ export type SharedPlayer = {
     body?: number;
     clothing?: number;
     hair?: number;
+    baseHair?: number;
     pet?: number;
     accessory?: number;
   };

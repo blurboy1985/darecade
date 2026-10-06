@@ -155,7 +155,7 @@ test("queued finish survives another game and presence settlement; Race again re
     const result = c.finish(me.id, data);
     const xp = result.profile.progress.xp;
     assert.equal(c.finish(me.id, data).profile.progress.xp, xp);
-    assert.ok(xp >= 20);
+    assert.equal(xp, Math.min(20, Math.ceil(sim.score / 50)));
   } finally {
     store.close();
     rmSync(directory, { recursive: true, force: true });

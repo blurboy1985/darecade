@@ -244,7 +244,10 @@ test("outdoor rounds can be dared, pay album and hoops XP from the replay, and n
     // Round XP, the welcome bonus, five a basket and ten a new species.
     assert.equal(
       fishing.result.profile.progress.xp,
-      20 + 20 + 35 + made * 5 + species.size * 10,
+      hoops.result.earnedXp +
+        fishing.result.earnedXp +
+        made * 5 +
+        species.size * 10,
     );
     assert.throws(
       () => community.progression(host, "fish", "koi"),

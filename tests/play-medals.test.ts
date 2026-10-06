@@ -150,7 +150,7 @@ test("forged, fast, unfinished and abandoned rounds cannot award; finish and awa
     const run = s.community.begin(s.id, "swarm");
     const data = { id: run.id, ...completed("swarm", run.seed) };
     assert.throws(() => s.community.finish(s.id, data), /faster/);
-    s.tick(61000);
+    s.tick(121000);
     assert.throws(
       () => s.community.finish(s.id, { ...data, score: data.score + 1 }),
       /does not match/,

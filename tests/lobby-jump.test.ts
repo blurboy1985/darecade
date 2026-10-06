@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
+import { JumpInput } from "../src/jump-input.ts";
 import { Group } from "three";
 
 // Run the production action and animation methods with real Three objects and
@@ -39,11 +40,18 @@ function run(scenario: string) {
   vm.runInNewContext(
     `${compiled}
     const world = new JumpHarness();
-    Object.assign(world, {clock: 10, emote: '', emoteAt: 0, paused: false,
+    Object.assign(world, {jumpInput: new JumpInput(), jumpSparkles: [], burstStars() {}, clock: 10, emote: '', emoteAt: 0, paused: false,
       save: {away: false}, elevation: 0.1, jumpVelocity: 0, padFlight: null, roofStars: [], inspectedId: '', interactionId: '',
       player: {root: new Group(), left: new Group(), right: new Group()}});
     ${scenario}`,
-    { assert, Group, rooftops: [] },
+    {
+      assert,
+      Group,
+      JumpInput,
+      rooftops: [],
+      window: { dispatchEvent() {} },
+      CustomEvent: class {},
+    },
   );
 }
 
@@ -59,6 +67,7 @@ test("repeated jump inputs preserve airborne height and the original landing tim
       assert.equal(world.jumpVelocity,velocity,'airborne input must not restart jump');
     }
     assert.ok(world.player.root.position.y>1.5);
+    world.jumpInput.clear();
     for(let i=0;i<40;i++) world.jumpStep(1/60);
     assert.equal(world.player.root.position.y,0.1);
     world.act('jump'); world.jumpStep(1/60);

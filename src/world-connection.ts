@@ -11,6 +11,7 @@ type Movement = {
 };
 type Packet = {
   t: "sync" | "delta";
+  transport?: "poll";
   at: number;
   world?: string;
   p: [number, string, string, SharedPlayer["look"]][];
@@ -95,6 +96,7 @@ export class WorldConnection {
         return;
       this.receive(packet);
       this.startPolling();
+      if (packet.transport === "poll") return;
     } catch {
       if (
         this.stopped ||

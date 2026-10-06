@@ -67,6 +67,7 @@ const lookKeys = [
   "hat",
   "clothing",
   "hair",
+  "baseHair",
   "pet",
   "accessory",
 ];
@@ -127,6 +128,7 @@ export class CommunityCore {
       .exec(`CREATE TABLE IF NOT EXISTS payment_orders(id TEXT PRIMARY KEY,player TEXT,product TEXT NOT NULL,kind TEXT NOT NULL,price_id TEXT NOT NULL,amount INTEGER NOT NULL,currency TEXT NOT NULL,status TEXT NOT NULL,created INTEGER NOT NULL,session TEXT UNIQUE,intent TEXT);
   CREATE INDEX IF NOT EXISTS payment_player ON payment_orders(player,status);
   CREATE INDEX IF NOT EXISTS payment_intent ON payment_orders(intent);
+  CREATE TABLE IF NOT EXISTS adult_confirmations(player TEXT PRIMARY KEY REFERENCES players(id),confirmed INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS profiles(player TEXT PRIMARY KEY REFERENCES players(id),age_band TEXT NOT NULL,consent TEXT NOT NULL,consented INTEGER NOT NULL,progress TEXT NOT NULL,last_active INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS accounts(player TEXT PRIMARY KEY REFERENCES players(id),email TEXT UNIQUE NOT NULL,created INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,player TEXT REFERENCES players(id),expires INTEGER NOT NULL);
@@ -290,8 +292,17 @@ export class CommunityCore {
       );
     return months < 18 * 12 ? "13–17" : "18+";
   }
+  confirmAdult(id, data) {
+    if (data.over18 !== true)
+      throw Error("Confirm you are 18 or older to unlock purchases.");
+    this.db
+      .prepare("INSERT OR REPLACE INTO adult_confirmations VALUES(?,?)")
+      .run(id, this.now());
+    return this.privateProfile(id);
+  }
   join(data, legacyToken) {
-    const band = this.eligible(data.month, data.year);
+    const band =
+      data.over13 === true ? "13+" : this.eligible(data.month, data.year);
     if (data.consent !== true || data.privacyVersion !== PRIVACY_VERSION)
       throw Error(
         "Please read the privacy notice and choose whether to agree.",
@@ -311,7 +322,17 @@ export class CommunityCore {
       const look = JSON.parse(
         this.db.prepare("SELECT look FROM players WHERE id=?").get(id).look,
       );
-      Object.assign(save, normalise({ ...save, ...look }, save));
+      Object.assign(
+        save,
+        normalise(
+          {
+            ...save,
+            ...look,
+            baseHair: look.baseHair ?? look.hair ?? save.baseHair,
+          },
+          save,
+        ),
+      );
       // Legacy looks predate Legendary ownership; never import an unowned set.
       for (const [slot, start] of Object.entries(setStarts))
         if (setForItem(slot, save[slot])) save[slot] = 0;
@@ -361,6 +382,9 @@ export class CommunityCore {
           .prepare("SELECT tokens FROM style_reward_notices WHERE player=?")
           .get(id)?.tokens || 0,
       ageBand: p.age_band,
+      purchasesConfirmed: !!this.db
+        .prepare("SELECT 1 FROM adult_confirmations WHERE player=?")
+        .get(id),
       privacyVersion: p.consent,
       season: this.seasons.profile(id),
       progress,
@@ -438,6 +462,11 @@ export class CommunityCore {
         !canWear(slot, candidate[slot], p, medals)
       )
         throw Error("Unlock this collection before equipping it.");
+    if (
+      candidate.baseHair !== p.baseHair &&
+      !canWear("hair", candidate.baseHair, p, medals)
+    )
+      throw Error("Unlock this hairstyle before equipping it.");
     if (Object.hasOwn(patch, "medalEmail"))
       this.medalRewards.preference(id, patch.medalEmail);
     for (const k of [...lookKeys, ...prefs]) p[k] = candidate[k];
@@ -510,7 +539,11 @@ export class CommunityCore {
           }
         }
       } else if (event === "rooftop") {
-        if (!["arcade", "shop", "dragon"].includes(value))
+        if (
+          !["arcade", "shop", "dragon", "arcade-east", "shop-east"].includes(
+            value,
+          )
+        )
           throw Error("Unknown rooftop.");
         const today = day(at);
         if (p.roofDay !== today) {
@@ -519,7 +552,7 @@ export class CommunityCore {
         }
         if (!p.roofStars.includes(value)) {
           p.roofStars.push(value);
-          p.xp += 10 + (p.roofStars.length === 3 ? 30 : 0);
+          p.xp += 10 + (p.roofStars.length === 5 ? 30 : 0);
         }
       } else if (event === "claim") {
         const m = missions.find((x) => x.id === value);
@@ -924,6 +957,8 @@ export class CommunityCore {
         playMedal: this.playMedals.earned(id, r.id),
         race: r.race_result ? JSON.parse(r.race_result) : undefined,
         score: r.score,
+        earnedXp:
+          r.score > 0 ? Math.min(20, Math.max(1, Math.ceil(r.score / 50))) : 0,
         won: !!r.target && r.score > r.targetScore,
         profile: this.privateProfile(id),
         verified: true,
@@ -934,7 +969,7 @@ export class CommunityCore {
       r.status !== "started" ||
       at - r.started > 86400000 ||
       (r.version !== rulesVersion(r.game) &&
-        !(r.game === "swarm" && r.version === 1)) ||
+        !(r.game === "swarm" && [1, 2].includes(r.version))) ||
       data.replay?.version !== r.version
     )
       throw Error("This round has expired. Start a new round.");
@@ -1000,10 +1035,16 @@ export class CommunityCore {
         for (const fish of result.outdoor.catches) catchFish(p, fish);
       if (result.outdoor && "made" in result.outdoor)
         scoreHoops(p, result.outdoor.made);
-      const welcome = completeWelcomeRound(p);
-      const invite = p.rounds === 0 ? this.payInvite(id, p, at) : null;
-      p.rounds++;
-      p.xp += 20;
+      const welcome =
+        r.game === "coast" && result.score > 0 && completeWelcomeRound(p);
+      const invite =
+        p.rounds === 0 && result.score > 0 ? this.payInvite(id, p, at) : null;
+      if (result.score > 0) p.rounds++;
+      const earnedXp =
+        result.score > 0
+          ? Math.min(20, Math.max(1, Math.ceil(result.score / 50)))
+          : 0;
+      p.xp += earnedXp;
       if (!result.race?.novice)
         p.best[r.game] = Math.max(p.best[r.game], result.score);
       this.save(id, p, { at });
@@ -1014,6 +1055,7 @@ export class CommunityCore {
         verified: true,
         ranked,
         welcome,
+        earnedXp,
         xpTokens: Math.floor(p.xp / 100) - Math.floor(xpBefore / 100),
         invite,
         race,
@@ -1552,6 +1594,7 @@ export class CommunityCore {
       for (const f of this.playtests(id)) this.files.removePlaytest(f.path);
       for (const table of [
         "season_xp",
+        "adult_confirmations",
         "medal_email_outbox",
         "medal_rewards",
         "notification_preferences",

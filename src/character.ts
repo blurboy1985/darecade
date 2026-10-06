@@ -47,6 +47,7 @@ export type Look = {
   body?: number;
   clothing?: number;
   hair?: number;
+  baseHair?: number;
   pet?: number;
   accessory?: number;
 };
@@ -474,7 +475,7 @@ export function applyLook(
         look.eye
           ? ["#db779f", "#865035", "#328cca", "#469267", "#8763bd"][look.eye]
           : ["#ce558e", "#805135", "#3a9c79", "#3694cc", "#cf922c"][
-              (look.skin + (look.hair ?? 0)) % 5
+              (look.skin + (look.baseHair ?? look.hair ?? 0)) % 5
             ],
       );
     }
@@ -514,6 +515,7 @@ export function applyLook(
   a.model.traverse((o) => {
     if (o instanceof T.Mesh) {
       o.visible = o.name === "Mitten" || shown.has(o.name);
+      if (o.name === "Hat_Wizard") o.position.y = -0.1 / CHARACTER_SCALE;
       if (o.userData.outline) o.userData.selected = o.visible;
       if (o.name === "Mitten") o.material = mat(skin);
     }
@@ -603,7 +605,7 @@ export function applyLook(
   for (const part of a.hat.children) {
     part.position.x *= 1.85;
     part.position.z *= 1.85;
-    part.position.y += 0.04;
+    part.position.y -= 0.09;
     part.scale.x *= 1.85;
     part.scale.z *= 1.85;
     part.scale.y *= 1.25;
@@ -630,7 +632,7 @@ export function applyLook(
   }
   buildHair(
     a.hat,
-    a.look.hair!,
+    a.look.baseHair ?? a.look.hair!,
     !!(
       look.hat ||
       wear ||
@@ -641,12 +643,20 @@ export function applyLook(
     ),
   );
   buildMouth(a.hat, skin);
-  if (!look.hat) buildClassHead(a.hat, a.look.clothing!);
-  if (hair.beard) buildBeard(a.hat, hair.color);
+  const seatHeadwear = (build: (group: T.Group) => void) => {
+    const group = new T.Group();
+    build(group);
+    const bounds = new T.Box3().setFromObject(group);
+    if (!bounds.isEmpty() && bounds.min.y > 1.7) group.position.y = 1.7 - bounds.min.y;
+    a.hat.add(group);
+  };
+  if (!look.hat && !wear && !gear && headSet < 0)
+    seatHeadwear((group) => buildClassHead(group, a.look.clothing!));
+  if (hair.beard && !wear && !gear) buildBeard(a.hat, hair.color);
   if (hair.hood && !look.hat) buildHood(a.hat);
   // Wardrobe headgear sits under an earned hat's slot: the earned hat wins.
-  if (headSet >= 0 && !look.hat) legendaryHead(a.hat, headSet);
-  else if (gear && !look.hat) buildHeadgear(a.hat, gear);
+  if (headSet >= 0 && !look.hat) seatHeadwear((group) => legendaryHead(group, headSet));
+  else if (gear && !look.hat) seatHeadwear((group) => buildHeadgear(group, gear));
   if (previous.accessory !== a.look.accessory || !a.magic) {
     disposeMagic(a.magic);
     a.magic = buildMagic(a.extras, a.look.accessory!);
@@ -853,6 +863,11 @@ export function animateDetails(
   // The older clip bends the whole root toward Kopi. Keep the larger KayKit
   // head upright while crouching so its face does not intersect the cat.
   a.spine.rotation.x = mode === "pet" ? -0.25 : 0;
+  if (mode === "stretch") {
+    a.left.rotation.z = -2.7;
+    a.right.rotation.z = 2.7;
+    a.spine.rotation.z = Math.sin(t * 1.2) * 0.12;
+  }
   if (mode === "read") {
     a.head.rotation.x = 0.22;
     a.left.rotation.x = a.right.rotation.x = -0.9;
@@ -942,7 +957,10 @@ function poseSkin(a: Avatar, mode: string, time = 0, reduced = false) {
   // as the thighs come forward to keep seats, swings and the slide aligned.
   a.model.position.set(
     breathing * 0.012,
-    0.28 * seated + bellHop + stepLift + breathing * 0.018,
+    (mode === "swing" ? 0.36 : 0.28) * seated +
+      bellHop +
+      stepLift +
+      breathing * 0.018,
     -0.22 * seated +
       (mode === "bell"
         ? 0.28

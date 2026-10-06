@@ -128,8 +128,15 @@ for (const fps of [144, 60, 30, 6, 2]) {
     );
   });
 }
-test("race clock runs without throttle and ends at the existing 120s limit with a valid replay", () => {
-  const h = harness([0, 0, 0, 0, -1, -1]);
+test("race clock waits for GO, then keeps running after releasing throttle", () => {
+  const input: Input = [0, 0, 0, 0, -1, -1];
+  const h = harness(input);
+  h.frame(6000);
+  assert.equal(h.sim.ticks, 0);
+  input[1] = 1;
+  h.frame(6100);
+  input[1] = 0;
+  h.h.last = 1000;
   for (let frame = 1; frame <= 721; frame++) h.frame(1000 + (frame * 1000) / 6);
   assert.equal(h.sim.ticks, 7200);
   assert.equal(h.sim.ended, true);

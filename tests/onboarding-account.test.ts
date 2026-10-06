@@ -60,18 +60,20 @@ test("initial consent keeps the short summary outside the expandable full notice
     "trusted adult",
   ])
     assert.ok(summary.includes(detail), detail);
+  assert.match(account, /name="over13" required/);
   assert.match(
     account,
-    /\$\{privacySummary\}<details class="account-details privacy-details"><summary>Full privacy notice · storage &amp; retention<\/summary>\$\{privacyNotice\(\)\}<\/details><form id="consent-form">/,
+    /<summary>Privacy notice<\/summary>\$\{privacySummary\}\$\{privacyNotice\(\)\}/,
   );
+  assert.doesNotMatch(account, /name="month"|name="year"/);
   const checkbox = account.match(
     /<input type="checkbox" name="consent"[^>]*>/,
   )?.[0];
   assert.ok(checkbox);
   assert.match(checkbox, /required/);
   assert.doesNotMatch(checkbox, /checked/);
-  assert.match(account, /id="decline"/);
-  assert.match(account, /No profile was created/);
+  assert.match(account, /name="consent" required/);
+  assert.match(account, /if \(!form.reportValidity\(\)\) return/);
 });
 
 test("optional character saving stays skippable with concise email and code steps", () => {

@@ -152,6 +152,10 @@ const handler = async (req, res) => {
         respond(signed.me);
         return;
       }
+      if (req.method === "GET" && url.pathname === "/api/auth/session") {
+        respond(player ? community.privateProfile(player) : null);
+        return;
+      }
       if (!player) {
         res.writeHead(401, { "Content-Type": "application/json" });
         res.end(
@@ -220,6 +224,10 @@ const handler = async (req, res) => {
         respond({ ok: true });
         return;
       }
+      if (req.method === "POST" && url.pathname === "/api/auth/adult") {
+        respond(community.confirmAdult(player, data));
+        return;
+      }
       if (req.method === "GET" && url.pathname === "/api/auth/me") {
         respond(community.privateProfile(player));
         return;
@@ -269,7 +277,11 @@ const handler = async (req, res) => {
         return;
       }
       if (req.method === "POST" && url.pathname === "/api/friends") {
-        respond(data.target ? community.acceptFriend(player,data.target) : community.saveFriend(player, data.name));
+        respond(
+          data.target
+            ? community.acceptFriend(player, data.target)
+            : community.saveFriend(player, data.name),
+        );
         return;
       }
       if (req.method === "POST" && url.pathname === "/api/dares") {
@@ -277,7 +289,8 @@ const handler = async (req, res) => {
         return;
       }
       if (req.method === "POST" && url.pathname === "/api/moderate") {
-        respond(community.moderate(player,data.target,data.action)); return;
+        respond(community.moderate(player, data.target, data.action));
+        return;
       }
       if (req.method === "POST" && url.pathname === "/api/report") {
         respond(community.report(player, data.target, data.reason));

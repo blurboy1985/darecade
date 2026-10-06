@@ -1,4 +1,5 @@
 import { CoastRace, RACE_TICKS, FIRST_RACE_TICKS } from "./racing.ts";
+import { StarFlightV2 } from "../src/star-flight-v2.ts";
 import { HopRun, StarFlight, type EndReason } from "../src/action-games.ts";
 export type { EndReason } from "../src/action-games.ts";
 import { FishingRound, HoopsRound } from "./outdoor.ts";
@@ -7,7 +8,7 @@ export const RULES_VERSION = 1;
 /** 3: winding route and five seeded items. 2: three laps on the old loop. */
 export const COAST_RULES_VERSION = 3;
 export const rulesVersion = (game: string) =>
-  game === "coast" ? COAST_RULES_VERSION : game === "swarm" ? 2 : RULES_VERSION;
+  game === "coast" ? COAST_RULES_VERSION : game === "swarm" ? 3 : RULES_VERSION;
 export const TICK_RATE = 60;
 /** Brick Bash: the Big Brick arrives at this second, or once the wall is gone. */
 export const BRICK_BOSS_AT = 35;
@@ -51,7 +52,7 @@ export class Simulation {
   guard = 0;
 
   race: CoastRace | null;
-  action: HopRun | StarFlight | null;
+  action: HopRun | StarFlight | StarFlightV2 | null;
   outdoor: HoopsRound | FishingRound | null;
   id: string;
   constructor(id: string, seed = 314159, version = rulesVersion(id)) {
@@ -80,9 +81,14 @@ export class Simulation {
       id === "hop"
         ? new HopRun()
         : id === "swarm"
-          ? new StarFlight(version >= 2)
+          ? version === 2
+            ? new StarFlightV2()
+            : new StarFlight(version >= 3)
           : null;
-    if (this.action instanceof StarFlight) {
+    if (
+      this.action instanceof StarFlight ||
+      this.action instanceof StarFlightV2
+    ) {
       this.action.seed = this.seed;
       this.action.needsInput = version === 1 && seed < 0;
     }
@@ -133,7 +139,11 @@ export class Simulation {
       this.paddle += Math.max(-6.5, Math.min(6.5, px - this.paddle));
     let ax = dx,
       ay = dy;
-    if (this.action instanceof StarFlight && px >= 0) {
+    if (
+      (this.action instanceof StarFlight ||
+        this.action instanceof StarFlightV2) &&
+      px >= 0
+    ) {
       ax = Math.max(-1, Math.min(1, (px - this.action.x) / 4.1667));
       ay = Math.max(-1, Math.min(1, (py - this.action.y) / 4.1667));
     }
@@ -148,7 +158,10 @@ export class Simulation {
       }
     } else
       for (let i = 0; i < 4 && !this.ended; i++) {
-        if (this.action instanceof StarFlight)
+        if (
+          this.action instanceof StarFlight ||
+          this.action instanceof StarFlightV2
+        )
           this.action.tick(
             1 / 240,
             ax / length,
@@ -162,7 +175,15 @@ export class Simulation {
           if (this.action.ended) this.end(this.action.endReason);
         }
       }
-    if (this.ticks >= 3600) this.end("time");
+    if (
+      this.ticks >=
+      (this.id === "swarm" &&
+      this.action instanceof StarFlight &&
+      this.action.modern
+        ? 7200
+        : 3600)
+    )
+      this.end("time");
   }
   end(reason: EndReason = "") {
     // The first cause stands when two fall on the same tick.
@@ -364,14 +385,26 @@ export function replayRun(game: string, seed: number, replay: Replay) {
   if (
     !replay ||
     (replay.version !== rulesVersion(game) &&
-      !(game === "swarm" && replay.version === 1)) ||
+      !(game === "swarm" && [1, 2].includes(replay.version))) ||
     !Number.isInteger(replay.ticks) ||
     replay.ticks < 1 ||
     replay.ticks >
-      (game === "coast" ? (seed < 0 ? FIRST_RACE_TICKS : RACE_TICKS) : 3600) ||
+      (game === "coast"
+        ? seed < 0
+          ? FIRST_RACE_TICKS
+          : RACE_TICKS
+        : game === "swarm" && replay.version >= 3
+          ? 7200
+          : 3600) ||
     !Array.isArray(replay.events) ||
     replay.events.length >
-      (game === "coast" ? (seed < 0 ? FIRST_RACE_TICKS : RACE_TICKS) : 3600)
+      (game === "coast"
+        ? seed < 0
+          ? FIRST_RACE_TICKS
+          : RACE_TICKS
+        : game === "swarm" && replay.version >= 3
+          ? 7200
+          : 3600)
   )
     throw Error("Invalid replay.");
   let previous = -1;
@@ -407,7 +440,7 @@ export function replayRun(game: string, seed: number, replay: Replay) {
       input = replay.events[cursor++].slice(1) as Input;
     const paddle = sim.paddle;
     const ship =
-      sim.action instanceof StarFlight
+      sim.action instanceof StarFlight || sim.action instanceof StarFlightV2
         ? { x: sim.action.x, y: sim.action.y }
         : null;
     sim.advance(input);

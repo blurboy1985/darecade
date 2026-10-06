@@ -14,6 +14,7 @@ export type Profile = {
   name: string;
   account: null | { email: string; created: number; eligibleAt: number };
   ageBand: string;
+  purchasesConfirmed?: boolean;
   privacyVersion: string;
   progress: Save;
   season?: SeasonProgress | null;
@@ -220,15 +221,16 @@ function codeForm(
 }
 export async function ensureAccount(): Promise<Profile> {
   config = await api<Config>("auth/config");
-  try {
-    const p = await api<Profile>("auth/me");
-    acceptProfile(p);
-    return p;
-  } catch {}
+  const existing = await api<Profile | null>("auth/session");
+  if (existing) {
+    acceptProfile(existing);
+    return existing;
+  }
   return new Promise((resolve) => {
     const { d, host } = shell(false);
+    d.classList.add("welcome-consent");
     const welcome = () => {
-      host.innerHTML = `<span class="eyebrow">BEFORE YOU PLAY</span><h2>When were you born?</h2><p>We check your birth month and year, then discard them.</p><form id="age-form"><div class="age-fields"><label>Birth month<select name="month" required><option value="">Choose month</option>${["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].map((m, i) => `<option value="${i + 1}">${m}</option>`).join("")}</select></label><label>Birth year<input name="year" inputmode="numeric" type="number" min="1900" max="${new Date(config.now).getUTCFullYear()}" placeholder="Year" required></label></div><button class="primary">Continue →</button><p role="status"></p></form><button class="secondary" id="existing-account">I have an account</button>`;
+      host.innerHTML = `<span class="eyebrow">BEFORE YOU PLAY</span><h2>Welcome to Play Simi</h2><p>A cosy neighbourhood for ages 13 and older.</p><form id="consent-form"><label class="consent-choice"><input type="checkbox" name="over13" required> I'm 13 or older</label><label class="consent-choice"><input type="checkbox" name="consent" required> I understand how my information is used and agree to the privacy notice.</label><details class="account-details privacy-details"><summary>Privacy notice</summary>${privacySummary}${privacyNotice()}</details><button class="primary">Agree & play →</button><p role="status"></p></form><button class="secondary" id="existing-account">I have an account</button>`;
       host.querySelector("#existing-account")!.addEventListener("click", () =>
         emailForm(host, "auth/login-code", {
           back: welcome,
@@ -240,51 +242,22 @@ export async function ensureAccount(): Promise<Profile> {
       );
       host.querySelector("form")!.addEventListener("submit", async (e) => {
         e.preventDefault();
-        const form = e.currentTarget as HTMLFormElement,
-          values = new FormData(form);
-        let month = Number(values.get("month")),
-          year = Number(values.get("year"));
+        const form = e.currentTarget as HTMLFormElement;
+        if (!form.reportValidity()) return;
         const button = form.querySelector("button")!;
         button.disabled = true;
         try {
-          await api("auth/check", { month, year });
-          host.innerHTML = `<span class="eyebrow">BEFORE YOU JOIN</span><h2>Your play. Your privacy.</h2>${privacySummary}<details class="account-details privacy-details"><summary>Full privacy notice · storage &amp; retention</summary>${privacyNotice()}</details><form id="consent-form"><label class="consent-choice"><input type="checkbox" name="consent" required> I understand how my information is used and agree.</label><button class="primary">Agree & play →</button><p role="status"></p></form><button class="secondary" id="decline">I don’t agree</button>`;
-          host.querySelector("#decline")!.addEventListener("click", () => {
-            month = 0;
-            year = 0;
-            host.innerHTML =
-              "<h2>That is your choice.</h2><p>No profile was created. You can close this page.</p>";
+          const p = await api<Profile>("auth/join", {
+            over13: true,
+            consent: true,
+            privacyVersion: config.privacyVersion,
           });
-          host.querySelector("form")!.addEventListener("submit", async (ev) => {
-            ev.preventDefault();
-            const b = host.querySelector<HTMLButtonElement>("button")!;
-            b.disabled = true;
-            try {
-              const p = await api<Profile>("auth/join", {
-                month,
-                year,
-                consent: true,
-                privacyVersion: config.privacyVersion,
-              });
-              month = 0;
-              year = 0;
-              acceptProfile(p);
-              d.close();
-              resolve(p);
-            } catch (err) {
-              host.querySelector("[role=status]")!.textContent = (
-                err as Error
-              ).message;
-              b.disabled = false;
-            }
-          });
+          acceptProfile(p);
+          d.close();
+          resolve(p);
         } catch (error) {
-          month = 0;
-          year = 0;
-          form.reset();
-          host.querySelector("[role=status]")!.textContent = (
-            error as Error
-          ).message;
+          host.querySelector("[role=status]")!.textContent =
+            error instanceof Error ? error.message : "Please try again.";
           button.disabled = false;
         }
       });
@@ -292,6 +265,7 @@ export async function ensureAccount(): Promise<Profile> {
     welcome();
   });
 }
+
 /**
  * create opens the email step directly for a guest. guided marks it as the
  * second step of the first-race setup. onSaved runs once the guest's

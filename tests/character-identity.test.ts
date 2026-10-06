@@ -18,6 +18,7 @@ test("stable guest IDs cover all starter shapes, skin tones and bright palettes"
   for (const [i, look] of looks.entries()) {
     assert.deepEqual(look, seededLook(`guest-${i}`));
     assert.ok(canWear("hair", look.hair, fresh(), 0));
+    assert.equal(look.baseHair, look.hair);
     assert.deepEqual(
       normalise({ ...fresh(), ...look }, fresh()).hair,
       look.hair,

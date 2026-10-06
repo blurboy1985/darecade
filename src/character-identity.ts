@@ -14,6 +14,7 @@ export function seededLook(id: string) {
     body: (seed >>> 8) % 2,
     clothing: (seed >>> 9) % 8,
     hair: HAIR_START + ((seed >>> 7) % HAIR_COUNT),
+    baseHair: HAIR_START + ((seed >>> 7) % HAIR_COUNT),
     hat: 0,
     pet: 0,
     accessory: 0,

@@ -1,3 +1,4 @@
+import { JumpInput, isJumpKey } from "./jump-input";
 import { bindJoystick, joystickMarkup } from "./joystick";
 import { avatarPortrait } from "./avatar-portraits";
 import type { Look } from "./character";
@@ -42,6 +43,7 @@ export class ArcadeGame extends Simulation {
   private shownBonus = 0;
   private avatar?: HTMLImageElement;
   private countdown = 0;
+  private jumpInput = new JumpInput();
   /** Optional cosmetic hook for visual effects; never affects the simulation. */
   onFx: ((event: FxEvent, amount: number) => void) | null = null;
   onTime: ((secondsLeft: number) => void) | null = null;
@@ -71,7 +73,7 @@ export class ArcadeGame extends Simulation {
     this.coarse =
       matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
     const info = games[id];
-    container.innerHTML = `<div class="game-stats"><span class="stat-pill score-pill"><small>SCORE</small><b id="run-score">0</b></span><span id="run-state">READY</span><span class="stat-pill time-pill"><small>TIME</small><b id="run-time">60</b></span></div><div class="game-screen"><div class="game-pops" aria-hidden="true"></div><canvas width="440" height="440" aria-label="${id === "noodle" ? "Noodle Run: use arrow keys or swipe to eat dumplings" : "Brick Bash: drag or use left and right arrows to move the paddle"}" tabindex="0"></canvas><div class="game-cover" id="game-cover"><span class="eyebrow">READY?</span><h3>${id === "noodle" ? "Follow your appetite." : "Make a little noise."}</h3><p>${id === "noodle" ? "Eat dumplings. Grow your noodle.<br>Watch the walls and your own tail." : "Bounce the ball. Break every brick.<br>You have three chances."}</p><button class="primary" id="start-game">PLAY <span>▶</span></button></div></div><div class="game-controls"><span>${id === "noodle" ? "Arrow keys / WASD · swipe to turn" : "← → / A D · drag to move"}</span><button class="text-button" id="pause-game" disabled>Pause</button></div><div class="game-touch">${joystickMarkup(id === "noodle" ? "Turn" : "Move")}<button class="touch-action" data-touch-action>${id === "hop" ? "JUMP" : id === "swarm" ? "FIRE" : "GO"}</button></div>`;
+    container.innerHTML = `<div class="game-stats"><span class="stat-pill score-pill"><small>SCORE</small><b id="run-score">0</b></span><span id="run-state">READY</span><span class="stat-pill time-pill"><small>TIME</small><b id="run-time">${id === "swarm" ? 120 : 60}</b></span></div><div class="game-screen"><div class="game-pops" aria-hidden="true"></div><canvas width="440" height="440" aria-label="${id === "noodle" ? "Noodle Run: use arrow keys or swipe to eat dumplings" : "Brick Bash: drag or use left and right arrows to move the paddle"}" tabindex="0"></canvas><div class="game-cover" id="game-cover"><span class="eyebrow">READY?</span><h3>${id === "noodle" ? "Follow your appetite." : "Make a little noise."}</h3><p>${id === "noodle" ? "Eat dumplings. Grow your noodle.<br>Watch the walls and your own tail." : "Bounce the ball. Break every brick.<br>You have three chances."}</p><button class="primary" id="start-game">PLAY <span>▶</span></button></div></div><div class="game-controls"><span>${id === "noodle" ? "Arrow keys / WASD · swipe to turn" : "← → / A D · drag to move"}</span><button class="text-button" id="pause-game" disabled>Pause</button></div><div class="game-touch">${joystickMarkup(id === "noodle" ? "Turn" : "Move")}<button class="touch-action" data-touch-action>${id === "hop" ? "JUMP" : id === "swarm" ? "FIRE" : "GO"}</button></div>`;
     this.canvas = container.querySelector("canvas")!;
     this.ctx = this.canvas.getContext("2d")!;
     this.canvas.setAttribute("aria-label", `${info.name}: ${info.controls}`);
@@ -85,6 +87,7 @@ export class ArcadeGame extends Simulation {
         hop: "JUMP to leap",
         swarm: "Joystick to fly · auto-fire",
       }[id];
+    container.dataset.controls = id;
     this.stick = bindJoystick(
       container.querySelector<HTMLElement>("[data-joystick]")!,
       (x, y) => {
@@ -142,7 +145,7 @@ export class ArcadeGame extends Simulation {
       this.onFx?.("start", 0);
       (container.querySelector("#pause-game") as HTMLButtonElement).disabled =
         false;
-      this.canvas.focus({preventScroll:true});
+      this.canvas.focus({ preventScroll: true });
       this.sound("start");
     });
     container
@@ -172,7 +175,7 @@ export class ArcadeGame extends Simulation {
   }
   turn(dir: string) {
     if (!this.started || this.paused || this.ended) return;
-    if (this.id === "hop" && dir === "up") this.input[3] = 1;
+    if (this.id === "hop" && dir === "up") this.jumpInput.press();
     else this.input[2] = ["up", "right", "down", "left"].indexOf(dir);
     this.begin();
   }
@@ -180,6 +183,7 @@ export class ArcadeGame extends Simulation {
   private begin() {
     if (!this.waiting || !this.started || this.paused || this.ended) return;
     this.waiting = false;
+    if (this.id === "noodle") this.accumulator = -1.2;
     this.container.querySelector("#run-state")!.textContent = this.status();
   }
   private startPrompt() {
@@ -225,7 +229,7 @@ export class ArcadeGame extends Simulation {
   }
   private keyDown = (e: KeyboardEvent) => {
     const k = e.key.toLowerCase();
-    if (this.id === "hop" && [" ", "arrowup", "w"].includes(k)) {
+    if (this.id === "hop" && (isJumpKey(k) || ["arrowup", "w"].includes(k))) {
       e.preventDefault();
       if (!e.repeat) this.turn("up");
       return;
@@ -458,6 +462,8 @@ export class ArcadeGame extends Simulation {
           Number(this.keys.has("s") || this.keys.has("arrowdown")) -
             Number(this.keys.has("w") || this.keys.has("arrowup")) ||
           this.touchAxis.y;
+        if (this.action instanceof HopRun)
+          this.input[3] = Number(this.jumpInput.take(this.action.height <= 0));
         const stamp = JSON.stringify(this.input);
         if (stamp !== this.previous) {
           this.events.push([this.ticks, ...this.input]);
@@ -470,7 +476,10 @@ export class ArcadeGame extends Simulation {
         this.accumulator -= 1 / 60;
       }
       if (this.score !== this.shownScore) this.popScore(now);
-      const left = Math.max(0, Math.ceil(60 - this.elapsed));
+      const left = Math.max(
+        0,
+        Math.ceil((this.id === "swarm" ? 120 : 60) - this.elapsed),
+      );
       const time = this.container.querySelector("#run-time")!;
       if (time.textContent !== String(left)) {
         time.textContent = String(left);
@@ -607,15 +616,15 @@ export class ArcadeGame extends Simulation {
       // The paddle glows while wide and blinks after a bomb.
       const half = this.paddleHalf - 4;
       if (this.guard <= 0 || Math.sin(time * 40) > 0) {
-        c.fillStyle = this.wide > 0 ? "#8ff0c8" : "#dceabf";
+        c.fillStyle = this.wide > 0 ? "#086b50" : "#153b68";
         c.beginPath();
-        c.roundRect(this.paddle - half, 412, half * 2, 10, 5);
+        c.roundRect(this.paddle - half, 409, half * 2, 14, 5);
         c.fill();
         if (this.avatar)
           c.drawImage(this.avatar, this.paddle - 14, 390, 28, 28);
       }
       for (const ball of [this.ball, ...this.extra]) {
-        c.fillStyle = ball === this.ball ? "#ffdab0" : "#ffb3d1";
+        c.fillStyle = ball === this.ball ? "#e04f21" : "#743ac2";
         c.beginPath();
         c.arc(ball.x, ball.y, 7, 0, Math.PI * 2);
         c.fill();

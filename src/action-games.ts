@@ -221,10 +221,11 @@ export class HopRun {
   }
 }
 
-/** Version 2 adds participation, finite shields and escalating aimed waves. */
+/** Version 3: gentle warm-up, timed shields and 30/60/90-second patterns. */
 export class StarFlight extends LegacyStarFlight {
   modern: boolean;
   shieldHits = 0;
+  private nextShield = 20;
   activeSeconds = 0;
   idleSeconds = 0;
   private previousX = 220;
@@ -232,10 +233,18 @@ export class StarFlight extends LegacyStarFlight {
   constructor(modern = true) {
     super();
     this.modern = modern;
-    if (modern) this.enemyFire = 4;
+    if (modern) this.enemyFire = 8;
   }
   get wave() {
-    return 1 + Math.floor(this.elapsed / 12);
+    return this.elapsed < 20
+      ? 1
+      : this.elapsed < 30
+        ? 2
+        : this.elapsed < 60
+          ? 3
+          : this.elapsed < 90
+            ? 4
+            : 5;
   }
   override tick(dt: number, dx = 0, dy = 0, input = false) {
     if (!this.modern) {
@@ -257,7 +266,7 @@ export class StarFlight extends LegacyStarFlight {
     if (!this.shield) this.shieldHits = 0;
     this.fire -= dt;
     // Auto-fire is earned by movement; an unattended ship cannot farm points.
-    if (this.fire <= 0 && this.activeSeconds > 0 && this.idleSeconds < 2) {
+    if (this.fire <= 0 && this.activeSeconds >= 1 && this.idleSeconds < 0.3) {
       this.bullets.push({ x: this.x, y: this.y - 18, enemy: false });
       this.fire = 0.17;
     }
@@ -272,9 +281,10 @@ export class StarFlight extends LegacyStarFlight {
         hp: 1,
         boss: false,
       });
-      this.spawn = Math.max(0.32, 1.25 - this.wave * 0.16);
+      this.spawn =
+        this.elapsed < 20 ? 2.8 : Math.max(0.4, 1.8 - this.wave * 0.24);
     }
-    if (this.elapsed >= 35 && !this.bossSpawned) {
+    if (this.elapsed >= 90 && !this.bossSpawned) {
       this.bossSpawned = true;
       this.enemies.push({
         x: 220,
@@ -291,14 +301,14 @@ export class StarFlight extends LegacyStarFlight {
         25,
         Math.min(415, e.origin + Math.sin(e.phase) * (e.boss ? 140 : 25)),
       );
-      if (!e.boss) e.y += (42 + this.wave * 9) * dt;
+      if (!e.boss) e.y += (this.elapsed < 20 ? 22 : 30 + this.wave * 8) * dt;
     }
     this.enemyFire -= dt;
     if (this.enemyFire <= 0) {
       for (const e of this.enemies
         .filter((e) => e.y > 0 && e.y < 240)
-        .slice(-Math.min(6, this.wave + 1))) {
-        const speed = 80 + this.wave * 18,
+        .slice(-(this.elapsed < 20 ? 1 : Math.min(6, this.wave)))) {
+        const speed = this.elapsed < 20 ? 55 : 70 + this.wave * 20,
           aim = Math.atan2(this.y - e.y, this.x - e.x);
         const spread = e.boss
           ? e.hp < 15
@@ -316,7 +326,8 @@ export class StarFlight extends LegacyStarFlight {
             vy: Math.sin(aim + offset) * speed,
           });
       }
-      this.enemyFire = Math.max(0.55, 1.9 - this.wave * 0.22);
+      this.enemyFire =
+        this.elapsed < 20 ? 4 : Math.max(0.65, 2.4 - this.wave * 0.3);
     }
     for (const b of this.bullets) {
       b.x += (b.vx || 0) * dt;
@@ -337,9 +348,8 @@ export class StarFlight extends LegacyStarFlight {
           b.y = -50;
           e.hp--;
           if (!e.hp) {
-            if (this.idleSeconds < 2) this.score += e.boss ? 250 : 20;
-            if (this.score > 0 && this.score % 100 === 0)
-              this.pickups.push({ x: e.x, y: e.y });
+            if (this.activeSeconds >= 1 && this.idleSeconds < 0.3)
+              this.score += e.boss ? 250 : 20;
           }
         }
       }
@@ -352,10 +362,14 @@ export class StarFlight extends LegacyStarFlight {
         this.hit();
         if (!e.boss) e.hp = 0;
       }
+    if (this.elapsed >= this.nextShield) {
+      this.pickups.push({ x: this.x, y: Math.max(140, this.y - 90) });
+      this.nextShield += 22;
+    }
     for (const p of this.pickups) {
       p.y += 75 * dt;
       if (Math.hypot(p.x - this.x, p.y - this.y) < 25) {
-        this.shield = 8;
+        this.shield = 25;
         this.shieldHits = 2;
         p.y = 500;
       }
@@ -368,7 +382,7 @@ export class StarFlight extends LegacyStarFlight {
     if (this.idleSeconds >= 12) {
       this.ended = true;
       this.endReason = "idle";
-    } else if (this.elapsed >= 60) {
+    } else if (this.elapsed >= 120) {
       this.ended = true;
       this.endReason = "time";
     }
@@ -395,20 +409,20 @@ export class StarFlight extends LegacyStarFlight {
   override draw(c: CanvasRenderingContext2D, avatar?: CanvasImageSource) {
     super.draw(c);
     if (avatar) c.drawImage(avatar, this.x - 13, this.y - 20, 26, 28);
-    c.font = "bold 13px sans-serif";
+    c.font = "bold 22px sans-serif";
     c.textAlign = "left";
     c.fillStyle = "#294d63";
     const boss = this.enemies.find((e) => e.boss);
     c.fillText(
       boss ? `BOSS · PHASE ${boss.hp < 15 ? 2 : 1}` : `WAVE ${this.wave}`,
       14,
-      22,
+      28,
     );
     if (this.shield > 0)
       c.fillText(
         `SHIELD · ${this.shieldHits} hits · ${Math.ceil(this.shield)}s`,
         14,
-        42,
+        54,
       );
   }
 }

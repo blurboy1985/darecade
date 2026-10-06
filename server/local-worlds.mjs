@@ -131,6 +131,10 @@ export class LocalWorlds {
       this.store.heartbeat(id, { ...p, connection: name });
       p.saved = Date.now();
     }
-    return { ...world.snapshot(id, new Map(), true), world: name };
+    return {
+      ...world.snapshot(id, new Map(), true),
+      world: name,
+      transport: "poll",
+    };
   }
 }

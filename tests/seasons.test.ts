@@ -295,8 +295,8 @@ test("season targets reject old run IDs and dares across all paths but preserve 
       ...result,
     });
     assert.equal(first.profile.progress.xp, retry.profile.progress.xp);
-    assert.equal(first.profile.season.xp, 55);
-    assert.equal(retry.profile.season.xp, 55);
+    assert.equal(first.profile.season.xp, 1);
+    assert.equal(retry.profile.season.xp, 1);
     assert.equal(
       s.store.db
         .prepare("SELECT target_run FROM runs WHERE id=?")
@@ -479,7 +479,7 @@ test("one operation timestamp keeps targets, results and invite XP on the same s
     assert.equal(s.community.privateProfile(guest).season.xp, 0);
     assert.equal(s.community.privateProfile(host).season.xp, 0);
     assert.equal(s.community.privateProfile(host).progress.xp, 30);
-    assert.equal(s.community.privateProfile(guest).progress.xp, 85);
+    assert.equal(s.community.privateProfile(guest).progress.xp, 31);
   } finally {
     s.close();
   }

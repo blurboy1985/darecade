@@ -28,7 +28,7 @@ function fixture() {
     store.db
       .prepare("INSERT INTO accounts VALUES(?,?,?)")
       .run(p.id, `${name}@example.test`, now - 2 * DAY);
-    store.db.prepare("UPDATE players SET name=? WHERE id=?").run(name,p.id);
+    store.db.prepare("UPDATE players SET name=? WHERE id=?").run(name, p.id);
     return p.id;
   }
   function score(
@@ -525,7 +525,7 @@ test("committed XP token counts are accurate and finish retries carry no repeat 
     const reward = s.community.progression(a, "gift", 0);
     assert.equal(reward.xpTokens, 1);
     const q = reward.progress;
-    q.xp = 190;
+    q.xp = 199;
     q.welcome = "new";
     q.rounds = 0;
     s.community.save(a, q);

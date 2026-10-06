@@ -139,6 +139,8 @@ export async function handleApi(
         ? withCookie({ saves: moved.saves }, moved.token)
         : json({ saves: moved.saves });
     }
+    if (method === "GET" && path === "/api/auth/session")
+      return json(id ? c.privateProfile(id) : null);
     if (!id)
       return json(
         { error: "Please complete the welcome check or sign in." },
@@ -173,6 +175,8 @@ export async function handleApi(
       rate("payment-status", 12, 60000, id);
       return json(await payments.reconcile(data.session, id));
     }
+    if (method === "POST" && path === "/api/auth/adult")
+      return json(c.confirmAdult(id, data));
     if (method === "GET" && path === "/api/auth/me")
       return json(c.privateProfile(id));
     if (method === "GET" && path === "/api/worlds")

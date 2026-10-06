@@ -27,7 +27,7 @@ export const games = {
   swarm: {
     name: "Star Swarm",
     tagline: "Star Swarm",
-    rule: "Dodge. Auto-fire. Boss at 0:35.",
+    rule: "Move to fire. Warm up, then dodge new waves. Boss at 1:30.",
     controls: "Arrows · WASD · drag",
     genre: "SHOOTER",
     description: "Blast the swarm.",
@@ -109,6 +109,7 @@ export const activities = {
     icon: "📖",
     description: "A quiet chapter downstairs.",
   },
+  stretch: { name: "Stretch", icon: "☀", description: "A gentle stretch." },
   nap: { name: "Have a nap", icon: "💤", description: "Rest in the shade." },
   pet: {
     name: "Play with a pet",
@@ -129,6 +130,7 @@ export const activityIds: readonly ActivityId[] = [
   "read",
   "nap",
   "pet",
+  "stretch",
 ];
 
 /** Says why a round stopped, so an early finish is never a mystery. */
@@ -139,7 +141,8 @@ export const activityIds: readonly ActivityId[] = [
 export const holdsForFirstMove = (game: GameId) =>
   game === "noodle" || game === "brick" || game === "swarm";
 export function endReasonText(game: GameId, reason: string, seconds: number) {
-  if (reason === "idle") return "Paused flying for too long. Move to keep your next run going.";
+  if (reason === "idle")
+    return "Paused flying for too long. Move to keep your next run going.";
   const after = `after ${Math.max(1, Math.round(seconds))}s`;
   if (game === "noodle") {
     if (reason === "wall")
@@ -158,7 +161,8 @@ export function endReasonText(game: GameId, reason: string, seconds: number) {
     return `You lost all 3 lives ${after}. Keep the paddle under the ball.`;
   if (reason === "lives") return `Out of lives ${after}.`;
   if (reason === "cleared") return "Wall and Big Brick cleared!";
-  if (reason === "time") return "Time! You lasted the full 60 seconds.";
+  if (reason === "time")
+    return `Time! You lasted the full ${game === "swarm" ? 120 : 60} seconds.`;
   return "";
 }
 export function formatScore(game: GameId, score: number) {

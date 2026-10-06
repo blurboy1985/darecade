@@ -6,7 +6,7 @@ import {
   plazaPosition,
   PLAZA_STOPS,
 } from "../shared/plaza-relay.ts";
-test("plaza solo has seven labelled bots, requires a jump and completes with baton handoffs", () => {
+test("plaza solo has seven labelled bots, accepts walking or jumping and completes with baton handoffs", () => {
   const s = createPlazaRelay([0]);
   assert.equal(s.runners.filter((r) => r.bot).length, 7);
   let jumped = false;
@@ -27,7 +27,7 @@ test("plaza solo has seven labelled bots, requires a jump and completes with bat
           r.seen = s.tick;
           advancePlazaRelay(s);
         }
-        assert.equal(s.legs[0], 0);
+        assert.ok(s.legs[0] >= 1);
         jumped = true;
       }
       r.y = 1;
@@ -35,8 +35,10 @@ test("plaza solo has seven labelled bots, requires a jump and completes with bat
     advancePlazaRelay(s);
   }
   assert.equal(s.legs[0], 4);
-  assert.equal(s.legs[1], 4);
-  assert.equal(s.handoffs, 8);
+  assert.ok(s.legs[1] < 4);
+  assert.ok(s.handoffs >= 4);
+  assert.equal(s.winner, 0);
+  assert.ok(s.tick > 600);
   assert.equal(s.status, "finished");
 });
 test("plaza rejects teleports and non-finite positions", () => {

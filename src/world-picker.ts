@@ -23,6 +23,7 @@ export class WorldPicker {
     private current: () => string,
     private switchWorld: (world: string) => Promise<void>,
     private notify: (message: string) => void,
+    private visibleCount?: () => number,
   ) {
     body.addEventListener("click", (event) => {
       if (!(event.target instanceof Element)) return;
@@ -79,7 +80,7 @@ export class WorldPicker {
       const worldOptions = data.worlds
         .map((world) => {
           const here = world.id === current;
-          return `<option value="${escape(world.id)}" ${here || full.has(world.id) ? "disabled" : ""}>${escape(world.code)} · ${world.count}/30${here ? " · Here" : full.has(world.id) ? " · Full" : ""}</option>`;
+          return `<option value="${escape(world.id)}" ${here || full.has(world.id) ? "disabled" : ""}>${escape(world.code)} · ${here && this.visibleCount ? this.visibleCount() : world.count}/30${here ? " · Here" : full.has(world.id) ? " · Full" : ""}</option>`;
         })
         .join("");
       const friendOptions = data.neighbours

@@ -142,5 +142,59 @@
   font-size: 14px;
   line-height: 1.5;
 }
-.danger { background:#a4323f; color:#fff; border:2px solid #7c2330; border-radius:12px; padding:12px 18px; font:inherit; font-weight:700; cursor:pointer; }
-.account-dialog #account-cancel { margin-top:18px; }
+.danger {
+  background: #a4323f;
+  color: #fff;
+  border: 2px solid #7c2330;
+  border-radius: 12px;
+  padding: 12px 18px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.account-dialog #account-cancel {
+  margin-top: 18px;
+}
+
+.welcome-consent {
+  padding: 22px;
+}
+.welcome-consent .privacy-details[open] {
+  max-height: 24dvh;
+  overflow-y: auto;
+}
+.welcome-consent form > .primary {
+  position: sticky;
+  bottom: 0;
+  width: 100%;
+}
+@media (max-height: 500px) {
+  .welcome-consent {
+    padding: 12px 22px;
+    width: min(760px, calc(100vw - 24px));
+  }
+  .welcome-consent h2 {
+    font-size: 22px;
+    margin: 4px 0;
+  }
+  .welcome-consent p {
+    margin: 4px 0;
+  }
+  .welcome-consent .consent-choice {
+    margin: 5px 0;
+    min-height: 44px;
+    align-items: center;
+  }
+  .welcome-consent #account-content {
+    display: grid;
+    grid-template-columns: 1fr 1.4fr;
+    column-gap: 20px;
+  }
+  .welcome-consent form {
+    grid-column: 2;
+    grid-row: 1 / span 5;
+  }
+  .welcome-consent .privacy-details[open] {
+    max-height: 55px;
+  }
+}

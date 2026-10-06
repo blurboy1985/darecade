@@ -77,7 +77,7 @@ export class RelayRooms {
     return this.db
       .prepare(
         `SELECT p.name,p.look FROM players p JOIN profiles f ON f.player=p.id
-      WHERE p.id=? AND f.consent=? AND f.age_band IN('13–17','18+')
+      WHERE p.id=? AND f.consent=? AND f.age_band IN('13+','13–17','18+')
       AND NOT EXISTS(SELECT 1 FROM suspensions WHERE player=p.id)
       AND EXISTS(SELECT 1 FROM sessions WHERE player=p.id AND token=? AND expires>?)`,
       )

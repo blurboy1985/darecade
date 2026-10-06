@@ -219,6 +219,7 @@ window.addEventListener("session-expired", () => {
 });
 type SavedRound = {
   playMedal?: number;
+  earnedXp?: number;
   race?: RaceResult & { newBest: boolean };
   welcome?: boolean;
   invite?: { xp: number } | null;
@@ -260,6 +261,7 @@ const preferenceKeys = [
   "hat",
   "clothing",
   "hair",
+  "baseHair",
   "pet",
   "accessory",
   "sound",
@@ -316,7 +318,7 @@ let activeMinutes = 0;
 const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
   <div id="world"></div><div class="vignette" aria-hidden="true"></div>
-  <header class="topbar"><a class="brand" href="#" aria-label="Play Simi home"><span class="brand-mark">p<span>★</span></span><span>PLAY SIMI</span></a><div class="location-pill"><span class="status-dot"></span><span id="current-world">Joining…</span><span class="divider"></span><span id="sgt-clock">SGT</span></div><div class="world-utilities"><button id="camera-toggle" data-action="toggle-camera" aria-label="Switch to third-person view" aria-pressed="false">${icon("camera")}<span>Third person</span></button></div><span class="demo-tag" role="status">Connecting…</span></header>
+  <header class="topbar"><a class="brand" href="#" aria-label="Play Simi home"><span class="brand-mark">p<span>★</span></span><span>PLAY SIMI</span></a><div class="location-pill"><span class="status-dot"></span><span id="current-world">Joining…</span><span class="divider"></span><span id="sgt-clock">SGT</span></div><div class="world-utilities"><button id="camera-toggle" data-action="toggle-camera" aria-label="Switch to third-person view" aria-pressed="false">${icon("camera")}<span>Third person</span></button></div><button class="demo-tag" data-open="neighbours" aria-label="Friends and nearby players">Connecting…</button></header>
   <main class="hud"><section class="welcome-panel" aria-label="Welcome"></section>
   <div class="move-hint"><kbd>W</kbd><span><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><p>Move <i>·</i> tap to walk</p></div>
   <div id="joystick" class="joystick touch-stick" role="group" aria-label="Drag to walk"><span></span></div>
@@ -324,7 +326,7 @@ app.innerHTML = `
   </main>
   <footer class="bottom-bar"><div class="profile"><span class="avatar-icon" id="avatar-icon"><i></i></span><span><strong id="player-name">New neighbour</strong><span id="player-account" hidden>Guest mode</span><small id="medal-points">0 MEDALS</small><span id="level-label">LEVEL 1</span><span class="xp-track"><i id="xp-fill"></i></span></span></div><nav class="dock lobby-dock" aria-label="Main actions"><button class="selected" data-open="arcade" data-main-action>${icon("game")}<span>Play</span></button><button data-open="wardrobe" data-main-action>${icon("shirt")}<span>My look</span></button><button class="phone-more" data-open="phone-menu" data-main-action>${icon("settings")}<span>Menu</span></button></nav><span class="footer-note" id="quality-note">3D WORLD</span></footer>
   <div class="world-actions"><button class="round-action" id="quick-emotes-toggle" aria-label="Favourite emotes" aria-expanded="false">${icon("smile")}</button><button id="lobby-jump" class="round-action" data-emote="jump" aria-label="Jump">↑</button></div>
-  <div id="quick-emotes" hidden><button data-emote="wave" aria-label="Wave">👋</button><button data-emote="dance" aria-label="Dance">♫</button><button data-emote="cheer" aria-label="Cheer">🙌</button><button data-emote="victory" aria-label="Victory">✌</button><button data-open="emotes">More</button></div>
+  <div id="quick-emotes"><button data-emote="wave" aria-label="Wave">👋</button><button data-emote="dance" aria-label="Dance">♫</button><button data-emote="cheer" aria-label="Cheer">🙌</button><button data-emote="victory" aria-label="Victory">✌</button><button data-open="emotes">More</button></div>
   <div class="world-zoom"><button data-action="zoom-out" aria-label="Zoom out">−</button><button data-action="zoom-in" aria-label="Zoom in">+</button></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <dialog id="modal"><div class="modal-top"><span class="eyebrow" id="modal-kicker">THE NEIGHBOURHOOD</span><button id="close-modal" class="close-button" aria-label="Close panel">×</button></div><div id="modal-body"></div></dialog>
@@ -442,9 +444,9 @@ function collect(id: string) {
     progress("rooftop", roof);
     beep("coin");
     toast(
-      save.roofStars.length === 3
+      save.roofStars.length === 5
         ? "Rooftop hunt complete! +30 bonus XP"
-        : `Rooftop star ${save.roofStars.length}/3 · +10 XP`,
+        : `Rooftop star ${save.roofStars.length}/5 · +10 XP`,
     );
     persist();
     return;
@@ -585,7 +587,7 @@ function cards() {
       '<span class="jetty-deck"></span><span class="jetty-rod"></span><span class="jetty-fish">◀</span><b>CAST & CHILL</b>',
   };
   const choices = { items: playIds, page: gamePage, total: 1 };
-  return `<div class="game-grid compact-games">${choices.items.map((id) => `<button class="game-card ${id}" data-game="${id}"><div class="game-art ${id}-art">${art[id]}</div><span class="eyebrow">${games[id].genre}</span><h3>${games[id].name}</h3><div><span>${id === "coast" ? "3 laps" : id === "hoops" ? "10 shots" : "60s"} · BEST ${id === "coast" && save.coastRecord.timeTicks ? raceTime(save.coastRecord.timeTicks) : formatScore(id, shared?.self.best[id] ?? 0)}</span>${icon("arrow")}</div></button>`).join("")}</div>${pager(choices.page, choices.total, "games")}`;
+  return `<div class="game-grid compact-games">${choices.items.map((id) => `<button class="game-card ${id}" data-game="${id}"><div class="game-art ${id}-art">${art[id]}</div><span class="eyebrow">${games[id].genre}</span><h3>${games[id].name}</h3><div><span>${id === "coast" ? "3 laps" : id === "hoops" ? "10 shots" : id === "swarm" ? "120s" : "60s"} · BEST ${id === "coast" && save.coastRecord.timeTicks ? raceTime(save.coastRecord.timeTicks) : formatScore(id, shared?.self.best[id] ?? 0)}</span>${icon("arrow")}</div></button>`).join("")}</div>${pager(choices.page, choices.total, "games")}`;
 }
 function questTabs(active: string) {
   return `<nav class="quest-tabs" aria-label="Quests & rankings">${[
@@ -833,7 +835,21 @@ function open(id: string) {
     body.innerHTML = `<h2>Neighbourhood</h2><label class="field-label" for="destination">Choose a spot</label><select class="destination-select" id="destination">${spots.map((spot) => `<option value="${spot.id}">${spot.name}</option>`).join("")}</select><div class="simple-menu"><button class="menu-choice" data-action="go-destination" data-main-action>${icon("pin")}<span>Go there</span>${icon("arrow")}</button><button class="menu-choice" data-open="surroundings" data-main-action>${icon("star")}<span>Play outside</span>${icon("arrow")}</button><button class="menu-choice" data-open="worlds" data-main-action>${icon("compass")}<span>Change world</span>${icon("arrow")}</button></div>`;
   } else if (id === "quests") {
     const choices = pageChoices(missions, questPage);
-    body.innerHTML = `${questTabs("quests")}<h2>Quests</h2><button class="secondary" data-open="shop">Daily free hat</button><div class="hunt-panel"><span class="big-coin">★</span><div><h3>Daily rooftop hunt</h3><p>Jump from green pads to the arcade, shop and dragon. Jump again for each star.</p><strong>${save.roofDay === singaporeDay() ? save.roofStars.length : 0}/3 · +10 XP per star, +30 for all three</strong><small>Resets at midnight SGT</small><div class="button-row">${rooftops.map((r) => `<button class="secondary" data-rooftop="${r.id}">${r.name}</button>`).join("")}</div></div></div><div class="hunt-panel"><span class="big-coin">✦</span><div><h3>Pixel hunt</h3><p>Find 5 coins → Sprout hat + 50 XP</p><strong>${save.coins.length} / 5</strong></div></div>${is2d ? '<p class="fine-print">Needs 3D. Or grab a free Sprout hat at the Mama Shop.</p>' : ""}<div class="mission-list">${choices.items
+    body.innerHTML = `${questTabs("quests")}<h2>Quests</h2><button class="secondary" data-open="shop">Daily free hat</button><div class="hunt-panel"><span class="big-coin">★</span><div><h3>Rooftop hunt: ${save.roofDay === singaporeDay() ? save.roofStars.length : 0}/5 stars</h3><p>Jump from green pads to the arcade, shop and dragon. Jump again for each star.</p><strong>${save.roofDay === singaporeDay() ? save.roofStars.length : 0}/5 · +10 XP per star, +30 for all five</strong><small>Resets at midnight SGT</small><div class="button-row">${rooftops
+      .slice(0, 3)
+      .map(
+        (r) =>
+          `<button class="secondary" data-rooftop="${r.id}">${r.name}</button>`,
+      )
+      .join("")}<details><summary>More stars</summary>${rooftops
+      .slice(3)
+      .map(
+        (r) =>
+          `<button class="secondary" data-rooftop="${r.id}">${r.name}</button>`,
+      )
+      .join(
+        "",
+      )}</details></div></div></div><div class="hunt-panel"><span class="big-coin">✦</span><div><h3>Pixel hunt</h3><p>Find 5 coins → Sprout hat + 50 XP</p><strong>${save.coins.length} / 5</strong></div></div>${is2d ? '<p class="fine-print">Needs 3D. Or grab a free Sprout hat at the Mama Shop.</p>' : ""}<div class="mission-list">${choices.items
       .map((m) => {
         const progress = missionProgress(save, m.id);
         return `<div><span class="mission-check ${progress >= m.total ? "complete" : ""}">${progress >= m.total ? "✓" : icon("star")}</span><span><strong>${m.name}</strong><small>${m.detail} · ${progress}/${m.total}</small></span><button data-claim="${m.id}" ${progress < m.total || save.claims.includes(m.id) ? "disabled" : ""}>${save.claims.includes(m.id) ? "CLAIMED ✓" : progress >= m.total ? `CLAIM +${m.xp} XP` : `${progress}/${m.total} · +${m.xp} XP`}</button></div>`;
@@ -1073,8 +1089,7 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
     game = null;
     flushStyleTokens();
     updateMusic();
-    body.innerHTML =
-      '<h2 data-saving-score>Saving your round…</h2><button class="secondary" data-open="arcade">Back to Games</button>';
+    body.innerHTML = `<h2 class="result-score" data-saving-score>${formatScore(id, score)}<small>GAME SCORE</small></h2><p>Saving your round…</p><button class="secondary" data-open="arcade">Back to Games</button>`;
     const render = async () => {
       try {
         let result: Finished | null = null;
@@ -1100,16 +1115,17 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
           (reward || !save.nameChosen || save.welcome !== "complete");
         body.innerHTML =
           id === "coast"
-            ? `<h2 class="result-score">${result?.race?.finished ? raceTime(result.race.timeTicks) : formatScore(id, score)}<small>YOUR THREE-LAP TIME</small></h2>${result?.race?.newBest ? '<p class="new-best">New personal best!</p>' : ""}${raceComparison(score, today, !!result?.ranked)}<p class="fine-print">Races allow 180 seconds until your first finish, including Play again; standard races then allow 120 seconds.</p><div class="button-row"><button class="primary" data-replay="coast">Play again</button><button class="secondary" data-action="setup-look">${setup ? "Create my name & look" : "Edit my name & look"}</button></div><details class="race-extra-details"><summary>Race details & rewards</summary>${raceSummary}<p>${result ? `Verified round · +20 XP${reward ? " · Lilac cap unlocked · +35 bonus XP" : ""}` : "Offline · this round was not saved."}</p>${!currentProfile?.account ? '<button class="secondary" data-account>Save with email</button>' : ""}</details>`
+            ? `<h2 class="result-score">${result?.race ? raceTime(result.race.timeTicks) : formatScore(id, score)}<small>${result?.race?.finished ? "YOUR THREE-LAP TIME" : "TIME · RACE INCOMPLETE"}</small></h2>${result?.race?.newBest ? '<p class="new-best">New personal best!</p>' : ""}<div class="round-breakdown"><span>XP<strong>+${result?.earnedXp ?? 0}</strong></span><span>Place<strong>${result?.race?.place ?? "—"} / 8</strong></span></div>${reward ? '<p class="result-encouragement">Lilac cap unlocked · +35 bonus XP</p>' : ""}<div class="button-row"><button class="primary" data-replay="coast">Play again</button><button class="secondary" data-action="setup-look">${setup ? "Create my name & look" : "Edit my name & look"}</button></div><details class="race-extra-details"><summary>Race details & leaderboard</summary>${raceSummary}${raceComparison(score, today, !!result?.ranked)}<p class="fine-print">Races allow 180 seconds until your first finish; standard races then allow 120 seconds.</p><p>${result ? `Verified round · +${result.earnedXp ?? 0} XP${reward ? " · Lilac cap unlocked · +35 bonus XP" : ""}` : "Offline · this round was not saved."}</p>${!currentProfile?.account ? '<button class="secondary" data-account>Save with email</button>' : ""}</details>`
             : '<div class="result-star">' +
               icon(target ? "trophy" : "game") +
               '</div><h2 class="result-score">' +
-              (score > 0
-                ? formatScore(id, score)
-                : "Try again — you’ve got this!") +
+              formatScore(id, score) +
               "<small>" +
               "GAME SCORE" +
               "</small></h2>" +
+              (score === 0
+                ? '<p class="result-encouragement">Try again — you’ve got this!</p>'
+                : "") +
               (endNote
                 ? '<p class="round-end-note" role="status">' + endNote + "</p>"
                 : "") +
@@ -1200,7 +1216,7 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
             .querySelector(".result-score")!
             .insertAdjacentHTML(
               "afterend",
-              `<div class="round-breakdown"><span>XP<strong>${result ? "+20" : "0"}</strong></span><span>Rank<strong>${result?.ranked && standing ? "#" + standing.rank : result?.ranked ? "—" : "Guest"}</strong><small>${standingNote(!!result?.ranked, standing, score, formatScore(id, standing?.score ?? 0))}</small></span></div>`,
+              `<div class="round-breakdown"><span>XP<strong>${result ? `+${result.earnedXp ?? 0}` : "0"}</strong></span><span>Rank<strong>${result?.ranked && standing ? "#" + standing.rank : result?.ranked ? "—" : "Guest"}</strong><small>${standingNote(!!result?.ranked, standing, score, formatScore(id, standing?.score ?? 0))}</small></span></div>`,
             );
         beep(score > target ? "win" : "finish");
       } catch (error) {
@@ -1351,6 +1367,8 @@ document.addEventListener("click", (e) => {
   if (b.dataset.trySlot && b.dataset.tryIndex !== undefined) {
     const slot = b.dataset.trySlot as WardrobeTab;
     const index = Number(b.dataset.tryIndex);
+    if (b.getAttribute("aria-pressed") === "true" && !tryingLook) return;
+    b.setAttribute("aria-pressed", "true");
     tryingLook = {
       look: itemLook(slot, index, save),
       name: itemName(slot, index),
@@ -1365,6 +1383,7 @@ document.addEventListener("click", (e) => {
         hat: save.hat,
         clothing: save.clothing,
         hair: save.hair,
+        baseHair: save.baseHair,
         pet: save.pet,
         accessory: save.accessory,
       };
@@ -1375,9 +1394,11 @@ document.addEventListener("click", (e) => {
       beep("equip");
     }
     const scroll = body.querySelector(".wardrobe-controls")?.scrollTop ?? 0;
+    const outerScroll = body.scrollTop;
     open("wardrobe");
     const controls = body.querySelector(".wardrobe-controls");
     if (controls) controls.scrollTop = scroll;
+    body.scrollTop = outerScroll;
     body
       .querySelector<HTMLButtonElement>(
         `[data-try-slot="${slot}"][data-try-index="${index}"]`,
@@ -1605,7 +1626,7 @@ document.addEventListener("click", (e) => {
   }
   if (b.dataset.emote) {
     const id = b.dataset.emote;
-    document.querySelector<HTMLElement>("#quick-emotes")!.hidden = true;
+    document.querySelector<HTMLElement>("#quick-emotes")!.hidden = false;
     document
       .querySelector("#quick-emotes-toggle")!
       .setAttribute("aria-expanded", "false");
@@ -1613,10 +1634,11 @@ document.addEventListener("click", (e) => {
       toast("Jump on a green pad, then jump again to collect a rooftop star.");
       localStorage.setItem("playsimi-jump-hint", "1");
     }
-    close();
+    if (modal.open) close();
+    resumeFromIdle();
     if (is2d) emote2d = { id, until: Date.now() + 4000 };
     else world?.act(id);
-    if (id !== "jump") toast(is2d ? "Emote ready." : "Emote sent.");
+
     return;
   }
   if (b.dataset.action) {
@@ -1877,17 +1899,20 @@ document.addEventListener("click", (e) => {
       toast("Take your time. You’re right where you need to be.");
   }
 });
-document.querySelector("#close-modal")!.addEventListener("click", () => {
-  const fromGame = modal.classList.contains("game-modal");
+function requestPanelClose() {
+  if (game instanceof RacingGame && game.requestQuit()) return;
   close();
-  if (fromGame) {
-    gamePage = 0;
-    open("arcade");
-  }
+}
+const panelClose = document.querySelector("#close-modal")!;
+panelClose.addEventListener("click", requestPanelClose);
+panelClose.addEventListener("pointerdown", (event) => {
+  if ((event as PointerEvent).pointerType !== "touch") return;
+  event.preventDefault();
+  requestPanelClose();
 });
 modal.addEventListener("cancel", (e) => {
   e.preventDefault();
-  if (game instanceof RacingGame) game.pause();
+  if (game instanceof RacingGame && game.requestQuit()) return;
   else close();
 });
 modal.addEventListener("click", (e) => {
@@ -2088,11 +2113,15 @@ function renderCameraUI() {
   document.body.classList.toggle("third-person", third && !is2d);
   (document.querySelector("#camera-hint") as HTMLElement).hidden =
     !third || is2d;
-  document.querySelector("#camera-hint")!.textContent = world?.inspectedId
-    ? "Drag to orbit · scroll / pinch to zoom · Esc to return"
-    : document.body.classList.contains("is-interacting")
-      ? "Drag to look · scroll / pinch to zoom · Esc to stop"
-      : "Drag to look · scroll / pinch to zoom · WASD to walk";
+  document.querySelector("#camera-hint")!.textContent = matchMedia(
+    "(pointer: coarse)",
+  ).matches
+    ? "Drag to look · pinch to zoom"
+    : world?.inspectedId
+      ? "Drag to orbit · scroll / pinch to zoom · Esc to return"
+      : document.body.classList.contains("is-interacting")
+        ? "Drag to look · scroll / pinch to zoom · Esc to stop"
+        : "Drag to look · scroll / pinch to zoom · WASD to walk";
 }
 document
   .querySelector(".hud")!
@@ -2233,8 +2262,8 @@ function renderAway() {
 function enterAway() {
   dismissInspector();
   save.away = true;
-  save.awayActivity = (["rest", "read", "nap", "pet"] as const)[
-    Math.floor(Math.random() * 4)
+  save.awayActivity = (["rest", "read", "nap", "pet", "stretch"] as const)[
+    Math.floor(Math.random() * 5)
   ];
   save.awaySince = Date.now();
   world?.setAway(true);
@@ -2244,6 +2273,9 @@ function enterAway() {
     "Your avatar is staying downstairs. Neighbours can challenge your saved scores.",
   );
 }
+window.addEventListener("world-jump", (event) => {
+  beep((event as CustomEvent).detail.pad ? "powerup" : "jump");
+});
 window.addEventListener("camera-change", () => {
   dismissInspector();
   renderCameraUI();
@@ -2910,7 +2942,11 @@ function renderWorldPresence() {
     navigator.onLine,
     world?.neighbours.length || residents.length,
   );
-  if (label.textContent !== text) label.textContent = text;
+  const display =
+    currentWorld && worldStatus === "connected"
+      ? `${worldCode(currentWorld)} · ${new Set([currentProfile?.id, ...liveNeighbours.map((p) => p.id)].filter(Boolean)).size}/30 · ${world?.neighbours.length || residents.length} neighbours`
+      : text;
+  if (label.textContent !== display) label.textContent = display;
 }
 const worldConnection = new WorldConnection(
   presenceData,
@@ -2954,6 +2990,10 @@ const worldPicker = new WorldPicker(
     await syncSocial();
   },
   toast,
+  () =>
+    new Set(
+      [currentProfile?.id, ...liveNeighbours.map((p) => p.id)].filter(Boolean),
+    ).size,
 );
 
 function firstRacePending() {
@@ -3095,3 +3135,8 @@ window.addEventListener("player-moderated", ((
   applyWorldPlayers();
   renderWorldPresence();
 }) as EventListener);
+
+document.addEventListener("contextmenu", (event) => {
+  if ((event.target as Element).closest("canvas, img, .hud"))
+    event.preventDefault();
+});
