@@ -1,9 +1,11 @@
 import { rooftops } from "./rooftops";
 import { mountPayments } from "./payments";
 import {
-  wardrobeCards,
-  starterOffer,
-  collectionDescription,
+  wardrobeBrowser,
+  wardrobeSections,
+  wardrobeFilters,
+  type WardrobeSection,
+  type WardrobeFilter,
   collectionLabels,
   tokenSummary,
   itemLook,
@@ -126,6 +128,9 @@ function icon(name: string) {
 const save = readSave();
 let world: LobbyWorld | null = null;
 let game: ArcadeGame | RacingGame | OutdoorGame | null = null;
+let wardrobeSection: WardrobeSection = "Outfits";
+let wardrobeFilter: WardrobeFilter = "All";
+let undoLook: NonNullable<TryOn>["look"] | null = null;
 let wardrobeTab: WardrobeTab = "clothing";
 let wardrobeCollection: Collection = "starter";
 let tryingLook: TryOn = null;
@@ -692,34 +697,7 @@ function open(id: string) {
       body.querySelector<HTMLDetailsElement>(".setup-more")?.open ?? false;
     const medals = shared?.self?.points ?? 0;
     const shown = tryingLook?.look ?? save;
-    const canEquip = tryingLook && wearable(shown, save, medals);
-    body.innerHTML = `<div class="wardrobe-layout"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${tryingLook ? "Trying on" : escapeText(nickname)}</strong><small>DRAG TO TURN</small><span class="look-caption">${tryingLook?.name ?? clothingNames[save.clothing]}</span><div class="try-actions" role="status">${tryingLook ? `<button class="primary" data-equip-look ${canEquip ? "" : "disabled"}>${canEquip ? "Equip look" : "Locked · preview only"}</button><button class="text-button" data-reset-look>Back to my look</button>` : "<span>Tap a card to try it on</span>"}</div></div><div class="wardrobe-controls">${setupGuide ? '<span class="eyebrow setup-step">STEP 1 OF 2 · NAME & LOOK</span>' : ""}${setupGuide ? "<h2>Create your driver</h2>" : `<span class="eyebrow">YOUR COLLECTION</span><h2>My look</h2><button class="secondary" data-open="support">Premium</button><div class="style-wallet"><strong>${tokenSummary(save)}</strong><small>Tokens buy looks. +1 per 100 XP, up to +3 daily from ranked medals.</small></div>`}<details class="look-identity" ${setupGuide ? "open" : ""}><summary>Name, girl or boy, colours & daily hats</summary><form id="nickname-form" novalidate><label class="field-label" for="nickname">NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" value="${escapeText(typed)}" minlength="2" maxlength="20" autocomplete="off" placeholder="Choose your nickname" aria-describedby="nickname-status" required><button class="secondary" type="submit">Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form><label class="field-label">CHARACTER</label><div class="body-options">${["Girl", "Boy"].map((label, i) => `<button data-body="${i}" class="${save.body === i ? "active" : ""}" aria-pressed="${save.body === i}">${label}</button>`).join("")}</div><label class="field-label">OUTFIT COLOUR</label><div class="swatches">${outfits.map((c, i) => `<button data-outfit="${i}" style="--swatch:${c}" class="${save.outfit === i ? "active" : ""}" aria-label="${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][i]} outfit" aria-pressed="${save.outfit === i}"></button>`).join("")}</div><p class="fine-print">Legendary outfits use their own signature colours.</p><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">DAILY HATS</label><div class="hat-options">${["No hat", "Bucket", "Cap", "Sprout"].map((n, i) => `<button data-hat="${i}" ${save.unlockedHats.includes(i) ? "" : "disabled"} aria-pressed="${save.hat === i}">${n}${save.unlockedHats.includes(i) ? "" : " · locked"}</button>`).join("")}</div></details>${setupGuide ? `<details class="setup-more" ${moreLooksOpen ? "open" : ""}><summary>More looks & hairstyles</summary>` : ""}<div class="look-tabs" aria-label="Wardrobe sections">${(
-      [
-        ["clothing", "Outfits"],
-        ["hair", "Head"],
-        ["pet", "Pets"],
-        ["accessory", "Magic"],
-        ["sets", "Sets"],
-      ] satisfies [WardrobeTab, string][]
-    )
-      .map(
-        ([key, label]) =>
-          `<button class="${wardrobeTab === key ? "active" : ""}" data-look-tab="${key}" aria-pressed="${wardrobeTab === key}">${label}</button>`,
-      )
-      .join("")}</div>${wardrobeTab === "hair" ? hatShelf(save) : ""}${
-      wardrobeTab === "sets"
-        ? '<h3>Legendary sets</h3><p class="collection-note">Premium sets. Buy one, or pay with Style tokens.</p>'
-        : `<div class="collection-tabs" aria-label="Collections">${Object.entries(
-            collectionLabels,
-          )
-            .map(
-              ([key, label]) =>
-                `<button data-collection="${key}" aria-pressed="${wardrobeCollection === key}" class="${wardrobeCollection === key ? "active" : ""}">${label}</button>`,
-            )
-            .join(
-              "",
-            )}</div><p class="collection-note">${collectionDescription(wardrobeCollection, save, medals)}</p>`
-    }${wardrobeTab === "sets" ? "" : starterOffer(wardrobeCollection, save)}${wardrobeCards(wardrobeTab, wardrobeCollection, save, medals, tryingLook)}<p class="fine-print">Cosmetic only. No gameplay advantage. Earn sets through play or check optional purchase availability.</p>${setupGuide ? "</details>" : ""}${setupGuide ? actionButton("setup-save", currentProfile?.account ? "Save & continue →" : "Next: save my character →") : actionButton("done-look", "Done")}</div></div>`;
+    body.innerHTML = `<div class="wardrobe-layout"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${tryingLook ? "Trying on" : escapeText(nickname)}</strong><small>DRAG TO TURN</small><span class="look-caption">${tryingLook?.name ?? clothingNames[save.clothing]}</span><div class="try-actions" role="status"><button class="secondary" data-undo-look ${undoLook ? "" : "disabled"}>Undo</button><button class="text-button" data-reset-look>Back to my look</button></div></div><div class="wardrobe-controls">${setupGuide ? '<span class="eyebrow setup-step">STEP 1 OF 2 · NAME & LOOK</span>' : ""}${setupGuide ? "<h2>Create your driver</h2>" : `<span class="eyebrow">YOUR COLLECTION</span><h2>My look</h2><div class="style-wallet"><strong>${tokenSummary(save)}</strong><small>Tokens buy looks. +1 per 100 XP, up to +3 daily from ranked medals.</small></div>`}<details class="look-identity" ${setupGuide ? "open" : ""}><summary>Name, girl or boy, colours & daily hats</summary><form id="nickname-form" novalidate><label class="field-label" for="nickname">NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" value="${escapeText(typed)}" minlength="2" maxlength="20" autocomplete="off" placeholder="Choose your nickname" aria-describedby="nickname-status" required><button class="secondary" type="submit">Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form><label class="field-label">CHARACTER</label><div class="body-options">${["Girl", "Boy"].map((label, i) => `<button data-body="${i}" class="${save.body === i ? "active" : ""}" aria-pressed="${save.body === i}">${label}</button>`).join("")}</div><label class="field-label">OUTFIT COLOUR</label><div class="swatches">${outfits.map((c, i) => `<button data-outfit="${i}" style="--swatch:${c}" class="${save.outfit === i ? "active" : ""}" aria-label="${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][i]} outfit" aria-pressed="${save.outfit === i}"></button>`).join("")}</div><p class="fine-print">Legendary outfits use their own signature colours.</p><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">DAILY HATS</label><div class="hat-options">${["No hat", "Bucket", "Cap", "Sprout"].map((n, i) => `<button data-hat="${i}" ${save.unlockedHats.includes(i) ? "" : "disabled"} aria-pressed="${save.hat === i}">${n}${save.unlockedHats.includes(i) ? "" : " · locked"}</button>`).join("")}</div></details>${setupGuide ? `<details class="setup-more" ${moreLooksOpen ? "open" : ""}><summary>More looks & hairstyles</summary>` : ""}<div class="look-tabs" aria-label="Wardrobe sections">${wardrobeSections.map((label) => `<button data-wardrobe-section="${label}" aria-pressed="${wardrobeSection === label}">${label}</button>`).join("")}<button data-open="support">Premium</button></div><div class="collection-tabs" aria-label="Filter looks">${wardrobeFilters.map((label) => `<button data-wardrobe-filter="${label}" aria-pressed="${wardrobeFilter === label}">${label}</button>`).join("")}</div>${wardrobeSection === "Hats" ? hatShelf(save) : ""}${wardrobeSection === "Capes & back" ? '<p class="fine-print">Capes include their matching outfit. Wings use the Magic slot.</p>' : ""}${wardrobeBrowser(wardrobeSection, wardrobeFilter, save, medals, tryingLook)}<p class="fine-print">Cosmetic only. No gameplay advantage. Earn sets through play or check optional purchase availability.</p>${setupGuide ? "</details>" : ""}${setupGuide ? actionButton("setup-save", currentProfile?.account ? "Save & continue →" : "Next: save my character →") : actionButton("done-look", "Done")}</div></div>`;
     const preview = body.querySelector<HTMLElement>(".character-preview")!;
     if (!is2d) {
       try {
@@ -1220,6 +1198,33 @@ document.addEventListener("click", (e) => {
     void worldPicker.join({ friend: b.dataset.joinFriend });
     return;
   }
+  if (b.dataset.wardrobeSection) {
+    const section = wardrobeSections.find(
+      (s) => s === b.dataset.wardrobeSection,
+    );
+    if (section) {
+      wardrobeSection = section;
+      open("wardrobe");
+    }
+    return;
+  }
+  if (b.dataset.wardrobeFilter) {
+    const filter = wardrobeFilters.find((s) => s === b.dataset.wardrobeFilter);
+    if (filter) {
+      wardrobeFilter = filter;
+      open("wardrobe");
+    }
+    return;
+  }
+  if (b.hasAttribute("data-undo-look") && undoLook) {
+    Object.assign(save, undoLook);
+    undoLook = null;
+    tryingLook = null;
+    persist();
+    world?.updateAvatar();
+    open("wardrobe");
+    return;
+  }
   if (b.dataset.lookTab) {
     if (
       !["clothing", "hair", "pet", "accessory", "sets"].includes(
@@ -1228,6 +1233,7 @@ document.addEventListener("click", (e) => {
     )
       return;
     wardrobeTab = b.dataset.lookTab as WardrobeTab;
+    wardrobeSection = wardrobeTab === "hair" ? "Hats" : wardrobeTab === "pet" ? "Pets" : wardrobeTab === "accessory" ? "Magic" : wardrobeTab === "sets" ? "Full sets" : "Outfits";
     open("wardrobe");
     return;
   }
@@ -1247,9 +1253,27 @@ document.addEventListener("click", (e) => {
       name: itemName(slot, index),
       image: `/wardrobe/${slot}-${index}.png`,
     };
-    const scroll = modal.scrollTop;
+    if (wearable(tryingLook.look, save, shared?.self?.points ?? 0)) {
+      undoLook = {
+        outfit: save.outfit,
+        skin: save.skin,
+        body: save.body,
+        hat: save.hat,
+        clothing: save.clothing,
+        hair: save.hair,
+        pet: save.pet,
+        accessory: save.accessory,
+      };
+      Object.assign(save, tryingLook.look);
+      tryingLook = null;
+      persist();
+      world?.updateAvatar();
+      beep("equip");
+    }
+    const scroll = body.querySelector(".wardrobe-controls")?.scrollTop ?? 0;
     open("wardrobe");
-    modal.scrollTop = scroll;
+    const controls = body.querySelector(".wardrobe-controls");
+    if (controls) controls.scrollTop = scroll;
     body
       .querySelector<HTMLButtonElement>(
         `[data-try-slot="${slot}"][data-try-index="${index}"]`,

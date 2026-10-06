@@ -199,6 +199,9 @@ function harness() {
     innerWidth: 1024,
     world: null,
     wardrobeTab: "clothing",
+    wardrobeSection: "Outfits",
+    wardrobeFilter: "All",
+    undoLook: null,
     wardrobeCollection: "starter",
     tryingLook: null,
     setupGuide: false,
@@ -313,8 +316,8 @@ test("menu pages stay compact; quests also expose the three rooftop routes", () 
 test("wardrobe renders previews before selection without equipping them", () => {
   const h = harness();
   const before = structuredClone(h.context.save);
-  for (const tab of ["clothing", "hair", "pet", "accessory", "sets"]) {
-    h.context.wardrobeTab = tab;
+  for (const tab of wardrobe.wardrobeSections) {
+    h.context.wardrobeSection = tab;
     h.run('open("wardrobe")');
     const html = h.body.innerHTML;
     const cards = [
@@ -323,9 +326,9 @@ test("wardrobe renders previews before selection without equipping them", () => 
     assert.ok(cards.length > 0, tab);
     for (const [card] of cards) {
       assert.match(card, /<img[^>]+src="\/wardrobe\//);
-      assert.match(card, /aria-label="Preview /);
+      assert.match(card, /aria-label="(?:Equip|Preview) /);
     }
-    assert.match(html, /Tap a card to try it on/);
+    assert.match(html, /data-undo-look/);
     assert.deepEqual(h.context.save, before);
   }
 });
@@ -528,13 +531,13 @@ test("My look, Head lists a claimed daily hat", () => {
   assert.equal(state.claimGift(h.context.save, 0), true);
   h.run('open("shop")');
   assert.match(h.body.innerHTML, /data-look-tab="hair">See it in My look/);
-  h.context.wardrobeTab = "hair";
+  h.context.wardrobeSection = "Hats";
   h.run('open("wardrobe")');
   assert.match(
     h.body.innerHTML,
     /class="hat-shelf"[\s\S]*The Kopitiam Bucket · wearing/,
   );
-  h.context.wardrobeTab = "clothing";
+  h.context.wardrobeSection = "Outfits";
   h.run('open("wardrobe")');
   assert.doesNotMatch(h.body.innerHTML, /class="hat-shelf"/);
 });
