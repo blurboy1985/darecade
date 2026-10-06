@@ -1,6 +1,6 @@
 # Play Simi mobile playtest release
 
-All eight phases are deployed at https://playsimi.danielquek.com. The final source integrates main at `2f0308a`, including its character, music, accepted-friend privacy, save retry and first-race improvements. Worker version: `36d5a56b-2de6-44f9-be11-504450925f0e`.
+All eight phases are deployed at https://playsimi.danielquek.com. The final source integrates main at `2f0308a`, including its character, music, accepted-friend privacy, save retry and first-race improvements. Worker version: `8a99bb47-90dc-4588-9bd6-0d0795f9f583`.
 
 ## Changes by phase
 
@@ -15,7 +15,7 @@ All eight phases are deployed at https://playsimi.danielquek.com. The final sour
 
 ## Verification
 
-- Integrated build: 443 tests passed, no skips, including browser fixtures. A subsequent targeted pass passed 19 checks after the final wardrobe-filter and daily-star refresh edits, adding one regression test.
+- Integrated build: 443 tests passed, no skips, including browser fixtures. A subsequent targeted pass passed 19 checks after the final wardrobe-filter and daily-star refresh edits, adding one regression test. Six viewport browser checks passed again after the final landscape joystick styling correction; native touch moved the normal avatar from x=0 to x=2.17 at 844 by 390.
 - Cloudflare integration: 14 passed. TypeScript/Vite build and Worker deployment succeeded. The build still reports its existing large-bundle advisory.
 - Production `/api/health` returned ready. SHA-256 matched all 15 JavaScript assets and five changed headwear images against the local build.
 - Chromium used actual 390 by 844 and 844 by 390 CSS viewports, plus desktop. Native browser touch events exercised pinch and arcade joystick controls. Additional automated fixtures cover 320 by 568.
