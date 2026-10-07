@@ -1,3 +1,8 @@
+import {
+  additionalThemes,
+  legacyDesigns,
+  type Design,
+} from "./style-catalog.ts";
 import { HAIR_START, HAIR_COUNT } from "./hair-catalog.ts";
 // Stable indices are shared by save validation, the wardrobe and all renderers.
 // Each slot is laid out as: original items, the first ten sets, later single
@@ -6,13 +11,14 @@ export const setStarts = { clothing: 24, hair: 28, pet: 26, accessory: 27 };
 export type LookSlot = keyof typeof setStarts;
 const firstSets = 10;
 export const extraCounts = { clothing: 0, hair: 9, pet: 6, accessory: 6 };
-type StyleSet = {
+export type StyleSet = {
   id: string;
   name: string;
   theme: string;
   color: string;
   accent: string;
-  tier: "Legendary" | "Premium";
+  tier: "Free" | "Legendary" | "Premium";
+  design: Design;
   cost: number;
   medals: number;
   rounds: number;
@@ -21,7 +27,7 @@ type StyleSet = {
   pet: string;
   magic: string;
 };
-export const legendarySets: StyleSet[] = [
+const originalSets = [
   {
     id: "solar",
     name: "Solar Sentinel",
@@ -263,6 +269,35 @@ export const legendarySets: StyleSet[] = [
     magic: "Fossil fireworks",
   },
 ];
+export const legendarySets: StyleSet[] = [
+  ...originalSets.map(
+    (set, i): StyleSet => ({
+      ...set,
+      tier: "Legendary",
+      design: legacyDesigns[i],
+    }),
+  ),
+  ...additionalThemes,
+];
+export const historicalSetCount = 16;
+export const setPriceSGD = 199;
+export type OutfitBody = 0 | 1;
+export const outfitBodyName = (body: number) => (body === 1 ? "Boy" : "Girl");
+export function outfitLook(index: number, body: number) {
+  const set = legendarySets[index];
+  const shape =
+    body === 1
+      ? set.design.motif % 2
+        ? 3
+        : 0
+      : [1, 4, 5, 6, 7][set.design.motif % 5];
+  return {
+    clothing: setItemIndex("clothing", index),
+    hair: setItemIndex("hair", index),
+    baseHair: HAIR_START + set.design.hairColour * 8 + shape,
+    hat: 0,
+  };
+}
 export type WardrobeProgress = {
   xp: number;
   medalTokens?: number;
@@ -287,8 +322,12 @@ export const slotSize = (slot: LookSlot) =>
   (slot === "hair" ? HAIR_COUNT : 0);
 /** Position of an item among the sets, or -1 for a single item. */
 export function setIndexFor(slot: LookSlot, index: number) {
-  if (slot === "hair" && index >= HAIR_START) return -1;
-  const i = index - setStarts[slot];
+  if (slot === "hair" && index >= HAIR_START && index < HAIR_START + HAIR_COUNT)
+    return -1;
+  const i =
+    index -
+    setStarts[slot] -
+    (slot === "hair" && index >= HAIR_START + HAIR_COUNT ? HAIR_COUNT : 0);
   if (i < 0 || index >= slotSize(slot)) return -1;
   if (i < firstSets) return i;
   return i < firstSets + extraCounts[slot] ? -1 : i - extraCounts[slot];
@@ -299,7 +338,10 @@ export function extraIndexFor(slot: LookSlot, index: number) {
   return i >= 0 && i < extraCounts[slot] ? i : -1;
 }
 export const setItemIndex = (slot: LookSlot, set: number) =>
-  setStarts[slot] + set + (set < firstSets ? 0 : extraCounts[slot]);
+  setStarts[slot] +
+  set +
+  (set < firstSets ? 0 : extraCounts[slot]) +
+  (slot === "hair" && set >= historicalSetCount ? HAIR_COUNT : 0);
 export const extraItemIndex = (slot: LookSlot, extra: number) =>
   setStarts[slot] + firstSets + extra;
 export function setForItem(slot: LookSlot, index: number) {
@@ -325,7 +367,7 @@ export function canWear(
   if (!Number.isInteger(index) || index < 0 || index >= slotSize(slot))
     return false;
   const set = setForItem(slot, index);
-  if (set) return ownsSet(p, set.id);
+  if (set) return set.tier === "Free" || ownsSet(p, set.id);
   return true; // Basic pieces are free; saved bundle ownership remains intact.
 }
 export function canRedeem(

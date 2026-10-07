@@ -1,11 +1,18 @@
 import { newHairNames } from "./hair-catalog.ts";
-import { legendarySets, slotSize, type LookSlot } from "./collections.ts";
+import {
+  legendarySets,
+  historicalSetCount,
+  slotSize,
+  type LookSlot,
+} from "./collections.ts";
 type SetPiece = "outfit" | "head" | "pet" | "magic";
 // Mirrors the slot layout in collections.ts: ten sets, later items, later sets.
 const later = (piece: SetPiece, extras: string[]) => [
   ...legendarySets.slice(0, 10).map((set) => set[piece]),
   ...extras,
-  ...legendarySets.slice(10).map((set) => set[piece]),
+  ...legendarySets
+    .slice(10, piece === "head" ? historicalSetCount : undefined)
+    .map((set) => set[piece]),
 ];
 // Shared by the renderer and server validation; indices remain stable for saved looks.
 // Each list keeps its first eight entries in their original order so saved
@@ -78,6 +85,7 @@ export const hairNames = [
     "Unicorn horn",
   ]),
   ...newHairNames,
+  ...legendarySets.slice(historicalSetCount).map((set) => set.head),
 ];
 export const petNames = [
   "No companion",

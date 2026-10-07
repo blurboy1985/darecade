@@ -12,6 +12,7 @@ import {
 } from "../src/character.ts";
 import { outfits, skins } from "../src/state.ts";
 import { buildMagic } from "../src/magic.ts";
+import { legendarySets, outfitLook } from "../src/collections.ts";
 import { appearanceLimits } from "../src/appearance.ts";
 import { WorldMotion } from "../src/world-motion.ts";
 
@@ -489,5 +490,38 @@ test("deferred rig updates preserve world-space poses under a turned parent", ()
     }
   } finally {
     disposeAvatar(a);
+  }
+});
+
+test("complete catalog outfits render both bodies with cached geometry and no legacy cape", () => {
+  const avatar = createAvatar(new T.Group(), 0, 0, outfits[0]);
+  try {
+    for (const [index] of legendarySets.entries()) {
+      for (const body of [0, 1]) {
+        const look = { outfit: 0, skin: 0, body, ...outfitLook(index, body) };
+        applyLook(avatar, look);
+        const bodyMesh = avatar.costume.children[0]?.children[0];
+        assert.ok(bodyMesh instanceof T.Mesh);
+        const geometry = bodyMesh.geometry;
+        assert.ok(
+          avatar.costume.children.length <= 3,
+          "No extra legacy costume group",
+        );
+        applyLook(avatar, look);
+        const repeated = avatar.costume.children[0]?.children[0];
+        assert.ok(repeated instanceof T.Mesh);
+        assert.equal(repeated.geometry, geometry);
+        assert.equal(avatar.model.getObjectByName("Cape")?.visible, false);
+        for (const mode of ["idle", "walk", "dance"]) {
+          animateDetails(avatar, 1.4, mode);
+          avatar.root.updateMatrixWorld(true);
+          avatar.root.traverse((object) =>
+            assert.ok(object.matrixWorld.elements.every(Number.isFinite)),
+          );
+        }
+      }
+    }
+  } finally {
+    disposeAvatar(avatar);
   }
 });

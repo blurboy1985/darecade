@@ -1,3 +1,5 @@
+import { costumeBody, costumeHead } from "./costume-design.ts";
+import type { Costume } from "./style-catalog.ts";
 import { resizeRenderer } from "./render-budget.ts";
 import { part, ball } from "./shapes.ts";
 import { identitySeed } from "./character-identity.ts";
@@ -18,7 +20,6 @@ import {
   rimMaterial,
 } from "./character-finish.ts";
 import { extraIndexFor, legendarySets, setIndexFor } from "./collections.ts";
-import { legendaryHead, legendaryBody } from "./legendary.ts";
 import * as T from "three";
 import { clone as cloneSkeleton } from "three/addons/utils/SkeletonUtils.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -188,24 +189,18 @@ const bodySets: [Family, Family, boolean][] = [
   ["blazer", "vest", false],
   ["explorer", "cardigan", false],
 ];
-const legendaryBodies: [Family, Family, boolean][] = [
-  ["blazer", "blazer", true],
-  ["vest", "vest", true],
-  ["blazer", "cardigan", true],
-  ["vest", "cardigan", true],
-  ["blazer", "blazer", false],
-  ["blazer", "blazer", true],
-  ["vest", "vest", true],
-  ["explorer", "blazer", true],
-  ["blazer", "vest", true],
-  ["cardigan", "vest", true],
-  ["cardigan", "cardigan", false],
-  ["vest", "explorer", false],
-  ["cardigan", "blazer", false],
-  ["vest", "cardigan", true],
-  ["vest", "vest", false],
-  ["cardigan", "explorer", false],
-];
+const costumeBodies: Record<Costume, [Family, Family, boolean]> = {
+  hero: ["blazer", "blazer", false],
+  fighter: ["vest", "explorer", false],
+  ranger: ["explorer", "explorer", false],
+  mage: ["blazer", "cardigan", false],
+  mecha: ["blazer", "blazer", false],
+  rogue: ["vest", "explorer", false],
+  royal: ["blazer", "cardigan", false],
+  idol: ["cardigan", "vest", false],
+  trainer: ["explorer", "explorer", false],
+  knight: ["blazer", "blazer", false],
+};
 const hairParts = {
   short: ["HairShort"],
   bob: ["Hair"],
@@ -490,7 +485,7 @@ export function applyLook(
   a.look = { body: 0, clothing: 0, hair: 0, pet: 0, accessory: 0, ...look };
   const boy = a.look.body === 1;
   const [top, legs, cape] = special
-    ? legendaryBodies[outfitSet]
+    ? costumeBodies[special.design.costume]
     : bodySets[a.look.clothing! % bodySets.length];
   const [hairName, wear, gear] =
     (a.look.hair! >= HAIR_START
@@ -551,13 +546,15 @@ export function applyLook(
     paint.jacket = primary;
     paint.cape = accent;
     paint.bottom = primary.clone().lerp(new T.Color("#20243a"), 0.45);
+    paint.shoes = accent.clone().lerp(new T.Color("#20243a"), 0.45);
+    paint.socks = primary;
   }
   for (const [name, value] of Object.entries(paint))
     a.materials.get(name)?.color.copy(value);
   a.costume.clear();
   // Set trim was sized for a broader chest; draw it in to this one.
   a.costume.scale.setScalar(0.82);
-  if (special) legendaryBody(a.costume, outfitSet);
+  if (special) costumeBody(a.costume, special, boy ? 1 : 0);
   const book = part(
     a.costume,
     "box",
@@ -579,7 +576,7 @@ export function applyLook(
     );
     collar.name = "CapeCollar";
   }
-  buildClassBody(a.costume, a.look.clothing!, !!special);
+  if (!special) buildClassBody(a.costume, a.look.clothing!, false);
   a.root.userData.equippedAt = null;
   delete a.root.userData.detailLevel;
   a.hat.clear();
@@ -641,7 +638,10 @@ export function applyLook(
       wear ||
       gear ||
       hair.hood ||
-      headSet >= 0 ||
+      (headSet >= 0 &&
+        ["mage", "royal", "knight", "ranger", "trainer"].includes(
+          legendarySets[headSet].design.costume,
+        )) ||
       (starter && ["staff", "bow", "cutlass"].includes(starter.prop))
     ),
   );
@@ -660,7 +660,7 @@ export function applyLook(
   if (hair.hood && !look.hat) buildHood(a.hat);
   // Wardrobe headgear sits under an earned hat's slot: the earned hat wins.
   if (headSet >= 0 && !look.hat)
-    seatHeadwear((group) => legendaryHead(group, headSet));
+    seatHeadwear((group) => costumeHead(group, legendarySets[headSet]));
   else if (gear && !look.hat)
     seatHeadwear((group) => buildHeadgear(group, gear));
   if (previous.accessory !== a.look.accessory || !a.magic) {
@@ -1235,17 +1235,31 @@ export function createCharacterPreview(
           : slot === "hair"
             ? [0, 1.75, 3.1, 1.68]
             : slot === "pet"
-              ? [0.4, 1.4, 5.0, 1.05]
-              : slot === "clothing"
-                ? [0, 1.35, 4, 1.02]
-                : [0.25, 1.5, 5.2, 1.15];
+              ? [0.85, 0.65, 2.6, 0.45]
+              : slot === "outfits"
+                ? [0, 1.35, 4.1, 1.1]
+                : slot === "clothing"
+                  ? [0, 1.35, 4, 1.02]
+                  : [0.25, 1.5, 5.2, 1.15];
       camera.position.set(x, y, z);
       camera.lookAt(x, aim, 0);
       camera.updateProjectionMatrix();
       applyLook(a, itemLook);
       a.root.rotation.y = 0.15;
-      a.root.visible = true;
+      a.root.visible = slot !== "pet";
       animateDetails(a, 1.4, "idle", true);
+      if (slot === "pet" && a.pet) {
+        const bounds = new T.Box3().setFromObject(a.pet.root);
+        const center = bounds.getCenter(new T.Vector3());
+        const size = bounds.getSize(new T.Vector3());
+        const distance =
+          (Math.max(size.y, size.x / camera.aspect) /
+            (2 * Math.tan(T.MathUtils.degToRad(camera.fov / 2)))) *
+            1.18 +
+          size.z / 2;
+        camera.position.set(center.x, center.y + 0.08, center.z + distance);
+        camera.lookAt(center);
+      }
       renderer.render(scene, camera);
       const image = await new Promise<string>((resolve, reject) =>
         renderer.domElement.toBlob((blob) => {

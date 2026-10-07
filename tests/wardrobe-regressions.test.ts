@@ -7,10 +7,10 @@ import {
   setItemIndex,
   canWear,
   canRedeem,
-  slotSize,
+  outfitLook,
 } from "../src/collections.ts";
 import { fresh } from "../src/state.ts";
-import { clothingNames, hairNames } from "../src/appearance.ts";
+import { hairNames } from "../src/appearance.ts";
 import {
   itemLook,
   wardrobeBrowser,
@@ -19,71 +19,95 @@ import {
   wardrobeItemState,
 } from "../src/wardrobe.ts";
 
-test("outfit and head previews use distinct current renders", () => {
-  for (const [slot, names] of [
-    ["clothing", clothingNames],
-    ["hair", hairNames],
-  ] as const) {
-    const seen = new Map<string, string>();
-    for (const [index, name] of names.entries()) {
+test("all catalog previews are present and distinct within each category", () => {
+  for (const slot of ["outfits", "pet", "accessory"] as const) {
+    const seen = new Set<string>();
+    const indices = legendarySets.flatMap((_, i) =>
+      slot === "outfits" ? [i * 2, i * 2 + 1] : [setItemIndex(slot, i)],
+    );
+    for (const index of indices) {
       const image = readFileSync(
         new URL(`../public/wardrobe/${slot}-${index}.png`, import.meta.url),
       );
       const hash = createHash("sha256").update(image).digest("hex");
-      assert.equal(seen.has(hash), false, `${name} repeats ${seen.get(hash)}`);
-      seen.set(hash, name);
+      assert.equal(
+        seen.has(hash),
+        false,
+        `${slot}-${index} repeats another image`,
+      );
+      seen.add(hash);
     }
   }
 });
 
-test("Mint twin tails is hair and replaces the saved base hairstyle", () => {
+test("saved hairstyles keep their indices but are not sold as outfits", () => {
   const save = fresh();
   const index = hairNames.indexOf("Mint twin tails");
   assert.equal(
     itemLook("hair", index, { ...save, baseHair: 53 }).baseHair,
     index,
   );
-  assert.match(
+  assert.doesNotMatch(
     wardrobeBrowser("Outfits", "Free", save, 0, null),
-    /Mint twin tails/,
+    /Mint twin tails|data-try-slot="hair"|data-try-slot="clothing"/,
   );
 });
 
-test("three sections and three exclusive tiers cover every item once", () => {
+test("each character sees 20 complete outfits, pets and spells in each tier", () => {
   assert.deepEqual(wardrobeSections, ["Outfits", "Pets", "Magic"]);
   assert.deepEqual(wardrobeFilters, ["Free", "Legendary", "Premium"]);
-  const seen = new Set<string>();
-  for (const section of wardrobeSections)
-    for (const tier of wardrobeFilters) {
-      const html = wardrobeBrowser(section, tier, fresh(), 0, null);
-      for (const match of html.matchAll(
-        /data-try-slot="([^"]+)" data-try-index="(\d+)"/g,
-      )) {
-        const key = `${match[1]}:${match[2]}`;
-        assert.equal(seen.has(key), false, key);
-        seen.add(key);
+  for (const body of [0, 1]) {
+    const seen = new Set<string>();
+    const p = { ...fresh(), body };
+    for (const section of wardrobeSections)
+      for (const tier of wardrobeFilters) {
+        const html = wardrobeBrowser(section, tier, p, 0, null);
+        const cards = [
+          ...html.matchAll(/data-try-slot="([^"]+)" data-try-index="(\d+)"/g),
+        ];
+        assert.equal(cards.length, 20, `${section} ${tier} body ${body}`);
+        for (const match of cards) {
+          const key = `${match[1]}:${match[2]}`;
+          assert.equal(seen.has(key), false, key);
+          seen.add(key);
+          if (section === "Outfits") assert.equal(Number(match[2]) % 2, body);
+        }
+        if (tier === "Free")
+          assert.doesNotMatch(html, /data-redeem-set|data-buy-set/);
+        if (tier === "Premium") assert.doesNotMatch(html, /data-redeem-set/);
       }
-      if (tier === "Free")
-        assert.doesNotMatch(html, /data-redeem-set|data-buy-set/);
-      if (tier === "Premium") assert.match(html, /No premium/);
-    }
-  assert.equal(
-    seen.size,
-    ["clothing", "hair", "pet", "accessory"].reduce(
-      (sum, slot) => sum + slotSize(slot),
-      0,
-    ),
-  );
+    assert.equal(seen.size, 180);
+  }
 });
 
-test("every basic item is wearable without tokens or purchases", () => {
-  const p = fresh();
-  for (const section of wardrobeSections) {
-    const html = wardrobeBrowser(section, "Free", p, 0, null);
-    for (const match of html.matchAll(
-      /data-try-slot="([^"]+)" data-try-index="(\d+)"/g,
-    )) {
-      assert.ok(canWear(match[1], Number(match[2]), p, 0));
+test("complete outfits preserve identity and companions and reject the other body", () => {
+  for (const body of [0, 1]) {
+    const p = {
+      ...fresh(),
+      body,
+      skin: 2,
+      eye: 3,
+      pet: 5,
+      accessory: 6,
+      hat: 1,
+    };
+    for (const [index, set] of legendarySets.entries()) {
+      const look = itemLook("outfits", index * 2 + body, p);
+      assert.deepEqual(look, { ...p, ...outfitLook(index, body) });
+      assert.equal(look.hat, 0);
+      assert.throws(
+        () => itemLook("outfits", index * 2 + 1 - body, p),
+        /your character/,
+      );
+      assert.equal(
+        wardrobeItemState("outfits", index * 2 + body, p, 0, null).owned,
+        set.tier === "Free",
+      );
+      for (const slot of ["clothing", "hair", "pet", "accessory"] as const)
+        assert.equal(
+          canWear(slot, setItemIndex(slot, index), p, 0),
+          set.tier === "Free",
+        );
     }
   }
 });
@@ -119,21 +143,12 @@ test("owned and purchased sets keep an indicator even while equipped and have no
   }
 });
 
-test("Premium is separate and money-only", () => {
-  const set = legendarySets[0];
-  const original = set.tier;
-  try {
-    set.tier = "Premium";
-    const p = { ...fresh(), xp: 10000 };
-    const html = wardrobeBrowser("Pets", "Premium", p, 0, null);
-    assert.match(html, /data-buy-set="solar"/);
-    assert.doesNotMatch(html, /data-redeem-set/);
-    assert.doesNotMatch(
-      wardrobeBrowser("Pets", "Legendary", p, 0, null),
-      /data-buy-set="solar"/,
-    );
+test("Premium is money-only at S$1.99 even with enough Style tokens", () => {
+  const p = { ...fresh(), xp: 10000 };
+  const html = wardrobeBrowser("Pets", "Premium", p, 0, null);
+  assert.match(html, /data-buy-set="aegis-prime"/);
+  assert.match(html, /S\$1\.99/);
+  assert.doesNotMatch(html, /data-redeem-set/);
+  for (const set of legendarySets.filter((s) => s.tier === "Premium"))
     assert.equal(canRedeem(set, p, 0), false);
-  } finally {
-    set.tier = original;
-  }
 });

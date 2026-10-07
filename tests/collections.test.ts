@@ -27,22 +27,28 @@ import {
   petNames,
 } from "../src/appearance.ts";
 import { fresh, normalise } from "../src/state.ts";
-import { legendaryBody, legendaryHead } from "../src/legendary.ts";
+import { costumeBody, costumeHead } from "../src/costume-design.ts";
+import { createHash } from "node:crypto";
 import * as T from "three";
 
 test("complete sets retain old indices and have distinct visible geometry", () => {
-  assert.equal(legendarySets.length, 16);
+  assert.equal(legendarySets.length, 60);
   const silhouettes = new Set<string>();
   for (let i = 0; i < legendarySets.length; i++) {
     const root = new T.Group();
-    legendaryBody(root, i);
-    legendaryHead(root, i);
-    assert.ok(root.children.every((group) => group.children.length > 3));
+    costumeBody(root, legendarySets[i], 0);
+    costumeHead(root, legendarySets[i]);
+    assert.ok(root.children.every((group) => group.children.length === 1));
     const parts: string[] = [];
     root.traverse((o) => {
       if (o instanceof T.Mesh)
         parts.push(
-          `${o.geometry.type}:${o.position.toArray()}:${o.scale.toArray()}`,
+          createHash("sha256")
+            .update(
+              Buffer.from(o.geometry.getAttribute("position").array.buffer),
+            )
+            .update(Buffer.from(o.geometry.getAttribute("color").array.buffer))
+            .digest("hex"),
         );
     });
     silhouettes.add(parts.join("|"));

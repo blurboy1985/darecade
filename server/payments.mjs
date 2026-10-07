@@ -1,6 +1,8 @@
 import { createHmac, timingSafeEqual, randomUUID } from "node:crypto";
 import {
   legendarySets,
+  historicalSetCount,
+  setPriceSGD,
   ownsSet,
   setItemIndex,
   setStarts,
@@ -81,7 +83,7 @@ export class Payments {
     }
     const products = [];
     for (const [id, value] of Object.entries(raw || {})) {
-      const set = legendarySets.find((s) => s.id === id);
+      const set = legendarySets.find((s) => s.id === id && s.tier !== "Free");
       const donation = /^donation-[a-z0-9-]{1,30}$/.test(id);
       if (
         (!set && !donation) ||
@@ -101,13 +103,29 @@ export class Payments {
         priceId: value.priceId,
       });
     }
+    // New sets use server-owned inline Checkout prices, so new catalog art
+    // does not depend on manually provisioning a Stripe Product and Price.
+    for (const set of legendarySets.slice(historicalSetCount)) {
+      if (set.tier === "Free" || products.some((p) => p.id === set.id))
+        continue;
+      products.push({
+        id: set.id,
+        name: set.name,
+        kind: "set",
+        amount: setPriceSGD,
+        currency: "sgd",
+        priceId: `inline:${set.id}:${setPriceSGD}`,
+      });
+    }
     return products;
   }
   config() {
     return {
       enabled: this.env.PAYMENTS_ENABLED === "true" && this.configured(),
       testMode: !this.liveMode(),
-      products: this.catalog().map(({ priceId, ...p }) => p),
+      products: this.configured()
+        ? this.catalog().map(({ priceId, ...p }) => p)
+        : [],
     };
   }
   async stripe(path, body, key) {
@@ -155,15 +173,18 @@ export class Payments {
       fail("Donations are available to adults only.", 403);
     if (product.kind === "set" && ownsSet(profile.progress, product.id))
       fail("You already own this set.");
-    const price = await this.stripe(`prices/${product.priceId}`);
-    if (
-      !price.active ||
-      price.type !== "one_time" ||
-      price.currency !== "sgd" ||
-      price.unit_amount !== product.amount ||
-      price.livemode !== this.liveMode()
-    )
-      fail("This price is being updated. Please try again later.", 503);
+    const inline = product.priceId.startsWith("inline:");
+    if (!inline) {
+      const price = await this.stripe(`prices/${product.priceId}`);
+      if (
+        !price.active ||
+        price.type !== "one_time" ||
+        price.currency !== "sgd" ||
+        price.unit_amount !== product.amount ||
+        price.livemode !== this.liveMode()
+      )
+        fail("This price is being updated. Please try again later.", 503);
+    }
     const order = this.c.store.transaction(() => {
       const pending = this.db
         .prepare(
@@ -196,7 +217,7 @@ export class Payments {
     const form = new URLSearchParams({
       mode: "payment",
       "payment_method_types[0]": "card",
-      "line_items[0][price]": order.price_id,
+
       "line_items[0][quantity]": "1",
       client_reference_id: order.id,
       "metadata[order]": order.id,
@@ -205,6 +226,22 @@ export class Payments {
       cancel_url: `${this.c.origin}/?payment=cancelled`,
       expires_at: String(Math.floor(order.created / 1000) + 1800),
     });
+    if (inline) {
+      form.set("line_items[0][price_data][currency]", order.currency);
+      form.set("line_items[0][price_data][unit_amount]", String(order.amount));
+      form.set(
+        "line_items[0][price_data][product_data][name]",
+        `Play Simi · ${product.name} set`,
+      );
+      form.set(
+        "line_items[0][price_data][product_data][description]",
+        "Complete boy and girl outfits, pet and magic. Cosmetic only. One-time purchase.",
+      );
+      form.set(
+        "line_items[0][price_data][product_data][metadata][set]",
+        order.product,
+      );
+    } else form.set("line_items[0][price]", order.price_id);
     const session = await this.stripe(
       "checkout/sessions",
       form,
@@ -236,7 +273,7 @@ export class Payments {
     )
       fail("Payment not found.", 404);
     const s = await this.stripe(
-      `checkout/sessions/${sessionId}?expand[]=line_items&expand[]=payment_intent.latest_charge`,
+      `checkout/sessions/${sessionId}?expand[]=line_items.data.price.product&expand[]=payment_intent.latest_charge`,
     );
     return this.c.store.transaction(() => {
       const order = this.db
@@ -255,7 +292,12 @@ export class Payments {
         s.line_items?.data?.length !== 1 ||
         s.line_items?.has_more ||
         line.quantity !== 1 ||
-        line.price?.id !== order.price_id
+        (order.price_id.startsWith("inline:")
+          ? line.price?.unit_amount !== order.amount ||
+            line.price?.currency !== order.currency ||
+            line.price?.type !== "one_time" ||
+            line.price?.product?.metadata?.set !== order.product
+          : line.price?.id !== order.price_id)
       )
         fail("Payment does not match this order.");
       const charge = s.payment_intent?.latest_charge;

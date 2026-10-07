@@ -1,4 +1,9 @@
-import { extraIndexFor, legendarySets, setIndexFor } from "./collections.ts";
+import {
+  extraIndexFor,
+  legendarySets,
+  setIndexFor,
+  type StyleSet,
+} from "./collections.ts";
 // Companion pets. Every pet is built from simple primitives so they share the
 // soft, toy-like look of the neighbourhood. Index 0 means "no companion".
 import * as T from "three";
@@ -730,6 +735,154 @@ function laterPet(pet: Pet, id: string, color: string, accent: string) {
 }
 const laterPets = ["chick", "shiba", "koala", "bee", "octopus", "whale"];
 
+function catalogPet(pet: Pet, s: StyleSet) {
+  const b = pet.body,
+    { familiar, motif } = s.design;
+  const color = s.color,
+    accent = s.accent;
+  const soft = new T.Color(color).lerp(new T.Color("#ffffff"), 0.4).getStyle();
+  if (["cat", "fox", "wolf", "rabbit", "dragon"].includes(familiar)) {
+    quad(pet, {
+      color: soft,
+      muzzle: "#fff3df",
+      ear:
+        familiar === "rabbit"
+          ? [0.06, 0.29, 0.055]
+          : familiar === "fox"
+            ? [0.075, 0.18, 0.065]
+            : [0.075, 0.12, 0.06],
+      earColor: color,
+      tail: familiar === "cat" ? "thin" : "fluffy",
+      tailColor: color,
+      legColor: color,
+    });
+    if (familiar === "rabbit") pet.motion = "hop";
+    if (familiar === "dragon") {
+      for (const side of [-1, 1]) {
+        const wing = node(b, [side * 0.18, 0.5, -0.1]);
+        wing.userData.side = side;
+        part(
+          wing,
+          "oct",
+          [side * 0.14, 0.05, -0.05],
+          [0.19, 0.12, 0.035],
+          accent,
+          { rot: [0, 0, side * 0.4] },
+        );
+        pet.wings.push(wing);
+        part(
+          b,
+          "cone",
+          [side * 0.12, 0.73, 0.07],
+          [0.035, 0.14, 0.035],
+          accent,
+          { rot: [0, 0, -side * 0.2] },
+        );
+      }
+    }
+    if (familiar === "fox")
+      for (let i = 0; i < 1 + (motif % 3); i++)
+        part(
+          pet.tail,
+          "cone",
+          [(i - (motif % 3) / 2) * 0.08, 0.03, -0.1],
+          [0.07, 0.3, 0.08],
+          color,
+          { rot: [-0.9, 0, (i - 1) * 0.25] },
+        );
+  } else if (familiar === "bird") {
+    bird(pet, soft, color, accent, accent);
+    pet.motion = "float";
+    for (let i = 0; i < 3; i++)
+      part(
+        b,
+        "oct",
+        [(i - 1) * 0.055, 0.78, 0],
+        [0.025, 0.1 + i * 0.018, 0.025],
+        accent,
+        { rot: [0, 0, (i - 1) * 0.2] },
+      );
+  } else if (familiar === "turtle") {
+    quad(pet, {
+      color: soft,
+      ear: [0.02, 0.025, 0.02],
+      earColor: soft,
+      tail: "short",
+      legLength: 0.08,
+      bodyScale: [0.22, 0.12, 0.28],
+    });
+    ball(b, [0, 0.38, -0.05], [0.27, 0.18, 0.29], color);
+    for (let i = 0; i < 5; i++) {
+      const a = (i * Math.PI * 2) / 5;
+      part(
+        b,
+        "oct",
+        [Math.cos(a) * 0.15, 0.51, Math.sin(a) * 0.15 - 0.05],
+        [0.055, 0.025, 0.065],
+        accent,
+      );
+    }
+    pet.motion = "waddle";
+  } else if (familiar === "robot") {
+    part(b, "box", [0, 0.46, 0], [0.32, 0.34, 0.27], color);
+    part(b, "box", [0, 0.7, 0.02], [0.37, 0.22, 0.3], soft);
+    part(b, "box", [0, 0.71, 0.18], [0.29, 0.13, 0.025], "#243044");
+    for (const side of [-1, 1]) {
+      ball(b, [side * 0.08, 0.71, 0.2], [0.03, 0.04, 0.012], accent);
+      const foot = node(b, [side * 0.13, 0.21, 0]);
+      part(foot, "box", [0, 0, 0.03], [0.12, 0.1, 0.17], soft);
+      pet.legs.push(foot);
+      const arm = node(b, [side * 0.2, 0.49, 0]);
+      ball(arm, [0, 0, 0], [0.065, 0.12, 0.065], accent);
+      pet.sway.push(arm);
+    }
+    part(b, "cyl", [0, 0.91, 0], [0.012, 0.18, 0.012], soft);
+    ball(b, [0, 1.02, 0], [0.045, 0.045, 0.045], accent);
+  } else if (familiar === "slime") {
+    ball(b, [0, 0.29, 0], [0.26, 0.23, 0.23], soft);
+    ball(b, [-0.08, 0.49, -0.02], [0.1, 0.12, 0.09], color);
+    face(b, 0.31, 0.21, 0.085, 0.035);
+    pet.motion = "bounce";
+    for (let i = 0; i < 3; i++) {
+      const a = (i * Math.PI * 2) / 3;
+      const droplet = node(b, [Math.cos(a) * 0.3, 0.2, Math.sin(a) * 0.3]);
+      ball(droplet, [0, 0, 0], [0.06, 0.07, 0.06], accent);
+      pet.sway.push(droplet);
+    }
+  } else {
+    ball(b, [0, 0.51, 0], [0.1, 0.19, 0.1], color);
+    ball(b, [0, 0.71, 0.04], [0.14, 0.12, 0.12], soft);
+    face(b, 0.72, 0.14, 0.055, 0.025);
+    pet.motion = "float";
+    for (const side of [-1, 1]) {
+      const wing = node(b, [side * 0.08, 0.56, -0.04]);
+      wing.userData.side = side;
+      ball(wing, [side * 0.13, 0.09, 0], [0.2, 0.21, 0.025], accent);
+      ball(wing, [side * 0.13, -0.13, 0], [0.12, 0.12, 0.025], soft);
+      part(wing, "oct", [side * 0.19, 0.12, 0.025], [0.07, 0.11, 0.01], color);
+      pet.wings.push(wing);
+    }
+    ball(pet.tail, [0, 0, 0], [0.065, 0.12, 0.06], accent);
+  }
+  // Collar badge and little cheek marks make each themed companion recognizable.
+  part(
+    b,
+    "oct",
+    [0, 0.39, 0.31],
+    [0.035 + (motif % 3) * 0.005, 0.05, 0.012],
+    accent,
+  );
+  for (const side of [-1, 1])
+    ball(b, [side * 0.12, 0.45, 0.3], [0.03, 0.015, 0.01], color);
+  if (s.tier === "Premium")
+    for (const side of [-1, 1]) {
+      const charm = node(b, [side * 0.16, 0.86, 0]);
+      part(charm, "oct", [0, 0, 0], [0.035, 0.085, 0.025], accent);
+      pet.sway.push(charm);
+    }
+  bakeFamiliar(pet.root, `catalog-${s.id}`);
+}
+
 export function makePet(parent: T.Object3D, kind: number): Pet {
   const root = node(parent);
   root.userData.companion = true;
@@ -753,6 +906,10 @@ export function makePet(parent: T.Object3D, kind: number): Pet {
   }
   if (quads[kind]) quad(pet, quads[kind]);
   const i = setIndexFor("pet", kind);
+  if (i >= 16) {
+    catalogPet(pet, legendarySets[i]);
+    return pet;
+  }
   const extra = laterPets[extraIndexFor("pet", kind)];
   if (extra) laterPet(pet, extra, "", "");
   else if (i >= 10)

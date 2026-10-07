@@ -67,7 +67,7 @@ export async function mountPayments(
       message =
         result.status === "paid"
           ? result.kind === "set"
-            ? `${productName(result.product)} is yours. Find all four pieces in My look.`
+            ? `${productName(result.product)} is yours. Find your complete outfit, pet and magic in My look.`
             : "Thank you for supporting Play Simi! Your donation is confirmed."
           : `Payment status: ${result.status}. Refresh to check again. Sets unlock only after payment is confirmed.`;
     }
@@ -87,13 +87,13 @@ export async function mountPayments(
         return '<button class="secondary" disabled>Payments coming soon</button>';
       return `<button class="primary" data-checkout="${text(p.id)}" ${currentProfile?.account && currentProfile.purchasesConfirmed ? "" : "disabled"}>${p.kind === "donation" ? "Donate" : "Buy set"} · ${money(p.amount)}</button>`;
     };
-    panel.innerHTML = `<button class="text-button" data-open="wardrobe">← My look</button><span class="eyebrow">OPTIONAL PURCHASES · 18+</span><h2>${selected ? text(selected.name) : "Buy looks"}</h2><p class="lead">Help keep the neighbourhood growing.</p><p class="payment-status" role="status">${text(message)}</p>${!config.enabled ? '<div class="note">Payments are not open yet. Prices will appear when checkout is ready. You can still earn every Legendary set by playing.</div>' : config.testMode ? '<div class="note">Test checkout. No real payments.</div>' : ""}${!currentProfile?.account ? '<p>Save your account with email to keep purchases across devices.</p><button class="secondary" data-payment-account>Save my account</button>' : ""}${!currentProfile?.purchasesConfirmed ? `<section class="adult-confirm"><strong>🔒 18+ only</strong><p>Purchases are locked. Confirm your age before buying.</p><button class="secondary" data-confirm-adult>I'm 18 or older</button></section>` : ""}<section><h3>Look sets</h3><p>One payment unlocks the complete outfit, headwear, pet and magic. No medal requirement or token deduction. All looks are cosmetic.</p><div class="payment-products">${(selected
+    panel.innerHTML = `<button class="text-button" data-open="wardrobe">← My look</button><span class="eyebrow">OPTIONAL PURCHASES · 18+</span><h2>${selected ? text(selected.name) : "Buy looks"}</h2><p class="lead">Help keep the neighbourhood growing.</p><p class="payment-status" role="status">${text(message)}</p>${!config.enabled ? '<div class="note">Payments are not open yet. Prices will appear when checkout is ready. You can still earn every Legendary set by playing.</div>' : config.testMode ? '<div class="note">Test checkout. No real payments.</div>' : ""}${!currentProfile?.account ? '<p>Save your account with email to keep purchases across devices.</p><button class="secondary" data-payment-account>Save my account</button>' : ""}${!currentProfile?.purchasesConfirmed ? `<section class="adult-confirm"><strong>🔒 18+ only</strong><p>Purchases are locked. Confirm your age before buying.</p><button class="secondary" data-confirm-adult>I'm 18 or older</button></section>` : ""}<section><h3>Look sets</h3><p>One payment unlocks the complete boy and girl outfit, pet and magic. No medal requirement or token deduction. All looks are cosmetic.</p><div class="payment-products">${(selected
       ? [selected]
-      : legendarySets
+      : legendarySets.filter((s) => s.tier !== "Free")
     )
       .map(
         (s) =>
-          `<article class="payment-product"><img class="avatar-thumbnail is-ready" src="/wardrobe/sets-${legendarySets.indexOf(s)}.png" data-thumbnail="sets:${legendarySets.indexOf(s)}" alt="${text(s.name)}" width="100" height="92" loading="lazy"><div><strong>${text(s.name)}</strong><small>All four pieces · yours to mix & match</small>${purchase(
+          `<article class="payment-product"><img class="avatar-thumbnail is-ready" src="/wardrobe/outfits-${legendarySets.indexOf(s) * 2 + (currentProfile?.progress.body ?? 0)}.png" data-thumbnail="outfits:${legendarySets.indexOf(s) * 2 + (currentProfile?.progress.body ?? 0)}" alt="${text(s.name)}" width="100" height="92" loading="lazy"><div><strong>${text(s.name)}</strong><small>Complete outfit · pet · magic</small>${purchase(
             config.products.find((p) => p.id === s.id),
             s.id,
           )}</div></article>`,
