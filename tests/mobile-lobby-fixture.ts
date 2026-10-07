@@ -128,7 +128,23 @@ export function mobileLobbyFixture(
       find('#close-modal').click();
       find('.lobby-dock [data-open="wardrobe"]').click();
       await wait(()=>find('.wardrobe-controls'));
-      for(const section of ['Outfits','Hair','Hats','Full sets']) {
+      const firstCard=find('[data-try-slot="clothing"][data-try-index="1"]');
+      const cardImage=firstCard.querySelector('img');
+      const previewCanvas=find('.character-preview canvas');
+      firstCard.click();
+      check(firstCard.isConnected && find('[data-try-slot="clothing"][data-try-index="1"]')===firstCard, 'selecting an item preserves its card instead of flashing stock art');
+      check(firstCard.querySelector('img')===cardImage, 'selection preserves the loaded thumbnail');
+      check(!previewCanvas || find('.character-preview canvas')===previewCanvas, 'selection keeps the same preview canvas');
+      const controls=find('.wardrobe-controls');
+      const scrollBefore=controls.scrollTop;
+      find('[data-try-slot="clothing"][data-try-index="3"]').click();
+      await wait(()=>JSON.parse(localStorage.getItem('darecade-v1')).clothing===3);
+      check(firstCard.isConnected && controls.scrollTop===scrollBefore, 'rapid choices preserve cards and scroll');
+      check(find('[data-try-slot="clothing"][data-try-index="3"]').getAttribute('aria-pressed')==='true', 'latest item stays selected');
+      check(firstCard.getAttribute('aria-pressed')==='false', 'previous item is deselected');
+      find('[data-undo-look]').click();
+      check(JSON.parse(localStorage.getItem('darecade-v1')).clothing===1, 'Undo restores the previous outfit');
+      for(const section of ['Outfits','Pets','Magic']) {
         find('[data-wardrobe-section="'+section+'"]').click();
         const panel=find('.wardrobe-controls');
         check(panel.scrollHeight>panel.clientHeight, section+' has a bounded scrolling list');
@@ -139,7 +155,31 @@ export function mobileLobbyFixture(
         check(visible(done)&&hit(done), section+' Done is reachable at bottom');
         panel.scrollTop=0;
       }
-      find('#close-modal').click();
+      check(document.querySelectorAll('[data-wardrobe-section]').length===3, 'only three top-level sections');
+      check(document.querySelectorAll('[data-wardrobe-filter]').length===3, 'only three tiers');
+      find('[data-wardrobe-section="Pets"]').click();
+      find('[data-wardrobe-filter="Legendary"]').click();
+      const locked=find('[data-try-slot="pet"][data-try-index="26"]');
+      const savedPet=JSON.parse(localStorage.getItem('darecade-v1')).pet;
+      locked.click();
+      check(locked.isConnected && locked.getAttribute('aria-pressed')==='true', 'locked preview preserves its card');
+      check(JSON.parse(localStorage.getItem('darecade-v1')).pet===savedPet, 'preview never equips an unowned item');
+      check(find('[data-redeem-set="solar"]').disabled && !!find('[data-buy-set="solar"]'), 'insufficient tokens show a cash option');
+      if (${twoD}) check(find('.look-2d-image').getAttribute('src')==='/wardrobe/pet-26.png', '2D preview shows the selected pet');
+      find('[data-reset-look]').click();
+      check(locked.getAttribute('aria-pressed')==='false', 'reset clears preview selection');
+      profile.progress.wardrobePurchased=['solar'];
+      window.dispatchEvent(new CustomEvent('account-profile',{detail:profile}));
+      find('[data-wardrobe-section="Pets"]').click();
+      const purchased=find('[data-try-slot="pet"][data-try-index="26"]');
+      purchased.click();
+      check(purchased.querySelector('.item-state').textContent==='Purchased · Equipped', 'purchased indicator survives equipping');
+      check(!find('[data-buy-set="solar"]') && !find('[data-redeem-set="solar"]'), 'owned set cannot be bought or redeemed again');
+      find('[data-wardrobe-filter="Premium"]').click();
+      check(!!find('.wardrobe-empty') && !find('[data-buy-set]') && !find('[data-redeem-set]'), 'Premium does not duplicate Legendary items');
+      find('[data-wardrobe-section="Outfits"]').click();
+      find('[data-wardrobe-filter="${account ? "Legendary" : "Free"}"]').click();
+      find('.wardrobe-controls').scrollTop=0;
         parent.postMessage({result:'pass',report:{width:${width},height:${height},account:${account},twoD:${twoD},checks}},location.origin);
         return;
       }

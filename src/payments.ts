@@ -51,7 +51,7 @@ export async function mountPayments(
   cancelled = false,
 ) {
   host.innerHTML =
-    '<section class="payment-panel"><h2>Premium</h2><p role="status">Loading payment options…</p></section>';
+    '<section class="payment-panel"><h2>Buy looks</h2><p role="status">Loading payment options…</p></section>';
   const panel = host.querySelector<HTMLElement>(".payment-panel")!;
   let message = cancelled
     ? "Checkout was cancelled. No new look has been granted."
@@ -87,7 +87,7 @@ export async function mountPayments(
         return '<button class="secondary" disabled>Payments coming soon</button>';
       return `<button class="primary" data-checkout="${text(p.id)}" ${currentProfile?.account && currentProfile.purchasesConfirmed ? "" : "disabled"}>${p.kind === "donation" ? "Donate" : "Buy set"} · ${money(p.amount)}</button>`;
     };
-    panel.innerHTML = `<button class="text-button" data-open="wardrobe">← My look</button><span class="eyebrow">PREMIUM · 18+ PURCHASES</span><h2>${selected ? text(selected.name) : "Premium"}</h2><p class="lead">Help keep the neighbourhood growing.</p><p class="payment-status" role="status">${text(message)}</p>${!config.enabled ? '<div class="note">Payments are not open yet. Prices will appear when checkout is ready. You can still earn every Legendary set by playing.</div>' : config.testMode ? '<div class="note">Test checkout. No real payments.</div>' : ""}${!currentProfile?.account ? '<p>Save your account with email to keep purchases across devices.</p><button class="secondary" data-payment-account>Save my account</button>' : ""}${!currentProfile?.purchasesConfirmed ? `<section class="adult-confirm"><strong>🔒 18+ only</strong><p>Purchases are locked. Confirm your age before buying.</p><button class="secondary" data-confirm-adult>I'm 18 or older</button></section>` : ""}<section><h3>Premium looks</h3><p>One payment unlocks the complete outfit, headwear, pet and magic. No medal requirement or token deduction. All looks are cosmetic.</p><div class="payment-products">${(selected
+    panel.innerHTML = `<button class="text-button" data-open="wardrobe">← My look</button><span class="eyebrow">OPTIONAL PURCHASES · 18+</span><h2>${selected ? text(selected.name) : "Buy looks"}</h2><p class="lead">Help keep the neighbourhood growing.</p><p class="payment-status" role="status">${text(message)}</p>${!config.enabled ? '<div class="note">Payments are not open yet. Prices will appear when checkout is ready. You can still earn every Legendary set by playing.</div>' : config.testMode ? '<div class="note">Test checkout. No real payments.</div>' : ""}${!currentProfile?.account ? '<p>Save your account with email to keep purchases across devices.</p><button class="secondary" data-payment-account>Save my account</button>' : ""}${!currentProfile?.purchasesConfirmed ? `<section class="adult-confirm"><strong>🔒 18+ only</strong><p>Purchases are locked. Confirm your age before buying.</p><button class="secondary" data-confirm-adult>I'm 18 or older</button></section>` : ""}<section><h3>Look sets</h3><p>One payment unlocks the complete outfit, headwear, pet and magic. No medal requirement or token deduction. All looks are cosmetic.</p><div class="payment-products">${(selected
       ? [selected]
       : legendarySets
     )

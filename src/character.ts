@@ -1194,20 +1194,12 @@ export function createCharacterPreview(
     look,
   );
   a.root.rotation.y = 0.2;
-  let turnTarget: number | null = null;
   let frame = 0,
     last = 0;
   const loop = (t: number) => {
     frame = requestAnimationFrame(loop);
     if (!host.isConnected || t - last < 33) return;
     last = t;
-    if (turnTarget !== null) {
-      a.root.rotation.y += (turnTarget - a.root.rotation.y) * 0.28;
-      if (Math.abs(a.root.rotation.y - turnTarget) < 0.01) {
-        a.root.rotation.y = turnTarget;
-        turnTarget = null;
-      }
-    }
     animateDetails(a, t / 1000, "idle", look.reduced);
     if (a.pet) a.pet.root.rotation.y = a.root.rotation.y - 0.18;
     renderer.render(scene, camera);
@@ -1216,7 +1208,6 @@ export function createCharacterPreview(
   let start = 0;
   renderer.domElement.style.touchAction = "pan-y";
   renderer.domElement.onpointerdown = (e) => {
-    turnTarget = null;
     start = e.clientX;
     renderer.domElement.setPointerCapture(e.pointerId);
   };
@@ -1281,10 +1272,10 @@ export function createCharacterPreview(
       if (renderer.domElement.parentElement !== host)
         host.append(renderer.domElement);
       applyLook(a, look);
-      a.root.rotation.y = Math.PI / 2;
-      turnTarget = 0;
       camera.position.x = look.pet ? 0.3 : 0;
       observer.observe(host);
+      animateDetails(a, performance.now() / 1000, "idle", look.reduced);
+      renderer.render(scene, camera);
     },
     dispose() {
       cancelAnimationFrame(frame);

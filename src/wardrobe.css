@@ -554,3 +554,41 @@ dialog:has(.wardrobe-layout) {
     margin: 0;
   }
 }
+
+.wardrobe-controls .look-tabs,
+.wardrobe-controls .collection-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.wardrobe-controls .look-tabs button,
+.wardrobe-controls .collection-tabs button {
+  min-height: 44px;
+}
+.tier-description,
+.wardrobe-empty {
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 10px 0 14px;
+}
+.wardrobe-empty {
+  padding: 24px 12px;
+  text-align: center;
+  border: 1px dashed #d8d3c9;
+  border-radius: 14px;
+}
+.item-unlock {
+  display: grid;
+  gap: 8px;
+  padding: 0 10px 12px;
+}
+.item-unlock small {
+  font-size: 10px;
+  line-height: 1.4;
+}
+.item-unlock button {
+  width: 100%;
+  white-space: normal;
+  min-height: 44px;
+  padding: 8px;
+  font-size: 11px;
+}

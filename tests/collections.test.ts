@@ -52,7 +52,7 @@ test("complete sets retain old indices and have distinct visible geometry", () =
     assert.equal(appearanceLimits[slot], slotSize(slot));
     assert.equal(canWear(slot, setStarts[slot], fresh(), 100), false);
     assert.equal(canWear(slot, 0, fresh(), 0), true);
-    assert.equal(canWear(slot, 8, fresh(), 0), false);
+    assert.equal(canWear(slot, 8, fresh(), 0), true);
     assert.equal(
       canWear(slot, 8, { ...fresh(), wardrobeUnlocked: ["discovery"] }, 0),
       true,
@@ -112,6 +112,17 @@ test("exchanges enforce server progress, debit once, survive reload and protect 
     // Tokens alone buy the set, even before any medal or round gate.
     p.rounds = 0;
     community.save(id, p);
+    const solar = legendarySets[0];
+    try {
+      solar.tier = "Premium";
+      assert.throws(
+        () => community.progression(id, "redeem-style", "solar"),
+        /require payment/,
+      );
+      assert.equal(community.privateProfile(id).progress.wardrobeSpent, 0);
+    } finally {
+      solar.tier = "Legendary";
+    }
     const first = community.progression(id, "redeem-style", "solar").progress;
     assert.equal(styleTokens(first), 0);
     assert.equal(first.xp, 1200);
@@ -192,7 +203,7 @@ test("later items and sets are appended without moving any saved index", () => {
     assert.equal(seen.size, legendarySets.length + extraCounts[slot]);
     assert.equal(setIndexFor(slot, slotSize(slot)), -1);
     if (!extraCounts[slot]) continue;
-    // A third of the later single items are free, the rest cost tokens.
+    // Historical collection IDs remain stable for existing saves.
     const tiers = Array.from({ length: extraCounts[slot] }, (_, i) =>
       collectionFor(slot, extraItemIndex(slot, i)),
     );
@@ -204,7 +215,7 @@ test("later items and sets are appended without moving any saved index", () => {
     assert.equal(canWear(slot, extraItemIndex(slot, 0), fresh(), 0), true);
     assert.equal(
       canWear(slot, extraItemIndex(slot, extraCounts[slot] / 3), fresh(), 0),
-      false,
+      true,
     );
   }
   assert.equal(setLook(10).pet, setStarts.pet + 16);

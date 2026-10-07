@@ -167,7 +167,7 @@ test("settlement and reward queue roll back together", () => {
     s.close();
   }
 });
-test("tokens alone buy starter and legendary looks, and browser patches cannot mint rewards", () => {
+test("tokens buy legendary looks; basic items are free, and browser patches cannot mint rewards", () => {
   const s = fixture();
   try {
     const a = s.player("Buyer"),
@@ -175,15 +175,17 @@ test("tokens alone buy starter and legendary looks, and browser patches cannot m
     p.xp = 1300;
     s.community.save(a, p);
     s.community.patch(a, { medalTokens: 99999, wardrobeSpent: -100 });
-    const q = s.community.progression(a, "redeem-style", "discovery").progress;
-    assert.equal(styleTokens(q), 12);
+    assert.throws(
+      () => s.community.progression(a, "redeem-style", "discovery"),
+      /now free/,
+    );
     const r = s.community.progression(a, "redeem-style", "solar").progress;
-    assert.equal(styleTokens(r), 0);
+    assert.equal(styleTokens(r), 1);
     assert.equal(r.rounds, 0);
     assert.equal(
       s.community.progression(a, "redeem-style", "solar").progress
         .wardrobeSpent,
-      13,
+      12,
     );
     assert.equal(s.community.patch(a, { clothing: 8 }).progress.clothing, 8);
   } finally {
