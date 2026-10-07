@@ -245,7 +245,8 @@ async function verify() {
       h.style.cssText = "width:240px;height:220px;position:fixed;left:-1000px";
       document.body.append(h);
       const p = createCharacterPreview(h, { ...looks[i % 6], reduced: true });
-      p.thumbnail(looks[(i + 1) % 6]);
+      const image = await p.thumbnail(looks[(i + 1) % 6]);
+      URL.revokeObjectURL(image);
       p.dispose();
       assert(
         !h.querySelector("canvas"),
@@ -288,10 +289,18 @@ async function thumbnails() {
     sets: legendarySets,
   })) {
     for (let i = 0; i < names.length; i++) {
-      images[`${slot}-${i}`] = preview.thumbnail(
+      const url = await preview.thumbnail(
         thumbnailLook(slot as Parameters<typeof thumbnailLook>[0], i),
         slot === "sets" ? "set" : slot,
       );
+      const blob = await (await fetch(url)).blob();
+      images[`${slot}-${i}`] = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+      });
+      URL.revokeObjectURL(url);
     }
   }
   return images;

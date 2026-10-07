@@ -1162,26 +1162,29 @@ export function createCharacterPreview(
     0.1,
     30,
   );
-  const distance = Math.max(
-    4.6,
-    (look.accessory ? 1.45 : look.pet ? 1.3 : 0.85) /
-      (camera.aspect * Math.tan((Math.PI * 35) / 360)),
-  );
-  camera.position.set(look.pet ? 0.3 : 0, 1.45, distance);
-  camera.lookAt(look.pet ? 0.3 : 0, 1.13, 0);
+  let view: "body" | "face" = "body";
+  let disposed = false;
+  let capturing = false;
+  function frameLook() {
+    const face = view === "face";
+    const x = !face && look.pet ? 0.3 : 0;
+    const distance = Math.max(
+      face ? 1.8 : 4.6,
+      (face ? 0.42 : look.accessory ? 1.45 : look.pet ? 1.3 : 0.85) /
+        (camera.aspect * Math.tan((Math.PI * 35) / 360)),
+    );
+    camera.position.set(x, face ? 1.65 : 1.45, distance);
+    camera.lookAt(x, face ? 1.58 : 1.13, 0);
+    camera.updateProjectionMatrix();
+  }
+  frameLook();
   const observer = new ResizeObserver(() => {
     const w = host.clientWidth,
       h = Math.max(80, host.clientHeight);
     if (!w) return;
     resizeRenderer(renderer, w, h);
     camera.aspect = w / h;
-    camera.position.z = Math.max(
-      4.6,
-      (look.accessory ? 1.45 : look.pet ? 1.3 : 0.85) /
-        (camera.aspect * Math.tan((Math.PI * 35) / 360)),
-    );
-    camera.lookAt(look.pet ? 0.3 : 0, 1.13, 0);
-    camera.updateProjectionMatrix();
+    frameLook();
   });
   observer.observe(host);
   const a = createAvatar(
@@ -1198,7 +1201,7 @@ export function createCharacterPreview(
     last = 0;
   const loop = (t: number) => {
     frame = requestAnimationFrame(loop);
-    if (!host.isConnected || t - last < 33) return;
+    if (!host.isConnected || capturing || t - last < 33) return;
     last = t;
     animateDetails(a, t / 1000, "idle", look.reduced);
     if (a.pet) a.pet.root.rotation.y = a.root.rotation.y - 0.18;
@@ -1218,7 +1221,14 @@ export function createCharacterPreview(
     }
   };
   return {
+    setView(next: "body" | "face") {
+      view = next;
+      frameLook();
+      renderer.render(scene, camera);
+    },
     async thumbnail(itemLook: Look, slot = "set") {
+      if (disposed || capturing) throw new Error("Preview capture unavailable");
+      capturing = true;
       const oldSize = renderer.getSize(new T.Vector2());
       const oldRatio = renderer.getPixelRatio();
       const oldPosition = camera.position.clone();
@@ -1261,23 +1271,28 @@ export function createCharacterPreview(
         camera.lookAt(center);
       }
       renderer.render(scene, camera);
-      const image = await new Promise<string>((resolve, reject) =>
-        renderer.domElement.toBlob((blob) => {
-          if (blob) resolve(URL.createObjectURL(blob));
-          else reject(new Error("Portrait capture unavailable"));
-        }, "image/png"),
-      );
-      a.root.visible = true;
-      applyLook(a, look);
-      a.root.rotation.y = oldTurn;
-      renderer.setPixelRatio(oldRatio);
-      renderer.setSize(oldSize.x, oldSize.y, false);
-      camera.position.copy(oldPosition);
-      camera.quaternion.copy(oldRotation);
-      camera.aspect = oldAspect;
-      camera.updateProjectionMatrix();
-      renderer.render(scene, camera);
-      return image;
+      try {
+        return await new Promise<string>((resolve, reject) =>
+          renderer.domElement.toBlob((blob) => {
+            if (blob) resolve(URL.createObjectURL(blob));
+            else reject(new Error("Portrait capture unavailable"));
+          }, "image/png"),
+        );
+      } finally {
+        capturing = false;
+        if (!disposed) {
+          a.root.visible = true;
+          applyLook(a, look);
+          a.root.rotation.y = oldTurn;
+          renderer.setPixelRatio(oldRatio);
+          renderer.setSize(oldSize.x, oldSize.y, false);
+          camera.position.copy(oldPosition);
+          camera.quaternion.copy(oldRotation);
+          camera.aspect = oldAspect;
+          camera.updateProjectionMatrix();
+          renderer.render(scene, camera);
+        }
+      }
     },
     mount(nextHost: HTMLElement, nextLook: Look & { reduced?: boolean }) {
       observer.unobserve(host);
@@ -1286,12 +1301,14 @@ export function createCharacterPreview(
       if (renderer.domElement.parentElement !== host)
         host.append(renderer.domElement);
       applyLook(a, look);
-      camera.position.x = look.pet ? 0.3 : 0;
+      frameLook();
       observer.observe(host);
       animateDetails(a, performance.now() / 1000, "idle", look.reduced);
       renderer.render(scene, camera);
     },
     dispose() {
+      if (disposed) return;
+      disposed = true;
       cancelAnimationFrame(frame);
       observer.disconnect();
       disposeAvatar(a);

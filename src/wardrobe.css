@@ -75,7 +75,7 @@ dialog:has(.wardrobe-layout) {
   flex-direction: column;
 }
 .wardrobe-controls .look-identity {
-  order: 2;
+  order: 0;
   margin: 14px 0;
 }
 .wardrobe-controls > .fine-print,
@@ -610,4 +610,55 @@ dialog:has(.wardrobe-layout) {
 .catalog-heading .text-button {
   margin-left: auto;
   font-size: 12px;
+}
+
+/* The fitting room stays reachable while the catalogue scrolls. */
+.wardrobe-layout .preview-tools {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.wardrobe-layout .preview-tools button {
+  min-height: 44px;
+  padding: 6px 10px;
+  font-size: 11px;
+}
+.wardrobe-layout .preview-tools button[aria-pressed="true"] {
+  background: #57466e;
+  color: white;
+}
+.wardrobe-layout.fitting-expanded {
+  grid-template-columns: 1fr;
+}
+.wardrobe-layout.fitting-expanded .wardrobe-controls {
+  display: none;
+}
+dialog .wardrobe-layout.fitting-expanded .avatar-preview {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: calc(85dvh - 60px);
+  max-height: none;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+dialog .wardrobe-layout.fitting-expanded .character-preview {
+  width: 100%;
+  height: auto !important;
+  flex: 1 1 200px;
+  min-height: 120px;
+}
+@media (max-width: 700px) {
+  dialog .wardrobe-layout .avatar-preview {
+    height: auto;
+  }
+  .wardrobe-layout .preview-tools {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .wardrobe-layout .try-actions {
+    grid-column: 2;
+    grid-row: 2;
+  }
 }
