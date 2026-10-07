@@ -1,7 +1,13 @@
 // Render every purchasable outfit, pet and spell from the real game meshes.
 // DARECADE_TEST_CHROMIUM=/path/to/chrome node scripts/render-complete-catalog.mjs
 import { createServer } from "vite";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { browserDOM } from "../tests/browser-dom.ts";
@@ -19,6 +25,14 @@ const keys = new Set(
     `accessory-${setItemIndex("accessory", i)}`,
   ]),
 );
+// Refresh existing head-bearing fallback cards after changing character hair.
+if (process.env.CATALOG_REFRESH_HAIR_LOOKS) {
+  keys.clear();
+  for (const name of readdirSync("public/wardrobe")) {
+    if (/^(hair|clothing|outfits|sets)--?\d+\.png$/.test(name))
+      keys.add(name.slice(0, -4));
+  }
+}
 if (process.env.CATALOG_COMPONENTS_ONLY) {
   for (const key of keys) if (!/^(clothing|hair)-/.test(key)) keys.delete(key);
 }
@@ -33,7 +47,8 @@ try {
  const host=document.createElement('div');host.style.cssText='width:240px;height:220px';document.body.append(host);
  const preview=createCharacterPreview(host,thumbnailLook('outfits',0));
  for(const key of keys){
-  const [slot,id]=key.split('-');
+  const separator=key.indexOf('-');
+  const slot=key.slice(0,separator), id=key.slice(separator+1);
   const image=await preview.thumbnail(thumbnailLook(slot,Number(id)),slot);
   const blob=await fetch(image).then(r=>r.blob());URL.revokeObjectURL(image);
   const response=await fetch('/__catalog-image/'+key,{method:'POST',body:blob});

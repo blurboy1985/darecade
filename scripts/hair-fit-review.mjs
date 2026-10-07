@@ -148,6 +148,34 @@ try {
         }
       return counts;
     };
+    window.captureHairPortrait = (body) => {
+      document.querySelectorAll(".label").forEach((e) => e.remove());
+      const width = window.innerWidth,
+        height = window.innerHeight;
+      renderer.setSize(width, height);
+      renderer.setScissorTest(false);
+      const halfHeight = Math.max(0.85, (0.7 * height) / width);
+      camera.left = (-halfHeight * width) / height;
+      camera.right = (halfHeight * width) / height;
+      camera.top = halfHeight;
+      camera.bottom = -halfHeight;
+      camera.position.set(0, 1.8, 8);
+      camera.lookAt(0, 1.55, 0);
+      camera.updateProjectionMatrix();
+      const avatar = createAvatar(scene, 0, 0, "#76cfe0", "#ffc8b6", 0, {
+        outfit: 0,
+        skin: 0,
+        body,
+        hat: 0,
+        clothing: 0,
+        hair: 56,
+        pet: 0,
+        accessory: 0,
+      });
+      avatar.root.rotation.y = 0.35;
+      renderer.render(scene, camera);
+      disposeAvatar(avatar);
+    };
   });
   const counts = {};
   for (const body of [0, 1])
@@ -159,6 +187,19 @@ try {
       );
       await page.screenshot({ path: `output/playwright/hair-fit/${name}.png` });
     }
+  for (const [width, height] of [
+    [390, 844],
+    [844, 390],
+    [1280, 800],
+  ]) {
+    await page.setViewportSize({ width, height });
+    for (const body of [0, 1]) {
+      await page.evaluate((b) => window.captureHairPortrait(b), body);
+      await page.screenshot({
+        path: `output/playwright/hair-fit/${tag}-${width}x${height}-body${body}.png`,
+      });
+    }
+  }
   writeFileSync(
     `output/playwright/hair-fit/${tag}.json`,
     JSON.stringify({ counts, errors }, null, 2),

@@ -25,6 +25,45 @@ export const hairPalette = [
   "#26cda6",
 ];
 const hairCache = new Map<string, T.Group>();
+const lockGeometries = new Map<string, T.SphereGeometry>();
+const hairMaterials = new Map<T.Material, T.MeshStandardMaterial>();
+
+// Closed, tapered locks share the same material as the scalp so they still
+// merge into one cosmetic draw. Bend and ridges are baked once per cached look.
+function hairLock(
+  parent: T.Group,
+  color: string,
+  position: [number, number, number],
+  scale: [number, number, number],
+  bend: number,
+  bun = false,
+) {
+  const key = `${bend}:${bun}`;
+  let geometry = lockGeometries.get(key);
+  if (!geometry) {
+    geometry = new T.SphereGeometry(1, 16, 12);
+    const points = geometry.getAttribute("position");
+    for (let i = 0; i < points.count; i++) {
+      const x = points.getX(i),
+        y = points.getY(i),
+        z = points.getZ(i);
+      const t = (1 - y) / 2;
+      const angle = Math.atan2(z, x);
+      const ridge =
+        1 + (bun ? 0.065 : 0.09) * Math.cos(angle * 5 + t * (bun ? 8 : 2));
+      const taper = bun ? 1 : 1.12 - 0.65 * t;
+      points.setXYZ(i, x * taper * ridge + bend * t * t, y, z * taper * ridge);
+    }
+    geometry.computeVertexNormals();
+    lockGeometries.set(key, geometry);
+  }
+  const mesh = new T.Mesh(geometry, material(color));
+  mesh.position.set(...position);
+  mesh.scale.set(...scale);
+  mesh.castShadow = true;
+  parent.add(mesh);
+}
+
 export function buildHair(parent: T.Object3D, index: number, capped = false) {
   const cacheKey = `${index}:${capped}`;
   const cached = hairCache.get(cacheKey);
@@ -44,15 +83,21 @@ export function buildHair(parent: T.Object3D, index: number, capped = false) {
   hair.add(shell);
   for (const side of [-1, 1]) {
     if (style === "buns" && !capped)
-      part(hair, "ball", [side * 0.39, 0.32, -0.08], [0.19, 0.19, 0.17], color);
-    if (style === "tails") {
-      part(
+      hairLock(
         hair,
-        "ball",
+        color,
+        [side * 0.39, 0.32, -0.08],
+        [0.19, 0.19, 0.17],
+        0,
+        true,
+      );
+    if (style === "tails") {
+      hairLock(
+        hair,
+        color,
         [side * 0.43, -0.19, -0.1],
         [0.16, 0.43, 0.18],
-        color,
-        { rot: [0, 0, side * 0.24] },
+        side * 0.65,
       );
       part(
         hair,
@@ -65,9 +110,7 @@ export function buildHair(parent: T.Object3D, index: number, capped = false) {
     }
   }
   if (style === "ponytail")
-    part(hair, "ball", [0, -0.12, -0.4], [0.18, 0.48, 0.2], color, {
-      rot: [-0.35, 0, 0],
-    });
+    hairLock(hair, color, [0, -0.12, -0.44], [0.2, 0.48, 0.2], 0.65);
   if (style === "braid") {
     for (let i = 0; i < 6; i++)
       part(
@@ -80,7 +123,23 @@ export function buildHair(parent: T.Object3D, index: number, capped = false) {
     part(hair, "ball", [0.39, -0.84, -0.14], [0.07, 0.12, 0.07], "#ffe299");
   }
   mergeCosmeticParts(hair);
-  outlineModel(hair);
+  // Sculpted locks use their own shading; an expanded outline intersects valleys.
+  // The open underside of long cuts must remain visible from the front.
+  hair.traverse((mesh) => {
+    if (
+      !(mesh instanceof T.Mesh) ||
+      !(mesh.material instanceof T.MeshStandardMaterial)
+    )
+      return;
+    let finish = hairMaterials.get(mesh.material);
+    if (!finish) {
+      finish = mesh.material.clone();
+      finish.side = T.DoubleSide;
+      finish.roughness = 0.8;
+      hairMaterials.set(mesh.material, finish);
+    }
+    mesh.material = finish;
+  });
   hairCache.set(cacheKey, hair.clone());
   return hair;
 }
