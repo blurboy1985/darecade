@@ -13,6 +13,7 @@ import {
 import { outfits, skins } from "../src/state.ts";
 import { buildMagic } from "../src/magic.ts";
 import { appearanceLimits } from "../src/appearance.ts";
+import { WorldMotion } from "../src/world-motion.ts";
 
 let source: T.Group;
 // Exercise the real GLB meshes and rig in Node. Only embedded image decoding is
@@ -407,4 +408,55 @@ test("happy emotes close the eyes, restore idle and breathe without changing sav
   animateDetails(a, 2, "idle");
   assert.ok(Math.abs(a.model.position.y - y) > 0.015);
   disposeAvatar(a);
+});
+
+test("walking poses follow every displayed frame, including frames between movement ticks", () => {
+  for (const intervals of [
+    [1 / 120],
+    [1 / 30],
+    [1 / 60],
+    [1 / 144],
+    [0.008, 0.025, 0.011, 0.033],
+  ]) {
+    const a = createAvatar(new T.Group(), 0, 0, outfits[0]);
+    const motion = new WorldMotion();
+    let time = 0;
+    let betweenTicks = 0;
+    try {
+      for (let frame = 0; frame < 120; frame++) {
+        const dt = intervals[frame % intervals.length];
+        time += dt;
+        let ticks = 0;
+        motion.sample(a.root.position, dt, (step) => {
+          ticks++;
+          a.root.position.x += step * 4.8;
+          // Reproduce the old simulation-owned pose. Rendering must replace it
+          // even on display frames where no simulation tick occurs.
+          a.legs[0].rotation.x = Math.sin(time * 12) * 0.55;
+          a.legs[1].rotation.x = -a.legs[0].rotation.x;
+        });
+        if (!ticks) betweenTicks++;
+        animateDetails(a, time, "walk");
+        if (frame > 2) {
+          const expected = Math.sin(time * 12) * 0.55;
+          assert.ok(
+            Math.abs(a.legs[0].rotation.x - expected) < 1e-10,
+            `stale walk pose at frame ${frame}, interval ${dt}`,
+          );
+          assert.ok(Math.abs(a.legs[1].rotation.x + expected) < 1e-10);
+        }
+      }
+      if (intervals[0] < 1 / 60) assert.ok(betweenTicks > 0);
+      const stopped = a.root.position.clone();
+      animateDetails(a, time + 1 / 120, "walk", true);
+      assert.equal(a.legs[0].rotation.x, 0, "reduced motion keeps legs still");
+      assert.deepEqual(
+        a.root.position,
+        stopped,
+        "posing must not move the player",
+      );
+    } finally {
+      disposeAvatar(a);
+    }
+  }
 });

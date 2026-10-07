@@ -737,9 +737,15 @@ export function animateDetails(
     cm.userData.capeMotion.value = reduced ? 0 : a.moving ? 1 : 0.4;
   }
   const travel = a.root.position.distanceTo(a.last);
-  a.moving = travel > 0.008;
+  a.moving = mode === "walk" || travel > 0.008;
   a.last.copy(a.root.position);
   const t = reduced ? 0 : time;
+  // Sample the gait at display time, including frames between movement ticks.
+  if (mode === "walk") {
+    const stride = Math.sin(t * 12) * 0.55;
+    a.legs[0].rotation.x = stride;
+    a.legs[1].rotation.x = -stride;
+  }
   a.root.userData.equippedAt ??= time;
   animateCostume(
     a.costume,

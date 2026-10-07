@@ -2751,7 +2751,15 @@ export class LobbyWorld {
       const mode =
         a === this.player
           ? this.interactions.active?.spec.kind ||
-            (this.save.away ? this.save.awayActivity : this.emote || "idle")
+            (this.save.away
+              ? this.save.awayActivity
+              : this.emote ||
+                (Math.hypot(
+                  a.root.position.x - a.last.x,
+                  a.root.position.z - a.last.z,
+                ) > 0.00001
+                  ? "walk"
+                  : "idle"))
           : remote?.data.emote ||
             (remote?.data.status !== "online"
               ? remote?.data.activity
@@ -2865,9 +2873,7 @@ export class LobbyWorld {
       if (!blocked(p.x + dx, p.z, obstacles)) p.x += dx;
       if (!blocked(p.x, p.z + dz, obstacles)) p.z += dz;
       this.player.root.rotation.y = Math.atan2(dx, dz);
-      this.player.legs[0].rotation.x = Math.sin(this.clock * 12) * 0.55;
-      this.player.legs[1].rotation.x = -Math.sin(this.clock * 12) * 0.55;
-    } else this.player.legs.forEach((l) => (l.rotation.x = 0));
+    }
     for (const c of this.coins)
       if (
         c.visible &&
@@ -2915,6 +2921,7 @@ export class LobbyWorld {
     }
     p.left.rotation.set(0, 0, 0);
     p.right.rotation.set(0, 0, 0);
+    p.legs.forEach((leg) => (leg.rotation.x = 0));
     if (!active) {
       this.emote = "";
       return;
