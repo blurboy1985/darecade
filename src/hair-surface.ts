@@ -35,11 +35,18 @@ export function hairSurface(style: HairShape, capped: boolean) {
       if (style === "buns" || style === "tails")
         fringe = 1.48 + 0.025 * Math.cos(angle * 4);
       if (style === "spiky") fringe = 1.48 + 0.035 * Math.cos(angle * 6);
-      const end = T.MathUtils.lerp(
-        style === "bob" ? 1.82 : 2.03,
-        fringe,
-        front,
-      );
+      // Broad swept locks, with narrower valleys between them. The phase bends
+      // toward an off-centre part as it approaches the crown.
+      const edgePhase = angle * 13 + 1.1 + 0.6 * Math.sin(angle * 3);
+      const phase = edgePhase + (1 - t) * 4.5;
+      const lock = Math.pow(0.5 + 0.5 * Math.cos(phase), 0.7);
+      const edgeLock = Math.pow(0.5 + 0.5 * Math.cos(edgePhase), 2);
+      fringe += 0.21 * edgeLock - 0.12 + 0.055 * Math.sin(angle + 0.5);
+      const temple = Math.exp(-Math.pow((Math.abs(signed) - 1.15) / 0.2, 2));
+      const end =
+        T.MathUtils.lerp(style === "bob" ? 1.82 : 2.03, fringe, front) +
+        0.11 * temple +
+        0.045 * (1 - front) * edgeLock;
       const polar = t * end;
       const sweep =
         style === "messy" ? 0.055 * Math.sin(polar) * Math.cos(polar) : 0;
@@ -48,9 +55,19 @@ export function hairSurface(style: HairShape, capped: boolean) {
       // The lower fringe needs forehead clearance as the skull widens here.
       const depth = 0.39 + 0.025 * front * smooth(0.6, 1, t);
       let z = -0.015 + depth * Math.sin(polar) * Math.cos(angle);
+      // Fade the ridges to zero at the welded crown. Keep valleys outside the
+      // skull; surface shading comes from raised locks, not cuts into the scalp.
+      const relief =
+        (style === "messy" ? 0.065 : 0.045) * lock * Math.sin(polar);
+      x += relief * Math.sin(angle);
+      z += relief * Math.cos(angle);
+      // Hats retain the original crown-height envelope.
+      if (!capped) y += relief * 0.5;
+      x += 0.055 * Math.sin(Math.PI * t) * Math.sin(polar);
       // Length grows from the lower side/back of the same shell, with no seam.
       const length = style === "flowing" ? 0.57 : style === "bob" ? 0.19 : 0;
       y -= length * (1 - front) * smooth(0.48, 1, t);
+      y += length * 0.12 * (1 - front) * (1 - edgeLock) * smooth(0.75, 1, t);
       if (style === "spiky" && !capped) {
         const tips = Math.pow(Math.max(0, Math.cos(angle * 5)), 6);
         y += 0.22 * tips * Math.pow(Math.sin(Math.PI * t), 3);
