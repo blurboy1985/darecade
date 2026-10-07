@@ -512,7 +512,7 @@ test("complete catalog outfits render both bodies with cached geometry and no le
         assert.ok(repeated instanceof T.Mesh);
         assert.equal(repeated.geometry, geometry);
         assert.equal(avatar.model.getObjectByName("Cape")?.visible, false);
-        for (const mode of ["idle", "walk", "dance"]) {
+        for (const mode of ["idle", "walk", "dance", "bench", "swing", "arcade"]) {
           animateDetails(avatar, 1.4, mode);
           avatar.root.updateMatrixWorld(true);
           avatar.root.traverse((object) =>

@@ -232,7 +232,7 @@ export function mobileLobbyFixture(
       check(purchased.querySelector('.item-state').textContent==='Purchased · Equipped', 'purchased indicator survives equipping');
       check(!find('[data-buy-set="solar"]') && !find('[data-redeem-set="solar"]'), 'owned set cannot be bought or redeemed again');
       find('[data-wardrobe-filter="Premium"]').click();
-      check(document.querySelectorAll('[data-try-slot]').length===20 && !!find('[data-buy-set="aegis-prime"]') && !find('[data-redeem-set]') && !find('[data-buy-set="solar"]'), 'Premium has 20 money-only choices');
+      check(document.querySelectorAll('[data-try-slot]').length===22 && !!find('[data-buy-set="aegis-prime"]') && !find('[data-redeem-set]') && !find('[data-buy-set="solar"]'), 'Premium has 22 money-only choices');
       find('[data-wardrobe-section="Outfits"]').click();
       find('[data-wardrobe-filter="${account ? "Legendary" : "Free"}"]').click();
       find('.wardrobe-controls').scrollTop=0;

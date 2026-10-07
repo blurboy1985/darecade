@@ -32,7 +32,7 @@ import { createHash } from "node:crypto";
 import * as T from "three";
 
 test("complete sets retain old indices and have distinct visible geometry", () => {
-  assert.equal(legendarySets.length, 60);
+  assert.equal(legendarySets.length, 66);
   const silhouettes = new Set<string>();
   for (let i = 0; i < legendarySets.length; i++) {
     const root = new T.Group();

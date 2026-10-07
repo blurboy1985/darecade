@@ -9,7 +9,13 @@ export type Costume =
   | "royal"
   | "idol"
   | "trainer"
-  | "knight";
+  | "knight"
+  | "street"
+  | "rainshield"
+  | "wayfinder"
+  | "academy"
+  | "otter"
+  | "neighbour";
 export type Familiar =
   | "fox"
   | "rabbit"
@@ -38,6 +44,7 @@ export type Design = {
   spell: Spell;
   motif: number;
   hairColour: number;
+  hairShapes?: readonly [number, number];
 };
 export const legacyDesigns: Design[] = [
   { costume: "hero", familiar: "cat", spell: "wings", motif: 0, hairColour: 4 },
@@ -675,3 +682,124 @@ export const additionalThemes = [
     },
   };
 });
+
+// Original families are appended: the first 60 sets and their ownership IDs never move.
+export const originalFamilies = (
+  [
+    {
+      id: "after-school-circuit",
+      name: "After-school Circuit",
+      costume: "street",
+      color: "#293744",
+      accent: "#70b7a4",
+      tier: "Free",
+      cost: 0,
+      head: "Single-ear circuit headphones",
+      outfit: "Cropped bomber & long tee",
+      pet: "Circuit the pocket bot",
+      magic: "Circuit signal stars",
+      familiar: "robot",
+      spell: "stars",
+      hairColour: 7,
+      hairShapes: [5, 3],
+    },
+    {
+      id: "rainshield-guardian",
+      name: "Rainshield Guardian",
+      costume: "rainshield",
+      color: "#22385a",
+      accent: "#ffd36b",
+      tier: "Premium",
+      cost: 0,
+      head: "Rainshield side visor",
+      outfit: "Asymmetric storm mantle & shield vest",
+      pet: "Nimbus the rain drake",
+      magic: "Rainshield orbit",
+      familiar: "dragon",
+      spell: "crystals",
+      hairColour: 7,
+      hairShapes: [6, 0],
+    },
+    {
+      id: "monsoon-wayfinder",
+      name: "Monsoon Wayfinder",
+      costume: "wayfinder",
+      color: "#be6953",
+      accent: "#e8d5ac",
+      tier: "Legendary",
+      cost: 18,
+      head: "Wayfinder compass band",
+      outfit: "One-shoulder poncho & map satchel",
+      pet: "Moss the trail wolf",
+      magic: "Wayfinder compass runes",
+      familiar: "wolf",
+      spell: "runes",
+      hairColour: 8,
+      hairShapes: [6, 3],
+    },
+    {
+      id: "moonbell-society",
+      name: "Moonbell Society",
+      costume: "academy",
+      color: "#3c4269",
+      accent: "#b8a2d9",
+      tier: "Premium",
+      cost: 0,
+      head: "Moonbell beret & round glasses",
+      outfit: "Academy capelet & bell-clasp vest",
+      pet: "Quill the library moth",
+      magic: "Moonbell floating notebook",
+      familiar: "moth",
+      spell: "runes",
+      hairColour: 7,
+      hairShapes: [5, 3],
+    },
+    {
+      id: "canal-otter-club",
+      name: "Canal Otter Club",
+      costume: "otter",
+      color: "#785b4d",
+      accent: "#76b8c2",
+      tier: "Legendary",
+      cost: 24,
+      head: "Round-ear otter hood",
+      outfit: "Otter gilet & striped tee",
+      pet: "Pebble the canal otter",
+      magic: "Canal ripple bubbles",
+      familiar: "cat",
+      spell: "orbs",
+      hairColour: 8,
+      hairShapes: [2, 3],
+    },
+    {
+      id: "void-deck-weekend",
+      name: "Void Deck Weekend",
+      costume: "neighbour",
+      color: "#a6c1b4",
+      accent: "#ede3cf",
+      tier: "Free",
+      cost: 0,
+      head: "Kopi canvas bucket hat",
+      outfit: "Terrazzo camp shirt & kopi sling",
+      pet: "Kopi the neighbourhood cat",
+      magic: "Weekend paper planes",
+      familiar: "cat",
+      spell: "wings",
+      hairColour: 7,
+      hairShapes: [4, 3],
+    },
+  ] as const
+).map((s, i) => ({
+  ...s,
+  theme: s.name,
+  medals: 0,
+  rounds: 0,
+  design: {
+    costume: s.costume,
+    familiar: s.familiar,
+    spell: s.spell,
+    motif: 60 + i,
+    hairColour: s.hairColour,
+    hairShapes: s.hairShapes,
+  },
+})) satisfies import("./collections.ts").StyleSet[];
