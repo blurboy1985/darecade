@@ -87,7 +87,32 @@ export function mobileLobbyFixture(
     try {
       await wait(()=>!find('#loading') && find('#player-name')?.textContent===profile.name);
       if (${automated === "wardrobe"}) {
+      const emotes=find('#quick-emotes'), toggle=find('#quick-emotes-toggle');
+      check(emotes.hidden && toggle.getAttribute('aria-expanded')==='false', 'emotes start collapsed');
+      check(visible(toggle) && hit(toggle), 'single emote toggle is unobstructed');
+      const toggleRect=toggle.getBoundingClientRect();
+      check(toggleRect.left>innerWidth/2 && toggleRect.bottom<innerHeight/3, 'emote toggle is at top right');
+      check(toggleRect.width>=44 && toggleRect.height>=44, 'emote touch target at least 44px');
+      toggle.click();
+      check(!emotes.hidden && toggle.getAttribute('aria-expanded')==='true', 'toggle expands emote actions');
+      for(const action of emotes.querySelectorAll('button')) check(visible(action)&&hit(action), action.getAttribute('aria-label')+' emote action reachable');
+      const wave=emotes.querySelector('[data-emote="wave"]');
+      wave.focus(); wave.click();
+      check(emotes.hidden && toggle.getAttribute('aria-expanded')==='false', 'choosing an emote collapses actions');
+      check(document.activeElement===toggle, 'selection returns focus to emote toggle');
+      find('#lobby-jump').click();
+      check(emotes.hidden, 'jump does not reopen emotes');
+      toggle.click(); toggle.click();
+      check(emotes.hidden, 'toggle can close actions');
+      toggle.click();
+      document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+      check(emotes.hidden && document.activeElement===toggle, 'Escape collapses actions and restores focus');
+      toggle.click();
+      find('#world').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));
+      check(emotes.hidden, 'tapping outside collapses actions');
+      toggle.click();
       find('#quick-emotes [data-open="emotes"]').click();
+      check(emotes.hidden, 'opening More collapses actions');
       check(document.querySelectorAll('#modal-body [data-emote]').length===6, 'More shows all six emotes without Next');
       check(!find('#modal-body [data-page="emotes"]'), 'emotes have no second page');
       find('#close-modal').click();

@@ -7,6 +7,8 @@ import * as T from "three";
 import { rooftops } from "../src/rooftops.ts";
 import { blocked, clearLanding, route } from "../src/navigation.ts";
 import { JumpInput } from "../src/jump-input.ts";
+import { WorldMotion } from "../src/world-motion.ts";
+import { MovementInput } from "../src/movement-input.ts";
 import { interactionSpecs } from "../src/interactions.ts";
 
 const tree = ts.createSourceFile(
@@ -22,6 +24,7 @@ assert.ok(world && ts.isClassDeclaration(world));
 const methods = [
   "jumpStep",
   "movementObstacles",
+  "move",
   "updateCamera",
   "setZoom",
 ].map((name) => {
@@ -36,7 +39,9 @@ function run(scenario: string) {
   vm.runInNewContext(
     `${compiled}
     const world = new Harness();
-    Object.assign(world, { player: {root: new T.Group()}, obstacles: [], elevation: 0.1, jumpVelocity: 0,
+    Object.assign(world, { player: {root: new T.Group(), legs: [new T.Group(), new T.Group()]}, obstacles: [], elevation: 0.1, jumpVelocity: 0,
+      motion: new WorldMotion(), movementInput: new MovementInput(), keys: new Set(), joystick: {x:0,y:0},
+      path: [], pending: '', marker: {visible:false}, coins: [], near: '', onNear() {},
       jumpInput: new JumpInput(), padFlight: null, jumpSparkles: [], roofStars: [], clock: 0,
       host: {clientWidth: 390, clientHeight: 844}, sharedPlayers: new Map(), neighbours: [], inspectedId: '',
       followCamera: new T.PerspectiveCamera(), cameraMode: 'third', followDistance: 7, angle: 0, pitch: 0.24,
@@ -50,6 +55,9 @@ function run(scenario: string) {
       clearLanding,
       route,
       JumpInput,
+      WorldMotion,
+      MovementInput,
+      spots: [],
       interactionSpecs,
       innerWidth: 390,
       innerHeight: 844,
@@ -66,15 +74,28 @@ test("dropping past every rooftop edge lands clear and can route away", () => {
       {x:11,z:10,w:6,d:4,cameraHeight:3.5},
       {x:7.6,z:10,w:1.4,d:2.6,cameraHeight:2.8}
     ];
-    for (const roof of rooftops) for (const [dx,dz] of [[roof.w/2+.05,0],[-roof.w/2-.05,0],[0,roof.d/2+.05],[0,-roof.d/2-.05]]) {
+    for (const fps of [30,60,90,144]) for (const roof of rooftops) for (const [dx,dz] of [[roof.w/2+.05,0],[-roof.w/2-.05,0],[0,roof.d/2+.05],[0,-roof.d/2-.05]]) {
+      world.motion.reset();
       world.player.root.position.set(roof.x+dx,roof.y+.1,roof.z+dz);
       world.elevation=roof.y+.1; world.jumpVelocity=0;
-      for(let i=0;i<180;i++) world.jumpStep(1/60);
+      // Match the frame loop: movement interpolation runs before falling.
+      for(let i=0;i<fps*3;i++) {
+        world.motion.sample(world.player.root.position,1/fps,dt=>world.move(dt));
+        world.jumpStep(1/fps);
+      }
       const p=world.player.root.position;
       // Overlapping named rooftops may catch a fall; otherwise it reaches clear ground.
       if(world.elevation>.11) continue;
       assert.ok(!blocked(p.x,p.z,world.obstacles), roof.id+' landed inside a prop');
       assert.ok(route(p,{x:0,z:5},world.obstacles).length, roof.id+' can walk away');
+      world.path=route(p,{x:0,z:5},world.obstacles);
+      const landed=p.clone();
+      for(let i=0;i<fps;i++) {
+        world.motion.sample(p,1/fps,dt=>world.move(dt));
+        world.jumpStep(1/fps);
+      }
+      assert.ok(p.distanceTo(landed)>1, roof.id+' movement resumes after landing at '+fps+' Hz');
+      world.path=[];
     }
   `);
 });

@@ -178,6 +178,7 @@ function harness() {
     escapeText: (value: string) => value,
     firstRacePending: () => false,
     openShell: noop,
+    setEmotesOpen: noop,
     dismissStyleReward: noop,
     boardTarget: "",
     currentProfile: { name: "Review player", account: {} },
