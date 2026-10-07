@@ -13,10 +13,15 @@ const keys = new Set(
   legendarySets.flatMap((_, i) => [
     `outfits-${i * 2}`,
     `outfits-${i * 2 + 1}`,
+    `clothing-${setItemIndex("clothing", i)}`,
+    `hair-${setItemIndex("hair", i)}`,
     `pet-${setItemIndex("pet", i)}`,
     `accessory-${setItemIndex("accessory", i)}`,
   ]),
 );
+if (process.env.CATALOG_COMPONENTS_ONLY) {
+  for (const key of keys) if (!/^(clothing|hair)-/.test(key)) keys.delete(key);
+}
 const written = new Set();
 mkdirSync("public/wardrobe", { recursive: true });
 const html = `<!doctype html><html><body><p id="result">Rendering catalog…</p><script type="module">

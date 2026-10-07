@@ -17,3 +17,16 @@ Evidence: `.browser/wardrobe-menu-*.png` and corresponding HTML assertion report
 Thumbnail capture is serialized by the review page, awaited before disposal, and
 blob URLs are released. The preview restores its camera even if encoding fails.
 No account, privacy, age gate, ownership, price or earning-rule changes.
+
+## PR 2 — Mix and match
+
+Adds Clothes, Hair and Headwear alongside complete outfits, pets and magic.
+Uses existing clothing/hair/baseHair/hat fields and original item indices: no
+migration, price change or entitlement conversion. All 80 existing hairstyles
+remain free. No-headwear preserves the visible hairstyle. Undo captures visual
+fields only. Server ownership enforcement remains authoritative.
+
+Validation: build; 12 catalogue/component/ownership regression checks; all six
+browser fixtures with independent hair/headwear/clothes interactions. Rendered
+120 clothing/headwear PNGs from the production builder. Existing saves roundtrip
+without losing identity, pets, magic or purchases. Fixtures use synthetic data.

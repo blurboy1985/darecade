@@ -191,6 +191,15 @@ export function mobileLobbyFixture(
       const restoredLook=JSON.parse(localStorage.getItem('darecade-v1'));
       check(restoredLook.hair===girlLook.hair && restoredLook.baseHair===girlLook.baseHair && restoredLook.hat===0, 'complete outfit restores matching hairstyle and headwear');
       check(restoredLook.pet===girlLook.pet && restoredLook.accessory===girlLook.accessory, 'outfit preserves chosen pet and magic');
+      find('[data-wardrobe-section="Hair"]').click();
+      find('[data-try-slot="hairstyle"][data-try-index="112"]').click();
+      check(JSON.parse(localStorage.getItem('darecade-v1')).baseHair===112, 'hairstyle equips independently');
+      find('[data-wardrobe-section="Headwear"]').click();
+      find('[data-try-slot="hair"][data-try-index="157"]').click();
+      check(JSON.parse(localStorage.getItem('darecade-v1')).baseHair===112, 'headwear preserves hairstyle');
+      find('[data-wardrobe-section="Clothes"]').click();
+      find('[data-try-slot="clothing"][data-try-index="65"]').click();
+      check(JSON.parse(localStorage.getItem('darecade-v1')).baseHair===112, 'clothes preserve hairstyle');
       for(const section of ['Outfits','Pets','Magic']) {
         find('[data-wardrobe-section="'+section+'"]').click();
         const panel=find('.wardrobe-controls');
@@ -202,7 +211,7 @@ export function mobileLobbyFixture(
         check(visible(done)&&hit(done), section+' Done is reachable at bottom');
         panel.scrollTop=0;
       }
-      check(document.querySelectorAll('[data-wardrobe-section]').length===3, 'only three top-level sections');
+      check(document.querySelectorAll('[data-wardrobe-section]').length===6, 'complete outfits and component sections');
       check(document.querySelectorAll('[data-wardrobe-filter]').length===3, 'only three tiers');
       find('[data-wardrobe-section="Pets"]').click();
       find('[data-wardrobe-filter="Legendary"]').click();
