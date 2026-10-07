@@ -148,7 +148,19 @@ export function mobileLobbyFixture(
       find('#close-modal').click();
       find('.lobby-dock [data-open="wardrobe"]').click();
       await wait(()=>find('.wardrobe-controls'));
-      const firstCard=find('[data-try-slot="outfits"][data-try-index="80"]');
+      const identity=find('.look-identity'), tabs=find('.look-tabs');
+        check(identity.getBoundingClientRect().top < tabs.getBoundingClientRect().top, 'settings precede catalogue');
+        if (!${twoD}) {
+          find('[data-preview-view="face"]').click();
+          check(find('[data-preview-view="face"]').getAttribute('aria-pressed')==='true', 'face camera is selected');
+          find('[data-preview-view="body"]').click();
+        }
+        find('[data-expand-preview]').click();
+        check(!!find('.fitting-expanded') && !visible(find('.wardrobe-controls')), 'expanded fitting room hides catalogue');
+        check(find('.character-preview').getBoundingClientRect().height>120, 'expanded preview has useful height');
+        find('[data-expand-preview]').click();
+        check(visible(find('.wardrobe-controls')), 'return from expanded preview restores catalogue');
+        const firstCard=find('[data-try-slot="outfits"][data-try-index="80"]');
       const cardImage=firstCard.querySelector('img');
       const previewCanvas=find('.character-preview canvas');
       firstCard.click();

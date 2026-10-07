@@ -860,3 +860,9 @@ body.is-away #away-banner {
     font-size: 16px;
   }
 }
+@media (max-height: 480px) and (min-width: 701px) {
+  dialog .wardrobe-layout { height: calc(94dvh - 110px); }
+  dialog .wardrobe-layout .avatar-preview { height: auto; }
+  dialog .wardrobe-layout .character-preview { flex-basis: 110px; height: 110px !important; }
+  dialog .wardrobe-layout.fitting-expanded .character-preview { flex: 1 1 120px; height: auto !important; }
+}
