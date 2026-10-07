@@ -25,15 +25,16 @@ export function hairSurface(style: HairShape, capped: boolean) {
       const angle = (column / columns) * Math.PI * 2;
       const signed = Math.atan2(Math.sin(angle), Math.cos(angle));
       const front = 1 - smooth(0.55, 1.65, Math.abs(signed));
-      let fringe = 1.18;
+      // Keep the fringe just above the brows, with a small cut-specific contour.
+      let fringe = 1.48;
       if (style === "flowing")
-        fringe = 1.03 + 0.27 * Math.abs(Math.sin(angle * 1.5));
-      if (style === "messy") fringe = 1.2 + 0.09 * Math.sin(angle * 5 + 0.7);
+        fringe = 1.45 + 0.07 * Math.abs(Math.sin(angle * 1.5));
+      if (style === "messy") fringe = 1.49 + 0.035 * Math.sin(angle * 5 + 0.7);
       if (style === "ponytail" || style === "braid")
-        fringe = 1.17 + 0.15 * Math.sin(angle * 2 + 0.5);
+        fringe = 1.48 + 0.04 * Math.sin(angle * 2 + 0.5);
       if (style === "buns" || style === "tails")
-        fringe = 1.16 + 0.06 * Math.cos(angle * 4);
-      if (style === "spiky") fringe = 1.15 + 0.09 * Math.cos(angle * 6);
+        fringe = 1.48 + 0.025 * Math.cos(angle * 4);
+      if (style === "spiky") fringe = 1.48 + 0.035 * Math.cos(angle * 6);
       const end = T.MathUtils.lerp(
         style === "bob" ? 1.82 : 2.03,
         fringe,
@@ -44,7 +45,9 @@ export function hairSurface(style: HairShape, capped: boolean) {
         style === "messy" ? 0.055 * Math.sin(polar) * Math.cos(polar) : 0;
       let x = 0.46 * Math.sin(polar) * Math.sin(angle) + sweep;
       let y = 0.03 + 0.4 * Math.cos(polar);
-      let z = -0.015 + 0.39 * Math.sin(polar) * Math.cos(angle);
+      // The lower fringe needs forehead clearance as the skull widens here.
+      const depth = 0.39 + 0.025 * front * smooth(0.6, 1, t);
+      let z = -0.015 + depth * Math.sin(polar) * Math.cos(angle);
       // Length grows from the lower side/back of the same shell, with no seam.
       const length = style === "flowing" ? 0.57 : style === "bob" ? 0.19 : 0;
       y -= length * (1 - front) * smooth(0.48, 1, t);

@@ -222,3 +222,15 @@ Lowered crowns:
 Crowns over starter clothes, including the previously bald Lantern Mage case:
 
 ![Crowns retain hair over starter clothes](evidence/crowns-starter-clothes.png)
+
+
+### Fringe placement follow-up
+
+Lowered the fringe to just above the eyebrows across all eight cuts, with extra
+forehead clearance to avoid skin poking through. The same geometry is used for
+both character options. Crown seating at 1.72 applies equally to male and female
+avatars, as does the fix preventing starter clothes from flattening crown hair.
+Both options were rendered with the lower fringe, crowns, hats and starter
+clothes. The 192-combination crown regression was rerun for this change.
+
+![Male crown fit with the lower fringe](evidence/crowns-male-lower-fringe.png)
