@@ -1,3 +1,4 @@
+import { resizeRenderer } from "./render-budget.ts";
 import * as T from "three";
 import { presentationTick } from "./relay-motion.ts";
 import {
@@ -63,7 +64,6 @@ export class RelayView {
   ) {
     // Creation errors deliberately reach the controller's lightweight fallback.
     this.renderer = new T.WebGLRenderer({ antialias: true });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     this.renderer.outputColorSpace = T.SRGBColorSpace;
     this.renderer.domElement.setAttribute("aria-hidden", "true");
     host.append(this.renderer.domElement);
@@ -139,7 +139,7 @@ export class RelayView {
     for (const object of this.scene.children) object.position.z *= -1;
     const resize = () => {
       if (this.disposed || !host.clientWidth || !host.clientHeight) return;
-      this.renderer.setSize(host.clientWidth, host.clientHeight, false);
+      resizeRenderer(this.renderer, host.clientWidth, host.clientHeight, false);
       this.camera.aspect = host.clientWidth / host.clientHeight;
       this.camera.fov = host.clientWidth < host.clientHeight ? 68 : 54;
       this.camera.updateProjectionMatrix();

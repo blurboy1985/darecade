@@ -1,3 +1,4 @@
+import { resizeRenderer } from "./render-budget.ts";
 import { part, ball } from "./shapes.ts";
 import { identitySeed } from "./character-identity.ts";
 import { HAIR_START } from "./hair-catalog.ts";
@@ -986,7 +987,6 @@ function poseSkin(a: Avatar, mode: string, time = 0, reduced = false) {
   a.footrest.visible = mode === "arcade" && stepHeight > 0.05;
   a.footrest.scale.y = stepHeight / 0.38;
   a.footrest.position.set(0, 0.1 + stepHeight / 2 - a.root.position.y, 0.08);
-  a.root.updateMatrixWorld(true);
   a.root.getWorldQuaternion(rootQ);
   const set = (name: string, delta: T.Quaternion) => {
     const entry = a.rig.get(name);
@@ -994,7 +994,6 @@ function poseSkin(a: Avatar, mode: string, time = 0, reduced = false) {
     targetQ.copy(rootQ).multiply(delta).multiply(entry.rest);
     entry.bone.parent!.getWorldQuaternion(parentQ).invert();
     entry.bone.quaternion.copy(parentQ).multiply(targetQ);
-    entry.bone.updateMatrixWorld(true);
   };
   const torso = a.spine.quaternion.clone();
   set("chest", torso);
@@ -1102,7 +1101,6 @@ function fitHands(a: Avatar, mode: string, weight: number) {
       bone.quaternion
         .copy(bone.parent!.getWorldQuaternion(new T.Quaternion()).invert())
         .multiply(q);
-      bone.updateMatrixWorld(true);
     };
     turn(upper, lower, bend);
     turn(lower, wrist, start.clone().addScaledVector(direction, distance));
@@ -1146,8 +1144,8 @@ export function createCharacterPreview(
   look: Look & { reduced?: boolean },
 ) {
   const renderer = new T.WebGLRenderer({ alpha: true, antialias: true });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
-  renderer.setSize(
+  resizeRenderer(
+    renderer,
     Math.max(1, host.clientWidth),
     Math.max(80, host.clientHeight),
   );
@@ -1175,7 +1173,7 @@ export function createCharacterPreview(
     const w = host.clientWidth,
       h = Math.max(80, host.clientHeight);
     if (!w) return;
-    renderer.setSize(w, h);
+    resizeRenderer(renderer, w, h);
     camera.aspect = w / h;
     camera.position.z = Math.max(
       4.6,

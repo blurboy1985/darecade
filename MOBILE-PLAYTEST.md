@@ -2,6 +2,23 @@
 
 All eight phases are deployed at https://playsimi.danielquek.com. The final source integrates main at `2f0308a`, including its character, music, accepted-friend privacy, save retry and first-race improvements. Worker version: `8a99bb47-90dc-4588-9bd6-0d0795f9f583`.
 
+## Mobile rendering refinement — 7 October 2026
+
+The current changes remove the Automatic, Quality and Performance selector and its switch-back prompt. All 3D views use one rendering budget: at most 1.25 pixels per CSS pixel in either orientation, with a 1.5-million-pixel ceiling. Existing saved quality preferences are ignored. Sound, reduced-motion and time-of-day controls remain.
+
+The lobby no longer renders dynamic shadow maps. Walking past a camera obstruction keeps the player's chosen orbit and zoom; the existing foreground fade keeps the avatar visible. Camera following uses elapsed time. Distant neighbours drop outlines sooner, and character posing leaves descendant matrix updates to the renderer instead of repeatedly walking the whole model hierarchy.
+
+Run `npm run test:mobile-render` with `DARECADE_TEST_CHROMIUM` set to an installed Chrome executable. The script loads the real world, character rigs and WebGL renderer, walks and stops through irregular frame intervals in both camera modes, rotates the viewport, and writes `.browser/mobile-render-report.json`. It checks the resolution ceiling, disabled shadow passes, walking poses and workload bounds. These deterministic counts measure work, not physical iPhone FPS or touch latency.
+
+| View | Peak rendering calls before → after | Matrix updates per frame before → after |
+| --- | --- | --- |
+| Portrait, third person | 661 → 228 | 3,317 → 2,022 |
+| Portrait, bird's-eye | 665 → 258 | 3,317 → 2,022 |
+| Landscape, third person | 792 → 402 | 3,317 → 2,022 |
+| Landscape, bird's-eye | 907 → 500 | 3,316 → 2,022 |
+
+The high-density phone fixture renders 61% fewer pixels than the previous default. A physical iPhone walkthrough is still needed to confirm sustained smoothness, native joystick input and camera visibility around buildings. The earlier release evidence below describes the previous graphics modes.
+
 ## Changes by phase
 
 1. **Movement and camera.** Fixed 60 Hz movement with per-frame interpolation; the camera follows the final rendered avatar pose. Automatic quality changes wait until the player stops. Expanded solid-prop footprints and swept route checks prevent thin props being skipped. Pinch and button zoom reach an outfit-sized view, with a 2.7 minimum follow distance and a 12 maximum.

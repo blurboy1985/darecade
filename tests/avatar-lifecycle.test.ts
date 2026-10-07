@@ -460,3 +460,34 @@ test("walking poses follow every displayed frame, including frames between movem
     }
   }
 });
+
+test("deferred rig updates preserve world-space poses under a turned parent", () => {
+  const scene = new T.Group();
+  scene.rotation.set(0.1, 0.7, -0.05);
+  scene.scale.setScalar(1.4);
+  const a = createAvatar(scene, 0, 0, outfits[0]);
+  try {
+    for (const time of [0.2, 0.7, 1.5]) {
+      a.root.rotation.y = time;
+      a.root.position.x += 0.1;
+      animateDetails(a, time, "walk");
+      scene.updateMatrixWorld(true);
+      const root = a.root.getWorldQuaternion(new T.Quaternion());
+      for (const [name, control] of [
+        ["chest", a.spine],
+        ["upperlegr", a.legs[0]],
+        ["upperlegl", a.legs[1]],
+      ] as const) {
+        const entry = a.rig.get(name)!;
+        const expected = root
+          .clone()
+          .multiply(control.quaternion)
+          .multiply(entry.rest);
+        const actual = entry.bone.getWorldQuaternion(new T.Quaternion());
+        assert.ok(actual.angleTo(expected) < 1e-7, name);
+      }
+    }
+  } finally {
+    disposeAvatar(a);
+  }
+});

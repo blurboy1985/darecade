@@ -47,6 +47,7 @@ export function mobileLobbyFixture(
   const neighbour={id:'review-stranger',name:'Mint Otter 12',look:{...profile.progress,hair:69},activity:'lobby',status:'private',best:{},points:7,incoming:0,outgoing:0,wins:0,x:3,z:10,yaw:0};
   const baseFetch = window.fetch;
   localStorage.setItem('darecade-v1', JSON.stringify(profile.progress));
+  localStorage.setItem('playsimi-quality', 'quality'); // Legacy preference must not raise the mobile budget.
   window.fetch = async (input, init) => {
     const url = new URL(String(input), location.href);
     if (!url.pathname.startsWith('/api/')) return baseFetch(input, init);
@@ -86,6 +87,15 @@ export function mobileLobbyFixture(
     const hit = el => { const r=el.getBoundingClientRect(); return el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)); };
     try {
       await wait(()=>!find('#loading') && find('#player-name')?.textContent===profile.name);
+      find('[data-open="phone-menu"]').click();
+      find('[data-open="preferences"]').click();
+      check(!find('#setting-quality'), 'graphics modes are removed');
+      check(!!find('#setting-sound') && !!find('#setting-reduced'), 'sound and accessibility preferences remain');
+      find('#close-modal').click();
+      if (!${twoD}) {
+        const canvas=find('#world canvas');
+        check(!!canvas && canvas.width <= canvas.clientWidth * 1.25 + 1, 'legacy quality preference cannot exceed rendering budget');
+      }
       if (${automated === "wardrobe"}) {
       const emotes=find('#quick-emotes'), toggle=find('#quick-emotes-toggle');
       check(emotes.hidden && toggle.getAttribute('aria-expanded')==='false', 'emotes start collapsed');

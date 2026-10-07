@@ -1,3 +1,4 @@
+import { resizeRenderer } from "./render-budget.ts";
 import * as T from "three";
 import {
   animateDetails,
@@ -35,7 +36,6 @@ export class StageView {
     private readonly reduced: boolean,
   ) {
     this.renderer = new T.WebGLRenderer({ antialias: true });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     this.renderer.outputColorSpace = T.SRGBColorSpace;
     this.renderer.domElement.setAttribute("aria-hidden", "true");
     host.append(this.renderer.domElement);
@@ -163,7 +163,7 @@ export class StageView {
       const width = host.clientWidth,
         height = host.clientHeight;
       if (!width || !height || this.disposed) return;
-      this.renderer.setSize(width, height, false);
+      resizeRenderer(this.renderer, width, height, false);
       this.camera.aspect = width / height;
       this.camera.updateProjectionMatrix();
     });

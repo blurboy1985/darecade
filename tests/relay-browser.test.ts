@@ -98,7 +98,7 @@ for (const viewport of viewports) {
         if(holdPaths.has(path)) await new Promise((resolve,reject)=>delayed.push({path,resolve,reject}));
         let result = {};
         if (path === 'auth/config') result = { now: Date.now(), privacyVersion: 'fixture', mailMode: 'outbox', origin: location.origin, storageNotice: 'Synthetic test fixture' };
-        else if (path === 'auth/me' || path === 'profile' || path === 'progress') result = profile;
+        else if (path === 'auth/session' || path === 'auth/me' || path === 'profile' || path === 'progress') result = profile;
         else if (path === 'state') result = { profile, competitionReady: false, me: profile.id, self: { id: profile.id, name: profile.name, look: {}, activity: 'lobby', status: 'online', best: profile.progress.best, points: 0 }, day: ${JSON.stringify(today)}, nextReset: Date.now() + 86400000, week: '', weekly: [], lastWeek: [], dares: [], recentRuns: [], players: [], friends: [], challenged: [], boards: { noodle: [], hop: [], brick: [], swarm: [], coast: [], hoops: [], fishing: [] }, history: [] };
         else if (path === 'world/poll') result = { t: 'sync', at: Date.now(), world: 'fixture', p: [], d: [], gone: [] };
         else if (path === 'run') result = { id: 'synthetic-coast-run', game: data.game, seed: 7, version: 3, ranked: false, dailySeed: false, target: null, targetScore: 0 };

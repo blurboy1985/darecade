@@ -1,9 +1,9 @@
+import { resizeRenderer } from "./render-budget.ts";
 import * as T from "three";
 
 /** A bounded token reveal. Text remains usable when WebGL is unavailable. */
 export function tokenReveal(host: HTMLElement) {
   const renderer = new T.WebGLRenderer({ alpha: true, antialias: true });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
   host.append(renderer.domElement);
   const scene = new T.Scene();
   const camera = new T.PerspectiveCamera(40, 1, 0.1, 20);
@@ -41,7 +41,8 @@ export function tokenReveal(host: HTMLElement) {
   light.position.set(-2, 3, 4);
   scene.add(light);
   const resize = () => {
-    renderer.setSize(
+    resizeRenderer(
+      renderer,
       Math.max(1, host.clientWidth),
       Math.max(1, host.clientHeight),
     );
