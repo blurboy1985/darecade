@@ -17,8 +17,8 @@ export function isMenuPage(id: string): id is keyof typeof menuPages {
 
 export const firstVisitCopy = {
   kicker: "YOUR FIRST RACE",
-  title: "Earn your lilac cap",
-  detail: "Finish a round at Palm Bay.",
+  title: "Your first Palm Bay finish",
+  detail: "Finish a round at Palm Bay for +35 bonus XP.",
   explore: "The town is open to explore.",
 } as const;
 

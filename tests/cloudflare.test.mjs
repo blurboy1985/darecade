@@ -14,6 +14,83 @@ import {
 const origin = "https://darecade.test";
 const oldOrigin = "https://old.darecade.test";
 
+test("Cloudflare piece exchanges are atomic and set upgrades preserve the actual debit ledger", async () => {
+  const { mf, api } = runtime(true, { awards: true });
+  try {
+    const p = await api("auth/join", {
+      over13: true,
+      consent: true,
+      privacyVersion: PRIVACY_VERSION,
+    });
+    const sql = await mf.unsafeGetDurableObjectStorage(
+      "darecade-test",
+      "AwardsNeighbourhood",
+      { name: "darecade-main-v1" },
+    );
+    await sql.exec(
+      "UPDATE profiles SET progress=json_set(progress,'$.xp',800) WHERE player=?",
+      p.data.id,
+    );
+    const piece = { event: "redeem-style", value: "piece:solar:clothing" };
+    const replies = await Promise.all([
+      api("progress", piece, p.cookie),
+      api("progress", piece, p.cookie),
+    ]);
+    assert.ok(
+      replies.every(
+        (r) => r.status === 200 && r.data.progress.wardrobeSpent === 5,
+      ),
+    );
+    assert.equal(
+      (await api("profile", { clothing: 24 }, p.cookie)).status,
+      200,
+    );
+    assert.notEqual((await api("profile", { hair: 28 }, p.cookie)).status, 200);
+    const upgraded = await api(
+      "progress",
+      { event: "redeem-style", value: "solar" },
+      p.cookie,
+    );
+    assert.equal(upgraded.data.progress.wardrobeSpent, 8);
+    const look = {
+      outfit: 0,
+      skin: 0,
+      eye: 0,
+      body: 0,
+      hat: 0,
+      clothing: 24,
+      hair: 28,
+      baseHair: 53,
+      pet: 26,
+      accessory: 27,
+    };
+    assert.equal(
+      (await api("profile", { ...look, savedLooks: [look] }, p.cookie)).status,
+      200,
+    );
+    await api("profile", { sound: false, wardrobeSpent: 0 }, p.cookie);
+    const reloaded = await api("auth/session", undefined, p.cookie);
+    assert.equal(reloaded.data.progress.wardrobeSpent, 8);
+    assert.equal(reloaded.data.progress.savedLooks[0].clothing, 24);
+    assert.deepEqual(reloaded.data.progress.wardrobeUnlocked, [
+      "solar",
+      "piece:solar:clothing",
+    ]);
+    assert.notEqual(
+      (
+        await api(
+          "progress",
+          { event: "redeem-style", value: "piece:aegis-prime:hair" },
+          p.cookie,
+        )
+      ).status,
+      200,
+    );
+  } finally {
+    await mf.dispose();
+  }
+});
+
 test(
   "Cloudflare season registration, concurrent XP, challenge filtering and midnight rewards preserve lifetime data",
   { timeout: 30000 },

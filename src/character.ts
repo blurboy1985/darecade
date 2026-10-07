@@ -640,31 +640,38 @@ export function applyLook(
     a.hat,
     a.look.baseHair ?? a.look.hair!,
     !!(
-      look.hat ||
+      look.hat === 1 ||
+      look.hat === 2 ||
       wear ||
-      gear ||
+      (gear !== null &&
+        [
+          "beanie",
+          "chef",
+          "grad",
+          "propeller",
+          "viking",
+          "mushroom",
+          "straw",
+          "cap",
+          "frog",
+          "beret",
+          "astronaut",
+        ].includes(gear)) ||
       hair.hood ||
       (headSet >= 0 &&
-        [
-          "mage",
-          "royal",
-          "knight",
-          "ranger",
-          "trainer",
-          "academy",
-          "otter",
-          "neighbour",
-        ].includes(legendarySets[headSet].design.costume)) ||
+        ["mage", "ranger", "trainer", "academy", "otter", "neighbour"].includes(
+          legendarySets[headSet].design.costume,
+        )) ||
       (starter && ["staff", "bow", "cutlass"].includes(starter.prop))
     ),
   );
   buildMouth(a.hat, skin);
-  const seatHeadwear = (build: (group: T.Group) => void) => {
+  const seatHeadwear = (build: (group: T.Group) => void, crown = false) => {
     const group = new T.Group();
     build(group);
     const bounds = new T.Box3().setFromObject(group);
-    if (!bounds.isEmpty() && bounds.min.y > 1.7)
-      group.position.y = 1.7 - bounds.min.y;
+    if (!bounds.isEmpty() && (crown || bounds.min.y > 1.7))
+      group.position.y = (crown ? 1.88 : 1.7) - bounds.min.y;
     a.hat.add(group);
   };
   if (!look.hat && !wear && !gear && headSet < 0)
@@ -673,7 +680,10 @@ export function applyLook(
   if (hair.hood && !look.hat) buildHood(a.hat);
   // Wardrobe headgear sits under an earned hat's slot: the earned hat wins.
   if (headSet >= 0 && !look.hat)
-    seatHeadwear((group) => costumeHead(group, legendarySets[headSet]));
+    seatHeadwear(
+      (group) => costumeHead(group, legendarySets[headSet]),
+      ["royal", "knight"].includes(legendarySets[headSet].design.costume),
+    );
   else if (gear && !look.hat)
     seatHeadwear((group) => buildHeadgear(group, gear));
   if (previous.accessory !== a.look.accessory || !a.magic) {
@@ -1182,12 +1192,12 @@ export function createCharacterPreview(
     const face = view === "face";
     const x = !face && look.pet ? 0.3 : 0;
     const distance = Math.max(
-      face ? 1.8 : 4.6,
-      (face ? 0.42 : look.accessory ? 1.45 : look.pet ? 1.3 : 0.85) /
+      face ? 2.2 : 4.6,
+      (face ? 0.48 : look.accessory ? 1.45 : look.pet ? 1.3 : 0.85) /
         (camera.aspect * Math.tan((Math.PI * 35) / 360)),
     );
-    camera.position.set(x, face ? 1.65 : 1.45, distance);
-    camera.lookAt(x, face ? 1.58 : 1.13, 0);
+    camera.position.set(x, face ? 1.82 : 1.45, distance);
+    camera.lookAt(x, face ? 1.7 : 1.13, 0);
     camera.updateProjectionMatrix();
   }
   frameLook();

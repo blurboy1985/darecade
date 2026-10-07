@@ -436,7 +436,7 @@ test("first-visit settings paths never start a race and Back returns to welcome"
   h.run('open("settings")');
   assert.match(h.body.innerHTML, /data-open="phone-menu">← Back/);
 
-  h.context.save.unlockedHats.push(2);
+  h.context.save.welcome = "played";
   h.run('open("settings")');
   assert.match(h.body.innerHTML, /data-open="phone-menu">← Back/);
   h.run('open("phone-menu")');

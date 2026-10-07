@@ -29,19 +29,22 @@ do not unlock the set. Favourites have no expiry, notifications or streak penalt
 
 One token is earned per 100 lifetime XP. Ranked medals add 3/2/1 for gold/silver/
 bronze, capped at 3 per Singapore day across eligible daily games. Available
-balance is floor(XP / 100) + medal tokens - tokens exchanged. No earning rate,
-existing price, owned item or gameplay advantage changed in this wardrobe series.
+balance is floor(XP / 100) + medal tokens - tokens exchanged. Earning rates and existing ownership remain unchanged. Legendary prices are now
+standardised: complete sets cost 8 tokens, clothes 5, and headwear, pets or magic
+4 each. Standalone hairstyles stay free. Already-unlocked pieces are credited
+toward the 8-token complete-set upgrade. The saved debit ledger preserves the
+amount actually spent, including historical prices and discounted upgrades.
 
 New sets:
 
-| Family               | Access                                      |
-| -------------------- | ------------------------------------------- |
-| After-school Circuit | Free                                        |
-| Void Deck Weekend    | Free                                        |
-| Monsoon Wayfinder    | 18 Style tokens or optional S$1.99 purchase |
-| Canal Otter Club     | 24 Style tokens or optional S$1.99 purchase |
-| Rainshield Guardian  | S$1.99 Premium                              |
-| Moonbell Society     | S$1.99 Premium                              |
+| Family               | Access                                     |
+| -------------------- | ------------------------------------------ |
+| After-school Circuit | Free                                       |
+| Void Deck Weekend    | Free                                       |
+| Monsoon Wayfinder    | 8 Style tokens or optional S$1.99 purchase |
+| Canal Otter Club     | 8 Style tokens or optional S$1.99 purchase |
+| Rainshield Guardian  | S$1.99 Premium                             |
+| Moonbell Society     | S$1.99 Premium                             |
 
 All purchases use the existing saved-account and **18+ confirmation** requirements.
 The game remains 13+. Stripe handles payment details. New sets use the existing
@@ -87,3 +90,22 @@ server to a catalogue that predates its ID: that older normaliser does not know
 how to retain the new entitlement. If needed, hide the new UI while retaining the
 catalogue, entitlement validation and profile fields. Preserve the payment ledger
 and take a database backup before deployment. These PRs have not been deployed.
+
+## Hair and pricing corrections, 7 October 2026
+
+Eight hairstyles now have different fringe and nape shapes instead of five shared
+front/rear clumps. Crowns preserve full hair volume and sit above the scalp;
+solid hats still use fitted hair. Hair cards use the same thumbnail-ready path as
+other categories. Catalogue PNGs are rebuilt with `scripts/wardrobe-thumbnails.mjs`
+against the local art server, using `PLAYWRIGHT_CORE` for the installed browser runtime.
+
+The Lilac Daydream cap is retired from the welcome reward and daily gift choices.
+The first Palm Bay finish keeps its one-time 35 XP bonus. Existing cap owners
+retain the hat and can still equip it; its ID and mesh remain stable.
+
+Individual Legendary unlock IDs use `piece:<set-id>:<slot>` in the existing
+server-owned `wardrobeUnlocked` array. Old full-set entitlements still unlock all
+pieces. Premium items cannot be redeemed as token pieces. Concurrent retries
+and upgrades debit only once. Old clients cannot patch ownership or the debit
+ledger. After new pieces are granted, retain these IDs and ledger handling in
+any rollback rather than restoring an older catalogue normaliser.

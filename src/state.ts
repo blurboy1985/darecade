@@ -233,10 +233,15 @@ export function normalise(raw: unknown, fallback: Save): Save {
         r.wardrobeUnlocked.includes(set.id),
     )
     .map((set) => set.id);
-  s.wardrobeSpent = s.wardrobeUnlocked.reduce(
-    (sum, id) => sum + tokenLooks.find((set) => set.id === id)!.cost,
-    0,
-  );
+  // This is a debit ledger, not today's catalogue valuation. Preserve historical
+  // prices and discounted upgrades; profile APIs never accept client ledger patches.
+  s.wardrobeSpent =
+    Number.isSafeInteger(r.wardrobeSpent) && r.wardrobeSpent! >= 0
+      ? r.wardrobeSpent!
+      : s.wardrobeUnlocked.reduce(
+          (sum, id) => sum + tokenLooks.find((set) => set.id === id)!.cost,
+          0,
+        );
   for (const key of ["xp", "rounds", "medalTokens"] as const)
     if (Number.isFinite(r[key]) && r[key]! >= 0)
       s[key] = Math.floor(Math.min(r[key]!, 1e8));
@@ -293,7 +298,6 @@ export function normalise(raw: unknown, fallback: Save): Save {
     ...new Set([
       0,
       s.hat,
-      ...(s.welcome === "played" || s.welcome === "complete" ? [2] : []),
       ...(Array.isArray(r.unlockedHats)
         ? r.unlockedHats.filter((v) => Number.isInteger(v) && v >= 0 && v <= 3)
         : []),
@@ -352,18 +356,16 @@ export function completeWelcomeRound(s: Save) {
   s.welcome = "played";
   s.welcomeDismissed = false;
   s.xp += 35;
-  if (!s.unlockedHats.includes(2)) s.unlockedHats.push(2);
   return true;
 }
-export function firstRoundGoalPending(
-  s: Pick<Save, "rounds" | "unlockedHats">,
-) {
-  return !s.unlockedHats.includes(2);
+export function firstRoundGoalPending(s: Pick<Save, "welcome">) {
+  return s.welcome !== "played" && s.welcome !== "complete";
 }
 export function claimGift(s: Save, choice: number, day = singaporeDay()) {
   if (
     s.giftDay === day ||
     !Number.isInteger(choice) ||
+    choice === 1 ||
     choice < 0 ||
     choice > 2
   )

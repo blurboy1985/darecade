@@ -41,37 +41,37 @@ export function buildHair(parent: T.Object3D, index: number, capped = false) {
   // Back volume stops above the nape; the face remains completely exposed.
   if (!capped) part(hair, "ball", [0, 0.12, -0.1], [0.44, 0.39, 0.33], color);
   if (capped) part(hair, "ball", [0, -0.02, -0.1], [0.39, 0.25, 0.3], color);
-  // Rear clumps break the smooth sphere silhouette from the gameplay camera.
-  for (let i = -2; i <= 2; i++) {
-    part(
-      hair,
-      "ball",
-      [i * 0.15, -0.02, -0.34],
-      [0.115, (short ? 0.16 : 0.28) + (2 - Math.abs(i)) * 0.035, 0.12],
-      color,
-      { rot: [-0.18, 0, -i * 0.11] },
-    );
-    part(
-      hair,
-      "cone",
-      [i * 0.14, short ? -0.17 : -0.29, -0.29],
-      [0.1, short ? 0.12 : 0.19, 0.1],
-      color,
-      {
-        rot: [Math.PI, 0, i * 0.12],
-      },
-    );
-  }
-  for (let i = -2; i <= 2; i++) {
-    const strand = part(
-      hair,
-      "ball",
-      [i * 0.145, 0.22 - Math.abs(i) * 0.025, 0.275],
-      [0.125, style === "spiky" ? 0.14 : style === "messy" ? 0.18 : 0.24, 0.11],
-      color,
-    );
-    strand.rotation.z = i * -0.15 + 0.12;
-  }
+  // Each cut has its own fringe; avoid repeating the same five beads on every head.
+  const fringe: Record<(typeof hairStyles)[number], number[][]> = {
+    spiky: [
+      [-0.18, 0.27, 0.22, 0.2, 0.16, 0.16, -0.55],
+      [0.13, 0.3, 0.22, 0.26, 0.13, 0.16, 0.35],
+    ],
+    flowing: [
+      [-0.25, 0.2, 0.23, 0.16, 0.29, 0.14, -0.3],
+      [0.24, 0.2, 0.23, 0.16, 0.29, 0.14, 0.3],
+    ],
+    buns: [
+      [-0.16, 0.25, 0.26, 0.26, 0.14, 0.13, -0.2],
+      [0.2, 0.22, 0.25, 0.18, 0.2, 0.13, 0.3],
+    ],
+    messy: [
+      [-0.22, 0.28, 0.25, 0.2, 0.15, 0.13, -0.5],
+      [0.03, 0.23, 0.29, 0.21, 0.18, 0.12, 0.45],
+      [0.25, 0.22, 0.22, 0.15, 0.15, 0.13, 0.7],
+    ],
+    ponytail: [[-0.12, 0.24, 0.27, 0.29, 0.17, 0.12, -0.35]],
+    bob: [[0, 0.2, 0.27, 0.37, 0.16, 0.13, 0]],
+    braid: [[0.05, 0.21, 0.28, 0.33, 0.18, 0.12, 0.35]],
+    tails: [
+      [-0.17, 0.23, 0.26, 0.22, 0.17, 0.13, -0.25],
+      [0.17, 0.23, 0.26, 0.22, 0.17, 0.13, 0.25],
+    ],
+  };
+  for (const [x, y, z, sx, sy, sz, tilt] of fringe[style])
+    part(hair, "ball", [x, y, z], [sx, sy, sz], color, { rot: [0, 0, tilt] });
+  // A continuous nape gives short cuts a clean back; long cuts add their own shape.
+  part(hair, "ball", [0, -0.04, -0.25], [0.37, short ? 0.2 : 0.27, 0.2], color);
   for (const side of [-1, 1]) {
     part(
       hair,
@@ -104,15 +104,14 @@ export function buildHair(parent: T.Object3D, index: number, capped = false) {
       );
     }
     if (style === "flowing")
-      for (let i = 0; i < 3; i++)
-        part(
-          hair,
-          "ball",
-          [side * (0.16 + i * 0.1), -0.31, -0.23],
-          [0.13, 0.48 - i * 0.025, 0.14],
-          color,
-          { rot: [-0.12, 0, side * 0.1] },
-        );
+      part(
+        hair,
+        "ball",
+        [side * 0.2, -0.29, -0.23],
+        [0.25, 0.48, 0.18],
+        color,
+        { rot: [-0.12, 0, side * 0.06] },
+      );
     if (style === "bob")
       part(
         hair,
@@ -122,15 +121,24 @@ export function buildHair(parent: T.Object3D, index: number, capped = false) {
         color,
       );
   }
-  if (!capped && (style === "spiky" || style === "messy"))
+  if (!capped && style === "messy")
+    for (const [x, y, tilt] of [
+      [-0.22, 0.37, -0.5],
+      [0.06, 0.43, 0.35],
+      [0.27, 0.32, 0.65],
+    ])
+      part(hair, "ball", [x, y, -0.06], [0.22, 0.19, 0.23], color, {
+        rot: [0, 0, tilt],
+      });
+  if (!capped && style === "spiky")
     for (let i = -2; i <= 2; i++)
       part(
         hair,
         "cone",
         [i * 0.14, 0.51 - Math.abs(i) * 0.04, 0.02],
-        [0.115, style === "messy" ? 0.36 + (i % 2) * 0.1 : 0.52, 0.12],
+        [0.115, 0.4, 0.12],
         color,
-        { rot: [0.1, 0, -i * (style === "messy" ? 0.45 : 0.27)] },
+        { rot: [0.1, 0, -i * 0.27] },
       );
   if (style === "ponytail")
     part(hair, "ball", [0, -0.12, -0.4], [0.18, 0.48, 0.2], color, {

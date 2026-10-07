@@ -2,6 +2,7 @@ import { savedLookAllowed } from "../src/saved-looks.ts";
 import { nicknameError } from "../shared/nickname.ts";
 import {
   ownsSet,
+  redemptionCost,
   styleTokens,
   canWear,
   tokenLooks,
@@ -505,10 +506,13 @@ export class CommunityCore {
           throw Error("These basic items are now free.");
         if (set.tier === "Premium")
           throw Error("Premium looks require payment.");
-        if (styleTokens(p) < set.cost)
+        if ("setId" in set && ownsSet(p, set.setId))
+          return this.privateProfile(id);
+        const cost = redemptionCost(set, p);
+        if (styleTokens(p) < cost)
           throw Error("Earn enough Style tokens first.");
         p.wardrobeUnlocked.push(set.id);
-        p.wardrobeSpent += set.cost;
+        p.wardrobeSpent += cost;
       } else if (event === "gift") {
         if (!claimGift(p, value, day(at)))
           throw Error("This daily gift is already claimed or unavailable.");

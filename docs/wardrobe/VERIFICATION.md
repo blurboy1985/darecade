@@ -118,3 +118,28 @@ The current production-builder outfit thumbnails for the six families:
 | Moonbell | Otter Club | Void Deck |
 | --- | --- | --- |
 | ![Moonbell](../../public/wardrobe/outfits-126.png) | ![Otter Club](../../public/wardrobe/outfits-128.png) | ![Void Deck](../../public/wardrobe/outfits-130.png) |
+
+## Hair, cap and token-price follow-up
+
+The repeated five front/rear hair clumps were shared across every hairstyle. They
+are replaced with separate fringe/nape recipes, including a rounded messy cut.
+Open crowns, ears and headbands retain scalp coverage; Eclipse/Crystal crowns
+sit above the hair. Face zoom includes the crown. Hair cards now opt into the
+thumbnail loader instead of remaining at CSS opacity zero. 618 catalogue images
+were regenerated from the current production renderer.
+
+Legendary sets cost 8 tokens, clothes 5, and headwear/pets/magic 4 each. Owned
+pieces reduce the remaining set cost. New component IDs are server-owned entries
+in the existing unlock array. The debit ledger retains actual historical spend.
+Lilac cap grants are retired; owners retain their cap and the first finish keeps
+its 35 XP reward. Age/privacy and cash-purchase rules are unchanged.
+
+Validation: production build; 491 Node/browser tests with no skips; 15 Cloudflare
+integration tests including concurrent piece redemption and discounted upgrades;
+24 mobile workload cases under existing limits. The local production WebGL UI
+verified loaded hair images, both crowns, a 5-token clothes unlock followed by a
+3-token set upgrade, and persistence after reload. Portrait 390×844 and landscape
+844×390 checks use desktop Chrome emulation, not physical phones.
+
+![Hair previews on mobile](evidence/hair-fixed-mobile.png)
+![Crown with full hair](evidence/crown-fixed-desktop.png)

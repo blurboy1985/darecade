@@ -130,14 +130,14 @@ test("exchanges enforce server progress, debit once, survive reload and protect 
       solar.tier = "Legendary";
     }
     const first = community.progression(id, "redeem-style", "solar").progress;
-    assert.equal(styleTokens(first), 0);
+    assert.equal(styleTokens(first), 4);
     assert.equal(first.xp, 1200);
     assert.deepEqual(first.wardrobeUnlocked, ["solar"]);
     const retry = community.progression(id, "redeem-style", "solar").progress;
-    assert.equal(retry.wardrobeSpent, 12);
+    assert.equal(retry.wardrobeSpent, 8);
     assert.equal(
       normalise(JSON.parse(JSON.stringify(retry)), fresh()).wardrobeSpent,
-      12,
+      8,
     );
     const equipped = community.patch(id, setLook(0)).progress;
     assert.equal(equipped.pet, setStarts.pet);
