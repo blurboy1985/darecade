@@ -540,20 +540,14 @@ test("the weekly board tells a player with scores today when their medals arrive
   assert.match(h.body.innerHTML, /Nothing yet!/);
 });
 
-test("My look identity controls retain claimed daily hats", () => {
+test("My look shows character settings without separate clothing or hats", () => {
   const h = harness();
-  assert.equal(state.claimGift(h.context.save, 0), true);
-  h.run('open("shop")');
-  assert.match(h.body.innerHTML, /data-look-tab="hair">See it in My look/);
-  h.context.wardrobeSection = "Outfits";
   h.run('open("wardrobe")');
-  assert.match(
+  assert.match(h.body.innerHTML, /Character settings/);
+  assert.doesNotMatch(
     h.body.innerHTML,
-    /class="hat-shelf"[\s\S]*The Kopitiam Bucket · wearing/,
+    /class="hat-shelf"|data-try-slot="hair"|data-try-slot="clothing"/,
   );
-  h.context.wardrobeSection = "Outfits";
-  h.run('open("wardrobe")');
-  assert.match(h.body.innerHTML, /class="hat-shelf"/);
 });
 
 test("a finished quest offers Claim, and a claimed quest says so", () => {
@@ -643,7 +637,7 @@ test("My look exposes only three sections and their tiers", () => {
   assert.doesNotMatch(h.body.innerHTML, /data-open="support"/);
   assert.match(
     wardrobe.wardrobeBrowser("Outfits", "Free", state.fresh(), 0, null),
-    /data-try-index="54"/,
+    /data-try-slot="outfits" data-try-index="80"/,
   );
 });
 

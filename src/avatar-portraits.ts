@@ -113,7 +113,11 @@ export function mountAvatarCards(host: HTMLElement, worn: Look) {
         const img = entry.target;
         observer.unobserve(img);
         const [slot, index] = (img.dataset.thumbnail ?? "").split(":");
-        if (!["sets", "hair", "clothing", "pet", "accessory"].includes(slot))
+        if (
+          !["outfits", "sets", "hair", "clothing", "pet", "accessory"].includes(
+            slot,
+          )
+        )
           continue;
         // Yield each render so the skeleton and input can paint first.
         enqueueThumbnail(async () => {

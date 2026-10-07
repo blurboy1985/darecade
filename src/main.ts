@@ -7,12 +7,12 @@ import { mountAvatarCards, refreshHeadshot } from "./avatar-portraits";
 import { mountPayments } from "./payments";
 import {
   wardrobeBrowser,
+  outfitPreviewImage,
   wardrobeSections,
   wardrobeFilters,
   type WardrobeSection,
   type WardrobeFilter,
   refreshWardrobeCards,
-  hatShelf,
   tokenSummary,
   itemLook,
   itemName,
@@ -20,7 +20,13 @@ import {
   type WardrobeTab,
   type TryOn,
 } from "./wardrobe";
-import { legendarySets, tokenLooks, styleTokens } from "./collections";
+import {
+  legendarySets,
+  tokenLooks,
+  styleTokens,
+  outfitLook,
+  setIndexFor,
+} from "./collections";
 import { audio, petSound, type Sfx } from "./audio";
 import { showStyleReward } from "./style-reward";
 import { celebrate } from "./celebration";
@@ -588,7 +594,7 @@ function updateTryOn(selection?: { name: string; image: string }) {
     ? `<button class="primary" data-equip-look ${canEquip ? "" : "disabled"}>${canEquip ? "Equip look" : "Locked · preview only"}</button><button class="text-button" data-reset-look>Back to my look</button>`
     : `<button class="secondary" data-undo-look ${undoLook ? "" : "disabled"}>Undo</button><span>Tap a look to wear it</span>`;
   if (preview && is2d)
-    preview.innerHTML = `<img class="look-2d-image" src="${tryingLook?.image ?? selection?.image ?? `/wardrobe/clothing-${save.clothing}.png`}" alt="${tryingLook?.name ?? selection?.name ?? clothingNames[save.clothing]}">${actionButton("2d", "Return to 3D", "secondary")}`;
+    preview.innerHTML = `<img class="look-2d-image" src="${tryingLook?.image ?? selection?.image ?? outfitPreviewImage(save)}" alt="${tryingLook?.name ?? selection?.name ?? clothingNames[save.clothing]}">${actionButton("2d", "Return to 3D", "secondary")}`;
   refreshWardrobeCards(body, save, shared?.self?.points ?? 0, tryingLook);
 }
 function actionButton(action: string, label: string, klass = "primary") {
@@ -794,7 +800,7 @@ function open(id: string) {
       )}</div><p class="fine-print">Play medals reward qualifying finishes. Ranked arcade medals land at midnight.</p>`;
   } else if (id === "shop") {
     const taken = save.giftDay === singaporeDay();
-    body.innerHTML = `<h2>${taken ? "Good choice!" : "Pick a free hat"}</h2><p class="lead">${taken ? "It’s in My look → Name, girl or boy, colours & daily hats." : "Yours to keep."}</p><div class="gift-grid">${["The Kopitiam Bucket", "Lilac Daydream", "Just a Little Sprout"].map((n, i) => `<button class="gift-option ${taken && save.gift === i ? "chosen" : ""}" data-gift="${i}" ${taken ? "disabled" : ""}><span class="hat-art hat-${i}">${["▰", "◒", "♧"][i]}</span><strong>${n}</strong><span>${taken ? (save.gift === i ? "YOURS TO KEEP" : "ANOTHER DAY") : "FREE · CHOOSE ME"}</span></button>`).join("")}</div><div class="note">${icon("leaf")} New pick daily (SGT). No streak to lose.</div>${taken ? '<button class="primary" data-look-tab="hair">See it in My look →</button>' : ""}`;
+    body.innerHTML = `<h2>${taken ? "Good choice!" : "Pick a free hat"}</h2><p class="lead">${taken ? "It’s in your collection. Choose any complete outfit in My look to change your style." : "Yours to keep."}</p><div class="gift-grid">${["The Kopitiam Bucket", "Lilac Daydream", "Just a Little Sprout"].map((n, i) => `<button class="gift-option ${taken && save.gift === i ? "chosen" : ""}" data-gift="${i}" ${taken ? "disabled" : ""}><span class="hat-art hat-${i}">${["▰", "◒", "♧"][i]}</span><strong>${n}</strong><span>${taken ? (save.gift === i ? "YOURS TO KEEP" : "ANOTHER DAY") : "FREE · CHOOSE ME"}</span></button>`).join("")}</div><div class="note">${icon("leaf")} New pick daily (SGT). No streak to lose.</div>${taken ? '<button class="primary" data-look-tab="hair">Browse complete outfits →</button>' : ""}`;
   } else if (id === "wardrobe") {
     const nickname =
       currentProfile?.name || shared?.self?.name || "New neighbour";
@@ -805,7 +811,7 @@ function open(id: string) {
     const medals = shared?.self?.points ?? 0;
     const shown = tryingLook?.look ?? save;
     world?.updateAvatar(shown);
-    body.innerHTML = `<div class="wardrobe-layout"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${tryingLook ? "Trying on" : escapeText(nickname)}</strong><small>DRAG TO TURN</small><span class="look-caption">${tryingLook?.name ?? clothingNames[save.clothing]}</span><div class="try-actions" role="status"><button class="secondary" data-undo-look ${undoLook ? "" : "disabled"}>Undo</button><button class="text-button" data-reset-look>Back to my look</button></div></div><div class="wardrobe-controls">${setupGuide ? '<span class="eyebrow setup-step">STEP 1 OF 2 · NAME & LOOK</span>' : ""}${setupGuide ? "<h2>Make it yours</h2>" : `<span class="eyebrow">YOUR COLLECTION</span><h2>My look</h2><div class="style-wallet"><strong>${tokenSummary(save)}</strong><small>Tokens buy looks. +1 per 100 XP, up to +3 daily from ranked medals.</small></div>`}<details class="look-identity" ${setupGuide ? "open" : ""}><summary>Name, girl or boy, colours & daily hats</summary><form id="nickname-form" novalidate><label class="field-label" for="nickname">NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" ${currentProfile?.account ? "" : "readonly"} value="${escapeText(typed)}" minlength="2" maxlength="20" autocomplete="off" placeholder="Choose your nickname" aria-describedby="nickname-status" required><button class="secondary" type="submit" ${currentProfile?.account ? "" : "disabled"}>Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form><label class="field-label">CHARACTER</label><div class="body-options">${["Girl", "Boy"].map((label, i) => `<button data-body="${i}" class="${save.body === i ? "active" : ""}" aria-pressed="${save.body === i}">${label}</button>`).join("")}</div><label class="field-label">OUTFIT COLOUR</label><div class="swatches">${outfits.map((c, i) => `<button data-outfit="${i}" style="--swatch:${c}" class="${save.outfit === i ? "active" : ""}" aria-label="${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][i]} outfit" aria-pressed="${save.outfit === i}"></button>`).join("")}</div><p class="fine-print">Legendary outfits use their own signature colours.</p><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">EYE COLOUR</label><div class="swatches">${["#db779f", "#865035", "#328cca", "#469267", "#8763bd"].map((c, i) => `<button data-eye="${i}" style="--swatch:${c}" aria-label="${["Original", "Brown", "Blue", "Green", "Violet"][i]} eyes" aria-pressed="${(save.eye || 0) === i}"></button>`).join("")}</div>${hatShelf(save)}</details>${setupGuide ? `<details class="setup-more" ${moreLooksOpen ? "open" : ""}><summary>Browse looks</summary>` : ""}<div class="look-tabs" aria-label="Wardrobe sections">${wardrobeSections.map((label) => `<button data-wardrobe-section="${label}" aria-pressed="${wardrobeSection === label}">${label}</button>`).join("")}</div><div class="collection-tabs" aria-label="Item tiers">${wardrobeFilters.map((label) => `<button data-wardrobe-filter="${label}" aria-pressed="${wardrobeFilter === label}">${label}</button>`).join("")}</div>${wardrobeBrowser(wardrobeSection, wardrobeFilter, save, medals, tryingLook)}<p class="fine-print">Cosmetic only. No gameplay advantage. Free basics, token or paid Legendary sets, and money-only Premium looks.</p>${setupGuide ? "</details>" : ""}${setupGuide ? actionButton("setup-save", currentProfile?.account ? "Save & continue →" : "Next: save my character →") : actionButton("done-look", "Done")}</div></div>`;
+    body.innerHTML = `<div class="wardrobe-layout"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${tryingLook ? "Trying on" : escapeText(nickname)}</strong><small>DRAG TO TURN</small><span class="look-caption">${tryingLook?.name ?? clothingNames[save.clothing]}</span><div class="try-actions" role="status"><button class="secondary" data-undo-look ${undoLook ? "" : "disabled"}>Undo</button><button class="text-button" data-reset-look>Back to my look</button></div></div><div class="wardrobe-controls">${setupGuide ? '<span class="eyebrow setup-step">STEP 1 OF 2 · NAME & LOOK</span>' : ""}${setupGuide ? "<h2>Make it yours</h2>" : `<span class="eyebrow">YOUR COLLECTION</span><h2>My look</h2><div class="style-wallet"><strong>${tokenSummary(save)}</strong><small>Tokens buy looks. +1 per 100 XP, up to +3 daily from ranked medals.</small></div>`}<details class="look-identity" ${setupGuide ? "open" : ""}><summary>Character settings</summary><form id="nickname-form" novalidate><label class="field-label" for="nickname">NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" ${currentProfile?.account ? "" : "readonly"} value="${escapeText(typed)}" minlength="2" maxlength="20" autocomplete="off" placeholder="Choose your nickname" aria-describedby="nickname-status" required><button class="secondary" type="submit" ${currentProfile?.account ? "" : "disabled"}>Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form><label class="field-label">CHARACTER</label><div class="body-options">${["Girl", "Boy"].map((label, i) => `<button data-body="${i}" class="${save.body === i ? "active" : ""}" aria-pressed="${save.body === i}">${label}</button>`).join("")}</div><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">EYE COLOUR</label><div class="swatches">${["#db779f", "#865035", "#328cca", "#469267", "#8763bd"].map((c, i) => `<button data-eye="${i}" style="--swatch:${c}" aria-label="${["Original", "Brown", "Blue", "Green", "Violet"][i]} eyes" aria-pressed="${(save.eye || 0) === i}"></button>`).join("")}</div></details>${setupGuide ? `<details class="setup-more" ${moreLooksOpen ? "open" : ""}><summary>Browse looks</summary>` : ""}<div class="look-tabs" aria-label="Wardrobe sections">${wardrobeSections.map((label) => `<button data-wardrobe-section="${label}" aria-pressed="${wardrobeSection === label}">${label}</button>`).join("")}</div><div class="collection-tabs" aria-label="Item tiers">${wardrobeFilters.map((label) => `<button data-wardrobe-filter="${label}" aria-pressed="${wardrobeFilter === label}">${label}</button>`).join("")}</div>${wardrobeBrowser(wardrobeSection, wardrobeFilter, save, medals, tryingLook)}<p class="fine-print">Cosmetic only. No gameplay advantage. Every outfit includes matching clothes, headwear and hair. Pets and magic are selected separately.</p>${setupGuide ? "</details>" : ""}${setupGuide ? actionButton("setup-save", currentProfile?.account ? "Save & continue →" : "Next: save my character →") : actionButton("done-look", "Done")}</div></div>`;
     mountAvatarCards(body, save);
     const preview = body.querySelector<HTMLElement>(".character-preview")!;
     if (!is2d) {
@@ -821,7 +827,7 @@ function open(id: string) {
         preview.textContent = "Your look will appear in the neighbourhood.";
       }
     } else
-      preview.innerHTML = `<img class="look-2d-image" src="${tryingLook?.image ?? `/wardrobe/clothing-${save.clothing}.png`}" alt="${tryingLook?.name ?? clothingNames[save.clothing]}">${actionButton("2d", "Return to 3D", "secondary")}`;
+      preview.innerHTML = `<img class="look-2d-image" src="${tryingLook?.image ?? outfitPreviewImage(save)}" alt="${tryingLook?.name ?? clothingNames[save.clothing]}">${actionButton("2d", "Return to 3D", "secondary")}`;
     body.querySelector<HTMLFormElement>("#nickname-form")!.onsubmit = async (
       e,
     ) => {
@@ -1377,6 +1383,7 @@ document.addEventListener("click", (e) => {
   if (b.dataset.trySlot && b.dataset.tryIndex !== undefined) {
     const slot = b.dataset.trySlot as WardrobeTab;
     const index = Number(b.dataset.tryIndex);
+    if (slot === "outfits" && index % 2 !== (save.body ?? 0)) return;
     if (b.getAttribute("aria-pressed") === "true" && !tryingLook) return;
     b.setAttribute("aria-pressed", "true");
     tryingLook = {
@@ -1583,6 +1590,11 @@ document.addEventListener("click", (e) => {
     if (b.dataset[key] !== undefined) {
       tryingLook = null;
       save[key] = Number(b.dataset[key]);
+      if (key === "body") {
+        const theme = setIndexFor("clothing", save.clothing);
+        if (theme >= 0) Object.assign(save, outfitLook(theme, save.body));
+        undoLook = null;
+      }
       beep(
         key === "pet"
           ? save.pet

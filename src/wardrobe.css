@@ -592,3 +592,22 @@ dialog:has(.wardrobe-layout) {
   padding: 8px;
   font-size: 11px;
 }
+
+.catalog-heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+.catalog-heading strong {
+  font-size: 16px;
+}
+.catalog-heading span {
+  font-size: 11px;
+  color: #70667b;
+}
+.catalog-heading .text-button {
+  margin-left: auto;
+  font-size: 12px;
+}

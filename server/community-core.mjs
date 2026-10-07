@@ -490,7 +490,8 @@ export class CommunityCore {
         const set = tokenLooks.find((s) => s.id === value);
         if (!set) throw Error("Unknown style set.");
         if (ownsSet(p, set.id)) return this.privateProfile(id);
-        if (!("tier" in set)) throw Error("These basic items are now free.");
+        if (!("tier" in set) || set.tier === "Free")
+          throw Error("These basic items are now free.");
         if (set.tier === "Premium")
           throw Error("Premium looks require payment.");
         if (styleTokens(p) < set.cost)

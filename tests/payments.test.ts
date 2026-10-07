@@ -66,12 +66,26 @@ function setup(secretKey = "sk_test_fixture", livemode = false) {
       assert.ok(form.get("success_url")?.startsWith(c.origin));
       const id = `cs_test_fixture${sessions.size}`;
       const price = form.get("line_items[0][price]");
+      const inlineAmount = form.get("line_items[0][price_data][unit_amount]");
+      const inlineSet = form.get(
+        "line_items[0][price_data][product_data][metadata][set]",
+      );
+      if (inlineAmount) {
+        assert.equal(price, null);
+        assert.equal(inlineAmount, "199");
+        assert.equal(form.get("line_items[0][price_data][currency]"), "sgd");
+        assert.ok(form.get("line_items[0][price_data][product_data][name]"));
+      }
       const session = {
         id,
         url: `https://checkout.stripe.com/c/pay/${id}`,
         mode: "payment",
         currency: "sgd",
-        amount_total: price === "price_solar" ? 490 : 300,
+        amount_total: inlineAmount
+          ? Number(inlineAmount)
+          : price === "price_solar"
+            ? 490
+            : 300,
         livemode,
         client_reference_id: form.get("client_reference_id"),
         metadata: { order: form.get("metadata[order]") },
@@ -83,7 +97,20 @@ function setup(secretKey = "sk_test_fixture", livemode = false) {
         },
         line_items: {
           has_more: false,
-          data: [{ quantity: 1, price: { id: price } }],
+          data: [
+            {
+              quantity: 1,
+              price: inlineAmount
+                ? {
+                    id: "price_generated",
+                    unit_amount: Number(inlineAmount),
+                    currency: "sgd",
+                    type: "one_time",
+                    product: { metadata: { set: inlineSet } },
+                  }
+                : { id: price },
+            },
+          ],
         },
       };
       sessions.set(id, session);
@@ -390,5 +417,98 @@ test("under-18 donation attempts fail before contacting Stripe", async () => {
     assert.equal(f.payments.history(f.player).length, 0);
   } finally {
     f.close();
+  }
+});
+
+for (const product of ["jade-fist", "aegis-prime"]) {
+  test(`${product} has a server-priced S$1.99 checkout with verified, idempotent ownership and refunds`, async () => {
+    const s = setup();
+    try {
+      s.account();
+      const urls = await Promise.all([
+        s.payments.checkout(s.player, product),
+        s.payments.checkout(s.player, product),
+      ]);
+      assert.equal(urls[0].url, urls[1].url);
+      assert.equal(s.sessions.size, 1);
+      const session = [...s.sessions.values()][0];
+      assert.equal(session.amount_total, 199);
+      session.status = "complete";
+      session.payment_status = "paid";
+      const original = session.line_items;
+      for (const change of [
+        { unit_amount: 1 },
+        { currency: "usd" },
+        { type: "recurring" },
+        { product: { metadata: { set: "solar" } } },
+      ]) {
+        session.line_items = {
+          data: [
+            {
+              quantity: 1,
+              price: {
+                id: "price_generated",
+                unit_amount: 199,
+                currency: "sgd",
+                type: "one_time",
+                product: { metadata: { set: product } },
+                ...change,
+              },
+            },
+          ],
+        };
+        await assert.rejects(
+          () => s.payments.reconcile(session.id, s.player),
+          /does not match/,
+        );
+      }
+      assert.deepEqual(
+        s.c.privateProfile(s.player).progress.wardrobePurchased,
+        [],
+      );
+      session.line_items = original;
+      await Promise.all([
+        s.event(session),
+        s.payments.reconcile(session.id, s.player),
+      ]);
+      assert.deepEqual(
+        s.c.privateProfile(s.player).progress.wardrobePurchased,
+        [product],
+      );
+      await assert.rejects(
+        () => s.payments.checkout(s.player, product),
+        /already own/,
+      );
+      session.payment_intent.latest_charge.refunded = true;
+      await s.event(
+        { payment_intent: session.payment_intent.id },
+        "charge.refunded",
+      );
+      assert.deepEqual(
+        s.c.privateProfile(s.player).progress.wardrobePurchased,
+        [],
+      );
+    } finally {
+      s.close();
+    }
+  });
+}
+
+test("free sets cannot be charged or consume Style tokens", async () => {
+  const s = setup();
+  try {
+    s.account();
+    await assert.rejects(
+      () => s.payments.checkout(s.player, "rookie-hero"),
+      /not available/,
+    );
+    assert.throws(
+      () => s.c.progression(s.player, "redeem-style", "rookie-hero"),
+      /free/,
+    );
+    assert.equal(s.calls(), 0);
+    assert.equal(s.c.privateProfile(s.player).progress.wardrobeSpent, 0);
+  } finally {
+    s.close();
   }
 });

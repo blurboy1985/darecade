@@ -35,6 +35,7 @@ export function buildHair(parent: T.Object3D, index: number, capped = false) {
   const visual = hairVisual(index);
   const style = hairStyles[visual.shape];
   const color = visual.color;
+  const short = style === "spiky" || style === "messy";
   const hair = node(parent, [0, 1.46, -0.07], "VolumetricHair");
   hair.userData.secondaryMotion = true;
   // Back volume stops above the nape; the face remains completely exposed.
@@ -46,13 +47,20 @@ export function buildHair(parent: T.Object3D, index: number, capped = false) {
       hair,
       "ball",
       [i * 0.15, -0.02, -0.34],
-      [0.115, 0.28 + (2 - Math.abs(i)) * 0.035, 0.12],
+      [0.115, (short ? 0.16 : 0.28) + (2 - Math.abs(i)) * 0.035, 0.12],
       color,
       { rot: [-0.18, 0, -i * 0.11] },
     );
-    part(hair, "cone", [i * 0.14, -0.29, -0.29], [0.1, 0.19, 0.1], color, {
-      rot: [Math.PI, 0, i * 0.12],
-    });
+    part(
+      hair,
+      "cone",
+      [i * 0.14, short ? -0.17 : -0.29, -0.29],
+      [0.1, short ? 0.12 : 0.19, 0.1],
+      color,
+      {
+        rot: [Math.PI, 0, i * 0.12],
+      },
+    );
   }
   for (let i = -2; i <= 2; i++) {
     const strand = part(
@@ -65,9 +73,16 @@ export function buildHair(parent: T.Object3D, index: number, capped = false) {
     strand.rotation.z = i * -0.15 + 0.12;
   }
   for (const side of [-1, 1]) {
-    part(hair, "ball", [side * 0.39, -0.1, 0.075], [0.12, 0.29, 0.17], color, {
-      rot: [0, 0, side * 0.14],
-    });
+    part(
+      hair,
+      "ball",
+      [side * 0.39, short ? 0.02 : -0.1, 0.075],
+      [0.12, short ? 0.14 : 0.29, 0.17],
+      color,
+      {
+        rot: [0, 0, side * 0.14],
+      },
+    );
     if (style === "buns" && !capped)
       part(hair, "ball", [side * 0.39, 0.32, -0.08], [0.19, 0.19, 0.17], color);
     if (style === "tails") {

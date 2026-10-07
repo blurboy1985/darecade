@@ -14,8 +14,12 @@ const accounts = {
 };
 if (!accounts[mode]) throw Error("Say sandbox or live.");
 const checkOnly = process.argv.includes("--check");
-const key = parseEnv(readFileSync(`.env.stripe-${mode}`, "utf8")).STRIPE_SECRET_KEY;
-if (!new RegExp(`^(sk|rk)_${mode === "live" ? "live" : "test"}_`).test(key || ""))
+const key = parseEnv(
+  readFileSync(`.env.stripe-${mode}`, "utf8"),
+).STRIPE_SECRET_KEY;
+if (
+  !new RegExp(`^(sk|rk)_${mode === "live" ? "live" : "test"}_`).test(key || "")
+)
   throw Error(`.env.stripe-${mode} has no ${mode} key.`);
 const AMOUNT = 199;
 
@@ -31,7 +35,9 @@ async function stripe(path, body) {
   });
   const json = await response.json();
   if (!response.ok)
-    throw Error(`${path}: ${json.error?.code || response.status} ${json.error?.message || ""}`);
+    throw Error(
+      `${path}: ${json.error?.code || response.status} ${json.error?.message || ""}`,
+    );
   return json;
 }
 
@@ -43,16 +49,24 @@ const known = Object.values(catalog)[0]?.priceId;
 if (known) {
   const price = await stripe(`prices/${known}`);
   if (!products.some((p) => p.id === price.product))
-    throw Error("This key does not belong to the account in the catalogue file.");
+    throw Error(
+      "This key does not belong to the account in the catalogue file.",
+    );
 }
 console.log(
   `${mode}: ${products.length} active products;`,
   "sample:",
   JSON.stringify(
-    products.slice(0, 2).map((p) => ({ name: p.name, description: p.description, metadata: p.metadata })),
+    products
+      .slice(0, 2)
+      .map((p) => ({
+        name: p.name,
+        description: p.description,
+        metadata: p.metadata,
+      })),
   ),
 );
-for (const set of legendarySets) {
+for (const set of legendarySets.filter((set) => set.tier !== "Free")) {
   if (catalog[set.id]) continue;
   if (checkOnly) {
     console.log(`missing: ${set.id} (${set.name})`);
@@ -60,8 +74,8 @@ for (const set of legendarySets) {
   }
   const product = await stripe("products", {
     // Same wording as the first ten products.
-    name: `Darecade — ${set.name} Set`,
-    description: `Unlock the complete ${set.name} cosmetic set in Darecade: outfit, headwear, pet and magic effect. A one-time digital purchase for your saved Darecade account. Cosmetic only; no gameplay advantage.`,
+    name: `Play Simi — ${set.name} Set`,
+    description: `Unlock the complete ${set.name} cosmetic set in Play Simi: complete boy and girl outfits, pet and magic effect. A one-time digital purchase for your saved Play Simi account. Cosmetic only; no gameplay advantage.`,
     "metadata[set]": set.id,
     "default_price_data[currency]": "sgd",
     "default_price_data[unit_amount]": String(AMOUNT),
