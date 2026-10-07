@@ -288,7 +288,9 @@ test("5. saving a guest to an email that already has a character never swaps the
   try {
     const email = "daniel@example.test";
     const first = s.community.join(consent);
-    s.store.db.prepare("UPDATE players SET name=? WHERE id=?").run("Daniel",first.me.id); // Existing guest name remains intact.
+    s.store.db
+      .prepare("UPDATE players SET name=? WHERE id=?")
+      .run("Daniel", first.me.id); // Existing guest name remains intact.
     await s.community.requestCode(first.me.id, email);
     const owner = s.community.verifyCode(email, emailedCode(s, email));
     assert.equal(owner.me.id, first.me.id, "a new email keeps the character");
@@ -338,7 +340,11 @@ test("5. saving a guest to an email that already has a character never swaps the
 
 test("6. a claimed daily hat is listed with the headwear", () => {
   const save = fresh();
-  assert.match(hatShelf(save), /No hats yet/);
+  assert.equal(
+    hatShelf(save),
+    "",
+    "empty reward collection adds no distracting panel",
+  );
   assert.equal(claimGift(save, 0, "2026-10-04"), true);
   const shelf = hatShelf(save);
   assert.match(
@@ -347,6 +353,7 @@ test("6. a claimed daily hat is listed with the headwear", () => {
   );
   assert.match(shelf, /<button data-hat="0" aria-pressed="false">No hat</);
   assert.doesNotMatch(shelf, /Sprout/, "hats not yet earned are not offered");
+  assert.doesNotMatch(shelf, /Your hats|Selected:|No hats yet|hat-shelf/);
 });
 
 test("8. a walk to a chosen spot counts only that spot as visited", () => {

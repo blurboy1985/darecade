@@ -326,11 +326,8 @@ export function hatShelf(p: {
   const owned = hatNames
     .map((name, index) => ({ name, index }))
     .filter(({ index }) => !index || p.unlockedHats.includes(index));
-  return `<section class="hat-shelf" aria-label="Your hats"><h3>Your hats</h3>${!p.hat && p.hair !== undefined ? `<p class="collection-note">Selected: ${hairNames[p.hair]}</p>` : ""}${
-    owned.length > 1
-      ? `<div class="hat-options">${owned.map(({ name, index }) => `<button data-hat="${index}" aria-pressed="${p.hat === index}">${name}${p.hat === index && index ? " · wearing" : ""}</button>`).join("")}</div><p class="collection-note">Hats sit on top of any hairstyle. Trying a hairstyle below takes the hat off.</p>`
-      : '<p class="collection-note">No hats yet. Pick a free one at the Mama Shop. Existing reward hats stay in your collection.</p>'
-  }</section>`;
+  if (owned.length <= 1) return "";
+  return `<div class="hat-options" role="group" aria-label="Reward hats">${owned.map(({ name, index }) => `<button data-hat="${index}" aria-pressed="${p.hat === index}">${name}${p.hat === index && index ? " · wearing" : ""}</button>`).join("")}</div>`;
 }
 
 export function outfitPreviewImage(look: Look) {

@@ -106,10 +106,11 @@ export function originalHead(g: Group, s: StyleSet) {
     part(g, "box", [0, 1.74, 0.32], [0.56, 0.065, 0.1], s.color);
     part(g, "oct", [-0.25, 1.75, 0.38], [0.065, 0.08, 0.025], s.accent);
   } else if (kind === "academy") {
-    ball(g, [0.09, 1.73, -0.07], [0.44, 0.11, 0.37], s.color, {
+    // Seat the beret into the hair without moving the glasses below it.
+    ball(g, [0.09, 1.65, -0.07], [0.44, 0.11, 0.37], s.color, {
       rot: [0, 0, -0.14],
     });
-    part(g, "box", [0.12, 1.84, -0.07], [0.035, 0.075, 0.035], s.accent);
+    part(g, "box", [0.12, 1.76, -0.07], [0.035, 0.075, 0.035], s.accent);
     for (const side of [-1, 1])
       part(
         g,

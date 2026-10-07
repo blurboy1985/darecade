@@ -204,6 +204,7 @@ export function mobileLobbyFixture(
       find('[data-try-slot="hairstyle"][data-try-index="112"]').click();
       check(JSON.parse(localStorage.getItem('darecade-v1')).baseHair===112, 'hairstyle equips independently');
       find('[data-wardrobe-section="Headwear"]').click();
+      check(!find('.hat-shelf') && !find('#modal-body').textContent.includes('No hats yet'), 'headwear collection has no empty hats notice');
       find('[data-try-slot="hair"][data-try-index="157"]').click();
       check(JSON.parse(localStorage.getItem('darecade-v1')).baseHair===112, 'headwear preserves hairstyle');
       find('[data-wardrobe-section="Clothes"]').click();

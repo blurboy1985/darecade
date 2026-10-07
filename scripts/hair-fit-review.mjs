@@ -17,7 +17,15 @@ try {
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("http://127.0.0.1:5176/scripts/hair-fit-review.html");
   await page.waitForFunction(() => !!window.hairReviewModules);
+  const reviewIds = (
+    process.env.HEADWEAR_REVIEW_IDS ||
+    "apprentice-mage,moon-student,void-deck-weekend"
+  ).split(",");
+  await page.evaluate((ids) => {
+    window.reviewHeadwear = ids;
+  }, reviewIds);
   await page.evaluate(async () => {
+    const reviewHeadwear = window.reviewHeadwear;
     const { three: T, character, collections } = window.hairReviewModules;
     window.hairReviewCharacter = character;
     const { createAvatar, disposeAvatar, loadCharacter, animateDetails } =
@@ -87,9 +95,7 @@ try {
           if (mode === "starter-crowns") look.clothing = [1, 5, 7][row];
           if (mode === "headwear") {
             const set = legendarySets.findIndex(
-              (s) =>
-                s.id ===
-                ["apprentice-mage", "moon-student", "void-deck-weekend"][row],
+              (s) => s.id === reviewHeadwear[row],
             );
             look = {
               ...look,
@@ -159,7 +165,7 @@ try {
           const label = document.createElement("div");
           label.className = "label";
           label.style.cssText = `position:absolute;left:${col * 200 + 6}px;top:${row * 300 + 6}px;font:13px sans-serif`;
-          label.textContent = `${["Spiky", "Flowing", "Buns", "Messy", "Ponytail", "Bob", "Braid", "Tails"][col]} · ${mode === "headwear" ? ["Apprentice", "Moon Academy", "Kopi bucket"][row] : crowns ? ["Eclipse", "Crystal", "Solar"][row] : mode === "hats" ? ["Cap", "Lilac existing owner", "Sprout"][row] : mode === "poses" ? ["walk", "run", "bench", "swing", "arcade", "wave", "dance", "jump"][col] : ["Front", "Side", "Back"][row]}`;
+          label.textContent = `${["Spiky", "Flowing", "Buns", "Messy", "Ponytail", "Bob", "Braid", "Tails"][col]} · ${mode === "headwear" ? legendarySets.find((s) => s.id === reviewHeadwear[row]).name : crowns ? ["Eclipse", "Crystal", "Solar"][row] : mode === "hats" ? ["Cap", "Lilac existing owner", "Sprout"][row] : mode === "poses" ? ["walk", "run", "bench", "swing", "arcade", "wave", "dance", "jump"][col] : ["Front", "Side", "Back"][row]}`;
           document.body.append(label);
           disposeAvatar(avatar);
         }
