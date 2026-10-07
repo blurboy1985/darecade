@@ -367,8 +367,8 @@ test("progress rewards cannot repeat; reports hide players and deletion revokes 
   try {
     const a = await register(s, "privacy@example.test"),
       b = await register(s, "other@example.test");
-    s.community.progression(a.me.id, "gift", 1);
-    assert.throws(() => s.community.progression(a.me.id, "gift", 1), /already/);
+    s.community.progression(a.me.id, "gift", 0);
+    assert.throws(() => s.community.progression(a.me.id, "gift", 0), /already/);
     s.community.progression(a.me.id, "visit", "garden");
     const once = s.community.privateProfile(a.me.id).progress.xp;
     s.community.progression(a.me.id, "visit", "garden");

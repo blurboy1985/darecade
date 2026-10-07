@@ -121,7 +121,7 @@ test("complete outfits preserve identity and companions and reject the other bod
 
 test("Legendary offers tokens, with a cash fallback when tokens are short", () => {
   const poor = wardrobeBrowser("Pets", "Legendary", fresh(), 0, null);
-  assert.match(poor, /data-redeem-set="solar" disabled/);
+  assert.match(poor, /data-redeem-set="piece:solar:pet" disabled/);
   assert.match(poor, /data-buy-set="solar"/);
   const rich = wardrobeBrowser(
     "Pets",
@@ -130,7 +130,7 @@ test("Legendary offers tokens, with a cash fallback when tokens are short", () =
     0,
     null,
   );
-  assert.match(rich, /data-redeem-set="solar" >/);
+  assert.match(rich, /data-redeem-set="piece:solar:pet" >/);
   assert.doesNotMatch(rich, /data-buy-set/);
 });
 

@@ -180,12 +180,12 @@ test("tokens buy legendary looks; basic items are free, and browser patches cann
       /now free/,
     );
     const r = s.community.progression(a, "redeem-style", "solar").progress;
-    assert.equal(styleTokens(r), 1);
+    assert.equal(styleTokens(r), 5);
     assert.equal(r.rounds, 0);
     assert.equal(
       s.community.progression(a, "redeem-style", "solar").progress
         .wardrobeSpent,
-      12,
+      8,
     );
     assert.equal(s.community.patch(a, { clothing: 8 }).progress.clothing, 8);
   } finally {

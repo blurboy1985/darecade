@@ -60,22 +60,19 @@ test("presence counts live people including self, deduplicates and never counts 
   );
 });
 
-test("the first-race goal names the real cap reward and town access without changing rewards", () => {
-  assert.match(firstVisitCopy.title, /lilac cap/);
+test("the first-race goal names the XP reward and keeps town access", () => {
+  assert.match(firstVisitCopy.title, /Palm Bay finish/);
   assert.match(firstVisitCopy.detail, /Finish a round.*Palm Bay/);
   assert.match(firstVisitCopy.explore, /town is open/);
   assert.doesNotMatch(JSON.stringify(firstVisitCopy), /open the town/);
   const progress = fresh();
   assert.equal(firstRoundGoalPending(progress), true);
   assert.equal(completeWelcomeRound(progress), true);
-  assert.ok(progress.unlockedHats.includes(2));
+  assert.equal(progress.unlockedHats.includes(2), false);
   assert.equal(firstRoundGoalPending(progress), false);
   assert.equal(completeWelcomeRound(progress), false);
-  assert.equal(firstRoundGoalPending({ rounds: 1, unlockedHats: [0] }), true);
-  assert.equal(
-    firstRoundGoalPending({ rounds: 0, unlockedHats: [0, 2] }),
-    false,
-  );
+  assert.equal(firstRoundGoalPending({ welcome: "cabinet" }), true);
+  assert.equal(firstRoundGoalPending({ welcome: "played" }), false);
   const source = readFileSync(
     new URL("../src/main.ts", import.meta.url),
     "utf8",

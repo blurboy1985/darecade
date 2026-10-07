@@ -8,6 +8,9 @@ import {
 } from "./appearance.ts";
 import {
   canWear,
+  pieceId,
+  pieceCosts,
+  redemptionCost,
   ownsSet,
   outfitLook,
   outfitBodyName,
@@ -48,7 +51,7 @@ const names = {
 export const tierDescriptions = {
   Free: "Yours to wear. No tokens or payment needed.",
   Legendary:
-    "Unlock a set with Style tokens, or pay if you need more tokens. Complete outfit, pet and magic are included.",
+    "Complete sets cost 8 Style tokens. Clothes cost 5; headwear, pets and magic cost 4 each. Owned pieces count toward a set upgrade.",
   Premium: "Money-only looks. Style tokens cannot be used here.",
 };
 export function wardrobeBrowser(
@@ -64,7 +67,7 @@ export function wardrobeBrowser(
       (_, i) => {
         const index = HAIR_START + i;
         const state = wardrobeItemState("hairstyle", index, p, medals, trying);
-        return `<article class="collection-card"><button class="try-item" data-try-slot="hairstyle" data-try-index="${index}" aria-label="Equip ${hairNames[index]}" aria-pressed="${state.equipped}"><span class="item-art"><img class="avatar-thumbnail" src="/wardrobe/hair-${index}.png" alt="${hairNames[index]}" loading="lazy" width="240" height="220"></span><span class="item-state">${state.state}</span><strong>${hairNames[index]}</strong></button></article>`;
+        return `<article class="collection-card"><button class="try-item" data-try-slot="hairstyle" data-try-index="${index}" aria-label="Equip ${hairNames[index]}" aria-pressed="${state.equipped}"><span class="item-art"><img data-thumbnail="hair:${index}" class="avatar-thumbnail" src="/wardrobe/hair-${index}.png" alt="${hairNames[index]}" loading="lazy" width="240" height="220"></span><span class="item-state">${state.state}</span><strong>${hairNames[index]}</strong></button></article>`;
       },
     ).join("")}</div>`;
   }
@@ -110,8 +113,11 @@ export function wardrobeBrowser(
       medals,
       trying,
     );
+    const tokenCost =
+      slot === "outfits" ? redemptionCost(set, p) : pieceCosts[slot];
+    const tokenId = slot === "outfits" ? set.id : pieceId(slot, set.id);
     const actions = !owned
-      ? `<div class="item-unlock"><small>Set includes a complete outfit, pet & magic</small>${set.tier === "Legendary" ? `<button class="secondary" data-redeem-set="${set.id}" ${canRedeem(set, p, medals) ? "" : "disabled"}>Unlock · ${set.cost} Style tokens</button>` : ""}${set.tier === "Premium" || !canRedeem(set, p, medals) ? `<button class="secondary" data-buy-set="${set.id}">Buy set · S$${(setPriceSGD / 100).toFixed(2)}</button>` : ""}</div>`
+      ? `<div class="item-unlock"><small>${slot === "outfits" ? "Set includes outfit, pet & magic" : "Unlock this piece, or get the complete set for 8 tokens"}</small>${set.tier === "Legendary" ? `<button class="secondary" data-redeem-set="${tokenId}" ${styleTokens(p) >= tokenCost ? "" : "disabled"}>Unlock ${slot === "outfits" ? "set" : "piece"} · ${tokenCost} Style tokens</button>` : ""}${set.tier === "Premium" || !canRedeem(set, p, medals) ? `<button class="secondary" data-buy-set="${set.id}">Buy set · S$${(setPriceSGD / 100).toFixed(2)}</button>` : ""}</div>`
       : "";
     return `<article class="collection-card ${selected ? "is-previewing" : ""}" style="--collection-color:${set.color}"><button class="try-item" data-try-slot="${slot}" data-try-index="${index}" ${slot === "outfits" ? `data-outfit-body="${audience}"` : ""} aria-label="${owned ? "Equip" : "Preview"} ${name}" aria-pressed="${selected || equipped}"><span class="item-art"><img data-thumbnail="${slot}:${index}" class="avatar-thumbnail" src="/wardrobe/${slot}-${index}.png" loading="lazy" alt="${name}" width="240" height="220"></span><span class="item-state">${state}</span><strong>${name}</strong><small>${slot === "outfits" ? `${outfitBodyName(audience)} · Complete outfit` : set.name}</small></button>${actions}<button class="text-button favourite-button" data-favourite-set="${set.id}" aria-pressed="${p.favouriteSet === set.id}" aria-label="Favourite ${name}">${p.favouriteSet === set.id ? "★ Favourite" : "☆ Favourite"}</button></article>`;
   });
@@ -323,7 +329,7 @@ export function hatShelf(p: {
   return `<section class="hat-shelf" aria-label="Your hats"><h3>Your hats</h3>${!p.hat && p.hair !== undefined ? `<p class="collection-note">Selected: ${hairNames[p.hair]}</p>` : ""}${
     owned.length > 1
       ? `<div class="hat-options">${owned.map(({ name, index }) => `<button data-hat="${index}" aria-pressed="${p.hat === index}">${name}${p.hat === index && index ? " · wearing" : ""}</button>`).join("")}</div><p class="collection-note">Hats sit on top of any hairstyle. Trying a hairstyle below takes the hat off.</p>`
-      : '<p class="collection-note">No hats yet. Pick a free one at the Mama Shop each day, or finish Palm Bay for the Lilac cap.</p>'
+      : '<p class="collection-note">No hats yet. Pick a free one at the Mama Shop. Existing reward hats stay in your collection.</p>'
   }</section>`;
 }
 
@@ -339,12 +345,13 @@ export function favouriteProgress(p: WardrobeProgress & Look) {
   if (!set)
     return `<p class="collection-note">Choose ☆ on a set to pin your next look here.</p>`;
   const owned = set.tier === "Free" || ownsSet(p, set.id);
-  const available = Math.min(styleTokens(p), set.cost);
+  const cost = redemptionCost(set, p);
+  const available = Math.min(styleTokens(p), cost);
   return `<section class="favourite-goal" aria-label="Favourite outfit"><strong>★ ${set.name}</strong>${
     owned
       ? `<p>Yours to wear.</p><button class="secondary" data-try-slot="outfits" data-try-index="${legendarySets.indexOf(set) * 2 + (p.body ?? 0)}">Wear favourite</button>`
       : set.tier === "Legendary"
-        ? `<p>${available} / ${set.cost} Style tokens · ${set.cost - available} to go</p><progress max="${set.cost}" value="${available}" aria-label="Tokens for ${set.name}"></progress><p>1 token per 100 XP; up to 3 daily from ranked medals. No deadline.</p>${available === set.cost ? `<button class="secondary" data-redeem-set="${set.id}">Unlock · ${set.cost} Style tokens</button>` : ""}`
+        ? `<p>${available} / ${cost} Style tokens · ${cost - available} to go</p><progress max="${Math.max(1, cost)}" value="${available}" aria-label="Tokens for ${set.name}"></progress><p>1 token per 100 XP; up to 3 daily from ranked medals. No deadline.</p>${available === cost ? `<button class="secondary" data-redeem-set="${set.id}">Unlock · ${cost} Style tokens</button>` : ""}`
         : `<p>Optional Premium set · S$${(setPriceSGD / 100).toFixed(2)} · 18+ purchases. Style tokens do not unlock this set.</p><button class="secondary" data-buy-set="${set.id}">View set</button>`
   }<button class="text-button" data-favourite-set="${set.id}">Unpin favourite</button></section>`;
 }

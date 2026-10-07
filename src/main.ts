@@ -33,6 +33,7 @@ import {
 import {
   legendarySets,
   tokenLooks,
+  redemptionCost,
   styleTokens,
   outfitLook,
   setIndexFor,
@@ -806,7 +807,17 @@ function open(id: string) {
       )}</div><p class="fine-print">Play medals reward qualifying finishes. Ranked arcade medals land at midnight.</p>`;
   } else if (id === "shop") {
     const taken = save.giftDay === singaporeDay();
-    body.innerHTML = `<h2>${taken ? "Good choice!" : "Pick a free hat"}</h2><p class="lead">${taken ? "It’s in your collection. Choose any complete outfit in My look to change your style." : "Yours to keep."}</p><div class="gift-grid">${["The Kopitiam Bucket", "Lilac Daydream", "Just a Little Sprout"].map((n, i) => `<button class="gift-option ${taken && save.gift === i ? "chosen" : ""}" data-gift="${i}" ${taken ? "disabled" : ""}><span class="hat-art hat-${i}">${["▰", "◒", "♧"][i]}</span><strong>${n}</strong><span>${taken ? (save.gift === i ? "YOURS TO KEEP" : "ANOTHER DAY") : "FREE · CHOOSE ME"}</span></button>`).join("")}</div><div class="note">${icon("leaf")} New pick daily (SGT). No streak to lose.</div>${taken ? '<button class="primary" data-look-tab="hair">Browse complete outfits →</button>' : ""}`;
+    body.innerHTML = `<h2>${taken ? "Good choice!" : "Pick a free hat"}</h2><p class="lead">${taken ? "It’s in your collection. Choose any complete outfit in My look to change your style." : "Yours to keep."}</p><div class="gift-grid">${[
+      { name: "The Kopitiam Bucket", choice: 0 },
+      { name: "Just a Little Sprout", choice: 2 },
+    ]
+      .map(
+        ({ name: n, choice: i }) =>
+          `<button class="gift-option ${taken && save.gift === i ? "chosen" : ""}" data-gift="${i}" ${taken ? "disabled" : ""}><span class="hat-art hat-${i}">${["▰", "◒", "♧"][i]}</span><strong>${n}</strong><span>${taken ? (save.gift === i ? "YOURS TO KEEP" : "ANOTHER DAY") : "FREE · CHOOSE ME"}</span></button>`,
+      )
+      .join(
+        "",
+      )}</div><div class="note">${icon("leaf")} New pick daily (SGT). No streak to lose.</div>${taken ? '<button class="primary" data-look-tab="hair">Browse complete outfits →</button>' : ""}`;
   } else if (id === "wardrobe") {
     const nickname =
       currentProfile?.name || shared?.self?.name || "New neighbour";
@@ -1158,7 +1169,7 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
           (reward || !save.nameChosen || save.welcome !== "complete");
         body.innerHTML =
           id === "coast"
-            ? `<h2 class="result-score">${result?.race ? raceTime(result.race.timeTicks) : formatScore(id, score)}<small>${result?.race?.finished ? "YOUR THREE-LAP TIME" : "TIME · RACE INCOMPLETE"}</small></h2>${result?.race?.newBest ? '<p class="new-best">New personal best!</p>' : ""}<div class="round-breakdown"><span>XP<strong>+${result?.earnedXp ?? 0}</strong></span><span>Place<strong>${result?.race?.place ?? "—"} / 8</strong></span></div>${reward ? '<p class="result-encouragement">Lilac cap unlocked · +35 bonus XP</p>' : ""}<div class="button-row"><button class="primary" data-replay="coast">Play again</button><button class="secondary" data-action="setup-look">${setup ? "Create my name & look" : "Edit my name & look"}</button></div><details class="race-extra-details"><summary>Race details & leaderboard</summary>${raceSummary}${raceComparison(score, today, !!result?.ranked)}<p class="fine-print">Races allow 180 seconds until your first finish; standard races then allow 120 seconds.</p><p>${result ? `Verified round · +${result.earnedXp ?? 0} XP${reward ? " · Lilac cap unlocked · +35 bonus XP" : ""}` : "Offline · this round was not saved."}</p>${!currentProfile?.account ? '<button class="secondary" data-account>Save with email</button>' : ""}</details>`
+            ? `<h2 class="result-score">${result?.race ? raceTime(result.race.timeTicks) : formatScore(id, score)}<small>${result?.race?.finished ? "YOUR THREE-LAP TIME" : "TIME · RACE INCOMPLETE"}</small></h2>${result?.race?.newBest ? '<p class="new-best">New personal best!</p>' : ""}<div class="round-breakdown"><span>XP<strong>+${result?.earnedXp ?? 0}</strong></span><span>Place<strong>${result?.race?.place ?? "—"} / 8</strong></span></div>${reward ? '<p class="result-encouragement">First finish · +35 bonus XP</p>' : ""}<div class="button-row"><button class="primary" data-replay="coast">Play again</button><button class="secondary" data-action="setup-look">${setup ? "Create my name & look" : "Edit my name & look"}</button></div><details class="race-extra-details"><summary>Race details & leaderboard</summary>${raceSummary}${raceComparison(score, today, !!result?.ranked)}<p class="fine-print">Races allow 180 seconds until your first finish; standard races then allow 120 seconds.</p><p>${result ? `Verified round · +${result.earnedXp ?? 0} XP${reward ? " · First finish · +35 bonus XP" : ""}` : "Offline · this round was not saved."}</p>${!currentProfile?.account ? '<button class="secondary" data-account>Save with email</button>' : ""}</details>`
             : '<div class="result-star">' +
               icon(target ? "trophy" : "game") +
               '</div><h2 class="result-score">' +
@@ -1186,7 +1197,7 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
                 : "") +
               "</p>" +
               (reward
-                ? '<div class="welcome-reward"><span class="cap-badge">✦</span><span><strong>First round complete!</strong><span>Lilac cap unlocked · +35 bonus XP</span></span></div>'
+                ? '<div class="welcome-reward"><span class="cap-badge">✦</span><span><strong>First round complete!</strong><span>First finish · +35 bonus XP</span></span></div>'
                 : "") +
               '<div class="button-row">' +
               (setup
@@ -1529,7 +1540,9 @@ document.addEventListener("click", (e) => {
       value: set.id,
     }).then(() => {
       if (save.wardrobeUnlocked.includes(set.id))
-        toast(`${set.name} unlocked. All four pieces are yours!`);
+        toast(
+          `${set.name} unlocked.${"slot" in set ? "" : " All four pieces are yours!"}`,
+        );
       if (modal.open && body.querySelector(".wardrobe-layout"))
         open("wardrobe");
     });
@@ -2672,7 +2685,8 @@ async function syncSocial() {
       const look = tokenLooks.find(
         (look) => look.id === button.dataset.redeemSet,
       );
-      if (look) button.disabled = styleTokens(save) < look.cost;
+      if (look)
+        button.disabled = styleTokens(save) < redemptionCost(look, save);
     }
     const signature = JSON.stringify([
       shared.day,
@@ -3077,7 +3091,7 @@ function renderWelcome() {
     firstRace && !save.welcomeDismissed,
   );
   document.body.classList.toggle("welcome-played", save.welcome === "played");
-  const invitation = `<div class="cap-goal-copy"><strong>${firstVisitCopy.title}</strong><span>${firstVisitCopy.detail}</span></div><button class="primary" data-action="welcome-start" aria-label="Race at Palm Bay for your cap">Race</button><button class="cap-goal-dismiss" data-action="welcome-skip" aria-label="Dismiss cap goal" title="Explore first">×</button>`;
+  const invitation = `<div class="cap-goal-copy"><strong>${firstVisitCopy.title}</strong><span>${firstVisitCopy.detail}</span></div><button class="primary" data-action="welcome-start" aria-label="Race at Palm Bay for bonus XP">Race</button><button class="cap-goal-dismiss" data-action="welcome-skip" aria-label="Dismiss first-race goal" title="Explore first">×</button>`;
   const el = document.querySelector<HTMLElement>(".welcome-panel")!;
   el.hidden = !firstRace || save.welcomeDismissed;
   const html = firstRace ? invitation : "";

@@ -1,18 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { fresh, normalise, completeWelcomeRound } from "../src/state.ts";
-test("first finished round unlocks a cap at zero score, grants one welcome reward and preserves the current look", () => {
+test("first finished round grants one welcome XP reward and preserves the current look", () => {
   const s = fresh();
   s.hat = 3;
   s.unlockedHats.push(3);
   assert.equal(completeWelcomeRound(s), true);
   assert.equal(s.welcome, "played");
   assert.equal(s.xp, 35);
-  assert.ok(s.unlockedHats.includes(2));
+  assert.equal(s.unlockedHats.includes(2), false);
   assert.equal(s.hat, 3);
   assert.equal(completeWelcomeRound(s), false);
   assert.equal(s.xp, 35);
-  assert.equal(s.unlockedHats.filter((x) => x === 2).length, 1);
+  assert.equal(s.unlockedHats.filter((x) => x === 2).length, 0);
 });
 test("welcome quest resumes after reload and never re-awards completed progress", () => {
   const s = fresh();
@@ -26,7 +26,7 @@ test("welcome quest resumes after reload and never re-awards completed progress"
   const done = normalise(reloaded, fresh());
   assert.equal(completeWelcomeRound(done), false);
   assert.equal(done.xp, 35);
-  assert.ok(done.unlockedHats.includes(2));
+  assert.equal(done.unlockedHats.includes(2), false);
 });
 test("existing saves keep progress and get the optional welcome quest on their next completed round", () => {
   const s = normalise(

@@ -192,6 +192,10 @@ export function mobileLobbyFixture(
       check(restoredLook.hair===girlLook.hair && restoredLook.baseHair===girlLook.baseHair && restoredLook.hat===0, 'complete outfit restores matching hairstyle and headwear');
       check(restoredLook.pet===girlLook.pet && restoredLook.accessory===girlLook.accessory, 'outfit preserves chosen pet and magic');
       find('[data-wardrobe-section="Hair"]').click();
+      const hairImage=find('.collection-grid .avatar-thumbnail');
+      hairImage.scrollIntoView({block:'center'});
+      await wait(()=>hairImage.complete && hairImage.naturalWidth>0);
+      check(hairImage.classList.contains('is-ready') && getComputedStyle(hairImage).opacity!=='0', 'hair thumbnail loads and is visible');
       find('[data-try-slot="hairstyle"][data-try-index="112"]').click();
       check(JSON.parse(localStorage.getItem('darecade-v1')).baseHair===112, 'hairstyle equips independently');
       find('[data-wardrobe-section="Headwear"]').click();
@@ -232,7 +236,7 @@ export function mobileLobbyFixture(
       locked.click();
       check(locked.isConnected && locked.getAttribute('aria-pressed')==='true', 'locked preview preserves its card');
       check(JSON.parse(localStorage.getItem('darecade-v1')).pet===savedPet, 'preview never equips an unowned item');
-      check(find('[data-redeem-set="solar"]').disabled && !!find('[data-buy-set="solar"]'), 'insufficient tokens show a cash option');
+      check(find('[data-redeem-set="piece:solar:pet"]').disabled && !!find('[data-buy-set="solar"]'), 'insufficient tokens show a cash option');
       if (${twoD}) check(find('.look-2d-image').getAttribute('src')==='/wardrobe/pet-26.png', '2D preview shows the selected pet');
       find('[data-reset-look]').click();
       check(locked.getAttribute('aria-pressed')==='false', 'reset clears preview selection');
@@ -242,7 +246,7 @@ export function mobileLobbyFixture(
       const purchased=find('[data-try-slot="pet"][data-try-index="26"]');
       purchased.click();
       check(purchased.querySelector('.item-state').textContent==='Purchased · Equipped', 'purchased indicator survives equipping');
-      check(!find('[data-buy-set="solar"]') && !find('[data-redeem-set="solar"]'), 'owned set cannot be bought or redeemed again');
+      check(!find('[data-buy-set="solar"]') && !find('[data-redeem-set="piece:solar:pet"]'), 'owned set cannot be bought or redeemed again');
       find('[data-wardrobe-filter="Premium"]').click();
       check(document.querySelectorAll('[data-try-slot]').length===22 && !!find('[data-buy-set="aegis-prime"]') && !find('[data-redeem-set]') && !find('[data-buy-set="solar"]'), 'Premium has 22 money-only choices');
       find('[data-wardrobe-section="Outfits"]').click();

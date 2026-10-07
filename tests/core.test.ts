@@ -14,11 +14,11 @@ test("gifts reset at Singapore midnight, not the browser timezone", () => {
   assert.equal(singaporeDay(new Date("2026-10-02T15:59:59Z")), "2026-10-02");
   assert.equal(singaporeDay(new Date("2026-10-02T16:00:00Z")), "2026-10-03");
   const s = fresh();
-  assert.equal(claimGift(s, 1, "2026-10-02"), true);
+  assert.equal(claimGift(s, 0, "2026-10-02"), true);
   assert.equal(s.xp, 30);
   assert.equal(claimGift(s, 2, "2026-10-02"), false);
   assert.equal(s.xp, 30);
-  assert.equal(s.hat, 2);
+  assert.equal(s.hat, 1);
   assert.equal(claimGift(s, 2, "2026-10-03"), true);
   assert.equal(s.xp, 60);
   assert.equal(s.hat, 3);

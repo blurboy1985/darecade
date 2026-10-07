@@ -111,7 +111,7 @@ test("favourite progress separates earned tokens, owned looks and optional purch
     xp: 1100,
     medalTokens: 2,
   };
-  assert.match(favouriteProgress(p), /13 \/ 18 Style tokens · 5 to go/);
+  assert.match(favouriteProgress(p), /8 \/ 8 Style tokens · 0 to go/);
   assert.match(favouriteProgress(p), /No deadline/);
   assert.doesNotMatch(favouriteProgress(p), /data-buy-set/);
   assert.match(
