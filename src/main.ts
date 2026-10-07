@@ -324,8 +324,9 @@ app.innerHTML = `
   <div id="fallback" class="fallback" hidden></div>
   </main>
   <footer class="bottom-bar"><div class="profile"><span class="avatar-icon" id="avatar-icon"><i></i></span><span><strong id="player-name">New neighbour</strong><span id="player-account" hidden>Guest mode</span><small id="medal-points">0 MEDALS</small><span id="level-label">LEVEL 1</span><span class="xp-track"><i id="xp-fill"></i></span></span></div><nav class="dock lobby-dock" aria-label="Main actions"><button class="selected" data-open="arcade" data-main-action>${icon("game")}<span>Play</span></button><button data-open="wardrobe" data-main-action>${icon("shirt")}<span>My look</span></button><button class="phone-more" data-open="phone-menu" data-main-action>${icon("settings")}<span>Menu</span></button></nav><span class="footer-note" id="quality-note">3D WORLD</span></footer>
-  <div class="world-actions"><button class="round-action" id="quick-emotes-toggle" aria-label="Favourite emotes" aria-expanded="false">${icon("smile")}</button><button id="lobby-jump" class="round-action" data-emote="jump" aria-label="Jump">↑</button></div>
-  <div id="quick-emotes"><button data-emote="wave" aria-label="Wave">👋</button><button data-emote="dance" aria-label="Dance">♫</button><button data-emote="cheer" aria-label="Cheer">🙌</button><button data-emote="victory" aria-label="Victory">✌</button><button data-open="emotes">More</button></div>
+  <div class="world-actions"><button id="lobby-jump" class="round-action" data-emote="jump" aria-label="Jump">↑</button></div>
+  <div class="emote-control"><button class="round-action" id="quick-emotes-toggle" aria-label="Emotes" aria-controls="quick-emotes" aria-expanded="false">${icon("smile")}</button>
+  <div id="quick-emotes" role="group" aria-label="Favourite emotes" hidden><button data-emote="wave" aria-label="Wave">👋</button><button data-emote="dance" aria-label="Dance">♫</button><button data-emote="cheer" aria-label="Cheer">🙌</button><button data-emote="victory" aria-label="Victory">✌</button><button data-open="emotes">More</button></div></div>
   <div class="world-zoom"><button data-action="zoom-out" aria-label="Zoom out">−</button><button data-action="zoom-in" aria-label="Zoom in">+</button></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <dialog id="modal"><div class="modal-top"><span class="eyebrow" id="modal-kicker">THE NEIGHBOURHOOD</span><button id="close-modal" class="close-button" aria-label="Close panel">×</button></div><div id="modal-body"></div></dialog>
@@ -337,14 +338,39 @@ document
     "beforeend",
     `<aside id="inspector" class="inspector" aria-label="Neighbour inspection" hidden></aside><div id="away-banner" class="away-banner" hidden><span></span><button data-action="return-lobby">I’m back</button></div><div id="camera-hint" class="camera-hint" hidden></div><button id="interaction" class="nearby-prompt" hidden>${icon("pin")}<span></span><kbd>E</kbd></button>`,
   );
+const emoteToggle = document.querySelector<HTMLButtonElement>(
+  "#quick-emotes-toggle",
+)!;
+const quickEmotes = document.querySelector<HTMLElement>("#quick-emotes")!;
+function setEmotesOpen(open: boolean) {
+  if (!open && quickEmotes.contains(document.activeElement))
+    emoteToggle.focus();
+  quickEmotes.hidden = !open;
+  emoteToggle.setAttribute("aria-expanded", String(open));
+}
+emoteToggle.addEventListener("click", () => setEmotesOpen(quickEmotes.hidden));
+document.addEventListener("pointerdown", (event) => {
+  if (
+    event.target instanceof Element &&
+    !event.target.closest(".emote-control")
+  )
+    setEmotesOpen(false);
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !quickEmotes.hidden) {
+    setEmotesOpen(false);
+    emoteToggle.focus();
+  }
+});
 document
-  .querySelector("#quick-emotes-toggle")!
-  .addEventListener("click", () => {
-    const strip = document.querySelector<HTMLElement>("#quick-emotes")!;
-    strip.hidden = !strip.hidden;
-    document
-      .querySelector("#quick-emotes-toggle")!
-      .setAttribute("aria-expanded", String(!strip.hidden));
+  .querySelector(".emote-control")!
+  .addEventListener("focusout", (event) => {
+    if (
+      event instanceof FocusEvent &&
+      event.relatedTarget instanceof Node &&
+      !document.querySelector(".emote-control")!.contains(event.relatedTarget)
+    )
+      setEmotesOpen(false);
   });
 const modal = document.querySelector<HTMLDialogElement>("#modal")!;
 const body = document.querySelector<HTMLDivElement>("#modal-body")!;
@@ -601,6 +627,7 @@ function questTabs(active: string) {
     .join("")}</nav>`;
 }
 function open(id: string) {
+  setEmotesOpen(false);
   if (["map", "surroundings"].includes(id)) id = "arcade";
   if (["settings", "controls"].includes(id)) id = "preferences";
   if (id === "account") {
@@ -1292,7 +1319,7 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
 document.addEventListener("click", (e) => {
   const b = (e.target as Element).closest<HTMLButtonElement>("button");
   if (!b || b.disabled) return;
-  b.blur();
+  if (!b.closest(".emote-control")) b.blur();
   if (b.dataset.joinFriend) {
     void worldPicker.join({ friend: b.dataset.joinFriend });
     return;
@@ -1618,10 +1645,7 @@ document.addEventListener("click", (e) => {
   }
   if (b.dataset.emote) {
     const id = b.dataset.emote;
-    document.querySelector<HTMLElement>("#quick-emotes")!.hidden = false;
-    document
-      .querySelector("#quick-emotes-toggle")!
-      .setAttribute("aria-expanded", "false");
+    setEmotesOpen(false);
     if (id === "jump" && !localStorage.getItem("playsimi-jump-hint")) {
       toast("Jump on a green pad, then jump again to collect a rooftop star.");
       localStorage.setItem("playsimi-jump-hint", "1");

@@ -676,8 +676,13 @@ export class LobbyWorld {
         if (this.elevation === surface) this.jumpVelocity = 0;
         if (this.elevation < previousHeight) {
           const landing = clearLanding(p.x, p.z, this.movementObstacles());
-          p.x = landing.x;
-          p.z = landing.z;
+          if (landing.x !== p.x || landing.z !== p.z) {
+            p.x = landing.x;
+            p.z = landing.z;
+            // Discard the pre-landing pose so interpolation cannot put us
+            // back inside the obstacle on the next movement tick.
+            this.motion.reset();
+          }
         }
       }
       p.y = this.elevation;

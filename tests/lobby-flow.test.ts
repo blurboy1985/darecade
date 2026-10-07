@@ -64,6 +64,7 @@ for (const name of ["", "   ", "x", " x "]) {
             dataset: { action: "setup-save" },
             hasAttribute: () => false,
             blur: () => {},
+            closest: () => null,
           }),
         },
       },
@@ -102,6 +103,7 @@ for (const outcome of [
       dataset: { action: "setup-save" },
       hasAttribute: () => false,
       blur: () => {},
+      closest: () => null,
     };
     const status = { textContent: "" };
     const input = {
@@ -225,6 +227,7 @@ function click(
           dataset,
           hasAttribute: () => false,
           blur: () => {},
+          closest: () => null,
         }),
       },
     },
