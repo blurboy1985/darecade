@@ -1,5 +1,6 @@
 import {
   additionalThemes,
+  originalFamilies,
   legacyDesigns,
   type Design,
 } from "./style-catalog.ts";
@@ -278,6 +279,7 @@ export const legendarySets: StyleSet[] = [
     }),
   ),
   ...additionalThemes,
+  ...originalFamilies,
 ];
 export const historicalSetCount = 16;
 export const setPriceSGD = 199;
@@ -286,11 +288,12 @@ export const outfitBodyName = (body: number) => (body === 1 ? "Boy" : "Girl");
 export function outfitLook(index: number, body: number) {
   const set = legendarySets[index];
   const shape =
-    body === 1
+    set.design.hairShapes?.[body === 1 ? 1 : 0] ??
+    (body === 1
       ? set.design.motif % 2
         ? 3
         : 0
-      : [1, 4, 5, 6, 7][set.design.motif % 5];
+      : [1, 4, 5, 6, 7][set.design.motif % 5]);
   return {
     clothing: setItemIndex("clothing", index),
     hair: setItemIndex("hair", index),

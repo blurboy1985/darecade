@@ -53,7 +53,7 @@ test("saved hairstyles keep their indices but are not sold as outfits", () => {
   );
 });
 
-test("each character sees 20 complete outfits, pets and spells in each tier", () => {
+test("each character sees 22 complete outfits, pets and spells in each tier", () => {
   assert.deepEqual(wardrobeSections, [
     "Outfits",
     "Clothes",
@@ -72,7 +72,7 @@ test("each character sees 20 complete outfits, pets and spells in each tier", ()
         const cards = [
           ...html.matchAll(/data-try-slot="([^"]+)" data-try-index="(\d+)"/g),
         ];
-        assert.equal(cards.length, 20, `${section} ${tier} body ${body}`);
+        assert.equal(cards.length, 22, `${section} ${tier} body ${body}`);
         for (const match of cards) {
           const key = `${match[1]}:${match[2]}`;
           assert.equal(seen.has(key), false, key);
@@ -83,7 +83,7 @@ test("each character sees 20 complete outfits, pets and spells in each tier", ()
           assert.doesNotMatch(html, /data-redeem-set|data-buy-set/);
         if (tier === "Premium") assert.doesNotMatch(html, /data-redeem-set/);
       }
-    assert.equal(seen.size, 180);
+    assert.equal(seen.size, 198);
   }
 });
 

@@ -190,6 +190,12 @@ const bodySets: [Family, Family, boolean][] = [
   ["explorer", "cardigan", false],
 ];
 const costumeBodies: Record<Costume, [Family, Family, boolean]> = {
+  street: ["cardigan", "explorer", false],
+  rainshield: ["blazer", "blazer", false],
+  wayfinder: ["explorer", "explorer", false],
+  academy: ["blazer", "cardigan", false],
+  otter: ["vest", "explorer", false],
+  neighbour: ["cardigan", "explorer", false],
   hero: ["blazer", "blazer", false],
   fighter: ["vest", "explorer", false],
   ranger: ["explorer", "explorer", false],
@@ -639,9 +645,16 @@ export function applyLook(
       gear ||
       hair.hood ||
       (headSet >= 0 &&
-        ["mage", "royal", "knight", "ranger", "trainer"].includes(
-          legendarySets[headSet].design.costume,
-        )) ||
+        [
+          "mage",
+          "royal",
+          "knight",
+          "ranger",
+          "trainer",
+          "academy",
+          "otter",
+          "neighbour",
+        ].includes(legendarySets[headSet].design.costume)) ||
       (starter && ["staff", "bow", "cutlass"].includes(starter.prop))
     ),
   );

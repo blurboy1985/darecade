@@ -30,3 +30,27 @@ Validation: build; 12 catalogue/component/ownership regression checks; all six
 browser fixtures with independent hair/headwear/clothes interactions. Rendered
 120 clothing/headwear PNGs from the production builder. Existing saves roundtrip
 without losing identity, pets, magic or purchases. Fixtures use synthetic data.
+
+## PR 3 — Six original families
+
+Appends six sets (indices 60–65); all 60 existing sets remain available with their
+original IDs, visuals, costs and entitlements. After-school Circuit and Void Deck
+Weekend are free; Monsoon Wayfinder costs 18 tokens and Canal Otter Club 24;
+Rainshield Guardian and Moonbell Society use the existing S$1.99 Premium path.
+The server already supports inline prices for appended sets. No Stripe request
+or real purchase was made. Purchase age confirmation is unchanged.
+
+These are original primitive meshes fitted to the existing body/skeleton, with
+existing free hairstyles and no new textures or third-party asset licences.
+Each adds two cached overlay draws and fewer than 4,000 overlay triangles.
+The clothed base model is additional to that budget. Both bodies are supported.
+
+Validation: build and 44 avatar, catalogue, geometry-budget, browser and payment
+checks. Real WebGL review captured all six families on both bodies at gameplay
+and fitting-room distances. Bench, swing and arcade screenshots use Void Deck
+Weekend; all families pass finite-pose checks for idle/walk/dance/bench/swing/
+arcade. Art-review verified 470 cosmetic swaps across nine modes, independent
+rigs, 24 remote avatars, preview teardown and reduced motion. These checks are
+not a claim that every possible mix is clipping-free. Evidence is in
+`output/playwright/wardrobe-implementation/`. No physical-phone test or teen
+preference study has been performed.

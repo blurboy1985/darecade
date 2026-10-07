@@ -1,4 +1,5 @@
 import * as T from "three";
+import { originalBody, originalHead } from "./original-costumes.ts";
 import {
   mergeGeometries,
   mergeVertices,
@@ -98,6 +99,7 @@ export function costumeBody(parent: T.Object3D, s: StyleSet, body: number) {
   const cached = cachedCostume(parent, key);
   if (cached) return cached;
   const g = node(parent);
+  if (originalBody(g, s)) return bakeCostume(g, key);
   const { costume, motif } = s.design;
   const premium = s.tier === "Premium";
   const dark = new T.Color(s.color).multiplyScalar(0.48).getStyle();
@@ -271,6 +273,7 @@ export function costumeHead(parent: T.Object3D, s: StyleSet) {
   const cached = cachedCostume(parent, key);
   if (cached) return cached;
   const g = node(parent);
+  if (originalHead(g, s)) return bakeCostume(g, key);
   const { costume, motif } = s.design;
   const y = 1.78;
   if (costume === "mage") {
