@@ -636,6 +636,7 @@ export function applyLook(
       ball(a.hat, [side * 0.37, 1.94, 0.055], [0.085, 0.1, 0.03], innerEar);
     }
   }
+  const classHeadVisible = !look.hat && !wear && !gear && headSet < 0;
   buildHair(
     a.hat,
     a.look.baseHair ?? a.look.hair!,
@@ -662,7 +663,9 @@ export function applyLook(
         ["mage", "ranger", "trainer", "academy", "otter", "neighbour"].includes(
           legendarySets[headSet].design.costume,
         )) ||
-      (starter && ["staff", "bow", "cutlass"].includes(starter.prop))
+      (classHeadVisible &&
+        starter &&
+        ["staff", "bow", "cutlass"].includes(starter.prop))
     ),
   );
   buildMouth(a.hat, skin);
@@ -670,11 +673,13 @@ export function applyLook(
     const group = new T.Group();
     build(group);
     const bounds = new T.Box3().setFromObject(group);
+    // Open crowns sit into the hair shell, with their lowest point at the scalp
+    // crown. Raising them above the hair leaves a visible gap around the band.
     if (!bounds.isEmpty() && (crown || bounds.min.y > 1.7))
-      group.position.y = (crown ? 1.88 : 1.7) - bounds.min.y;
+      group.position.y = (crown ? 1.72 : 1.7) - bounds.min.y;
     a.hat.add(group);
   };
-  if (!look.hat && !wear && !gear && headSet < 0)
+  if (classHeadVisible)
     seatHeadwear((group) => buildClassHead(group, a.look.clothing!));
   if (hair.beard && !wear && !gear) buildBeard(a.hat, hair.color);
   if (hair.hood && !look.hat) buildHood(a.hat);
