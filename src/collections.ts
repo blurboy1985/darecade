@@ -6,13 +6,29 @@ export const setStarts = { clothing: 24, hair: 28, pet: 26, accessory: 27 };
 export type LookSlot = keyof typeof setStarts;
 const firstSets = 10;
 export const extraCounts = { clothing: 0, hair: 9, pet: 6, accessory: 6 };
-export const legendarySets = [
+type StyleSet = {
+  id: string;
+  name: string;
+  theme: string;
+  color: string;
+  accent: string;
+  tier: "Legendary" | "Premium";
+  cost: number;
+  medals: number;
+  rounds: number;
+  outfit: string;
+  head: string;
+  pet: string;
+  magic: string;
+};
+export const legendarySets: StyleSet[] = [
   {
     id: "solar",
     name: "Solar Sentinel",
     theme: "Sun-powered superhero",
     color: "#ffb932",
     accent: "#ff584d",
+    tier: "Legendary",
     cost: 12,
     medals: 3,
     rounds: 30,
@@ -27,6 +43,7 @@ export const legendarySets = [
     theme: "Celestial magical guardian",
     color: "#db9fff",
     accent: "#80eaff",
+    tier: "Legendary",
     cost: 15,
     medals: 4,
     rounds: 40,
@@ -41,6 +58,7 @@ export const legendarySets = [
     theme: "Lightning anime swordsman",
     color: "#698aff",
     accent: "#b7f9ff",
+    tier: "Legendary",
     cost: 18,
     medals: 5,
     rounds: 50,
@@ -55,6 +73,7 @@ export const legendarySets = [
     theme: "Nine-tailed spirit guardian",
     color: "#ff8eb8",
     accent: "#ffe7b0",
+    tier: "Legendary",
     cost: 20,
     medals: 6,
     rounds: 60,
@@ -69,6 +88,7 @@ export const legendarySets = [
     theme: "Cosmic robot pilot",
     color: "#49e5e2",
     accent: "#ff5c95",
+    tier: "Legendary",
     cost: 24,
     medals: 8,
     rounds: 75,
@@ -83,6 +103,7 @@ export const legendarySets = [
     theme: "Shadow realm ruler",
     color: "#aa78ff",
     accent: "#68f9bf",
+    tier: "Legendary",
     cost: 28,
     medals: 10,
     rounds: 90,
@@ -97,6 +118,7 @@ export const legendarySets = [
     theme: "Ocean fantasy royalty",
     color: "#43cded",
     accent: "#ffb5d9",
+    tier: "Legendary",
     cost: 32,
     medals: 12,
     rounds: 110,
@@ -111,6 +133,7 @@ export const legendarySets = [
     theme: "Flame-winged champion",
     color: "#ff753f",
     accent: "#ffe36a",
+    tier: "Legendary",
     cost: 36,
     medals: 15,
     rounds: 130,
@@ -125,6 +148,7 @@ export const legendarySets = [
     theme: "Ice-winged celestial knight",
     color: "#b8edff",
     accent: "#baa5ff",
+    tier: "Legendary",
     cost: 40,
     medals: 18,
     rounds: 150,
@@ -139,6 +163,7 @@ export const legendarySets = [
     theme: "Starlight anime performer",
     color: "#ff82e4",
     accent: "#75ffd5",
+    tier: "Legendary",
     cost: 45,
     medals: 21,
     rounds: 180,
@@ -153,6 +178,7 @@ export const legendarySets = [
     theme: "Sweet-shop pop star",
     color: "#ff9ecb",
     accent: "#8ff0e0",
+    tier: "Legendary",
     cost: 22,
     medals: 8,
     rounds: 70,
@@ -167,6 +193,7 @@ export const legendarySets = [
     theme: "Bubble tea barista",
     color: "#c98a5a",
     accent: "#ffe9c9",
+    tier: "Legendary",
     cost: 26,
     medals: 10,
     rounds: 85,
@@ -181,6 +208,7 @@ export const legendarySets = [
     theme: "Arcade Row high scorer",
     color: "#6ee06e",
     accent: "#ffd84a",
+    tier: "Legendary",
     cost: 30,
     medals: 12,
     rounds: 100,
@@ -195,6 +223,7 @@ export const legendarySets = [
     theme: "Midnight spell caster",
     color: "#7a6cf0",
     accent: "#ffd9f5",
+    tier: "Legendary",
     cost: 34,
     medals: 14,
     rounds: 120,
@@ -209,6 +238,7 @@ export const legendarySets = [
     theme: "Flower meadow fairy",
     color: "#7fd48a",
     accent: "#ffb3d1",
+    tier: "Legendary",
     cost: 38,
     medals: 16,
     rounds: 140,
@@ -223,6 +253,7 @@ export const legendarySets = [
     theme: "Prehistoric adventurer",
     color: "#5fc8a0",
     accent: "#ffd166",
+    tier: "Legendary",
     cost: 42,
     medals: 18,
     rounds: 160,
@@ -295,15 +326,14 @@ export function canWear(
     return false;
   const set = setForItem(slot, index);
   if (set) return ownsSet(p, set.id);
-  const group = collectionFor(slot, index);
-  return group === "starter" || ownsSet(p, group);
+  return true; // Basic pieces are free; saved bundle ownership remains intact.
 }
 export function canRedeem(
   set: (typeof legendarySets)[number],
   p: WardrobeProgress,
   medals: number,
 ) {
-  return styleTokens(p) >= set.cost;
+  return set.tier === "Legendary" && styleTokens(p) >= set.cost;
 }
 export function setLook(index: number) {
   return {

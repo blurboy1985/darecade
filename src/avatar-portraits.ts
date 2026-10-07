@@ -1,5 +1,5 @@
 import { createCharacterPreview, loadCharacter, type Look } from "./character";
-import { itemLook, type WardrobeTab } from "./wardrobe";
+import { thumbnailLook, type WardrobeTab } from "./wardrobe";
 
 // One offscreen context serves the HUD and every lazy card. Cache only visual
 // fields, never a whole Save, so XP and account changes do not invalidate images.
@@ -85,6 +85,12 @@ function enqueueThumbnail(job: () => Promise<void>) {
 }
 export function mountAvatarCards(host: HTMLElement, worn: Look) {
   cards?.disconnect();
+  const identity = {
+    body: worn.body,
+    skin: worn.skin,
+    eye: worn.eye,
+    outfit: worn.outfit,
+  };
   if (document.body.classList.contains("mode-2d")) {
     host
       .querySelectorAll<HTMLImageElement>("[data-thumbnail]")
@@ -113,7 +119,10 @@ export function mountAvatarCards(host: HTMLElement, worn: Look) {
         enqueueThumbnail(async () => {
           if (!img.isConnected) return;
           await avatarPortrait(
-            itemLook(slot as WardrobeTab, Number(index), worn),
+            {
+              ...thumbnailLook(slot as WardrobeTab, Number(index)),
+              ...identity,
+            },
             slot,
           )
             .then((src) => {

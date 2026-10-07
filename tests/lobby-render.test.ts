@@ -204,7 +204,7 @@ function harness() {
     world: null,
     wardrobeTab: "clothing",
     wardrobeSection: "Outfits",
-    wardrobeFilter: "All",
+    wardrobeFilter: "Free",
     undoLook: null,
     wardrobeCollection: "starter",
     tryingLook: null,
@@ -540,12 +540,12 @@ test("the weekly board tells a player with scores today when their medals arrive
   assert.match(h.body.innerHTML, /Nothing yet!/);
 });
 
-test("My look, Head lists a claimed daily hat", () => {
+test("My look identity controls retain claimed daily hats", () => {
   const h = harness();
   assert.equal(state.claimGift(h.context.save, 0), true);
   h.run('open("shop")');
   assert.match(h.body.innerHTML, /data-look-tab="hair">See it in My look/);
-  h.context.wardrobeSection = "Hats";
+  h.context.wardrobeSection = "Outfits";
   h.run('open("wardrobe")');
   assert.match(
     h.body.innerHTML,
@@ -553,7 +553,7 @@ test("My look, Head lists a claimed daily hat", () => {
   );
   h.context.wardrobeSection = "Outfits";
   h.run('open("wardrobe")');
-  assert.doesNotMatch(h.body.innerHTML, /class="hat-shelf"/);
+  assert.match(h.body.innerHTML, /class="hat-shelf"/);
 });
 
 test("a finished quest offers Claim, and a claimed quest says so", () => {
@@ -625,18 +625,26 @@ test("Rankings shows a guest the board and never opens the account dialog", () =
   assert.doesNotMatch(h.body.innerHTML, /Guest rounds|Save with email/);
 });
 
-test("slot filters retain new hair, free classes and premium full sets", () => {
-  const p = state.fresh();
-  const hair = wardrobe.wardrobeBrowser("Hair", "All", p, 0, null);
-  const hats = wardrobe.wardrobeBrowser("Hats", "All", p, 0, null);
-  assert.match(hair, /data-try-index="54"/);
-  assert.doesNotMatch(hats, /data-try-index="54"/);
-  const free = wardrobe.wardrobeBrowser("Full sets", "Free", p, 0, null);
-  assert.match(free, /Lantern Mage/);
-  assert.doesNotMatch(free, /Solar Sentinel/);
-  const premium = wardrobe.wardrobeBrowser("Full sets", "Premium", p, 0, null);
-  assert.doesNotMatch(premium, /Lantern Mage/);
-  assert.match(premium, /data-try-index="9"/);
+test("My look exposes only three sections and their tiers", () => {
+  const h = harness();
+  h.run('open("wardrobe")');
+  assert.deepEqual(
+    [...h.body.innerHTML.matchAll(/data-wardrobe-section="([^"]+)"/g)].map(
+      (m) => m[1],
+    ),
+    ["Outfits", "Pets", "Magic"],
+  );
+  assert.deepEqual(
+    [...h.body.innerHTML.matchAll(/data-wardrobe-filter="([^"]+)"/g)].map(
+      (m) => m[1],
+    ),
+    ["Free", "Legendary", "Premium"],
+  );
+  assert.doesNotMatch(h.body.innerHTML, /data-open="support"/);
+  assert.match(
+    wardrobe.wardrobeBrowser("Outfits", "Free", state.fresh(), 0, null),
+    /data-try-index="54"/,
+  );
 });
 
 test("More emotes shows all six choices immediately", () => {
