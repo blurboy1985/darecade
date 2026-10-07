@@ -741,9 +741,59 @@ function catalogPet(pet: Pet, s: StyleSet) {
   const color = s.color,
     accent = s.accent;
   const soft = new T.Color(color).lerp(new T.Color("#ffffff"), 0.4).getStyle();
-  if (["cat", "fox", "wolf", "rabbit", "dragon"].includes(familiar)) {
+  if (familiar === "dragon") {
+    // Upright drake: two feet, barrel chest, broad wings and a tapering tail.
+    ball(b, [0, 0.36, 0], [0.22, 0.29, 0.2], color);
+    ball(b, [0, 0.36, 0.15], [0.15, 0.21, 0.09], soft);
+    ball(b, [0, 0.7, 0.08], [0.23, 0.18, 0.2], color);
+    ball(b, [0, 0.64, 0.26], [0.14, 0.08, 0.12], soft);
+    face(b, 0.73, 0.255, 0.1, 0.038);
+    for (const side of [-1, 1]) {
+      const foot = node(b, [side * 0.15, 0.1, 0.06]);
+      ball(foot, [0, 0, 0.04], [0.1, 0.08, 0.14], color);
+      pet.legs.push(foot);
+      part(b, "cone", [side * 0.15, 0.91, -0.01], [0.04, 0.18, 0.04], accent);
+      const wing = node(b, [side * 0.18, 0.52, -0.12]);
+      wing.userData.side = side;
+      part(
+        wing,
+        "oct",
+        [side * 0.18, 0.08, -0.03],
+        [0.25, 0.23, 0.035],
+        accent,
+        { rot: [0, 0, side * 0.35] },
+      );
+      pet.wings.push(wing);
+      ball(b, [side * 0.22, 0.42, 0.08], [0.065, 0.13, 0.07], color);
+    }
+    pet.tail.position.set(0, 0.18, -0.17);
+    part(pet.tail, "cone", [0, 0, -0.2], [0.1, 0.5, 0.1], color, {
+      rot: [-Math.PI / 2, 0, 0],
+    });
+    part(pet.tail, "oct", [0, 0.02, -0.45], [0.065, 0.1, 0.065], accent);
+    pet.motion = "waddle";
+  } else if (familiar === "otter") {
+    quad(pet, {
+      color,
+      muzzle: "#f0d7b7",
+      ear: [0.065, 0.055, 0.035],
+      earColor: color,
+      bodyScale: [0.2, 0.15, 0.39],
+      legLength: 0.08,
+      tail: "none",
+    });
+    ball(pet.tail, [0, 0, -0.19], [0.12, 0.035, 0.23], color);
+    ball(b, [0, 0.3, 0.15], [0.16, 0.11, 0.2], "#f0d7b7");
+    pet.motion = "waddle";
+  } else if (["cat", "fox", "wolf", "rabbit"].includes(familiar)) {
     quad(pet, {
       color: soft,
+      ...(familiar === "wolf"
+        ? {
+            bodyScale: [0.16, 0.18, 0.36] as [number, number, number],
+            legLength: 0.21,
+          }
+        : {}),
       muzzle: "#fff3df",
       ear:
         familiar === "rabbit"
@@ -757,28 +807,11 @@ function catalogPet(pet: Pet, s: StyleSet) {
       legColor: color,
     });
     if (familiar === "rabbit") pet.motion = "hop";
-    if (familiar === "dragon") {
-      for (const side of [-1, 1]) {
-        const wing = node(b, [side * 0.18, 0.5, -0.1]);
-        wing.userData.side = side;
-        part(
-          wing,
-          "oct",
-          [side * 0.14, 0.05, -0.05],
-          [0.19, 0.12, 0.035],
-          accent,
-          { rot: [0, 0, side * 0.4] },
-        );
-        pet.wings.push(wing);
-        part(
-          b,
-          "cone",
-          [side * 0.12, 0.73, 0.07],
-          [0.035, 0.14, 0.035],
-          accent,
-          { rot: [0, 0, -side * 0.2] },
-        );
-      }
+    if (familiar === "wolf") {
+      for (const side of [-1, 1])
+        part(b, "cone", [side * 0.19, 0.52, 0.14], [0.09, 0.21, 0.09], color, {
+          rot: [0, 0, side * 0.65],
+        });
     }
     if (familiar === "fox")
       for (let i = 0; i < 1 + (motif % 3); i++)

@@ -252,3 +252,49 @@ test("effect replacement disposes private particles once and keeps shared charms
   }
   assert.equal(scene.children.length, 0);
 });
+
+test("drake, trail wolf and canal otter use different body proportions and bounded batches", (t) => {
+  const indices = [
+    "Nimbus the rain drake",
+    "Moss the trail wolf",
+    "Pebble the canal otter",
+  ].map((name) => petNames.indexOf(name));
+  const pets = indices.map((index) => makePet(new T.Group(), index));
+  assert.equal(pets[0].legs.length, 2);
+  assert.equal(pets[0].wings.length, 2);
+  assert.equal(pets[1].legs.length, 4);
+  assert.equal(pets[1].wings.length, 0);
+  assert.equal(pets[2].legs.length, 4);
+  assert.equal(pets[2].wings.length, 0);
+  const sizes = pets.map((p) =>
+    new T.Box3().setFromObject(p.root).getSize(new T.Vector3()),
+  );
+  assert.ok(sizes[0].x > sizes[1].x, "drake has a broad wing silhouette");
+  assert.ok(sizes[1].y > sizes[2].y, "wolf stands above the low otter");
+  for (const pet of pets) {
+    const measured = budget(pet.root);
+    t.diagnostic(`${petNames[pet.kind]}: ${JSON.stringify(measured)}`);
+    assert.ok(measured.draws <= 10);
+    assert.ok(measured.triangles <= 6000);
+    animatePet(pet, 1.4, true);
+    assert.ok(snapshot(pet.root).flat().every(Number.isFinite));
+  }
+});
+
+test("named notebook and paper-plane magic has bounded orbiting props", (t) => {
+  for (const name of ["Moonbell floating notebook", "Weekend paper planes"]) {
+    const magic = buildMagic(new T.Group(), accessoryNames.indexOf(name))!;
+    const measured = budget(magic.group);
+    t.diagnostic(`${name}: ${JSON.stringify(measured)}`);
+    assert.ok(measured.draws <= 16);
+    assert.ok(measured.triangles <= 300);
+    magic.tick(0, true);
+    const before = snapshot(magic.group);
+    // Reduced motion is implemented by the avatar holding the effect clock at zero.
+    magic.tick(0, true);
+    assert.deepEqual(snapshot(magic.group), before);
+    magic.tick(2, false);
+    assert.notDeepEqual(snapshot(magic.group), before);
+    disposeMagic(magic);
+  }
+});

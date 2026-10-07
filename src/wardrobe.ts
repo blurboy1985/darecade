@@ -8,6 +8,7 @@ import {
 } from "./appearance.ts";
 import {
   canWear,
+  ownsSet,
   outfitLook,
   outfitBodyName,
   setItemIndex,
@@ -22,6 +23,7 @@ import {
   type WardrobeProgress,
 } from "./collections.ts";
 import type { Look } from "./character";
+import { savedLookAllowed, type SavedLooks } from "./saved-looks.ts";
 import { fresh } from "./state.ts";
 
 export type WardrobeTab = LookSlot | "sets" | "outfits" | "hairstyle";
@@ -111,7 +113,7 @@ export function wardrobeBrowser(
     const actions = !owned
       ? `<div class="item-unlock"><small>Set includes a complete outfit, pet & magic</small>${set.tier === "Legendary" ? `<button class="secondary" data-redeem-set="${set.id}" ${canRedeem(set, p, medals) ? "" : "disabled"}>Unlock · ${set.cost} Style tokens</button>` : ""}${set.tier === "Premium" || !canRedeem(set, p, medals) ? `<button class="secondary" data-buy-set="${set.id}">Buy set · S$${(setPriceSGD / 100).toFixed(2)}</button>` : ""}</div>`
       : "";
-    return `<article class="collection-card ${selected ? "is-previewing" : ""}" style="--collection-color:${set.color}"><button class="try-item" data-try-slot="${slot}" data-try-index="${index}" ${slot === "outfits" ? `data-outfit-body="${audience}"` : ""} aria-label="${owned ? "Equip" : "Preview"} ${name}" aria-pressed="${selected || equipped}"><span class="item-art"><img data-thumbnail="${slot}:${index}" class="avatar-thumbnail" src="/wardrobe/${slot}-${index}.png" loading="lazy" alt="${name}" width="240" height="220"></span><span class="item-state">${state}</span><strong>${name}</strong><small>${slot === "outfits" ? `${outfitBodyName(audience)} · Complete outfit` : set.name}</small></button>${actions}</article>`;
+    return `<article class="collection-card ${selected ? "is-previewing" : ""}" style="--collection-color:${set.color}"><button class="try-item" data-try-slot="${slot}" data-try-index="${index}" ${slot === "outfits" ? `data-outfit-body="${audience}"` : ""} aria-label="${owned ? "Equip" : "Preview"} ${name}" aria-pressed="${selected || equipped}"><span class="item-art"><img data-thumbnail="${slot}:${index}" class="avatar-thumbnail" src="/wardrobe/${slot}-${index}.png" loading="lazy" alt="${name}" width="240" height="220"></span><span class="item-state">${state}</span><strong>${name}</strong><small>${slot === "outfits" ? `${outfitBodyName(audience)} · Complete outfit` : set.name}</small></button>${actions}<button class="text-button favourite-button" data-favourite-set="${set.id}" aria-pressed="${p.favouriteSet === set.id}" aria-label="Favourite ${name}">${p.favouriteSet === set.id ? "★ Favourite" : "☆ Favourite"}</button></article>`;
   });
   return `${section === "Headwear" ? `<button class="secondary" data-clear-headwear>No headwear</button>` : ""}<div class="catalog-heading"><strong>${section === "Outfits" ? `${outfitBodyName(audience)} outfits` : section}</strong><span>${entries.length} ${filter.toLowerCase()} ${section === "Outfits" ? "looks" : "items"}</span>${slot === "pet" ? `<button class="text-button" data-pet="0" aria-pressed="${!p.pet}">No pet</button>` : slot === "accessory" ? `<button class="text-button" data-accessory="0" aria-pressed="${!p.accessory}">No magic</button>` : ""}</div><p class="tier-description">${tierDescriptions[filter]}</p><div class="collection-grid">${cards.join("")}</div>`;
 }
@@ -268,29 +270,17 @@ export function itemLook(slot: WardrobeTab, index: number, worn: Look): Look {
 }
 /** Only visual fields belong in Undo or a saved look, never currencies or ownership. */
 export function captureLook(look: Look): Look {
-  const {
-    outfit,
-    skin,
-    eye,
-    hat,
-    body,
-    clothing,
-    hair,
-    baseHair,
-    pet,
-    accessory,
-  } = look;
   return {
-    outfit,
-    skin,
-    eye,
-    hat,
-    body,
-    clothing,
-    hair,
-    baseHair,
-    pet,
-    accessory,
+    outfit: look.outfit,
+    skin: look.skin,
+    eye: look.eye ?? 0,
+    hat: look.hat,
+    body: look.body ?? 0,
+    clothing: look.clothing ?? 0,
+    hair: look.hair ?? 38,
+    baseHair: look.baseHair ?? look.hair ?? 38,
+    pet: look.pet ?? 0,
+    accessory: look.accessory ?? 0,
   };
 }
 export function withoutHeadwear(look: Look): Look {
@@ -342,4 +332,25 @@ export function outfitPreviewImage(look: Look) {
   return theme >= 0
     ? `/wardrobe/outfits-${theme * 2 + (look.body === 1 ? 1 : 0)}.png`
     : `/wardrobe/clothing-${look.clothing ?? 0}.png`;
+}
+
+export function favouriteProgress(p: WardrobeProgress & Look) {
+  const set = legendarySets.find((s) => s.id === p.favouriteSet);
+  if (!set)
+    return `<p class="collection-note">Choose ☆ on a set to pin your next look here.</p>`;
+  const owned = set.tier === "Free" || ownsSet(p, set.id);
+  const available = Math.min(styleTokens(p), set.cost);
+  return `<section class="favourite-goal" aria-label="Favourite outfit"><strong>★ ${set.name}</strong>${
+    owned
+      ? `<p>Yours to wear.</p><button class="secondary" data-try-slot="outfits" data-try-index="${legendarySets.indexOf(set) * 2 + (p.body ?? 0)}">Wear favourite</button>`
+      : set.tier === "Legendary"
+        ? `<p>${available} / ${set.cost} Style tokens · ${set.cost - available} to go</p><progress max="${set.cost}" value="${available}" aria-label="Tokens for ${set.name}"></progress><p>1 token per 100 XP; up to 3 daily from ranked medals. No deadline.</p>${available === set.cost ? `<button class="secondary" data-redeem-set="${set.id}">Unlock · ${set.cost} Style tokens</button>` : ""}`
+        : `<p>Optional Premium set · S$${(setPriceSGD / 100).toFixed(2)} · 18+ purchases. Style tokens do not unlock this set.</p><button class="secondary" data-buy-set="${set.id}">View set</button>`
+  }<button class="text-button" data-favourite-set="${set.id}">Unpin favourite</button></section>`;
+}
+export function savedLookShelf(
+  p: WardrobeProgress &
+    Look & { savedLooks: SavedLooks; unlockedHats: number[] },
+) {
+  return `<details class="saved-looks"><summary>Saved looks · ${p.savedLooks.filter(Boolean).length} / 4</summary><p>Save the look you are wearing. Locked previews are never saved.</p><div class="saved-look-grid">${p.savedLooks.map((look, i) => `<div><strong>Look ${i + 1}</strong>${look ? `<img data-saved-thumbnail="${i}" src="${outfitPreviewImage(look)}" alt="Outfit reference for Look ${i + 1}; hair and accessories may differ" width="100" height="92" loading="lazy"><button class="secondary" data-wear-saved="${i}" ${savedLookAllowed(look, p) ? "" : "disabled"}>Wear Look ${i + 1}</button><button class="text-button" data-clear-saved="${i}">Clear Look ${i + 1}</button>` : ""}<button class="secondary" data-save-look="${i}">${look ? "Replace with current" : "Save current look"}</button></div>`).join("")}</div></details>`;
 }

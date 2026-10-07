@@ -1,103 +1,89 @@
-# Menu and wardrobe
+# My look wardrobe
 
-The dock has three main actions: Games, Neighbourhood and Menu. Menu groups My stuff,
-Friends and Settings. My stuff contains My look, Rewards and Support & purchases.
-An upfront camera button switches bird's-eye/third-person view. Menu uses a settings
-gear; lighting, additional camera controls and account options remain in Settings.
-Fishing and Hoops are included in Games. Social tools are under Friends.
+The lobby dock exposes Play, My look and Menu. My look keeps a persistent 3D
+fitting room beside a scrolling catalogue, with Face / Full body camera controls
+and an expanded preview. Character settings precede the catalogue. Owned cards
+equip on tap with Undo; locked cards only change the preview. In 2D, static
+catalogue art is labelled as a reference, not an exact custom combination.
 
-My look separates browsing from equipping. Every card has a PNG rendered from
-the actual 3D assets, including locked pieces and complete sets. Selecting a
-card changes only the fitting-room preview. Equip saves the look; closing or
-resetting the preview discards it. The lightweight lobby uses the same PNGs.
+## Collection and personalisation
 
-## Avatar and tiers
+There are 66 complete sets: 22 Free, 22 Legendary and 22 Premium. Each supports
+Girl and Boy. Outfits apply matching clothing, headwear and hairstyle; Clothes,
+Hair, Headwear, Pets and Magic can be selected independently. The 80 existing
+hairstyles are free. Earned hats remain accessible under Headwear. Removing
+headwear preserves the underlying hairstyle. Skin, eyes, identity, pets and
+magic are not reset by an outfit choice.
 
-The avatar is built from the CC BY "Chibi Girl Character" model; see
-`art/characters/sketchfab-chibi-girl/README.md`. My look has a Girl / Boy
-switch (saved as `body`, 0 or 1). It changes the eyes and swaps the skirt for
-shorts; every hairstyle and outfit works on both.
+Four saved looks store visual fields only. Saving a locked preview is impossible;
+Save current look saves the worn look. The server validates new snapshots and
+rechecks current entitlement on application. Refunded pieces cannot be recovered
+from a snapshot. Exact saved-combination thumbnails render lazily in 3D, with an
+explicitly labelled outfit reference in 2D.
 
-Every card says how the piece is had: **Free**, **Style tokens** or
-**Premium** (a complete set: buy it, or exchange tokens).
+A favourite pins one set above the catalogue. Legendary goals show available
+Style tokens and the amount still needed; Premium goals clearly state that tokens
+do not unlock the set. Favourites have no expiry, notifications or streak penalty.
 
-| Slot | Free | Style tokens | Premium (in sets) |
-| --- | ---: | ---: | ---: |
-| Outfits | 8 | 16 | 16 |
-| Head | 11 | 26 | 16 |
-| Pets | 10 | 22 | 16 |
-| Magic | 10 | 23 | 16 |
+## Earning and optional purchases
 
-Six sets were added on 5 October 2026: Candy Pop (22 tokens), Boba Dream (26),
-Pixel Champion (30), Dream Witch (34), Garden Sprite (38) and Dino Explorer
-(42). They cannot be bought with money until their S$1.99 prices exist in
-Stripe and their IDs are added to `STRIPE_CATALOG` (ids `candy`, `boba`,
-`pixel`, `witch`, `garden`, `dino`). See PAYMENTS.md.
+One token is earned per 100 lifetime XP. Ranked medals add 3/2/1 for gold/silver/
+bronze, capped at 3 per Singapore day across eligible daily games. Available
+balance is floor(XP / 100) + medal tokens - tokens exchanged. No earning rate,
+existing price, owned item or gameplay advantage changed in this wardrobe series.
 
-Saved indices never move. Each slot is laid out as the original items, the
-first ten sets, later single items, then later sets; `src/collections.ts`
-(`setIndexFor`, `extraIndexFor`) is the only place that knows this.
+New sets:
 
-## Collections and progression
+| Family               | Access                                      |
+| -------------------- | ------------------------------------------- |
+| After-school Circuit | Free                                        |
+| Void Deck Weekend    | Free                                        |
+| Monsoon Wayfinder    | 18 Style tokens or optional S$1.99 purchase |
+| Canal Otter Club     | 24 Style tokens or optional S$1.99 purchase |
+| Rainshield Guardian  | S$1.99 Premium                              |
+| Moonbell Society     | S$1.99 Premium                              |
 
-- Everyday: the original first eight choices in each category, available immediately.
-- Street looks (existing Discovery pieces): 1 Style token for the collection.
-- Weekend looks (existing Mastery pieces): 3 Style tokens for the collection.
-- Legendary: redeem a full set, then mix its four pieces separately.
+All purchases use the existing saved-account and **18+ confirmation** requirements.
+The game remains 13+. Stripe handles payment details. New sets use the existing
+server-owned inline-price mechanism; grants require verified payment and are
+idempotent. No paid randomness, pressure timers, purchasable tokens or pay-to-win.
+See PAYMENTS.md for deployment configuration and payment operations.
 
-Each 100 lifetime XP earns one Style token. Available tokens equal
-`floor(XP / 100) + medal tokens - tokens already exchanged`. Gold adds 3 medal
-tokens, silver 2 and bronze 1, capped at 3 per player per Singapore day across
-the five daily arcade games. XP tokens are separate. Medals remain prestige.
-Exchanges preserve XP, level,
-medals and rankings. Tokens cannot be bought with money. Optional Stripe payments can buy complete
-sets directly for S$1.99; production checkout is enabled. See PAYMENTS.md. Existing saved appearance indices keep their meanings. An
-already-worn older item remains wearable when other slots change.
+## Compatibility and art
 
-Token prices are the only progression requirement. Existing Legendary prices and
-owned sets remain unchanged. Existing Street/Weekend unlocks are grandfathered
-without charging tokens, and old medals do not produce retroactive token rewards.
-The sets use original superhero, anime and fantasy themes.
+Existing item indices, IDs and first 60 sets never move. New families append at
+set indices 60–65. `src/collections.ts` owns the index layout. No SQL migration is
+needed: `savedLooks` (four nullable visual snapshots) and `favouriteSet` are additive
+profile preferences. Older clients omit them; the server preserves them.
+`wardrobePurchased`, `wardrobeUnlocked`, spent tokens, XP, medal tokens, earned
+hats, accounts and receipts retain their existing meanings.
 
-| Set | Style tokens |
-| --- | ---: |
-| Solar Sentinel | 12 |
-| Moon Prism | 15 |
-| Storm Ronin | 18 |
-| Sakura Kitsune | 20 |
-| Nova Mecha | 24 |
-| Abyss Monarch | 28 |
-| Tidal Empress | 32 |
-| Phoenix Ascendant | 36 |
-| Frost Seraph | 40 |
-| Galaxy Idol | 45 |
+The original families use the current body and skeleton with cached vertex-colour
+overlays and no new textures. Each body/head overlay is one draw. The existing
+CC BY Chibi Girl Character attribution remains in
+`art/characters/sketchfab-chibi-girl/README.md`; no third-party assets were purchased
+or imported. Pet drakes now stand upright; wolves have longer legs, and the new
+otter has a low body and paddle tail. Named books and paper-plane magic use literal
+props. Teen appeal is a design hypothesis, not a tested demographic claim.
 
-Each includes an outfit, headwear, companion and animated magic effect.
-The server checks progression and ownership, exchanges tokens transactionally,
-and treats repeated requests for an owned set as a no-op. Profile patches cannot
-grant XP, tokens or ownership. Presence updates cannot equip an unowned look.
+## Verification and rollout
 
-Crossing XP token thresholds creates a durable notice with the exact number earned,
-including passive invite awards. The browser consumes it once before showing a
-brief Three.js coin reveal and “Style tokens buy outfits and looks.” Reconnecting
-does not repeat an acknowledged notice. Reduced motion, 2D and WebGL failure use
-the static card; closing, navigation and hiding the tab dispose the animation.
+See `docs/wardrobe/VERIFICATION.md` for tests, limits and screenshot locations.
+Generate PNGs from production meshes with the Windows PowerShell commands:
 
-## Verification
+```powershell
+$env:DARECADE_TEST_CHROMIUM = 'C:\Program Files\Google\Chrome\Application\chrome.exe'
+node --experimental-strip-types scripts/render-complete-catalog.mjs
+npm run build
+npm test
+npm run test:cloudflare
+$env:RENDER_WARDROBE = '1'
+npm run test:mobile-render
+```
 
-See QA.md for the current simplification checks. The earlier release was
-validated with the TypeScript/Vite build, 166 Node tests and 8 Cloudflare
-integration tests, including the deployment dry run. Browser checks covered
-desktop, 320px phone layout, locked previews, explicit equip, server persistence,
-token exchange and the 2D fallback. Browser testing used a separate local test
-database in `.browser/wardrobe-qa-data`.
-
-The 206 previews in `public/wardrobe` cover every individual item and all 16
-complete sets. To regenerate them, run `scripts/render-wardrobe-thumbnails.js`
-in a browser on the local Vite page and save the returned name-to-data-URL map
-as PNGs. Windows PowerShell can pass the script to `agent-browser eval -b`
-using `[Convert]::ToBase64String([IO.File]::ReadAllBytes(...))` to preserve
-multiline JavaScript. Run `npm run build` after changing the previews.
-
-Integrated with PRs #11–16 for the 4 October production release. See QA.md for
-merged-release checks and the historical feature-level checks.
+Merge the four stacked PRs in order. Deploy the compatible server and matching
+client together. After anyone owns a newly appended set, do not roll back the
+server to a catalogue that predates its ID: that older normaliser does not know
+how to retain the new entitlement. If needed, hide the new UI while retaining the
+catalogue, entitlement validation and profile fields. Preserve the payment ledger
+and take a database backup before deployment. These PRs have not been deployed.

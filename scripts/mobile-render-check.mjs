@@ -13,6 +13,7 @@ const html = `<!doctype html><meta name="viewport" content="width=device-width,i
 import {LobbyWorld} from '/src/world.ts';
 import {loadCharacter} from '/src/character.ts';
 import {fresh} from '/src/state.ts';
+import {legendarySets,setLook,outfitLook} from '/src/collections.ts';
 try {
  await loadCharacter();
  window.requestAnimationFrame = () => 0;
@@ -26,6 +27,8 @@ try {
  objectPrototype.updateMatrix=function(){matrixUpdates++;return update.call(this)};
  const report=[];
  let now=1000;
+ for(const theme of ${JSON.stringify(process.env.RENDER_WARDROBE ? [60, 61, 62, 63, 64, 65] : [-1])}) {
+ if(theme>=0){Object.assign(world.save,setLook(theme),outfitLook(theme,0));world.updateAvatar();}
  for(const [width,height] of [[390,844],[844,390]]) {
  host.style.width=width+'px';host.style.height=height+'px';world.resize();
  for(const camera of ['third','isometric']) {
@@ -43,9 +46,10 @@ try {
  for(let i=0;i<5;i++){now+=1000/60;world.animate(now)}
  if(world.player.moving||world.player.legs.some(l=>l.rotation.x!==0))throw Error('Walking did not stop');
  const stats=a=>{const s=a.toSorted((a,b)=>a-b);return {median:s[Math.floor(s.length/2)],p95:s[Math.floor(s.length*.95)],max:s.at(-1)}};
- const row={width,height,camera,ratio:world.renderer.getPixelRatio(),shadows:world.renderer.shadowMap.enabled,calls:stats(calls),triangles:stats(triangles),matrixUpdates:stats(matrices)};
+ const row={family:theme<0?"baseline":legendarySets[theme].name,width,height,camera,ratio:world.renderer.getPixelRatio(),shadows:world.renderer.shadowMap.enabled,calls:stats(calls),triangles:stats(triangles),matrixUpdates:stats(matrices)};
  report.push(row);
  if(${check} && (row.ratio>1.25||row.shadows||row.calls.max>520||row.matrixUpdates.max>2300))throw Error('Mobile rendering budget exceeded: '+JSON.stringify(row));
+ }
  }
  }
  objectPrototype.updateMatrix=update;

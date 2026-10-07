@@ -54,3 +54,67 @@ rigs, 24 remote avatars, preview teardown and reduced motion. These checks are
 not a claim that every possible mix is clipping-free. Evidence is in
 `output/playwright/wardrobe-implementation/`. No physical-phone test or teen
 preference study has been performed.
+
+## PR 4 — Saved looks, collecting goals and companion identity
+
+Adds four visual-only saved slots and one favourite-set preference. The client
+and server validate components, reject saving unowned pieces, and recheck ownership
+when applying snapshots. Refunded snapshots cannot restore entitlement. Existing
+clients can patch preferences without erasing the new fields. Old saves receive
+empty slots. No SQL migration, earning-rate change, timer or notification added.
+
+Drakes now have upright bodies, two feet and broad wings; wolves have longer legs;
+Canal Otter has a low body and paddle tail. Books/notebooks and paper planes render
+literal objects. The Wayfinder compass uses shared merged geometry. Preview images
+were regenerated from the production builders. No player accounts, email sends,
+real checkout requests or live purchases were used during verification.
+
+Final verification:
+
+- Production TypeScript/Vite build passes (existing Three.js chunk-size advisory remains).
+- 489 tests pass with the installed Chrome executable, no skips. This includes
+  mobile/desktop/fallback, saved looks, ownership, payment and safety checks.
+- 14 Cloudflare integration tests pass, including payment, world privacy and
+  durable storage; Wrangler deployment was a dry run only.
+- After the final effect optimisation, 24 avatar/companion/effect checks pass.
+- The ordinary mobile workload benchmark passes. All six complete new sets,
+  including their pets and magic, also pass at 390×844 and 844×390 in both cameras.
+  Peak draws by family: Circuit 516, Rainshield 519, Wayfinder 515, Moonbell 519,
+  Otter 515, Void Deck 520 (limit 520). Matrix updates peak at 2054 (limit 2300).
+  Pixel ratio remains capped at 1.25, with shadows off. This measures workload in
+  desktop Chrome with emulated phone dimensions, not real-phone frame rate.
+- New drake/wolf/otter meshes measure 3672/4608/4544 triangles and 8/6/6 draws.
+  Notebook magic uses 120 triangles and paper planes 84; both retain 32 particles.
+- Stale fallback/season test fixtures now use auth/session. Onboarding tests now
+  exercise the current unchecked 13+ and privacy checkboxes instead of the retired
+  date-of-birth form. Production age/privacy implementation was not changed.
+
+Evidence: `.browser/pr4-final-tests.log`, `.browser/pr4-cloudflare.log`,
+`.browser/wardrobe-render-report.json`, `.browser/pr4-effects-recheck.log`,
+`output/playwright/wardrobe-implementation/saved-and-favourite-desktop.png`,
+`expanded-mobile.png`, `face-preview-desktop.png`, and the family/pose captures.
+
+Rollout gates: merge PRs in order; deploy server and client together; retain new
+catalogue IDs on any rollback after new ownership is granted. Current safeguards
+and receipts stay in place. Before a broad release, validate on physical Android/
+iPhone devices and run a small opt-in style-preference study with suitable age
+and privacy handling. No measured retention or sales uplift is claimed.
+
+## Review screenshots
+
+These captures use an isolated synthetic profile. They show the implemented
+favourite goal, saved-look slot and expanded mobile fitting room.
+
+![Saved looks and favourite progress](evidence/saved-and-favourite-desktop.png)
+
+![Expanded mobile fitting room](evidence/expanded-mobile.png)
+
+The current production-builder outfit thumbnails for the six families:
+
+| Circuit | Rainshield | Wayfinder |
+| --- | --- | --- |
+| ![Circuit](../../public/wardrobe/outfits-120.png) | ![Rainshield](../../public/wardrobe/outfits-122.png) | ![Wayfinder](../../public/wardrobe/outfits-124.png) |
+
+| Moonbell | Otter Club | Void Deck |
+| --- | --- | --- |
+| ![Moonbell](../../public/wardrobe/outfits-126.png) | ![Otter Club](../../public/wardrobe/outfits-128.png) | ![Void Deck](../../public/wardrobe/outfits-130.png) |

@@ -200,6 +200,14 @@ export function mobileLobbyFixture(
       find('[data-wardrobe-section="Clothes"]').click();
       find('[data-try-slot="clothing"][data-try-index="65"]').click();
       check(JSON.parse(localStorage.getItem('darecade-v1')).baseHair===112, 'clothes preserve hairstyle');
+      find('.saved-looks').open=true;
+      find('[data-save-look="0"]').click();
+      check(JSON.parse(localStorage.getItem('darecade-v1')).savedLooks[0].baseHair===112, 'saved look contains the mixed hairstyle');
+      find('[data-wardrobe-section="Hair"]').click();
+      find('[data-try-slot="hairstyle"][data-try-index="113"]').click();
+      find('.saved-looks').open=true;
+      find('[data-wear-saved="0"]').click();
+      check(JSON.parse(localStorage.getItem('darecade-v1')).baseHair===112, 'saved look reapplies the exact combination');
       for(const section of ['Outfits','Pets','Magic']) {
         find('[data-wardrobe-section="'+section+'"]').click();
         const panel=find('.wardrobe-controls');
@@ -215,6 +223,10 @@ export function mobileLobbyFixture(
       check(document.querySelectorAll('[data-wardrobe-filter]').length===3, 'only three tiers');
       find('[data-wardrobe-section="Pets"]').click();
       find('[data-wardrobe-filter="Legendary"]').click();
+      find('[data-favourite-set="solar"]').click();
+      check(find('.favourite-goal').textContent.includes('Style tokens'), 'favourite shows earning progress');
+      check(JSON.parse(localStorage.getItem('darecade-v1')).favouriteSet==='solar', 'favourite persists');
+      find('.favourite-goal [data-favourite-set]').click();
       const locked=find('[data-try-slot="pet"][data-try-index="26"]');
       const savedPet=JSON.parse(localStorage.getItem('darecade-v1')).pet;
       locked.click();

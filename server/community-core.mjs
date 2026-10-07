@@ -1,3 +1,4 @@
+import { savedLookAllowed } from "../src/saved-looks.ts";
 import { nicknameError } from "../shared/nickname.ts";
 import {
   ownsSet,
@@ -72,6 +73,8 @@ const lookKeys = [
   "accessory",
 ];
 const prefs = [
+  "savedLooks",
+  "favouriteSet",
   "sound",
   "music",
   "reduced",
@@ -467,6 +470,14 @@ export class CommunityCore {
       !canWear("hair", candidate.baseHair, p, medals)
     )
       throw Error("Unlock this hairstyle before equipping it.");
+    for (const [index, look] of candidate.savedLooks.entries()) {
+      if (
+        look &&
+        JSON.stringify(look) !== JSON.stringify(p.savedLooks[index]) &&
+        !savedLookAllowed(look, p)
+      )
+        throw Error("Unlock every piece before saving this look.");
+    }
     if (Object.hasOwn(patch, "medalEmail"))
       this.medalRewards.preference(id, patch.medalEmail);
     for (const k of [...lookKeys, ...prefs]) p[k] = candidate[k];

@@ -1,4 +1,6 @@
 import * as T from "three";
+import { mergeCosmeticParts } from "./cosmetic-meshes.ts";
+const compassCache = new Map<string, T.Group>();
 import { legendarySets, type StyleSet } from "./collections.ts";
 import { part, ball, node } from "./shapes.ts";
 
@@ -129,6 +131,89 @@ export function legendaryMagic(parent: T.Object3D, index: number) {
 }
 
 function catalogMagic(g: T.Group, s: StyleSet) {
+  if (s.design.costume === "wayfinder") {
+    let template = compassCache.get(s.id);
+    if (!template) {
+      template = new T.Group();
+      part(template, "ring", [0, 0.07, 0], [0.72, 0.72, 0.03], s.color, {
+        rot: [Math.PI / 2, 0, 0],
+        glow: 0.4,
+      });
+      for (let i = 0; i < 4; i++) {
+        const a = (i * Math.PI) / 2;
+        part(
+          template,
+          "oct",
+          [Math.cos(a) * 0.55, 0.075, Math.sin(a) * 0.55],
+          [0.07, 0.025, 0.16],
+          s.accent,
+          { rot: [0, -a, 0], glow: 0.4 },
+        );
+      }
+      mergeCosmeticParts(template);
+      compassCache.set(s.id, template);
+    }
+    const compass = template.clone();
+    g.add(compass);
+    return (time: number) => {
+      compass.rotation.y = time * 0.2;
+    };
+  }
+
+  const literalBook = /book|notebook/i.test(s.magic);
+  const paperPlanes = /paper planes/i.test(s.magic);
+  if (literalBook || paperPlanes) {
+    const objects = Array.from({ length: literalBook ? 2 : 3 }, (_, i) => {
+      const object = node(g);
+      if (literalBook) {
+        for (const side of [-1, 1]) {
+          part(
+            object,
+            "box",
+            [side * 0.085, 0, 0],
+            [0.17, 0.22, 0.035],
+            s.color,
+            { rot: [0, side * 0.2, 0] },
+          );
+          part(
+            object,
+            "box",
+            [side * 0.082, 0, 0.025],
+            [0.145, 0.19, 0.018],
+            "#fff3df",
+            { rot: [0, side * 0.2, 0] },
+          );
+        }
+        part(object, "box", [0, -0.09, 0.04], [0.025, 0.12, 0.012], s.accent);
+      } else {
+        for (const side of [-1, 1])
+          part(
+            object,
+            "oct",
+            [side * 0.07, 0, 0],
+            [0.13, 0.018, 0.22],
+            "#fff3df",
+            { rot: [0, side * 0.4, side * 0.12] },
+          );
+        part(object, "box", [0, 0.025, 0], [0.018, 0.07, 0.2], s.accent);
+      }
+      return object;
+    });
+    return (time: number) =>
+      objects.forEach((object, i) => {
+        const a = time * 0.4 + (i * Math.PI * 2) / objects.length;
+        object.position.set(
+          Math.cos(a) * 0.72,
+          1.15 + Math.sin(a) * 0.25,
+          Math.sin(a) * 0.72,
+        );
+        object.rotation.set(
+          literalBook ? -0.2 : 0.15,
+          literalBook ? -a : -a + Math.PI / 2,
+          0,
+        );
+      });
+  }
   const { spell, motif } = s.design;
   const power = s.tier === "Premium" ? 1 : s.tier === "Legendary" ? 0.8 : 0.6;
   const satellites: T.Object3D[] = [];
@@ -183,7 +268,11 @@ function catalogMagic(g: T.Group, s: StyleSet) {
         : spell === "petals" || spell === "leaves"
           ? "ball"
           : "oct";
-  for (let i = 0; i < 6 + (motif % 4); i++) {
+  for (
+    let i = 0;
+    i < (s.design.costume === "rainshield" ? 4 : 6 + (motif % 4));
+    i++
+  ) {
     const o = part(
       g,
       shape,
