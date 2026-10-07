@@ -22,36 +22,17 @@ export const firstVisitCopy = {
   explore: "The town is open to explore.",
 } as const;
 
-const sgt = (time: number) =>
-  new Date(time).toLocaleString("en-SG", {
-    timeZone: "Asia/Singapore",
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-
-/**
- * Why challenges are closed for this player, with the real opening time. Empty
- * once they are open. The 24-hour wait itself is set out in ACCOUNTS.md.
- */
+/** Email is optional for challenges. The server checks session eligibility. */
 export function dareHoldCopy(
   ready: boolean,
-  account: { eligibleAt?: number } | null | undefined,
+  _account: { eligibleAt?: number } | null | undefined,
 ) {
-  if (ready) return "";
-  if (!account)
-    return "Challenges need a saved account. Save with email; challenges open 24 hours later. Regular rounds are open now.";
-  if (!account.eligibleAt)
-    return "Challenges open 24 hours after your email was verified. Regular rounds are open now.";
-  return `Your challenges open ${sgt(account.eligibleAt)} SGT, 24 hours after your email was verified. Regular rounds are open now.`;
+  return ready ? "" : "Connect to play challenges. No email needed.";
 }
 
 /**
  * The first reason a Play challenge button cannot be used, or "" when it can. The
- * 24-hour wait is explained by dareHoldCopy instead.
+ * connection status is explained by dareHoldCopy instead.
  */
 export function dareBlock(o: {
   connected: boolean;

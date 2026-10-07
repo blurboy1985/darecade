@@ -132,6 +132,7 @@ for (const outcome of [
       acceptProfile: () => {},
       syncSocial: () => Promise.resolve(),
       close: () => closeCalls++,
+      toast: () => {},
       openAccount: (options: { onSkipped: () => void }) => opened.push(options),
       event: { target: { closest: () => button } },
     });
@@ -148,7 +149,8 @@ for (const outcome of [
     else resolveRequest({ name: "newname" });
     await flush();
     await flush();
-    assert.equal(opened.length, outcome === "success" ? 1 : 0);
+    assert.equal(opened.length, 0, "saving a guest never prompts for email");
+    assert.equal(closeCalls, outcome === "success" ? 1 : 0);
     assert.equal(button.disabled, false);
     assert.equal(
       status.textContent,

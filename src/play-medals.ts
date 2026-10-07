@@ -35,6 +35,6 @@ export function playMedalResult(
 }
 
 export const guestSaveCopy =
-  "Your guest profile keeps XP, tokens, outfits, bests and Play medals on the server while this browser session gives you access. Browser storage keeps your local preferences. Clearing cookies, signing out or the 30-day session expiring can leave you unable to reopen it.";
+  "Your progress and purchased looks are saved in this browser, with server-verified ownership and scores. Device access renews when you return, for up to a year. Use the same browser on this phone or device. Clearing browser data, private browsing or a year away can lose access.";
 export const emailSaveCopy =
-  "Link an unused email to keep this same character and its rewards, recover access and play on another device. New arcade rounds then enter ranked boards; challenges open after 24 hours. Earlier guest rounds stay personal bests. An email that already has a character offers a switch, not a merge.";
+  "Email backup is optional. Link an unused email to recover this same character and its purchases on another device. Guests can already earn Style Tokens, enter rankings and play challenges. An email that already has a character offers a switch, not a merge.";

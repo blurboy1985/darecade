@@ -2,7 +2,6 @@ import { api } from "./social";
 import type { Save } from "./state";
 import type { SeasonProgress } from "./season";
 import type { PlayMedalProgress } from "../shared/play-medals";
-import { dareHoldCopy } from "./lobby-menu";
 import "./account.css";
 import { guestSaveCopy, emailSaveCopy, latestPlayMedals } from "./play-medals";
 export type Profile = {
@@ -305,7 +304,7 @@ export async function openAccount(
         },
       });
     const render = () => {
-      host.innerHTML = `<span class="eyebrow">ACCOUNT & PRIVACY</span><h2>Your account</h2><p>${p.account ? `Signed in as <strong>${esc(p.account.email)}</strong>. Your avatar and progress follow this account.` : "Playing without email. Your guest profile is on the server. This browser’s access lasts up to 30 days; clearing cookies can end access earlier."}</p>${!p.account ? `<details class="account-details"><summary>Your guest progress</summary><p>${guestSaveCopy}</p><p>${emailSaveCopy}</p></details>` : ""}<p>${p.account && p.account.eligibleAt > Date.now() ? `Every round you finish is ranked. ${dareHoldCopy(false, p.account)}` : p.account ? "Three outgoing challenges per day. No points lost when another player wins." : "Play together and use emotes now. Email is optional."}</p>${p.season ? `<p>${esc(p.season.name)} · ${p.season.xp} Season XP · ${p.progress.xp} Lifetime XP</p>` : ""}${!p.account ? '<button class="primary" id="save-account">Save with email →</button>' : ""}${p.account ? `<label class="consent-choice"><input id="medal-email" type="checkbox" ${p.notifications?.medalEmail ? "checked" : ""}> Email my daily medal awards</label><p class="fine-print">One email on days you win medals. Turn off here anytime.</p>` : ""}<div class="account-actions"><button class="secondary" id="read-privacy">Privacy &amp; data</button>${p.account ? '<button class="secondary" id="logout">Sign out</button>' : ""}</div><p role="status" id="account-status"></p>`;
+      host.innerHTML = `<span class="eyebrow">ACCOUNT & PRIVACY</span><h2>Your account</h2><p>${p.account ? `Signed in as <strong>${esc(p.account.email)}</strong>. Your avatar and progress follow this account.` : "Playing without email. Progress and purchases stay with this browser on this device. Email backup is optional."}</p>${!p.account ? `<details class="account-details"><summary>Your guest progress</summary><p>${guestSaveCopy}</p><p>${emailSaveCopy}</p></details>` : ""}<p>Rankings and challenges are open without email. Three outgoing challenges per day. No points lost when another player wins.</p>${p.season ? `<p>${esc(p.season.name)} · ${p.season.xp} Season XP · ${p.progress.xp} Lifetime XP</p>` : ""}${!p.account ? '<button class="primary" id="save-account">Save with email →</button>' : ""}${p.account ? `<label class="consent-choice"><input id="medal-email" type="checkbox" ${p.notifications?.medalEmail ? "checked" : ""}> Email my daily medal awards</label><p class="fine-print">One email on days you win medals. Turn off here anytime.</p>` : ""}<div class="account-actions"><button class="secondary" id="read-privacy">Privacy &amp; data</button>${p.account ? '<button class="secondary" id="logout">Sign out</button>' : ""}</div><p role="status" id="account-status"></p>`;
       host
         .querySelector<HTMLInputElement>("#medal-email")
         ?.addEventListener("change", async (event) => {

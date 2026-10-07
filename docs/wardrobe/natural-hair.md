@@ -1,5 +1,9 @@
 # Natural character hair
 
+The follow-up [longer hair and guest play review](../guest-play/README.md)
+extends these cuts and includes current screenshots. The evidence below records
+the earlier natural-hair pass.
+
 The smooth cap and blunt fringe now have swept ridges, uneven tapered ends and
 small temple locks. Ponytails and twin tails curve and taper; buns have wrapped
 ridges. Hair uses a rougher, double-sided material so the underside of long cuts

@@ -97,9 +97,9 @@ export async function handleApi(
       ?.slice(17);
     const id = c.lookup(token);
     rate("api", 360, 60000, id);
-    const withCookie = (value, token) =>
+    const withCookie = (value, token, days = 30) =>
       json(value, 200, {
-        "Set-Cookie": `darecade_session=${token || ""}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${token ? 2592000 : 0}`,
+        "Set-Cookie": `darecade_session=${token || ""}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${token ? days * 86400 : 0}`,
       });
     if (method === "GET" && path === "/api/auth/config")
       return json(c.config());
@@ -111,7 +111,7 @@ export async function handleApi(
     if (method === "POST" && path === "/api/auth/join") {
       rate("join", 12, 900000);
       const joined = c.join(data, token);
-      return withCookie(joined.me, joined.token);
+      return withCookie(joined.me, joined.token, 365);
     }
     if (method === "POST" && path === "/api/auth/verify") {
       rate("verify", 12, 900000);
@@ -135,11 +135,20 @@ export async function handleApi(
       rate("move", 12, 900000);
       const moved = c.moveIn(data.code, data.key, token);
       return moved.token
-        ? withCookie({ saves: moved.saves }, moved.token)
+        ? withCookie(
+            { saves: moved.saves },
+            moved.token,
+            c.sessionDays(c.lookup(moved.token)),
+          )
         : json({ saves: moved.saves });
     }
-    if (method === "GET" && path === "/api/auth/session")
-      return json(id ? c.privateProfile(id) : null);
+    if (method === "GET" && path === "/api/auth/session") {
+      if (!id) return json(null);
+      const profile = c.privateProfile(id);
+      if (profile.account) return json(profile);
+      c.renewGuestSession(token);
+      return withCookie(profile, token, 365);
+    }
     if (!id)
       return json(
         { error: "Please complete the welcome check or sign in." },

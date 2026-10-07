@@ -41,11 +41,11 @@ export function raceComparison(
             : `${seconds}s behind today’s fastest time.`;
       comparison += ranked
         ? ` This race compares at #${comparisonRank} among these racers.`
-        : ` Your guest time would place #${comparisonRank} among these racers.`;
+        : ` Your practice time would place #${comparisonRank} among these racers.`;
     }
   }
   const row = (entry: (typeof board)[number]) =>
     `<li${entry.id === state.me ? ' class="is-you"' : ""}><span>#${entry.rank}</span><span>${escape(entry.name)}${entry.id === state.me ? " · You" : ""}</span><strong>${raceScoreTime(entry.score)}</strong></li>`;
   const top = board.slice(0, 3);
-  return `<section class="race-comparison" aria-label="Today’s Coast Rush leaderboard"><h3>Today’s leaderboard <small>${escape(state.day)} · SGT</small></h3><p class="race-comparison-summary">${comparison}</p>${top.length ? `<ol class="race-result-board">${top.map(row).join("")}${own && !top.includes(own) ? row(own) : ""}</ol>` : '<p class="fine-print">The leaderboard starts with the first verified-email racer.</p>'}${board.length > 3 ? `<details><summary>All ${board.length} racers</summary><ol class="race-result-board">${board.map(row).join("")}</ol></details>` : ""}<p class="fine-print">${ranked ? "Each racer’s best time today counts." : "Guest comparison only. Verify your email, then race to join the board."} Resets at midnight SGT.</p></section>`;
+  return `<section class="race-comparison" aria-label="Today’s Coast Rush leaderboard"><h3>Today’s leaderboard <small>${escape(state.day)} · SGT</small></h3><p class="race-comparison-summary">${comparison}</p>${top.length ? `<ol class="race-result-board">${top.map(row).join("")}${own && !top.includes(own) ? row(own) : ""}</ol>` : '<p class="fine-print">Finish a standard race to start the leaderboard.</p>'}${board.length > 3 ? `<details><summary>All ${board.length} racers</summary><ol class="race-result-board">${board.map(row).join("")}</ol></details>` : ""}<p class="fine-print">${ranked ? "Each racer’s best time today counts." : "Practice comparison only. Finish your first race, then race again to join the board. No email needed."} Resets at midnight SGT.</p></section>`;
 }

@@ -12,11 +12,11 @@ const board = [
 // The renderer only consumes the board, date and current player ID.
 const state = { boards: { coast: board }, day: "2026-10-04", me: "me" };
 
-test("guest comparison uses today's times, preserves ties and cannot claim ranked entry", () => {
+test("practice comparison uses today's times, preserves ties and cannot claim ranked entry", () => {
   const html = raceComparison(raceScore(3060), state, false);
   assert.match(html, /1.00s behind today’s fastest/);
   assert.match(html, /would place #2/);
-  assert.match(html, /Guest comparison only/);
+  assert.match(html, /Practice comparison only/);
   assert.match(html, /2026-10-04 · SGT/);
   assert.match(html, /Fast &lt;Racer&gt;/);
   assert.match(html, /Moon · You/);

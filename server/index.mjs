@@ -48,10 +48,10 @@ function rate(req, key, max, windowMs, player) {
     throw e;
   }
 }
-function cookie(res, token) {
+function cookie(res, token, days = 30) {
   res.setHeader(
     "Set-Cookie",
-    `darecade_session=${token || ""}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${token ? 2592000 : 0}${production ? "; Secure" : ""}`,
+    `darecade_session=${token || ""}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${token ? days * 86400 : 0}${production ? "; Secure" : ""}`,
   );
 }
 const root = resolve(process.env.STATIC_DIR || "dist");
@@ -133,7 +133,7 @@ const handler = async (req, res) => {
       if (req.method === "POST" && url.pathname === "/api/auth/join") {
         rate(req, "join", 12, 900000);
         const joined = community.join(data, token);
-        cookie(res, joined.token);
+        cookie(res, joined.token, 365);
         respond(joined.me);
         return;
       }
@@ -152,6 +152,10 @@ const handler = async (req, res) => {
         return;
       }
       if (req.method === "GET" && url.pathname === "/api/auth/session") {
+        if (player && !community.privateProfile(player).account) {
+          community.renewGuestSession(token);
+          cookie(res, token, 365);
+        }
         respond(player ? community.privateProfile(player) : null);
         return;
       }
