@@ -143,3 +143,71 @@ verified loaded hair images, both crowns, a 5-token clothes unlock followed by a
 
 ![Hair previews on mobile](evidence/hair-fixed-mobile.png)
 ![Crown with full hair](evidence/crown-fixed-desktop.png)
+
+
+## Continuous hair surface and crown fitting research
+
+The previous fix reduced the number of spheres, but retained overlapping fringe,
+temple and nape ellipsoids. Each intersection still produced a raised lump and an
+outline seam. This is a geometry problem; recolouring or smoothing the lighting
+alone cannot remove the silhouette.
+
+The replacement uses one indexed surface for scalp, fringe and nape. Flowing
+hair and bobs extend that same surface. Buns, ponytails, braids and twin tails keep
+their named appendages. A small inward hairline rim gives the surface thickness.
+The eight cuts retain their IDs, colours and saved selections. Royal/knight
+crowns, including Eclipse and Crystal, are lowered from a lowest point of 1.88
+to 1.72 model units. There is no calibrated physical-inch scale for this chibi.
+Other fitted hats retain their existing positions and use a tucked hair surface.
+
+Research basis, checked 7 October 2026:
+
+- [Blender Shrinkwrap](https://docs.blender.org/manual/en/3.6/modeling/modifiers/deform/shrinkwrap.html)
+  describes fitting a mesh to another surface with an offset. For future artist
+  work, an authored hair shell can be fitted to the existing head in this way.
+- [Blender Solidify](https://docs.blender.org/manual/en/3.6/modeling/modifiers/generate/solidify.html)
+  adds thickness to a mesh surface. The prototype uses an inward perimeter rim
+  instead of a full interior shell to avoid hidden geometry.
+- [Three.js custom BufferGeometry](https://threejs.org/manual/pages/custom-buffergeometry.html)
+  and [vertex normals](https://threejs.org/docs/pages/BufferGeometry.html#computeVertexNormals)
+  support shared indexed vertices and averaged normals. Those are used directly
+  here. Merging independent spheres into one draw call does not weld their surfaces.
+
+The proposed art trade-off is a simpler, smoother silhouette. A future sculpted
+version could add a few tapered locks following the scalp; avoid adding rounded
+forehead/nape beads again. No external assets or additional textures are used.
+The shell is 1,392 triangles before its outline, cached per cut and cap fit across
+colours. Compared with the previous renderer, the messy avatar is 2,256 rendered
+triangles lighter including outlines; ponytail and braid are 264 higher. Draw
+calls remain within the existing budget. This is not a measured FPS improvement.
+
+Validation: 493 Node/browser tests passed with no skips, production build passed,
+and 24 mobile workload cases passed with at most 520 draws and 2,054 matrix
+updates. Two added topology tests check all eight styles in both cap states for
+connected geometry, shared seams, finite normals, noncollapsed triangles and
+cache isolation. 618 catalogue thumbnails were regenerated. Both character
+options were rendered front/side/back, with Eclipse/Crystal/Solar headwear and
+all three earned hats. Synthetic pose captures and a local production build
+verified previews; these do not establish collision-free interaction with every
+world prop. Mobile checks used desktop Chrome at 390x844 and 844x390, not phones.
+
+The local profile only equipped a free hairstyle and previewed locked crowns;
+there were no purchases or production-player changes. Save, ownership, pricing,
+privacy and age-gate code are unchanged. This follow-up is prepared for visual
+review and is not deployed.
+
+Reproduce in Windows PowerShell with the local art server on port 5176 and
+PLAYWRIGHT_CORE pointing to the installed playwright-core/index.mjs:
+`node scripts/hair-fit-review.mjs after`.
+
+Before:
+
+![Overlapping hair volumes](evidence/hair-surface-before.png)
+
+Proposed continuous surface:
+
+![Continuous hair front side and back](evidence/hair-surface-after.png)
+
+Lowered crowns:
+
+![Lowered Eclipse and Crystal crowns](evidence/crowns-lowered.png)

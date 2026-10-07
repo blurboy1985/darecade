@@ -1,0 +1,16 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Hair fitting review</title>
+  </head>
+  <body>
+    <p>Local avatar geometry review. No player data.</p>
+    <script type="module">
+      import * as three from "three";
+      import * as character from "../src/character.ts";
+      import * as collections from "../src/collections.ts";
+      await character.loadCharacter();
+      window.hairReviewModules = { three, character, collections };
+    </script>
+  </body>
+</html>

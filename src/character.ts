@@ -670,8 +670,10 @@ export function applyLook(
     const group = new T.Group();
     build(group);
     const bounds = new T.Box3().setFromObject(group);
+    // Open crowns sit into the hair shell, with their lowest point at the scalp
+    // crown. Raising them above the hair leaves a visible gap around the band.
     if (!bounds.isEmpty() && (crown || bounds.min.y > 1.7))
-      group.position.y = (crown ? 1.88 : 1.7) - bounds.min.y;
+      group.position.y = (crown ? 1.72 : 1.7) - bounds.min.y;
     a.hat.add(group);
   };
   if (!look.hat && !wear && !gear && headSet < 0)

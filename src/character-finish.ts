@@ -1,3 +1,4 @@
+import { hairSurface } from "./hair-surface.ts";
 import { hairVisual } from "./hair-catalog.ts";
 import { mergeCosmeticParts } from "./cosmetic-meshes.ts";
 import * as T from "three";
@@ -35,54 +36,13 @@ export function buildHair(parent: T.Object3D, index: number, capped = false) {
   const visual = hairVisual(index);
   const style = hairStyles[visual.shape];
   const color = visual.color;
-  const short = style === "spiky" || style === "messy";
   const hair = node(parent, [0, 1.46, -0.07], "VolumetricHair");
   hair.userData.secondaryMotion = true;
-  // Back volume stops above the nape; the face remains completely exposed.
-  if (!capped) part(hair, "ball", [0, 0.12, -0.1], [0.44, 0.39, 0.33], color);
-  if (capped) part(hair, "ball", [0, -0.02, -0.1], [0.39, 0.25, 0.3], color);
-  // Each cut has its own fringe; avoid repeating the same five beads on every head.
-  const fringe: Record<(typeof hairStyles)[number], number[][]> = {
-    spiky: [
-      [-0.18, 0.27, 0.22, 0.2, 0.16, 0.16, -0.55],
-      [0.13, 0.3, 0.22, 0.26, 0.13, 0.16, 0.35],
-    ],
-    flowing: [
-      [-0.25, 0.2, 0.23, 0.16, 0.29, 0.14, -0.3],
-      [0.24, 0.2, 0.23, 0.16, 0.29, 0.14, 0.3],
-    ],
-    buns: [
-      [-0.16, 0.25, 0.26, 0.26, 0.14, 0.13, -0.2],
-      [0.2, 0.22, 0.25, 0.18, 0.2, 0.13, 0.3],
-    ],
-    messy: [
-      [-0.22, 0.28, 0.25, 0.2, 0.15, 0.13, -0.5],
-      [0.03, 0.23, 0.29, 0.21, 0.18, 0.12, 0.45],
-      [0.25, 0.22, 0.22, 0.15, 0.15, 0.13, 0.7],
-    ],
-    ponytail: [[-0.12, 0.24, 0.27, 0.29, 0.17, 0.12, -0.35]],
-    bob: [[0, 0.2, 0.27, 0.37, 0.16, 0.13, 0]],
-    braid: [[0.05, 0.21, 0.28, 0.33, 0.18, 0.12, 0.35]],
-    tails: [
-      [-0.17, 0.23, 0.26, 0.22, 0.17, 0.13, -0.25],
-      [0.17, 0.23, 0.26, 0.22, 0.17, 0.13, 0.25],
-    ],
-  };
-  for (const [x, y, z, sx, sy, sz, tilt] of fringe[style])
-    part(hair, "ball", [x, y, z], [sx, sy, sz], color, { rot: [0, 0, tilt] });
-  // A continuous nape gives short cuts a clean back; long cuts add their own shape.
-  part(hair, "ball", [0, -0.04, -0.25], [0.37, short ? 0.2 : 0.27, 0.2], color);
+  const shell = new T.Mesh(hairSurface(style, capped), material(color));
+  shell.name = "HairShell";
+  shell.castShadow = true;
+  hair.add(shell);
   for (const side of [-1, 1]) {
-    part(
-      hair,
-      "ball",
-      [side * 0.39, short ? 0.02 : -0.1, 0.075],
-      [0.12, short ? 0.14 : 0.29, 0.17],
-      color,
-      {
-        rot: [0, 0, side * 0.14],
-      },
-    );
     if (style === "buns" && !capped)
       part(hair, "ball", [side * 0.39, 0.32, -0.08], [0.19, 0.19, 0.17], color);
     if (style === "tails") {
@@ -103,43 +63,7 @@ export function buildHair(parent: T.Object3D, index: number, capped = false) {
         { rot: [Math.PI / 2, 0, 0] },
       );
     }
-    if (style === "flowing")
-      part(
-        hair,
-        "ball",
-        [side * 0.2, -0.29, -0.23],
-        [0.25, 0.48, 0.18],
-        color,
-        { rot: [-0.12, 0, side * 0.06] },
-      );
-    if (style === "bob")
-      part(
-        hair,
-        "ball",
-        [side * 0.31, -0.16, -0.12],
-        [0.16, 0.25, 0.21],
-        color,
-      );
   }
-  if (!capped && style === "messy")
-    for (const [x, y, tilt] of [
-      [-0.22, 0.37, -0.5],
-      [0.06, 0.43, 0.35],
-      [0.27, 0.32, 0.65],
-    ])
-      part(hair, "ball", [x, y, -0.06], [0.22, 0.19, 0.23], color, {
-        rot: [0, 0, tilt],
-      });
-  if (!capped && style === "spiky")
-    for (let i = -2; i <= 2; i++)
-      part(
-        hair,
-        "cone",
-        [i * 0.14, 0.51 - Math.abs(i) * 0.04, 0.02],
-        [0.115, 0.4, 0.12],
-        color,
-        { rot: [0.1, 0, -i * 0.27] },
-      );
   if (style === "ponytail")
     part(hair, "ball", [0, -0.12, -0.4], [0.18, 0.48, 0.2], color, {
       rot: [-0.35, 0, 0],
@@ -154,29 +78,6 @@ export function buildHair(parent: T.Object3D, index: number, capped = false) {
         color,
       );
     part(hair, "ball", [0.39, -0.84, -0.14], [0.07, 0.12, 0.07], "#ffe299");
-  }
-  if (capped) {
-    // A fitted crown: compress upper strands below the brim, retaining nape and locks.
-    hair.updateMatrixWorld(true);
-    for (const child of hair.children)
-      if (child instanceof T.Mesh) {
-        const geometry = child.geometry.clone();
-        geometry.applyMatrix4(child.matrix);
-        const positions = geometry.getAttribute("position");
-        for (let i = 0; i < positions.count; i++) {
-          const y = positions.getY(i);
-          positions.setY(i, Math.min(y, 0.2));
-          if (y > 0.06) {
-            positions.setX(i, positions.getX(i) * 0.83);
-            positions.setZ(i, positions.getZ(i) * 0.83);
-          }
-        }
-        geometry.computeVertexNormals();
-        child.geometry = geometry;
-        child.position.set(0, 0, 0);
-        child.rotation.set(0, 0, 0);
-        child.scale.set(1, 1, 1);
-      }
   }
   mergeCosmeticParts(hair);
   outlineModel(hair);
