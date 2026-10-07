@@ -1,4 +1,5 @@
 import { costumeBody, costumeHead } from "./costume-design.ts";
+import { fitHairUnderHeadwear } from "./headwear-fit.ts";
 import type { Costume } from "./style-catalog.ts";
 import { resizeRenderer } from "./render-budget.ts";
 import { part, ball } from "./shapes.ts";
@@ -637,7 +638,7 @@ export function applyLook(
     }
   }
   const classHeadVisible = !look.hat && !wear && !gear && headSet < 0;
-  buildHair(
+  const hairVolume = buildHair(
     a.hat,
     a.look.baseHair ?? a.look.hair!,
     !!(
@@ -668,15 +669,18 @@ export function applyLook(
         ["staff", "bow", "cutlass"].includes(starter.prop))
     ),
   );
-  buildMouth(a.hat, skin);
-  const seatHeadwear = (build: (group: T.Group) => void, crown = false) => {
+  const seatHeadwear = (
+    build: (group: T.Group) => void,
+    crown = false,
+    seat = 1.7,
+  ) => {
     const group = new T.Group();
     build(group);
     const bounds = new T.Box3().setFromObject(group);
     // Open crowns sit into the hair shell, with their lowest point at the scalp
     // crown. Raising them above the hair leaves a visible gap around the band.
     if (!bounds.isEmpty() && (crown || bounds.min.y > 1.7))
-      group.position.y = (crown ? 1.72 : 1.7) - bounds.min.y;
+      group.position.y = (crown ? 1.72 : seat) - bounds.min.y;
     a.hat.add(group);
   };
   if (classHeadVisible)
@@ -688,9 +692,25 @@ export function applyLook(
     seatHeadwear(
       (group) => costumeHead(group, legendarySets[headSet]),
       ["royal", "knight"].includes(legendarySets[headSet].design.costume),
+      ["apprentice-mage", "moon-student", "void-deck-weekend"].includes(
+        legendarySets[headSet].id,
+      )
+        ? 1.59
+        : 1.7,
     );
   else if (gear && !look.hat)
     seatHeadwear((group) => buildHeadgear(group, gear));
+  const headwear = a.hat.children.filter((child) => child !== hairVolume);
+  if (wear === "Hat_Wizard" && !look.hat) {
+    const wizard = a.model.getObjectByName("Hat_Wizard");
+    if (wizard) headwear.push(wizard);
+  }
+  fitHairUnderHeadwear(
+    hairVolume,
+    headwear,
+    `${look.hat ?? 0}:${wear}:${gear}:${headSet}:${classHeadVisible ? a.look.clothing : -1}:${hair.hood ?? false}`,
+  );
+  buildMouth(a.hat, skin);
   if (previous.accessory !== a.look.accessory || !a.magic) {
     disposeMagic(a.magic);
     a.magic = buildMagic(a.extras, a.look.accessory!);
@@ -811,7 +831,7 @@ export function animateDetails(
       0.003,
     );
   const hairVolume = a.hat.getObjectByName("VolumetricHair");
-  if (hairVolume) {
+  if (hairVolume && !hairVolume.userData.fittedHeadwear) {
     hairVolume.rotation.z =
       Math.sin(t * (a.moving ? 10 : 1.8)) * (a.moving ? 0.045 : 0.012);
     hairVolume.position.y = 1.46 + Math.sin(t * 3) * 0.008;

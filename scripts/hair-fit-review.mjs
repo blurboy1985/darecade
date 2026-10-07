@@ -85,6 +85,21 @@ try {
             };
           }
           if (mode === "starter-crowns") look.clothing = [1, 5, 7][row];
+          if (mode === "headwear") {
+            const set = legendarySets.findIndex(
+              (s) =>
+                s.id ===
+                ["apprentice-mage", "moon-student", "void-deck-weekend"][row],
+            );
+            look = {
+              ...look,
+              ...setLook(set),
+              baseHair: 53 + col,
+              body,
+              pet: 0,
+              accessory: 0,
+            };
+          }
           const avatar = createAvatar(
             scene,
             0,
@@ -100,7 +115,9 @@ try {
             applyLook(avatar, look);
           }
           avatar.root.rotation.y =
-            crowns || mode === "hats" ? 0.3 : (row * Math.PI) / 2;
+            crowns || mode === "hats" || mode === "headwear"
+              ? 0.3
+              : (row * Math.PI) / 2;
           if (mode === "poses") {
             camera.position.set(0, 2.8, 8);
             camera.lookAt(0, 0.95, 0);
@@ -142,7 +159,7 @@ try {
           const label = document.createElement("div");
           label.className = "label";
           label.style.cssText = `position:absolute;left:${col * 200 + 6}px;top:${row * 300 + 6}px;font:13px sans-serif`;
-          label.textContent = `${["Spiky", "Flowing", "Buns", "Messy", "Ponytail", "Bob", "Braid", "Tails"][col]} · ${crowns ? ["Eclipse", "Crystal", "Solar"][row] : mode === "hats" ? ["Cap", "Lilac existing owner", "Sprout"][row] : mode === "poses" ? ["walk", "run", "bench", "swing", "arcade", "wave", "dance", "jump"][col] : ["Front", "Side", "Back"][row]}`;
+          label.textContent = `${["Spiky", "Flowing", "Buns", "Messy", "Ponytail", "Bob", "Braid", "Tails"][col]} · ${mode === "headwear" ? ["Apprentice", "Moon Academy", "Kopi bucket"][row] : crowns ? ["Eclipse", "Crystal", "Solar"][row] : mode === "hats" ? ["Cap", "Lilac existing owner", "Sprout"][row] : mode === "poses" ? ["walk", "run", "bench", "swing", "arcade", "wave", "dance", "jump"][col] : ["Front", "Side", "Back"][row]}`;
           document.body.append(label);
           disposeAvatar(avatar);
         }
@@ -179,7 +196,14 @@ try {
   });
   const counts = {};
   for (const body of [0, 1])
-    for (const mode of ["hair", "crowns", "starter-crowns", "hats", "poses"]) {
+    for (const mode of [
+      "hair",
+      "headwear",
+      "crowns",
+      "starter-crowns",
+      "hats",
+      "poses",
+    ]) {
       const name = `${tag}-${mode}-body${body}`;
       counts[name] = await page.evaluate(
         ([b, c]) => window.captureHair(b, c),
