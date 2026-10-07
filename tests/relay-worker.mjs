@@ -5,6 +5,15 @@ import worker, {
 } from "../.browser/cloudflare-bundle/worker.js";
 export { World };
 export class RelayNeighbourhood extends Neighbourhood {
+  seedLegacyRelay(token) {
+    const player = this.community.lookup(token);
+    return this.community.relay.request(
+      player,
+      "create",
+      { solo: true, difficulty: "practice" },
+      token,
+    );
+  }
   setRelayTime(at) {
     this.store.now = () => at;
     this.community.now = this.store.now;

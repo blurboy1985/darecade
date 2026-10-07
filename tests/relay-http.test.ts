@@ -10,7 +10,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { PRIVACY_VERSION } from "../server/community-core.mjs";
 
 test(
-  "actual Node HTTP Relay routes enforce identity, readiness, epoch ownership and deletion privacy",
+  "retired Node HTTP Relay routes preserve identity, privacy and player data",
   { timeout: 20000 },
   async () => {
     const probe = createServer();
@@ -114,100 +114,29 @@ test(
         (await api("relay/create", undefined, a.cookie)).status,
         405,
       );
-      const r = await api(
-        "relay/create",
-        { solo: false, difficulty: "standard" },
-        a.cookie,
-      );
-      assert.equal(r.status, 200);
-      assert.equal(
-        (await api("relay/start", { room: r.data.room }, a.cookie)).status,
-        400,
-      );
-      const joined = await api("relay/join", { code: r.data.code }, b.cookie);
-      assert.equal(joined.status, 200);
-      assert.equal(joined.data.players.length, 2);
-      await api("relay/ready", { room: r.data.room, ready: true }, a.cookie);
-      await api("relay/ready", { room: r.data.room, ready: true }, b.cookie);
-      assert.equal(
-        (await api("relay/start", { room: r.data.room }, b.cookie)).status,
-        403,
-      );
-      assert.equal(
-        (await api("relay/start", { room: r.data.room }, a.cookie)).data.status,
-        "running",
-      );
-      const controls = {
-        room: r.data.room,
-        controlEpoch: r.data.controlEpoch,
-        seq: 0,
-        actionSeq: 0,
-        input: { x: 0, z: 1 },
-      };
-      assert.equal(
-        (await api("relay/tick", { ...controls, x: 999 }, a.cookie)).status,
-        400,
-      );
-      assert.equal((await api("relay/tick", controls, a.cookie)).status, 200);
-      await delay(55);
-      const advanced = await api(
-        "relay/tick",
-        { ...controls, seq: 1 },
-        a.cookie,
-      );
-      assert.ok(
-        advanced.data.simulation.tick > 0 &&
-          advanced.data.simulation.runners[0].z > 0,
-      );
-      const resumed = await api("relay/join", { room: r.data.room }, a.cookie);
-      assert.notEqual(resumed.data.controlEpoch, r.data.controlEpoch);
-      assert.equal(
-        (
-          await api(
-            "relay/leave",
-            { room: r.data.room, controlEpoch: r.data.controlEpoch },
-            a.cookie,
-          )
-        ).status,
-        409,
-      );
-      assert.equal(
-        (
-          await api(
-            "relay/tick",
-            { ...controls, controlEpoch: resumed.data.controlEpoch },
-            a.cookie,
-          )
-        ).status,
-        200,
-      );
-      assert.equal(
-        (await api("privacy/delete", { confirm: "DELETE" }, b.cookie)).status,
-        200,
-      );
-      const cancelled = await api(
-        "relay/tick",
-        { ...controls, controlEpoch: resumed.data.controlEpoch, seq: 1 },
-        a.cookie,
-      );
-      assert.equal(cancelled.data.status, "cancelled");
-      assert.equal(cancelled.data.simulation, null);
-      assert.deepEqual(
-        cancelled.data.players.map((p: { slot: number }) => p.slot),
-        [0],
-      );
+      for (const action of [
+        "create",
+        "join",
+        "ready",
+        "start",
+        "tick",
+        "leave",
+      ]) {
+        const retired = await api("relay/" + action, {}, a.cookie);
+        assert.equal(retired.status, 410, action);
+        assert.match(retired.data.error, /has been removed/);
+      }
       const after = (await api("privacy/export", undefined, a.cookie)).data;
       assert.deepEqual(after.profile.progress, before.profile.progress);
-      assert.deepEqual(after.medals, before.medals);
       assert.deepEqual(after.rounds, before.rounds);
+      assert.deepEqual(after.medals, before.medals);
       assert.equal(
-        (
-          await api(
-            "relay/leave",
-            { room: r.data.room, controlEpoch: resumed.data.controlEpoch },
-            a.cookie,
-          )
-        ).status,
+        (await api("privacy/delete", { confirm: "DELETE" }, a.cookie)).status,
+        200,
+      );
+      assert.equal((await api("auth/me", undefined, a.cookie)).status, 401);
+      assert.equal(
+        (await api("privacy/delete", { confirm: "DELETE" }, b.cookie)).status,
         200,
       );
     } finally {

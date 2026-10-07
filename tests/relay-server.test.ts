@@ -31,7 +31,7 @@ function setup() {
   const community = new Community(store, { directory });
   const guest = (name = "Test neighbour") => {
     const p = community.join(consent);
-    store.db.prepare("UPDATE players SET name=? WHERE id=?").run(name,p.me.id); // Existing named guest fixture.
+    store.db.prepare("UPDATE players SET name=? WHERE id=?").run(name, p.me.id); // Existing named guest fixture.
     return { id: p.me.id, token: p.token };
   };
   const call = (p: ReturnType<typeof guest>, action: string, data: object) =>
@@ -655,7 +655,7 @@ test("global waiting and running room caps reject overflow without creating addi
   }
 });
 
-test("Cloudflare API adapter authenticates Relay, enforces POST/origin and maps domain statuses", async () => {
+test("Cloudflare API adapter authenticates retired Relay routes and preserves POST/origin protection", async () => {
   const s = setup();
   try {
     const p = s.guest(),
@@ -705,37 +705,23 @@ test("Cloudflare API adapter authenticates Relay, enforces POST/origin and maps 
       ).status,
       403,
     );
-    const r = await api("create", { solo: true, difficulty: "standard" });
-    assert.equal(r.status, 200);
-    assert.equal(r.headers.get("cache-control"), "no-store");
-    assert.ok(rates.includes("relay:create"));
+    for (const action of [
+      "create",
+      "join",
+      "ready",
+      "start",
+      "tick",
+      "leave",
+    ]) {
+      const r = await api(action, {});
+      assert.equal(r.status, 410, action);
+      assert.match(r.data.error, /has been removed/);
+      assert.equal(r.headers.get("cache-control"), "no-store");
+    }
+    assert.ok(!rates.some((scope) => scope.startsWith("relay:")));
     assert.equal(
-      (await api("join", { room: "00000000-0000-0000-0000-000000000000" }))
-        .status,
-      404,
-    );
-    const moved = await api("tick", {
-      room: r.data.room,
-      controlEpoch: "old",
-      seq: 0,
-      actionSeq: 0,
-      input: { x: 0, z: 0 },
-    });
-    assert.equal(moved.status, 409);
-    assert.match(moved.data.error, /controls moved/);
-    assert.equal((await api("teleport", {})).status, 404);
-    assert.equal(
-      (
-        await api("tick", {
-          room: r.data.room,
-          controlEpoch: r.data.controlEpoch,
-          seq: 0,
-          actionSeq: 0,
-          input: { x: 0, z: 0 },
-          leg: 3,
-        })
-      ).status,
-      400,
+      s.store.db.prepare("SELECT count(*) n FROM relay_rooms").get().n,
+      0,
     );
   } finally {
     s.close();

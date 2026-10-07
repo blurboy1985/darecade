@@ -9,7 +9,7 @@ export function mobileLobbyFixture(
   height: number,
   account = false,
   twoD = false,
-  automated: boolean | "wardrobe" = true,
+  automated: boolean | "wardrobe" | "relay-retired" = true,
 ) {
   const root = resolve("dist");
   const profile = {
@@ -95,6 +95,26 @@ export function mobileLobbyFixture(
       if (!${twoD}) {
         const canvas=find('#world canvas');
         check(!!canvas && canvas.width <= canvas.clientWidth * 1.25 + 1, 'legacy quality preference cannot exceed rendering budget');
+      }
+      if (${automated === "relay-retired"}) {
+        const requests=[];
+        const fetch=window.fetch;
+        window.fetch=(input,init)=>{requests.push(String(input));return fetch(input,init);};
+        const before=JSON.parse(localStorage.getItem('darecade-v1'));
+        for(const id of ['arcade','map','surroundings','soon']) {
+          const link=document.createElement('button');link.dataset.open=id;document.body.append(link);link.click();link.remove();
+          await wait(()=>find('#modal').open && find('#modal h2')?.textContent==='Play');
+          check(!find('[data-open="relay"]') && !find('#modal').textContent.includes('Neighbourhood Relay'), id+' has no Relay');
+          check(!!find('[data-game="coast"]') && !!find('[data-open="stage"]') && !!find('[data-open="plots"]'), id+' keeps arcade, stage and plots');
+          check(document.documentElement.scrollWidth<=innerWidth, id+' has no horizontal overflow');
+          find('#close-modal').click();
+        }
+        check(!requests.some(path=>path.includes('/relay/')), 'menus never request the retired game');
+        const after=JSON.parse(localStorage.getItem('darecade-v1'));
+        for(const key of ['xp','styleSpent','wardrobeOwned','wardrobePurchased','clothing','hair','pet','accessory']) check(JSON.stringify(before[key])===JSON.stringify(after[key]), key+' is preserved');
+        check(!find('.plaza-relay') && !find('.relay-game'), 'Relay screens are absent');
+        parent.postMessage({result:'pass',report:{width:${width},height:${height},twoD:${twoD},checks}},location.origin);
+        return;
       }
       if (${automated === "wardrobe"}) {
       const emotes=find('#quick-emotes'), toggle=find('#quick-emotes-toggle');
