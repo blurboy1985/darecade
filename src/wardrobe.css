@@ -662,3 +662,7 @@ dialog .wardrobe-layout.fitting-expanded .character-preview {
     grid-row: 2;
   }
 }
+
+.wardrobe-controls .collection-tabs[hidden] {
+  display: none;
+}

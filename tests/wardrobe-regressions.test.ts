@@ -54,12 +54,19 @@ test("saved hairstyles keep their indices but are not sold as outfits", () => {
 });
 
 test("each character sees 20 complete outfits, pets and spells in each tier", () => {
-  assert.deepEqual(wardrobeSections, ["Outfits", "Pets", "Magic"]);
+  assert.deepEqual(wardrobeSections, [
+    "Outfits",
+    "Clothes",
+    "Hair",
+    "Headwear",
+    "Pets",
+    "Magic",
+  ]);
   assert.deepEqual(wardrobeFilters, ["Free", "Legendary", "Premium"]);
   for (const body of [0, 1]) {
     const seen = new Set<string>();
     const p = { ...fresh(), body };
-    for (const section of wardrobeSections)
+    for (const section of ["Outfits", "Pets", "Magic"] as const)
       for (const tier of wardrobeFilters) {
         const html = wardrobeBrowser(section, tier, p, 0, null);
         const cards = [

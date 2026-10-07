@@ -1,4 +1,4 @@
-import { HAIR_START } from "./hair-catalog.ts";
+import { HAIR_START, HAIR_COUNT, hairVisual } from "./hair-catalog.ts";
 import { starterClasses } from "./class-costumes.ts";
 import {
   clothingNames,
@@ -24,9 +24,16 @@ import {
 import type { Look } from "./character";
 import { fresh } from "./state.ts";
 
-export type WardrobeTab = LookSlot | "sets" | "outfits";
+export type WardrobeTab = LookSlot | "sets" | "outfits" | "hairstyle";
 export type TryOn = { look: Look; name: string; image: string } | null;
-export const wardrobeSections = ["Outfits", "Pets", "Magic"] as const;
+export const wardrobeSections = [
+  "Outfits",
+  "Clothes",
+  "Hair",
+  "Headwear",
+  "Pets",
+  "Magic",
+] as const;
 export type WardrobeSection = (typeof wardrobeSections)[number];
 export const wardrobeFilters = ["Free", "Legendary", "Premium"] as const;
 export type WardrobeFilter = (typeof wardrobeFilters)[number];
@@ -49,12 +56,26 @@ export function wardrobeBrowser(
   medals: number,
   trying: TryOn,
 ) {
+  if (section === "Hair") {
+    return `<p class="tier-description">All hairstyles are free. Your clothes and headwear stay on.</p><div class="collection-grid">${Array.from(
+      { length: HAIR_COUNT },
+      (_, i) => {
+        const index = HAIR_START + i;
+        const state = wardrobeItemState("hairstyle", index, p, medals, trying);
+        return `<article class="collection-card"><button class="try-item" data-try-slot="hairstyle" data-try-index="${index}" aria-label="Equip ${hairNames[index]}" aria-pressed="${state.equipped}"><span class="item-art"><img class="avatar-thumbnail" src="/wardrobe/hair-${index}.png" alt="${hairNames[index]}" loading="lazy" width="240" height="220"></span><span class="item-state">${state.state}</span><strong>${hairNames[index]}</strong></button></article>`;
+      },
+    ).join("")}</div>`;
+  }
   const slot =
     section === "Outfits"
       ? "outfits"
-      : section === "Pets"
-        ? "pet"
-        : "accessory";
+      : section === "Clothes"
+        ? "clothing"
+        : section === "Headwear"
+          ? "hair"
+          : section === "Pets"
+            ? "pet"
+            : "accessory";
   const audience = p.body === 1 ? 1 : 0;
   const entries = legendarySets.flatMap((set, theme) =>
     set.tier !== filter
@@ -71,7 +92,15 @@ export function wardrobeBrowser(
   );
   const cards = entries.map(({ set, index }) => {
     const name =
-      slot === "outfits" ? set.name : slot === "pet" ? set.pet : set.magic;
+      slot === "outfits"
+        ? set.name
+        : slot === "clothing"
+          ? set.outfit
+          : slot === "hair"
+            ? set.head
+            : slot === "pet"
+              ? set.pet
+              : set.magic;
     const { owned, equipped, selected, state } = wardrobeItemState(
       slot,
       index,
@@ -84,7 +113,7 @@ export function wardrobeBrowser(
       : "";
     return `<article class="collection-card ${selected ? "is-previewing" : ""}" style="--collection-color:${set.color}"><button class="try-item" data-try-slot="${slot}" data-try-index="${index}" ${slot === "outfits" ? `data-outfit-body="${audience}"` : ""} aria-label="${owned ? "Equip" : "Preview"} ${name}" aria-pressed="${selected || equipped}"><span class="item-art"><img data-thumbnail="${slot}:${index}" class="avatar-thumbnail" src="/wardrobe/${slot}-${index}.png" loading="lazy" alt="${name}" width="240" height="220"></span><span class="item-state">${state}</span><strong>${name}</strong><small>${slot === "outfits" ? `${outfitBodyName(audience)} · Complete outfit` : set.name}</small></button>${actions}</article>`;
   });
-  return `<div class="catalog-heading"><strong>${section === "Outfits" ? `${outfitBodyName(audience)} outfits` : section}</strong><span>${entries.length} ${filter.toLowerCase()} ${section === "Outfits" ? "looks" : "items"}</span>${slot === "pet" ? `<button class="text-button" data-pet="0" aria-pressed="${!p.pet}">No pet</button>` : slot === "accessory" ? `<button class="text-button" data-accessory="0" aria-pressed="${!p.accessory}">No magic</button>` : ""}</div><p class="tier-description">${tierDescriptions[filter]}</p><div class="collection-grid">${cards.join("")}</div>`;
+  return `${section === "Headwear" ? `<button class="secondary" data-clear-headwear>No headwear</button>` : ""}<div class="catalog-heading"><strong>${section === "Outfits" ? `${outfitBodyName(audience)} outfits` : section}</strong><span>${entries.length} ${filter.toLowerCase()} ${section === "Outfits" ? "looks" : "items"}</span>${slot === "pet" ? `<button class="text-button" data-pet="0" aria-pressed="${!p.pet}">No pet</button>` : slot === "accessory" ? `<button class="text-button" data-accessory="0" aria-pressed="${!p.accessory}">No magic</button>` : ""}</div><p class="tier-description">${tierDescriptions[filter]}</p><div class="collection-grid">${cards.join("")}</div>`;
 }
 export function wardrobeItemState(
   slot: WardrobeTab,
@@ -93,6 +122,16 @@ export function wardrobeItemState(
   medals: number,
   trying: TryOn,
 ) {
+  if (slot === "hairstyle") {
+    const equipped = (p.baseHair ?? p.hair) === index;
+    const selected = !!trying && trying.look.baseHair === index && !equipped;
+    return {
+      owned: canWear("hair", index, p, medals),
+      equipped,
+      selected,
+      state: `Free${equipped ? " · Equipped" : ""}`,
+    };
+  }
   const outfit = slot === "outfits";
   const set = outfit
     ? legendarySets[Math.floor(index / 2)]
@@ -143,6 +182,7 @@ export function refreshWardrobeCards(
   )) {
     const slot = button.dataset.trySlot;
     if (
+      slot !== "hairstyle" &&
       slot !== "outfits" &&
       slot !== "clothing" &&
       slot !== "hair" &&
@@ -182,11 +222,22 @@ export function thumbnailLook(slot: WardrobeTab, index: number): Look {
   return itemLook(slot, index, base);
 }
 export function itemName(slot: WardrobeTab, index: number) {
+  if (slot === "hairstyle") return hairNames[index];
   if (slot === "outfits") return legendarySets[Math.floor(index / 2)]?.name;
   if (slot === "sets" && index < 0) return starterClasses[-index - 1]?.name;
   return slot === "sets" ? legendarySets[index]?.name : names[slot][index];
 }
 export function itemLook(slot: WardrobeTab, index: number, worn: Look): Look {
+  if (slot === "hairstyle")
+    return {
+      ...worn,
+      baseHair: index,
+      ...(setIndexFor("hair", worn.hair ?? 0) < 0 &&
+      (worn.hair ?? 0) >= HAIR_START
+        ? { hair: index }
+        : {}),
+    };
+
   if (slot === "outfits") {
     if (index % 2 !== (worn.body ?? 0))
       throw Error("Choose an outfit for your character.");
@@ -205,7 +256,7 @@ export function itemLook(slot: WardrobeTab, index: number, worn: Look): Look {
           ? {
               hat: 0,
               baseHair:
-                index >= HAIR_START ||
+                (index >= HAIR_START && index < HAIR_START + HAIR_COUNT) ||
                 /cut|bob|buns|beard|flowing hair|ponytail|twin tails/i.test(
                   hairNames[index],
                 )
@@ -215,14 +266,50 @@ export function itemLook(slot: WardrobeTab, index: number, worn: Look): Look {
           : {}),
       };
 }
+/** Only visual fields belong in Undo or a saved look, never currencies or ownership. */
+export function captureLook(look: Look): Look {
+  const {
+    outfit,
+    skin,
+    eye,
+    hat,
+    body,
+    clothing,
+    hair,
+    baseHair,
+    pet,
+    accessory,
+  } = look;
+  return {
+    outfit,
+    skin,
+    eye,
+    hat,
+    body,
+    clothing,
+    hair,
+    baseHair,
+    pet,
+    accessory,
+  };
+}
+export function withoutHeadwear(look: Look): Look {
+  const visual = hairVisual(look.baseHair ?? look.hair ?? 38);
+  const hair = HAIR_START + visual.colour * 8 + visual.shape;
+  return { ...captureLook(look), hat: 0, hair, baseHair: hair };
+}
 export function wearable(
   look: Look,
   p: WardrobeProgress & Look,
   medals: number,
 ) {
-  return (["clothing", "hair", "pet", "accessory"] satisfies LookSlot[]).every(
-    (slot) =>
-      look[slot] === p[slot] || canWear(slot, look[slot] ?? 0, p, medals),
+  return (
+    (look.baseHair === p.baseHair ||
+      canWear("hair", look.baseHair ?? look.hair ?? 0, p, medals)) &&
+    (["clothing", "hair", "pet", "accessory"] satisfies LookSlot[]).every(
+      (slot) =>
+        look[slot] === p[slot] || canWear(slot, look[slot] ?? 0, p, medals),
+    )
   );
 }
 export const tokenSummary = (p: WardrobeProgress) =>
