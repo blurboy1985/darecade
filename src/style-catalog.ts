@@ -26,7 +26,8 @@ export type Familiar =
   | "slime"
   | "robot"
   | "turtle"
-  | "moth";
+  | "moth"
+  | "otter";
 export type Spell =
   | "wings"
   | "blades"
@@ -766,7 +767,7 @@ export const originalFamilies = (
       outfit: "Otter gilet & striped tee",
       pet: "Pebble the canal otter",
       magic: "Canal ripple bubbles",
-      familiar: "cat",
+      familiar: "otter",
       spell: "orbs",
       hairColour: 8,
       hairShapes: [2, 3],

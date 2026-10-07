@@ -1,15 +1,22 @@
+import { savedLookAllowed } from "./saved-looks.ts";
 import { installControls } from "./ui-controls";
 import { bindJoystick } from "./joystick";
 import { rooftops } from "./rooftops";
 import { ScoreOutbox } from "./score-outbox";
 import { raceTime } from "../shared/racing";
-import { mountAvatarCards, refreshHeadshot } from "./avatar-portraits";
+import {
+  avatarPortrait,
+  mountAvatarCards,
+  refreshHeadshot,
+} from "./avatar-portraits";
 import { mountPayments } from "./payments";
 import {
   wardrobeBrowser,
   hatShelf,
   captureLook,
   withoutHeadwear,
+  favouriteProgress,
+  savedLookShelf,
   outfitPreviewImage,
   wardrobeSections,
   wardrobeFilters,
@@ -259,6 +266,8 @@ window.addEventListener("online", () => scoreOutbox.resume());
 let profileQueue = Promise.resolve();
 let sentPreferences = "";
 const preferenceKeys = [
+  "savedLooks",
+  "favouriteSet",
   "outfit",
   "skin",
   "eye",
@@ -808,8 +817,23 @@ function open(id: string) {
     const medals = shared?.self?.points ?? 0;
     const shown = tryingLook?.look ?? save;
     world?.updateAvatar(shown);
-    body.innerHTML = `<div class="wardrobe-layout ${fittingExpanded ? "fitting-expanded" : ""}"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${tryingLook ? "Trying on" : escapeText(nickname)}</strong><small>${is2d ? "Catalogue image · custom combinations need 3D" : "DRAG TO TURN"}</small><div class="preview-tools" aria-label="Preview camera"><button data-preview-view="body" aria-pressed="${fittingView === "body"}" ${is2d ? "disabled" : ""}>Full body</button><button data-preview-view="face" aria-pressed="${fittingView === "face"}" ${is2d ? "disabled" : ""}>Face</button><button data-expand-preview aria-expanded="${fittingExpanded}">${fittingExpanded ? "Browse" : "Larger preview"}</button></div><span class="look-caption">${tryingLook?.name ?? clothingNames[save.clothing]}</span><div class="try-actions" role="status"><button class="secondary" data-undo-look ${undoLook ? "" : "disabled"}>Undo</button><button class="text-button" data-reset-look>Back to my look</button></div></div><div class="wardrobe-controls">${setupGuide ? '<span class="eyebrow setup-step">STEP 1 OF 2 · NAME & LOOK</span>' : ""}${setupGuide ? "<h2>Make it yours</h2>" : `<span class="eyebrow">YOUR COLLECTION</span><h2>My look</h2><div class="style-wallet"><strong>${tokenSummary(save)}</strong><small>Tokens buy looks. +1 per 100 XP, up to +3 daily from ranked medals.</small></div>`}<details class="look-identity" ${setupGuide ? "open" : ""}><summary>Character settings</summary><form id="nickname-form" novalidate><label class="field-label" for="nickname">NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" ${currentProfile?.account ? "" : "readonly"} value="${escapeText(typed)}" minlength="2" maxlength="20" autocomplete="off" placeholder="Choose your nickname" aria-describedby="nickname-status" required><button class="secondary" type="submit" ${currentProfile?.account ? "" : "disabled"}>Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form><label class="field-label">CHARACTER</label><div class="body-options">${["Girl", "Boy"].map((label, i) => `<button data-body="${i}" class="${save.body === i ? "active" : ""}" aria-pressed="${save.body === i}">${label}</button>`).join("")}</div><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">EYE COLOUR</label><div class="swatches">${["#db779f", "#865035", "#328cca", "#469267", "#8763bd"].map((c, i) => `<button data-eye="${i}" style="--swatch:${c}" aria-label="${["Original", "Brown", "Blue", "Green", "Violet"][i]} eyes" aria-pressed="${(save.eye || 0) === i}"></button>`).join("")}</div></details>${setupGuide ? `<details class="setup-more" ${moreLooksOpen ? "open" : ""}><summary>Browse looks</summary>` : ""}<div class="look-tabs" aria-label="Wardrobe sections">${wardrobeSections.map((label) => `<button data-wardrobe-section="${label}" aria-pressed="${wardrobeSection === label}">${label}</button>`).join("")}</div><div class="collection-tabs" aria-label="Item tiers" ${wardrobeSection === "Hair" ? "hidden" : ""}>${wardrobeFilters.map((label) => `<button data-wardrobe-filter="${label}" aria-pressed="${wardrobeFilter === label}">${label}</button>`).join("")}</div>${wardrobeSection === "Headwear" ? hatShelf(save) : ""}${wardrobeBrowser(wardrobeSection, wardrobeFilter, save, medals, tryingLook)}<p class="fine-print">Cosmetic only. No gameplay advantage. Choose a complete outfit, or mix clothes, hair and headwear. Pets and magic are selected separately.</p>${setupGuide ? "</details>" : ""}${setupGuide ? actionButton("setup-save", currentProfile?.account ? "Save & continue →" : "Next: save my character →") : actionButton("done-look", "Done")}</div></div>`;
+    body.innerHTML = `<div class="wardrobe-layout ${fittingExpanded ? "fitting-expanded" : ""}"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${tryingLook ? "Trying on" : escapeText(nickname)}</strong><small>${is2d ? "Catalogue image · custom combinations need 3D" : "DRAG TO TURN"}</small><div class="preview-tools" aria-label="Preview camera"><button data-preview-view="body" aria-pressed="${fittingView === "body"}" ${is2d ? "disabled" : ""}>Full body</button><button data-preview-view="face" aria-pressed="${fittingView === "face"}" ${is2d ? "disabled" : ""}>Face</button><button data-expand-preview aria-expanded="${fittingExpanded}">${fittingExpanded ? "Browse" : "Larger preview"}</button></div><span class="look-caption">${tryingLook?.name ?? clothingNames[save.clothing]}</span><div class="try-actions" role="status"><button class="secondary" data-undo-look ${undoLook ? "" : "disabled"}>Undo</button><button class="text-button" data-reset-look>Back to my look</button></div></div><div class="wardrobe-controls">${setupGuide ? '<span class="eyebrow setup-step">STEP 1 OF 2 · NAME & LOOK</span>' : ""}${setupGuide ? "<h2>Make it yours</h2>" : `<span class="eyebrow">YOUR COLLECTION</span><h2>My look</h2><div class="style-wallet"><strong>${tokenSummary(save)}</strong><small>Tokens buy looks. +1 per 100 XP, up to +3 daily from ranked medals.</small></div>`}<details class="look-identity" ${setupGuide ? "open" : ""}><summary>Character settings</summary><form id="nickname-form" novalidate><label class="field-label" for="nickname">NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" ${currentProfile?.account ? "" : "readonly"} value="${escapeText(typed)}" minlength="2" maxlength="20" autocomplete="off" placeholder="Choose your nickname" aria-describedby="nickname-status" required><button class="secondary" type="submit" ${currentProfile?.account ? "" : "disabled"}>Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form><label class="field-label">CHARACTER</label><div class="body-options">${["Girl", "Boy"].map((label, i) => `<button data-body="${i}" class="${save.body === i ? "active" : ""}" aria-pressed="${save.body === i}">${label}</button>`).join("")}</div><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">EYE COLOUR</label><div class="swatches">${["#db779f", "#865035", "#328cca", "#469267", "#8763bd"].map((c, i) => `<button data-eye="${i}" style="--swatch:${c}" aria-label="${["Original", "Brown", "Blue", "Green", "Violet"][i]} eyes" aria-pressed="${(save.eye || 0) === i}"></button>`).join("")}</div></details>${favouriteProgress(save)}${savedLookShelf(save)}${setupGuide ? `<details class="setup-more" ${moreLooksOpen ? "open" : ""}><summary>Browse looks</summary>` : ""}<div class="look-tabs" aria-label="Wardrobe sections">${wardrobeSections.map((label) => `<button data-wardrobe-section="${label}" aria-pressed="${wardrobeSection === label}">${label}</button>`).join("")}</div><div class="collection-tabs" aria-label="Item tiers" ${wardrobeSection === "Hair" ? "hidden" : ""}>${wardrobeFilters.map((label) => `<button data-wardrobe-filter="${label}" aria-pressed="${wardrobeFilter === label}">${label}</button>`).join("")}</div>${wardrobeSection === "Headwear" ? hatShelf(save) : ""}${wardrobeBrowser(wardrobeSection, wardrobeFilter, save, medals, tryingLook)}<p class="fine-print">Cosmetic only. No gameplay advantage. Choose a complete outfit, or mix clothes, hair and headwear. Pets and magic are selected separately.</p>${setupGuide ? "</details>" : ""}${setupGuide ? actionButton("setup-save", currentProfile?.account ? "Save & continue →" : "Next: save my character →") : actionButton("done-look", "Done")}</div></div>`;
     mountAvatarCards(body, save);
+    if (!is2d)
+      for (const image of Array.from(
+        body.querySelectorAll<HTMLImageElement>("[data-saved-thumbnail]"),
+      )) {
+        const look = save.savedLooks[Number(image.dataset.savedThumbnail)];
+        if (look)
+          void avatarPortrait(look, "set")
+            .then((url) => {
+              if (image.isConnected) {
+                image.src = url;
+                image.alt = "Your saved combination";
+              }
+            })
+            .catch(() => {});
+      }
     const preview = body.querySelector<HTMLElement>(".character-preview")!;
     if (!is2d) {
       try {
@@ -1335,6 +1359,46 @@ document.addEventListener("click", (e) => {
   }
   if (b.hasAttribute("data-expand-preview")) {
     fittingExpanded = !fittingExpanded;
+    open("wardrobe");
+    return;
+  }
+  if (b.dataset.favouriteSet !== undefined) {
+    save.favouriteSet =
+      save.favouriteSet === b.dataset.favouriteSet
+        ? ""
+        : b.dataset.favouriteSet;
+    persist();
+    open("wardrobe");
+    return;
+  }
+  if (
+    b.dataset.saveLook !== undefined ||
+    b.dataset.wearSaved !== undefined ||
+    b.dataset.clearSaved !== undefined
+  ) {
+    const index = Number(
+      b.dataset.saveLook ?? b.dataset.wearSaved ?? b.dataset.clearSaved,
+    );
+    if (!Number.isInteger(index) || index < 0 || index >= 4) return;
+    if (b.dataset.clearSaved !== undefined) save.savedLooks[index] = null;
+    else if (b.dataset.saveLook !== undefined) {
+      if (!savedLookAllowed(save, save)) {
+        toast("Unlock every piece before saving this look.");
+        return;
+      }
+      save.savedLooks[index] = captureLook(save);
+      toast(`Saved Look ${index + 1}.`);
+    } else {
+      const look = save.savedLooks[index];
+      if (!look || !savedLookAllowed(look, save)) {
+        toast("This look contains a piece you no longer own.");
+        return;
+      }
+      undoLook = captureLook(save);
+      Object.assign(save, look);
+      tryingLook = null;
+    }
+    persist();
     open("wardrobe");
     return;
   }

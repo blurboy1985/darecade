@@ -420,7 +420,12 @@ test("under-18 donation attempts fail before contacting Stripe", async () => {
   }
 });
 
-for (const product of ["jade-fist", "aegis-prime"]) {
+for (const product of [
+  "jade-fist",
+  "aegis-prime",
+  "rainshield-guardian",
+  "moonbell-society",
+]) {
   test(`${product} has a server-priced S$1.99 checkout with verified, idempotent ownership and refunds`, async () => {
     const s = setup();
     try {

@@ -666,3 +666,52 @@ dialog .wardrobe-layout.fitting-expanded .character-preview {
 .wardrobe-controls .collection-tabs[hidden] {
   display: none;
 }
+
+.favourite-goal {
+  padding: 12px;
+  margin: 8px 0;
+  border: 1px solid #cfc4e0;
+  border-radius: 14px;
+  background: #f1ecf7;
+}
+.favourite-goal p,
+.saved-looks p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.favourite-goal progress {
+  width: 100%;
+  accent-color: #66507e;
+}
+.saved-looks {
+  margin: 8px 0;
+}
+.saved-looks summary {
+  min-height: 44px;
+  padding: 10px 0;
+  cursor: pointer;
+}
+.saved-look-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.saved-look-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid #ddd5e3;
+  padding: 8px;
+  border-radius: 12px;
+}
+.saved-look-grid img {
+  max-width: 100%;
+  object-fit: contain;
+  align-self: center;
+}
+.saved-look-grid button,
+.favourite-button {
+  min-height: 44px;
+  font-size: 11px;
+  white-space: normal;
+}

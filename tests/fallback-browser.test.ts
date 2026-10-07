@@ -66,7 +66,7 @@ for (const twoD of [true, false]) {
         const path = url.pathname.slice(5);
         let result = {};
         if (path === 'auth/config') result = { now: Date.now(), privacyVersion: 'test', mailMode: 'outbox', origin: location.origin, storageNotice: 'Test fixture' };
-        else if (path === 'auth/me' || path === 'profile') result = profile;
+        else if (path === 'auth/session' || path === 'auth/me' || path === 'profile') result = profile;
         else if (path === 'style-rewards') { result = { tokens: notices }; notices = 0; claims++; profile.styleRewards = 0; }
         else if (path === 'state') result = { profile, competitionReady: false, me: profile.id, self: { id: profile.id, name: profile.name, look: {}, activity: 'lobby', status: 'online', best: profile.progress.best, points: 0 }, day: '2026-10-05', nextReset: Date.now() + 86400000, week: '', weekly: [], lastWeek: [], dares: [], recentRuns: [], players: [], friends: [], challenged: [], boards: { noodle: [], hop: [], brick: [], swarm: [], coast: [] }, history: [] };
         else if (path === 'world/poll') result = { t: 'sync', at: Date.now(), world: 'qa', p: [], d: [], gone: [] };

@@ -302,6 +302,7 @@ export function outfitLook(index: number, body: number) {
   };
 }
 export type WardrobeProgress = {
+  favouriteSet?: string;
   xp: number;
   medalTokens?: number;
   rounds: number;

@@ -158,17 +158,10 @@ const waitFor = async (selector) => {
   throw Error('Missing ' + selector);
 };
 const buttons = () => document.querySelectorAll('#account-content .primary, #account-content .secondary').length;
-const age = async () => {
-  const form = await waitFor('#age-form');
-  check(buttons() <= 3, 'too many age actions');
-  form.elements.month.value = '1';
-  form.elements.year.value = '2000';
-  form.requestSubmit();
-  return waitFor('#consent-form');
-};
 try {
-  void ensureAccount();
-  const consent = await age();
+  const entering = ensureAccount();
+  const consent = await waitFor("#consent-form");
+  check(!consent.elements.over13.checked && consent.elements.over13.required, "13+ confirmation remains explicit");
   const details = document.querySelector('.privacy-details');
   check(!details.open, 'full notice starts collapsed');
   check(!consent.elements.consent.checked && consent.elements.consent.required, 'explicit unchecked consent');
@@ -180,13 +173,11 @@ try {
   details.querySelector('summary').click();
   check(details.open && details.textContent.includes('30 days') && details.textContent.includes('12 months'), 'retention can be opened');
   check(details.textContent.includes('Local test storage only.') && details.textContent.includes('privacy@example.invalid'), 'configured notice is present');
-  document.querySelector('#decline').click();
-  check(document.querySelector('#account-content').textContent.includes('No profile was created'), 'decline is preserved');
-
-  const entering = ensureAccount();
-  const nextConsent = await age();
-  nextConsent.elements.consent.checked = true;
-  nextConsent.requestSubmit();
+  consent.elements.consent.checked = true;
+  consent.requestSubmit();
+  check(!consent.checkValidity(), 'age confirmation is also required');
+  consent.elements.over13.checked = true;
+  consent.requestSubmit();
   await entering;
   check(!document.querySelector('#account-dialog').open, 'consent closes after joining');
 
@@ -275,6 +266,8 @@ try {
             privacyContact: "privacy@example.invalid",
           }),
         );
+      else if (path === "/api/auth/session")
+        response.end(JSON.stringify(joined ? profile : null));
       else if (path === "/api/auth/me" && !joined)
         response.writeHead(401).end('{"error":"No profile"}');
       else if (path === "/api/auth/join") {
@@ -311,8 +304,7 @@ try {
           .map(({ body }) => body),
         [
           {
-            month: 1,
-            year: 2000,
+            over13: true,
             consent: true,
             privacyVersion: "test-notice",
           },

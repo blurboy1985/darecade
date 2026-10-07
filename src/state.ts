@@ -1,3 +1,4 @@
+import { readSavedLooks, type SavedLooks } from "./saved-looks.ts";
 import { legendarySets, tokenLooks } from "./collections.ts";
 import { validWaterTrail } from "../shared/plot-trail.ts";
 import { appearanceLimits } from "./appearance.ts";
@@ -45,6 +46,8 @@ export type Save = {
   wardrobeSpent: number;
   wardrobeUnlocked: string[];
   wardrobePurchased: string[];
+  savedLooks: SavedLooks;
+  favouriteSet: string;
   coins: string[];
   roofDay: string;
   roofStars: string[];
@@ -116,6 +119,8 @@ export function fresh(): Save {
     wardrobeSpent: 0,
     wardrobeUnlocked: [],
     wardrobePurchased: [],
+    savedLooks: readSavedLooks(null),
+    favouriteSet: "",
     coins: [],
     roofDay: "",
     roofStars: [],
@@ -167,6 +172,10 @@ export function normalise(raw: unknown, fallback: Save): Save {
   if (!raw || typeof raw !== "object") return fallback;
   const r = raw as Partial<Save>;
   const s = { ...fallback, best: { ...fallback.best } };
+  s.savedLooks = readSavedLooks(r.savedLooks);
+  s.favouriteSet = legendarySets.some((set) => set.id === r.favouriteSet)
+    ? r.favouriteSet!
+    : "";
   if (["new", "cabinet", "played", "complete"].includes(r.welcome!))
     s.welcome = r.welcome!;
   if (typeof r.welcomeDismissed === "boolean")

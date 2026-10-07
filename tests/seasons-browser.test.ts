@@ -71,7 +71,7 @@ for (const width of [320, 390, 1440])
       if(!u.pathname.startsWith('/api/'))return nativeFetch(input,init);
       const path=u.pathname.slice(5);let value={};
       if(path==='auth/config')value={now:Date.now(),privacyVersion:'fixture',mailMode:'outbox',origin:location.origin,storageNotice:'Synthetic browser fixture'};
-      if(path==='auth/me'||path==='profile')value=profile;
+      if(path==='auth/session'||path==='auth/me'||path==='profile')value=profile;
       if(path==='style-rewards')value={tokens:0};
       if(path==='state')value={profile,competitionReady:true,me:profile.id,self:{id:profile.id,name:profile.name,look:{},activity:'lobby',status:'online',best:profile.progress.best,points:12,outgoing:0},day:'2026-10-05',nextReset:Date.now()+86400000,week:'2026-10-05',weekly:[],lastWeek:[],dares:[],recentRuns:[],players:[],friends:[],challenged:[],boards:{noodle:[],hop:[],brick:[],swarm:[],coast:[]},history:[],season:visible?season:null,seasonHistory:visible?[history]:[]};
       if(path==='world/poll')value={t:'sync',at:Date.now(),world:'qa',p:[],d:[],gone:[]};

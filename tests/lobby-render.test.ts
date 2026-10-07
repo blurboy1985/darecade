@@ -208,6 +208,8 @@ function harness() {
     undoLook: null,
     wardrobeCollection: "starter",
     tryingLook: null,
+    fittingExpanded: false,
+    fittingView: "body",
     setupGuide: false,
     gamePage: 0,
     outdoorPage: 0,
@@ -328,7 +330,10 @@ test("wardrobe renders previews before selection without equipping them", () => 
     ];
     assert.ok(cards.length > 0, tab);
     for (const [card] of cards) {
-      assert.match(card, /<img[^>]+data-thumbnail=/);
+      assert.match(
+        card,
+        /<img[^>]+(?:data-thumbnail=|class="avatar-thumbnail")/,
+      );
       assert.match(card, /aria-label="(?:Equip|Preview) /);
     }
     assert.match(html, /data-undo-look/);
@@ -540,7 +545,7 @@ test("the weekly board tells a player with scores today when their medals arrive
   assert.match(h.body.innerHTML, /Nothing yet!/);
 });
 
-test("My look shows character settings without separate clothing or hats", () => {
+test("complete outfits keep component cards in their own sections", () => {
   const h = harness();
   h.run('open("wardrobe")');
   assert.match(h.body.innerHTML, /Character settings/);
@@ -619,14 +624,14 @@ test("Rankings shows a guest the board and never opens the account dialog", () =
   assert.doesNotMatch(h.body.innerHTML, /Guest rounds|Save with email/);
 });
 
-test("My look exposes only three sections and their tiers", () => {
+test("My look exposes complete sets, independent components and their tiers", () => {
   const h = harness();
   h.run('open("wardrobe")');
   assert.deepEqual(
     [...h.body.innerHTML.matchAll(/data-wardrobe-section="([^"]+)"/g)].map(
       (m) => m[1],
     ),
-    ["Outfits", "Pets", "Magic"],
+    ["Outfits", "Clothes", "Hair", "Headwear", "Pets", "Magic"],
   );
   assert.deepEqual(
     [...h.body.innerHTML.matchAll(/data-wardrobe-filter="([^"]+)"/g)].map(
