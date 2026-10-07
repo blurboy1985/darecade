@@ -1,4 +1,3 @@
-import { RELAY_TICK_BUDGET } from "../shared/relay-protocol.ts";
 import { paymentBody } from "../server/payments.mjs";
 import { randomUUID } from "node:crypto";
 
@@ -148,20 +147,13 @@ export async function handleApi(
       );
     if (path.startsWith("/api/relay/")) {
       if (method !== "POST") return json({ error: "Method not allowed." }, 405);
-      const action = path.slice("/api/relay/".length);
-      rate(
-        "relay:" + action,
-        action === "tick"
-          ? RELAY_TICK_BUDGET
-          : action === "create"
-            ? 6
-            : action === "join"
-              ? 12
-              : 30,
-        60000,
-        id,
+      return json(
+        {
+          error:
+            "Neighbourhood Relay has been removed. Choose another activity in Play.",
+        },
+        410,
       );
-      return json(c.relay.request(id, action, data, token));
     }
     if (method === "GET" && path === "/api/payments/config")
       return json(payments.config());

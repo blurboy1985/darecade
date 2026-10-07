@@ -1,4 +1,3 @@
-import { RELAY_TICK_BUDGET } from "../shared/relay-protocol.ts";
 import { Payments, paymentBody } from "./payments.mjs";
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
@@ -190,21 +189,13 @@ const handler = async (req, res) => {
           res.end();
           return;
         }
-        const action = url.pathname.slice("/api/relay/".length);
-        rate(
-          req,
-          "relay:" + action,
-          action === "tick"
-            ? RELAY_TICK_BUDGET
-            : action === "create"
-              ? 6
-              : action === "join"
-                ? 12
-                : 30,
-          60000,
-          player,
+        res.writeHead(410, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            error:
+              "Neighbourhood Relay has been removed. Choose another activity in Play.",
+          }),
         );
-        respond(community.relay.request(player, action, data, token));
         return;
       }
       if (req.method === "GET" && url.pathname === "/api/worlds") {

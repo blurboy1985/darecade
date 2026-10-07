@@ -30,7 +30,7 @@ Every player has an invite link. A new friend who follows it and finishes a firs
 
 ## Section 4 goals and warm-up draft
 
-Coast Rush now introduces the next personal time goal and existing level/Style token progression. Open Stage offers a slower two-lane warm-up before the original Show, with no warm-up rewards or saved score. Existing Show balance and progression are unchanged. See [per-change browser checks and remaining QA](SECTION4-QA.md). The [Neighbourhood Relay proposal](SECTION4-MODE-PROPOSAL.md) incorporates Daniel's request for more Three.js animation and challenging gameplay; it is not implemented in this draft.
+Coast Rush now introduces the next personal time goal and existing level/Style token progression. Open Stage offers a slower two-lane warm-up before the original Show, with no warm-up rewards or saved score. Existing Show balance and progression are unchanged. See [per-change browser checks and remaining QA](SECTION4-QA.md). Neighbourhood Relay has been retired from Play and the outside activities. Its former API routes return 410. Existing room expiry and privacy cleanup remain so legacy data is handled safely; player saves, ownership and rewards are unchanged.
 
 ## Open Stage — 4 October 2026
 
