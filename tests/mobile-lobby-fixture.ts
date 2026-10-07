@@ -158,8 +158,13 @@ export function mobileLobbyFixture(
         find('[data-expand-preview]').click();
         check(!!find('.fitting-expanded') && !visible(find('.wardrobe-controls')), 'expanded fitting room hides catalogue');
         check(find('.character-preview').getBoundingClientRect().height>120, 'expanded preview has useful height');
+        check(hit(find('[data-expand-preview]')), 'expanded preview return button is reachable by touch');
+        check(visible(find('[data-reset-look]')) && hit(find('[data-reset-look]')), 'Back to my look is fully visible and tappable when expanded');
         find('[data-expand-preview]').click();
         check(visible(find('.wardrobe-controls')), 'return from expanded preview restores catalogue');
+        find('[data-expand-preview]').click();
+        find('[data-reset-look]').click();
+        check(visible(find('.wardrobe-controls')), 'Back to my look exits larger preview');
         const firstCard=find('[data-try-slot="outfits"][data-try-index="80"]');
       const cardImage=firstCard.querySelector('img');
       const previewCanvas=find('.character-preview canvas');

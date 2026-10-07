@@ -638,8 +638,8 @@ dialog .wardrobe-layout.fitting-expanded .avatar-preview {
   display: flex;
   flex-direction: column;
   width: 100%;
-  height: calc(85dvh - 60px);
-  max-height: none;
+  height: 100%;
+  max-height: 100%;
   flex: 1 1 auto;
   min-height: 0;
 }
@@ -648,6 +648,13 @@ dialog .wardrobe-layout.fitting-expanded .character-preview {
   height: auto !important;
   flex: 1 1 200px;
   min-height: 120px;
+}
+.wardrobe-layout.fitting-expanded .preview-tools {
+  order: -1;
+  flex-shrink: 0;
+}
+.wardrobe-layout.fitting-expanded .try-actions {
+  flex-shrink: 0;
 }
 @media (max-width: 700px) {
   dialog .wardrobe-layout .avatar-preview {
