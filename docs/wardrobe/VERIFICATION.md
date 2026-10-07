@@ -158,7 +158,11 @@ their named appendages. A small inward hairline rim gives the surface thickness.
 The eight cuts retain their IDs, colours and saved selections. Royal/knight
 crowns, including Eclipse and Crystal, are lowered from a lowest point of 1.88
 to 1.72 model units. There is no calibrated physical-inch scale for this chibi.
-Other fitted hats retain their existing positions and use a tucked hair surface.
+A second bug flattened hair based on the starter clothes even when their default
+hat was replaced by a crown. Hair fitting and class-head rendering now share the
+same visibility condition. This prevents Lantern Mage, Orchard Archer and Coral
+Pirate clothes from exposing the scalp beneath an unrelated crown. Other fitted
+hats retain their existing positions and use a tucked hair surface.
 
 Research basis, checked 7 October 2026:
 
@@ -181,11 +185,13 @@ colours. Compared with the previous renderer, the messy avatar is 2,256 rendered
 triangles lighter including outlines; ponytail and braid are 264 higher. Draw
 calls remain within the existing budget. This is not a measured FPS improvement.
 
-Validation: 493 Node/browser tests passed with no skips, production build passed,
+Validation: 494 Node/browser tests passed with no skips, production build passed,
 and 24 mobile workload cases passed with at most 520 draws and 2,054 matrix
 updates. Two added topology tests check all eight styles in both cap states for
 connected geometry, shared seams, finite normals, noncollapsed triangles and
-cache isolation. 618 catalogue thumbnails were regenerated. Both character
+cache isolation. A browser regression checks full scalp coverage in 192 crown,
+starter-clothes, hairstyle and body combinations. 618 catalogue thumbnails were
+regenerated. Both character
 options were rendered front/side/back, with Eclipse/Crystal/Solar headwear and
 all three earned hats. Synthetic pose captures and a local production build
 verified previews; these do not establish collision-free interaction with every
@@ -211,3 +217,8 @@ Proposed continuous surface:
 Lowered crowns:
 
 ![Lowered Eclipse and Crystal crowns](evidence/crowns-lowered.png)
+
+
+Crowns over starter clothes, including the previously bald Lantern Mage case:
+
+![Crowns retain hair over starter clothes](evidence/crowns-starter-clothes.png)

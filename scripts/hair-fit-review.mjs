@@ -53,7 +53,7 @@ try {
       camera.top = 1.02;
       camera.bottom = -1.02;
       camera.updateProjectionMatrix();
-      const crowns = mode === "crowns";
+      const crowns = mode === "crowns" || mode === "starter-crowns";
       document.querySelectorAll(".label").forEach((e) => e.remove());
       renderer.setScissorTest(true);
       const counts = [];
@@ -84,6 +84,7 @@ try {
               accessory: 0,
             };
           }
+          if (mode === "starter-crowns") look.clothing = [1, 5, 7][row];
           const avatar = createAvatar(
             scene,
             0,
@@ -150,7 +151,7 @@ try {
   });
   const counts = {};
   for (const body of [0, 1])
-    for (const mode of ["hair", "crowns", "hats", "poses"]) {
+    for (const mode of ["hair", "crowns", "starter-crowns", "hats", "poses"]) {
       const name = `${tag}-${mode}-body${body}`;
       counts[name] = await page.evaluate(
         ([b, c]) => window.captureHair(b, c),
