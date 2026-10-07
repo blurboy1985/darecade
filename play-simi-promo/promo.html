@@ -1,0 +1,953 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Play Simi — 30s promo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Baloo+2:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; height: 100%; background: #10151f; overflow: hidden; font-family: "Fredoka", "Baloo 2", "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif; }
+  #stage { position: fixed; inset: 0 0 64px 0; display: grid; place-items: center; }
+  body.rec #stage { inset: 0; }
+  canvas { max-width: 100%; max-height: 100%; background: #bfe6ff; display: block; }
+  #ui { position: fixed; left: 0; right: 0; bottom: 0; height: 64px; display: flex; gap: 10px; align-items: center; padding: 0 14px; box-sizing: border-box; background: #1b2434; color: #fff; }
+  body.rec #ui { display: none; }
+  #ui button { font: 600 15px/1 inherit; font-family: inherit; color: #1f2a3c; background: #ffd66b; border: 0; border-radius: 12px; padding: 11px 14px; cursor: pointer; white-space: nowrap; }
+  #ui button.alt { background: #cfe9ff; }
+  #scrub { flex: 1; min-width: 60px; accent-color: #ffd66b; }
+  #time { font: 600 13px/1 ui-monospace, Consolas, monospace; min-width: 84px; text-align: right; opacity: .8; }
+  #count { position: fixed; inset: 0; display: none; place-items: center; background: #10151f; color: #fff; font-size: 30vmin; font-weight: 700; z-index: 5; }
+  #hint { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: #1b2434cc; color: #fff; font-size: 13px; padding: 6px 12px; border-radius: 99px; pointer-events: none; }
+  body.rec #hint { display: none; }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="c"></canvas></div>
+<div id="hint">Click anywhere for sound · R = clean recording mode</div>
+<div id="count"></div>
+<div id="ui">
+  <button id="play">Restart</button>
+  <input id="scrub" type="range" min="0" max="1000" value="0" aria-label="Scrub">
+  <span id="time">0.0 / 30.0</span>
+  <button id="aspect" class="alt">16:9</button>
+  <button id="mute" class="alt">Mute</button>
+</div>
+<script>
+"use strict";
+/* =====================================================================
+   CONFIG — every word, colour, timing, URL and asset lives here.
+   Timings are in beats (at 120 BPM one beat is 0.5 s = 15 frames).
+   ===================================================================== */
+const LOOK_CROP = [0, 0.16, 1, 0.78]; // plaza look stills, framed under the "YOU" name tag
+const CARD_CROP = [0.12, 0.165, 0.76, 0.47]; // the same stills as tall cards: hat to knees
+const CONFIG = {
+  url: "playsimi.danielquek.com",
+  fps: 30,
+  bpm: 120,
+  size: { portrait: [1080, 1920], landscape: [1920, 1080] },
+  safe: { top: 0.10, bottom: 0.15, side: 64 }, // text stays out of these bands
+
+  colours: {
+    ink: "#1f2a3c", white: "#ffffff", cream: "#fff7e8",
+    sky: "#bfe6ff", mint: "#bff2dc", peach: "#ffd3bd", lilac: "#d9ccff", yellow: "#ffe27a",
+    pink: "#ff9fc0", coral: "#ff8a70", lime: "#bbec66", teal: "#62d4dc", gold: "#ffc94a",
+  },
+
+  text: {
+    hook: ["Your new", "hangout spot."],
+    hookAccent: "hangout",
+    create: ["Dress up", "your way."],
+    hangout: ["Hang out", "with friends."],
+    play: [["7+ mini-games."], ["Beat your", "friends."]],
+    progress: ["Level up.", "Climb the ranks."],
+    levelUp: "LEVEL UP!",
+    cta: "Play free in your browser",
+    tap: "Tap to play",
+    small: "13+ · Free · No download",
+    // Ready to swap in: copy one of these over text.hook / text.cta.
+    hookAlternates: [["No download.", "Just vibes."], ["Your avatar.", "Your plaza."], ["Free to play.", "Right now."]],
+    ctaAlternates: ["Play now. It's free", "Tap to play free", "Jump in. No download"],
+  },
+
+  // The outfit-swap beat, one look per beat: the game's five free starter class sets.
+  looks: [
+    { still: "look-mage-pose", label: "Mage", glow: "#d9ccff", crop: LOOK_CROP, zoom: 1.04, fy: 0.42 },
+    { still: "look-pirate-pose", label: "Pirate", glow: "#ff8a70", crop: LOOK_CROP, zoom: 1.04, fy: 0.42 },
+    { still: "look-warrior-pose", label: "Warrior", glow: "#ffc94a", crop: LOOK_CROP, zoom: 1.04, fy: 0.42 },
+    { still: "look-archer-pose", label: "Archer", glow: "#bbec66", crop: LOOK_CROP, zoom: 1.04, fy: 0.42 },
+    { still: "look-thief-pose", label: "Thief", glow: "#62d4dc", crop: LOOK_CROP, zoom: 1.04, fy: 0.42 },
+  ],
+  // Avatar cards that hop around the logo on the end card.
+  stickers: [
+    { still: "look-mage", ring: "#d9ccff" }, { still: "look-pirate", ring: "#ff8a70" }, { still: "look-warrior", ring: "#ffc94a" },
+    { still: "look-archer", ring: "#bbec66" }, { still: "look-thief", ring: "#62d4dc" },
+  ],
+  stickerCrop: CARD_CROP,
+
+  // crop = [x, y, w, h] as fractions of the source frame. from = seconds into the clip.
+  games: {
+    coast: { clip: "coast-rush", name: "Coast Rush", colour: "#62d4dc", crop: [0.015, 0.118, 0.97, 0.64], from: 0.6 },
+    swarm: { clip: "star-swarm", name: "Star Swarm", colour: "#d9ccff", crop: [0, 0.17, 1, 0.53], from: 1.4, zoom: 1.55, fy: 0.62 },
+    noodle: { clip: "noodle-run", name: "Noodle Run", colour: "#bbec66", crop: [0, 0.17, 1, 0.53], from: 3.6, zoom: 1.35, fy: 0.55 },
+    brick: { clip: "brick-bash", name: "Brick Bash", colour: "#ff9fc0", crop: [0, 0.17, 1, 0.53], from: 0.3, zoom: 1.25, fy: 0.4 },
+    hop: { clip: "hop-hop", name: "Hop Hop", colour: "#ffc94a", crop: [0, 0.17, 1, 0.53], from: 3.6 },
+    hoops: { clip: "hoops", name: "Hoops", colour: "#ff8a70", crop: [0, 0.155, 1, 0.585], from: 0.2 },
+    fishing: { clip: "fishing", name: "Fishing", colour: "#62d4dc", crop: [0, 0.165, 1, 0.575], from: 3.85 },
+    stage: { clip: "open-stage", name: "Open Stage", colour: "#d9ccff", crop: [0.07, 0.262, 0.86, 0.56], from: 0.5 },
+  },
+
+  rankings: { you: "You", others: ["Luna", "Kiko", "Bao", "Miso"], scores: [4180, 3660, 3140, 2620], youFinal: 4730 }, // made-up names and scores
+
+  // Scene order. beats = length (one beat is 0.5 s). The 30 s cut is 60 beats, the 15 s cut is 30.
+  // Shots inside a scene are listed in `cuts`, each with its own length in beats.
+  cuts: {
+    30: [
+      { type: "hook", beats: 4, cuts: [
+        { clip: "plaza-cheer", from: 0.5, zoom: 1.5, fy: 0.62 },
+        { game: "coast", from: 2.2 },
+        { game: "stage", from: 1.0 },
+        { clip: "emote", from: 1.1, crop: [0.06, 0.2, 0.88, 0.62], fy: 0.4, sparkle: true },
+      ] },
+      { type: "create", beats: 10, clip: "wardrobe-sets", clipFrom: 0.1, clipCrop: [0.07, 0.124, 0.52, 0.23], chip: "Hundreds of looks" },
+      { type: "hangout", beats: 10, cuts: [
+        { clip: "plaza", from: 0.1, beats: 2, zoom: 1.0, fy: 0.3 },                 // wide: walking in
+        { clip: "plaza-cheer", from: 0.5, beats: 2, zoom: 1.9, fy: 0.42 },           // close: the cheer
+        { clip: "plaza-cheer", from: 1.4, beats: 2, zoom: 1.6, fx: 0.2, fy: 0.36 },  // the friend on the left
+        { clip: "plaza-party", from: 0.3, beats: 2, zoom: 1.6, fx: 0.8, fy: 0.38 },  // the friend on the right
+        { clip: "plaza-party", from: 1.3, beats: 2, zoom: 1.12, fy: 0.34 },          // wide: everyone
+      ] },
+      { type: "play", beats: 20, games: [["coast", 4], ["brick", 1], ["hop", 2], ["noodle", 1], ["swarm", 1], ["hoops", 4], ["fishing", 2], ["stage", 5]] },
+      { type: "progress", beats: 8, clip: "levelup", clipFrom: 1.3, clipCrop: [0.04, 0.622, 0.92, 0.188] },
+      { type: "cta", beats: 8 },
+    ],
+    15: [
+      { type: "hook", beats: 4, cuts: [
+        { clip: "plaza-cheer", from: 0.5, zoom: 1.5, fy: 0.62 },
+        { game: "coast", from: 2.2 },
+        { game: "stage", from: 1.0 },
+        { clip: "emote", from: 1.1, crop: [0.06, 0.2, 0.88, 0.62], fy: 0.4, sparkle: true },
+      ] },
+      { type: "create", beats: 5 },
+      { type: "hangout", beats: 4, cuts: [{ clip: "plaza-cheer", from: 0.5, beats: 2, zoom: 1.12, fy: 0.34 }, { clip: "plaza-party", from: 0.4, beats: 2, zoom: 1.7, fy: 0.42 }] },
+      { type: "play", beats: 11, games: [["coast", 3], ["hoops", 3], ["fishing", 2], ["stage", 3]] },
+      { type: "cta", beats: 6 },
+    ],
+  },
+
+  // File list. Anything missing falls back to a drawn placeholder.
+  assets: {
+    dir: "assets/",
+    clips: ["emote", "wardrobe-sets", "levelup", "plaza", "plaza-cheer", "plaza-party", "coast-rush", "star-swarm", "noodle-run", "brick-bash", "hop-hop", "hoops", "fishing", "open-stage"],
+    stills: ["look-mage", "look-pirate", "look-thief", "look-warrior", "look-archer", "look-mage-pose", "look-pirate-pose", "look-thief-pose", "look-warrior-pose", "look-archer-pose", "logo"],
+    music: "assets/music.mp3", // used instead of the built-in tune when the file exists
+  },
+};
+
+/* ===================================================================== setup */
+const Q = new URLSearchParams(location.search);
+let LAND = Q.get("landscape") === "1";
+const CUT = Q.get("cut") === "15" ? 15 : 30;
+const RENDER = Q.get("render") === "1"; // frame-stepped by render.mjs
+const FPS = CONFIG.fps, BEAT = 60 / CONFIG.bpm, C = CONFIG.colours;
+const canvas = document.getElementById("c");
+const g = canvas.getContext("2d");
+let W = 1080, H = 1920;
+function setSize() {
+  [W, H] = LAND ? CONFIG.size.landscape : CONFIG.size.portrait;
+  canvas.width = W; canvas.height = H;
+  document.getElementById("aspect").textContent = LAND ? "9:16" : "16:9";
+}
+const FONT = '"Fredoka", "Baloo 2", "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif';
+
+// Timeline: scenes with start and length in seconds.
+const SCENES = [];
+{
+  let b = 0;
+  for (const s of CONFIG.cuts[CUT]) { SCENES.push({ ...s, start: b * BEAT, dur: s.beats * BEAT }); b += s.beats; }
+}
+const DURATION = SCENES.reduce((n, s) => n + s.dur, 0);
+const TOTAL = Math.round(DURATION * FPS);
+
+/* ===================================================================== maths */
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const lerp = (a, b, t) => a + (b - a) * t;
+const prog = (t, start, dur) => clamp((t - start) / dur);
+const E = {
+  outCubic: (t) => 1 - Math.pow(1 - t, 3),
+  inCubic: (t) => t * t * t,
+  inOut: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+  outExpo: (t) => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * t)),
+  outBack: (t) => { const c = 1.9; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); },
+  outElastic: (t) => (t <= 0 ? 0 : t >= 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * (2 * Math.PI / 3)) + 1),
+};
+function rng(seed) { let a = seed >>> 0; return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+
+/* ===================================================================== media */
+const media = {}; // id -> { kind, el, ok, w, h }
+function loadStill(id) {
+  return new Promise((res) => {
+    const el = new Image();
+    media[id] = { kind: "still", el, ok: false };
+    el.onload = () => { Object.assign(media[id], { ok: true, w: el.naturalWidth, h: el.naturalHeight }); res(); };
+    el.onerror = () => res();
+    el.src = `${CONFIG.assets.dir}${id}.png`;
+  });
+}
+function loadClip(id) {
+  return new Promise((res) => {
+    const el = document.createElement("video");
+    el.muted = true; el.playsInline = true; el.preload = "auto"; el.loop = false;
+    media[id] = { kind: "clip", el, ok: false };
+    const done = () => res();
+    el.addEventListener("loadeddata", () => { Object.assign(media[id], { ok: true, w: el.videoWidth, h: el.videoHeight, dur: el.duration }); done(); }, { once: true });
+    el.addEventListener("error", done, { once: true });
+    setTimeout(done, 9000);
+    el.src = `${CONFIG.assets.dir}${id}.mp4`;
+    el.load();
+  });
+}
+const wanted = new Map(); // clip id -> { tau, rate } for the frame being drawn
+let collecting = false;
+function seek(v, t) {
+  return new Promise((res) => {
+    if (Math.abs(v.currentTime - t) < 0.004 && v.readyState >= 2) return res();
+    const timer = setTimeout(res, 2500);
+    v.addEventListener("seeked", () => { clearTimeout(timer); res(); }, { once: true });
+    v.currentTime = t;
+  });
+}
+/** Draws a still or clip into rect, cover-fitted from a crop region with zoom and focus. */
+function drawMedia(id, rect, o = {}) {
+  const m = media[id];
+  const { crop = [0, 0, 1, 1], zoom = 1, fx = 0.5, fy = 0.5, tau = 0, rate = 1, label = id } = o;
+  if (m && m.kind === "clip" && m.ok) wanted.set(id, { tau: clamp(tau, 0, Math.max(0, m.dur - 0.08)), rate });
+  if (collecting) return;
+  if (!m || !m.ok) return placeholder(rect, label);
+  const cw = crop[2] * m.w, ch = crop[3] * m.h;
+  const ra = rect.w / rect.h;
+  let sw = cw, sh = ch;
+  if (cw / ch > ra) sw = ch * ra; else sh = cw / ra;
+  sw /= zoom; sh /= zoom;
+  const sx = crop[0] * m.w + clamp(fx * cw - sw / 2, 0, cw - sw);
+  const sy = crop[1] * m.h + clamp(fy * ch - sh / 2, 0, ch - sh);
+  try { g.drawImage(m.el, sx, sy, sw, sh, rect.x, rect.y, rect.w, rect.h); } catch { placeholder(rect, label); }
+}
+/** Drawn stand-in for a missing shot. */
+function placeholder(r, label) {
+  const gr = g.createLinearGradient(r.x, r.y, r.x + r.w, r.y + r.h);
+  gr.addColorStop(0, C.lilac); gr.addColorStop(1, C.mint);
+  g.fillStyle = gr; g.fillRect(r.x, r.y, r.w, r.h);
+  g.fillStyle = "#ffffff66";
+  for (let i = 0; i < 6; i++) { g.beginPath(); g.arc(r.x + ((i * 0.37) % 1) * r.w, r.y + ((i * 0.61) % 1) * r.h, r.w * 0.12, 0, 7); g.fill(); }
+  label_(String(label).replace(/-/g, " "), r.x + r.w / 2, r.y + r.h / 2, Math.min(r.w / 7, 80), { fill: C.white });
+}
+
+/* ===================================================================== drawing kit */
+function rr(x, y, w, h, r) { g.beginPath(); g.roundRect(x, y, w, h, r); }
+function fitFont(text, size, maxW, weight = 700) {
+  g.font = `${weight} ${size}px ${FONT}`;
+  const w = g.measureText(text).width;
+  if (w > maxW) { size *= maxW / w; g.font = `${weight} ${size}px ${FONT}`; }
+  return size;
+}
+/** Chunky outlined text. */
+function label_(text, x, y, size, o = {}) {
+  const { fill = C.white, stroke = C.ink, maxW = W * 0.9, align = "center", sw = 0.2, shadow = true } = o;
+  size = fitFont(text, size, maxW);
+  g.textAlign = align; g.textBaseline = "middle"; g.lineJoin = "round"; g.lineCap = "round";
+  if (shadow) { g.strokeStyle = stroke; g.lineWidth = size * sw; g.strokeText(text, x, y + size * 0.085); }
+  g.strokeStyle = stroke; g.lineWidth = size * sw; g.strokeText(text, x, y);
+  g.fillStyle = fill; g.fillText(text, x, y);
+  return size;
+}
+/** Lines of text whose words pop in one after another. t = seconds since the first word. */
+function punch(lines, cx, cy, size, t, o = {}) {
+  const { accent = "", accentFill = C.yellow, fill = C.white, maxW = W * 0.9, stagger = 0.09, gap = 1.12 } = o;
+  let s = size;
+  for (const l of lines) s = Math.min(s, fitFont(l, size, maxW));
+  g.font = `700 ${s}px ${FONT}`;
+  let wi = 0;
+  lines.forEach((line, li) => {
+    const words = line.split(" ");
+    const space = g.measureText(" ").width;
+    const widths = words.map((w) => g.measureText(w).width);
+    const total = widths.reduce((a, b) => a + b, 0) + space * (words.length - 1);
+    let x = cx - total / 2;
+    const y = cy + (li - (lines.length - 1) / 2) * s * gap;
+    words.forEach((w, i) => {
+      const p = prog(t, wi * stagger, 0.3);
+      wi++;
+      if (p > 0) {
+        const k = E.outBack(p);
+        g.save();
+        g.translate(x + widths[i] / 2, y);
+        g.rotate((1 - k) * (i % 2 ? 0.14 : -0.14));
+        g.scale(k, k);
+        g.globalAlpha = clamp(p * 3);
+        label_(w, 0, 0, s, { fill: accent && w.replace(/[.,!]/g, "") === accent ? accentFill : fill, maxW: 1e5 });
+        g.restore();
+      }
+      x += widths[i] + space;
+      g.font = `700 ${s}px ${FONT}`;
+    });
+  });
+}
+function star(x, y, r, rot = 0, points = 4, inner = 0.38) {
+  g.beginPath();
+  for (let i = 0; i < points * 2; i++) {
+    const a = rot + (i * Math.PI) / points, rad = i % 2 ? r * inner : r;
+    g.lineTo(x + Math.cos(a) * rad, y + Math.sin(a) * rad);
+  }
+  g.closePath();
+}
+/** A sparkle burst: stars fly out from a point and fade. t = seconds since it fired. */
+function sparkles(x, y, t, seed, n = 14, power = 1) {
+  if (t < 0 || t > 1.1) return;
+  const r = rng(seed), p = t / 1.1;
+  for (let i = 0; i < n; i++) {
+    const a = r() * 6.283, d = (160 + r() * 420) * power * E.outCubic(p), size = (16 + r() * 34) * power * (1 - p);
+    if (size < 12) continue;
+    g.fillStyle = [C.white, C.yellow, C.pink, C.sky][i % 4];
+    g.strokeStyle = C.ink; g.lineWidth = 5; g.lineJoin = "round";
+    star(x + Math.cos(a) * d, y + Math.sin(a) * d, size, t * 3 + i);
+    g.stroke(); g.fill();
+  }
+  if (power < 1.1) return;
+  g.strokeStyle = `rgba(255,255,255,${0.9 * (1 - p)})`; g.lineWidth = 16 * (1 - p);
+  g.beginPath(); g.arc(x, y, 60 + 620 * power * E.outExpo(p), 0, 7); g.stroke();
+}
+/** Confetti falling from a burst. */
+function confetti(x, y, t, seed, n = 60, spread = 1) {
+  if (t < 0 || t > 3) return;
+  const r = rng(seed);
+  const cols = [C.yellow, C.pink, C.teal, C.lime, C.lilac, C.coral];
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI / 2 + (r() - 0.5) * 2.6, v = (700 + r() * 1100) * spread;
+    const px = x + Math.cos(a) * v * t * 0.9, py = y + Math.sin(a) * v * t + 1500 * t * t;
+    const w = 16 + r() * 16, rot = r() * 6 + t * (4 + r() * 8);
+    g.save(); g.translate(px, py); g.rotate(rot); g.scale(1, Math.cos(t * 9 + i));
+    g.globalAlpha = clamp(3 - t * 1.4);
+    g.fillStyle = cols[i % cols.length]; g.fillRect(-w / 2, -w / 4, w, w / 2);
+    g.restore();
+  }
+  g.globalAlpha = 1;
+}
+function speedLines(amount, seed) {
+  if (amount <= 0.01) return;
+  const r = rng(seed);
+  g.save(); g.globalAlpha = clamp(amount) * 0.85; g.strokeStyle = C.white; g.lineCap = "round";
+  for (let i = 0; i < 26; i++) {
+    const y = r() * H, len = (0.2 + r() * 0.5) * W, x = r() * W;
+    g.lineWidth = 4 + r() * 10;
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + len, y); g.stroke();
+  }
+  g.restore();
+}
+/** Soft pastel backdrop with drifting blobs and a dot grid. */
+function backdrop(time, a, b, seed = 1) {
+  const gr = g.createLinearGradient(0, 0, W * 0.4, H);
+  gr.addColorStop(0, a); gr.addColorStop(1, b);
+  g.fillStyle = gr; g.fillRect(-60, -60, W + 120, H + 120);
+  const r = rng(seed);
+  for (let i = 0; i < 7; i++) {
+    const x = r() * W + Math.sin(time * 0.5 + i) * 50, y = r() * H + Math.cos(time * 0.4 + i * 2) * 60, rad = (0.12 + r() * 0.2) * Math.max(W, H) * 0.5;
+    g.fillStyle = i % 2 ? "#ffffff3d" : "#ffffff24";
+    g.beginPath(); g.arc(x, y, rad, 0, 7); g.fill();
+  }
+  g.fillStyle = "#ffffff55";
+  const step = 90, off = (time * 30) % step;
+  for (let y = -step + off; y < H + step; y += step) for (let x = ((y / step) | 0) % 2 ? 0 : step / 2; x < W + step; x += step) { g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill(); }
+}
+/** Rounded phone mock-up. content(inner) draws the screen. */
+function device(cx, cy, w, h, content, o = {}) {
+  const { scale = 1, rot = 0, bezel = Math.max(14, w * 0.03), radius = w * 0.13, glow = "", glowAmt = 0, notch = true } = o;
+  g.save();
+  g.translate(cx, cy); g.rotate(rot); g.scale(scale, scale);
+  const x = -w / 2, y = -h / 2;
+  if (glow && glowAmt > 0) {
+    g.save(); g.globalAlpha = clamp(glowAmt);
+    g.shadowColor = glow; g.shadowBlur = 120; g.fillStyle = glow;
+    rr(x - 26, y - 26, w + 52, h + 52, radius + 26); g.fill(); g.fill();
+    g.restore();
+  }
+  g.fillStyle = "#1f2a3c40"; rr(x + 10, y + 26, w, h, radius); g.fill(); // drop shadow
+  g.fillStyle = C.ink; rr(x, y, w, h, radius); g.fill();
+  const inner = { x: x + bezel, y: y + bezel, w: w - bezel * 2, h: h - bezel * 2 };
+  g.save(); rr(inner.x, inner.y, inner.w, inner.h, radius - bezel); g.clip();
+  g.fillStyle = C.cream; g.fillRect(inner.x, inner.y, inner.w, inner.h);
+  content(inner);
+  const sh = g.createLinearGradient(inner.x, inner.y, inner.x + inner.w, inner.y + inner.h * 0.6); // glass sheen
+  sh.addColorStop(0, "#ffffff2e"); sh.addColorStop(0.35, "#ffffff00");
+  g.fillStyle = sh; g.fillRect(inner.x, inner.y, inner.w, inner.h);
+  g.restore();
+  if (notch) { g.fillStyle = C.ink; rr(-w * 0.13, y + bezel * 0.55, w * 0.26, bezel * 1.25, bezel); g.fill(); }
+  g.restore();
+}
+function chip(text, cx, cy, size, bg, o = {}) {
+  const { fg = C.ink, scale = 1, padX = 0.7, maxW = W * 0.86 } = o;
+  g.save(); g.translate(cx, cy); g.scale(scale, scale);
+  size = fitFont(text, size, maxW - size * padX * 2);
+  const w = g.measureText(text).width + size * padX * 2, h = size * 1.55;
+  g.fillStyle = C.ink; rr(-w / 2, -h / 2 + size * 0.14, w, h, h / 2); g.fill();
+  g.fillStyle = bg; g.strokeStyle = C.ink; g.lineWidth = size * 0.12; rr(-w / 2, -h / 2, w, h, h / 2); g.fill(); g.stroke();
+  g.fillStyle = fg; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(text, 0, size * 0.04);
+  g.restore();
+}
+
+/* ===================================================================== layout */
+function L() {
+  return LAND
+    ? { phone: { cx: 560, cy: 546, w: 408, h: 868 }, cap: { cx: 1410, cy: 410, size: 140, maxW: 840 }, card: { cx: 500, cy: 548, maxW: 780, maxH: 880 }, name: { cx: 1390, cy: 760, size: 120 }, chip: { cx: 1390, cy: 700 }, badge: { cx: 1390, cy: 110, w: 330 } }
+    : { phone: { cx: 540, cy: 1098, w: 536, h: 1010 }, cap: { cx: 540, cy: 410, size: 116, maxW: 930 }, card: { cx: 540, cy: 1040, maxW: 940, maxH: 920 }, name: { cx: 540, cy: 1506, size: 116 }, chip: { cx: 540, cy: 1546 }, badge: { cx: 540, cy: 232, w: 196 } };
+}
+/** Small logo plaque kept on screen between the hook and the end card. */
+function badge(t) {
+  const m = media.logo, b = L().badge;
+  if (!m || !m.ok) return;
+  const k = E.outBack(prog(t, 0.1, 0.3));
+  if (k <= 0) return;
+  const w = b.w, h = (w * m.h) / m.w;
+  g.save(); g.translate(b.cx, b.cy); g.scale(k, k);
+  g.fillStyle = C.ink; rr(-w / 2 - 12, -h / 2 - 8 + 6, w + 24, h + 16, 22); g.fill();
+  g.fillStyle = "#fff7e8"; g.strokeStyle = C.ink; g.lineWidth = 6; rr(-w / 2 - 12, -h / 2 - 8, w + 24, h + 16, 22); g.fill(); g.stroke();
+  g.drawImage(m.el, -w / 2, -h / 2, w, h);
+  g.restore();
+}
+/** Which shot of a scene's `cuts` is on screen at t, and how far into it. */
+function subCut(s, t) {
+  let acc = 0, idx = 0, local = t;
+  s.cuts.forEach((c, i) => { const b = c.beats || 1; if (t >= acc * BEAT) { idx = i; local = t - acc * BEAT; } acc += b; });
+  return { c: s.cuts[idx], idx, local, dur: (s.cuts[idx].beats || 1) * BEAT };
+}
+
+/* ===================================================================== scenes */
+const DRAW = {
+  // Four hard cuts, one per beat, with the caption up from the first frame.
+  hook(s, t) {
+    const l = L();
+    const { c, idx, local } = subCut(s, t);
+    const slam = lerp(1.16, 1, E.outExpo(prog(local, 0, 0.22))) + local * 0.06;
+    const shotIn = (r) => {
+      if (c.game) { const gm = CONFIG.games[c.game]; drawMedia(gm.clip, r, { crop: gm.crop, tau: (c.from ?? gm.from) + local * 1.2, rate: 1.2, zoom: slam, fy: 0.5 }); }
+      else if (c.still) drawMedia(c.still, r, { crop: c.crop, zoom: slam, fy: c.fy ?? 0.42 });
+      else drawMedia(c.clip, r, { crop: c.crop, tau: (c.from || 0) + local, zoom: slam, fy: c.fy ?? 0.42 });
+    };
+    if (!LAND) {
+      shotIn({ x: -24, y: -24, w: W + 48, h: H + 48 }); // overscan, so screen shake never shows an edge
+      const gr = g.createLinearGradient(0, H * 0.52, 0, H);
+      gr.addColorStop(0, "#1f2a3c00"); gr.addColorStop(1, "#1f2a3caa");
+      g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    } else {
+      // Landscape: the same shot fills the frame, blurred, behind the phone.
+      g.save(); g.filter = "blur(26px)"; shotIn({ x: -60, y: -60, w: W + 120, h: H + 120 }); g.restore();
+      g.fillStyle = "#1f2a3c66"; g.fillRect(-60, -60, W + 120, H + 120);
+      device(l.phone.cx, l.phone.cy, l.phone.w, l.phone.h, shotIn, { scale: lerp(1.08, 1, E.outBack(prog(local, 0, 0.25))), rot: (idx % 2 ? 1 : -1) * 0.02 * (1 - prog(local, 0, 0.25)), glow: C.yellow, glowAmt: 0.8 });
+    }
+    const sx = LAND ? l.phone.cx : W / 2, sy = LAND ? l.phone.cy - 330 : H * 0.2; // above the hat, clear of the face
+    if (c.sparkle) { sparkles(sx, sy, local, 12, 20, 1.2); confetti(sx, sy, local, 14, 40, 0.8); }
+    if (idx > 0 && local < 1.5 / FPS) { g.fillStyle = "rgba(255,255,255,0.28)"; g.fillRect(-40, -40, W + 80, H + 80); } // one-frame flash on each cut, never on frame 0
+    const ty = LAND ? l.cap.cy + 60 : H * 0.735;
+    const pulse = 1 + 0.02 * (1 - prog(local, 0, 0.2));
+    g.save(); g.translate(LAND ? l.cap.cx : W / 2, ty); g.scale(pulse, pulse);
+    punch(CONFIG.text.hook, 0, 0, LAND ? 146 : 150, t + 0.45, { accent: CONFIG.text.hookAccent, maxW: LAND ? 860 : 900, stagger: 0.012 });
+    g.restore();
+  },
+
+  create(s, t) {
+    const l = L();
+    backdrop(t, C.peach, C.lilac, 5);
+    const looks = CONFIG.looks;
+    const beat = t / BEAT;
+    const lookBeats = s.beats >= 9 ? looks.length : Math.min(looks.length, s.beats);
+    const inLooks = beat < lookBeats || !s.clip || !(media[s.clip] && media[s.clip].ok);
+    if (inLooks) {
+      const i = Math.min(looks.length - 1, Math.floor(beat));
+      const bt = t - i * BEAT; // seconds into this look
+      const look = looks[i];
+      const pop = lerp(1.14, 1, E.outBack(prog(bt, 0, 0.26)));
+      const tilt = (i % 2 ? 1 : -1) * 0.035 * (1 - E.outCubic(prog(bt, 0, 0.3)));
+      device(l.phone.cx, l.phone.cy, l.phone.w, l.phone.h, (r) => drawMedia(look.still, r, { crop: look.crop, zoom: (look.zoom || 1) + bt * 0.1, fx: look.fx ?? 0.5, fy: look.fy ?? 0.5 }),
+        { scale: pop, rot: tilt, glow: look.glow, glowAmt: 1 - prog(bt, 0.05, 0.42) * 0.55 });
+      sparkles(l.phone.cx + l.phone.w * 0.36, l.phone.cy - l.phone.h * 0.44, bt, 30 + i, 10, 0.8); // off the face, on the phone's corner
+      chip(look.label, l.chip.cx, l.chip.cy, LAND ? 72 : 78, look.glow, { scale: E.outBack(prog(bt, 0.04, 0.24)) });
+    } else {
+      // Premium set try-ons, framed on the avatar preview only.
+      const ct = t - lookBeats * BEAT;
+      const cb = ((ct / BEAT) % 1) * BEAT;
+      const m = media[s.clip];
+      const aspect = (s.clipCrop[2] * m.w) / (s.clipCrop[3] * m.h);
+      const cw = LAND ? 560 : 720, ch = cw / aspect; // close to the footage's own size, so it stays sharp
+      device(l.phone.cx, l.phone.cy - (LAND ? 0 : 30), cw, ch, (r) => drawMedia(s.clip, r, { crop: s.clipCrop, tau: (s.clipFrom || 0) + ct * 1.3, rate: 1.3, zoom: 1 + ct * 0.02 }),
+        { scale: lerp(1.1, 1, E.outBack(prog(ct, 0, 0.3))) * (1 + 0.03 * (1 - prog(cb, 0, 0.2))), rot: -0.015, bezel: 20, radius: 64, glow: C.yellow, glowAmt: 0.7, notch: false });
+      sparkles(l.phone.cx + cw * 0.42, l.phone.cy - ch * 0.5, cb, 40 + Math.floor(ct / BEAT), 6, 0.7);
+      chip(s.chip || "", l.chip.cx, LAND ? l.chip.cy : l.phone.cy + ch / 2 + 70, LAND ? 60 : 70, C.yellow, { scale: E.outBack(prog(ct, 0.1, 0.3)) });
+    }
+    punch(CONFIG.text.create, l.cap.cx, l.cap.cy, l.cap.size, t + 0.12, { accent: "way", maxW: l.cap.maxW });
+    badge(t);
+  },
+
+  hangout(s, t) {
+    const l = L();
+    backdrop(t, C.mint, C.sky, 7);
+    const { c, idx, local } = subCut(s, t);
+    const pop = lerp(1.09, 1, E.outBack(prog(local, 0, 0.26)));
+    device(l.phone.cx, l.phone.cy, l.phone.w, l.phone.h, (r) => drawMedia(c.clip, r, { tau: (c.from || 0) + local, zoom: (c.zoom || 1) * (1 + local * 0.075), fx: c.fx ?? 0.5, fy: c.fy ?? 0.4 }),
+      { scale: pop, rot: (idx % 2 ? 1 : -1) * 0.022 * (1 - prog(local, 0, 0.28)), glow: C.white, glowAmt: 0.55 });
+    // Floating hearts and stars beside the phone.
+    const r = rng(77);
+    for (let i = 0; i < 9; i++) {
+      const side = i % 2 ? 1 : -1, life = (t * (0.35 + r() * 0.3) + r()) % 1;
+      const x = l.phone.cx + side * (l.phone.w / 2 + 50 + r() * (LAND ? 110 : 150)), y = l.phone.cy + l.phone.h * 0.4 - life * l.phone.h * 0.8;
+      const size = (26 + r() * 30) * Math.sin(life * Math.PI);
+      g.fillStyle = [C.pink, C.yellow, C.white][i % 3]; g.strokeStyle = C.ink; g.lineWidth = 6; g.lineJoin = "round";
+      if (i % 3 === 0) heart(x, y, size); else star(x, y, size, life * 4, 5, 0.5);
+      g.stroke(); g.fill();
+    }
+    if (idx) sparkles(l.phone.cx - l.phone.w * 0.36, l.phone.cy - l.phone.h * 0.44, local, 51 + idx, 8, 0.75);
+    punch(CONFIG.text.hangout, l.cap.cx, l.cap.cy, l.cap.size, t + 0.12, { accent: "friends", maxW: l.cap.maxW });
+    badge(t + 1);
+  },
+
+  play(s, t) {
+    const l = L();
+    let acc = 0, idx = 0, local = t;
+    s.games.forEach(([, beats], i) => { if (t >= acc * BEAT) { idx = i; local = t - acc * BEAT; } acc += beats; });
+    const game = CONFIG.games[s.games[idx][0]];
+    const cutDur = s.games[idx][1] * BEAT;
+    backdrop(t, idx % 2 ? C.lilac : C.sky, game.colour, 20 + idx);
+    // Card sized to the crop's shape.
+    const m = media[game.clip];
+    const aspect = m && m.ok ? (game.crop[2] * m.w) / (game.crop[3] * m.h) : 0.9;
+    let cw = l.card.maxW, ch = cw / aspect;
+    if (ch > l.card.maxH) { ch = l.card.maxH; cw = ch * aspect; }
+    const dir = idx % 2 ? 1 : -1;
+    const enter = E.outBack(prog(local, 0, 0.2));
+    const ox = (1 - enter) * dir * W * (LAND ? 0.03 : 0.1); // a hard cut with a short settle
+    speedLines(1 - prog(local, 0, 0.14), 300 + idx);
+    device(l.card.cx + ox, l.card.cy, cw, ch, (r) => drawMedia(game.clip, r, { crop: game.crop, tau: game.from + local * 1.15, rate: 1.15, zoom: (game.zoom || 1) + local * 0.03, fy: game.fy ?? 0.5 }),
+      { scale: 1 + 0.07 * (1 - E.outCubic(prog(local, 0, 0.22))), rot: dir * 0.02 * (1 - enter) - dir * 0.012, bezel: 20, radius: 64, glow: game.colour, glowAmt: 0.75, notch: false });
+    // Game name slams in over the bottom of the card and stays white.
+    const np = prog(local, -0.1, 0.2); // readable on the beat frame
+    if (np > 0) {
+      g.save(); g.translate(l.name.cx, l.name.cy); g.rotate(-0.045 + (1 - E.outBack(np)) * 0.2); g.scale(E.outBack(np), E.outBack(np));
+      label_(game.name, 0, 0, l.name.size, { fill: local < 0.4 && Math.floor(local * 14) % 2 ? C.yellow : C.white, maxW: LAND ? 860 : 900 });
+      g.restore();
+    }
+    sparkles(l.card.cx + cw * 0.44, l.card.cy - ch * 0.46, local - 0.02, 400 + idx, 8, 0.7);
+    const half = t < s.dur / 2 ? 0 : 1;
+    const lines = CONFIG.text.play[Math.min(half, CONFIG.text.play.length - 1)];
+    const lt = half ? t - s.dur / 2 : t;
+    punch(lines, l.cap.cx, l.cap.cy, l.cap.size * (LAND ? 0.9 : 0.94), lt + 0.12, { accent: half ? "friends" : "7+", maxW: l.cap.maxW });
+    badge(t + 1);
+  },
+
+  progress(s, t) {
+    backdrop(t, C.yellow, C.peach, 9);
+    const cx = LAND ? 560 : W / 2;
+    const split = 2.0; // the rankings board takes over on this beat
+    const out = t < split - 0.07 ? 1 : 0; // level-up elements cut out just before the board // level-up elements are gone before the board arrives
+    if (out > 0) {
+      const cy = LAND ? 500 : 880;
+      g.save(); g.translate(cx, cy); g.rotate(t * 0.5); g.globalAlpha = 0.4 * out; // rays sit behind the card
+      for (let i = 0; i < 14; i++) { g.rotate(Math.PI / 7); g.fillStyle = i % 2 ? C.white : C.gold; g.beginPath(); g.moveTo(0, 0); g.lineTo(-90, -1500); g.lineTo(90, -1500); g.fill(); }
+      g.restore(); g.globalAlpha = 1;
+      g.globalAlpha = out; confetti(cx, cy - 300, t - 0.1, 62, 70); g.globalAlpha = 1; // behind the card
+      if (s.clip && media[s.clip] && media[s.clip].ok) {
+        const m = media[s.clip], aspect = (s.clipCrop[2] * m.w) / (s.clipCrop[3] * m.h);
+        const pw = LAND ? 700 : 840, ph = pw / aspect;
+        g.save(); g.globalAlpha = out;
+        device(cx, cy, pw, ph, (r) => drawMedia(s.clip, r, { crop: s.clipCrop, tau: (s.clipFrom || 0) + t, rate: 1 }),
+          { scale: E.outBack(prog(t, -0.12, 0.3)), rot: 0.015, bezel: 16, radius: 48, glow: C.white, glowAmt: 0.9, notch: false });
+        g.restore();
+      }
+      const k = E.outElastic(prog(t, -0.06, 0.7)) * out;
+      g.save(); g.translate(cx, cy - (LAND ? 290 : 400)); g.scale(k, k); g.rotate(-0.06);
+      label_(CONFIG.text.levelUp, 0, 0, LAND ? 180 : 190, { fill: C.yellow, maxW: LAND ? 860 : 900 });
+      g.restore();
+      sparkles(cx, cy - (LAND ? 290 : 400), t - 0.08, 61, 20, 1.2);
+      // XP bar filling to the next level.
+      const bw = LAND ? 700 : 800, bh = 76, bx = cx - bw / 2, by = cy + (LAND ? 250 : 330);
+      g.globalAlpha = clamp(prog(t, 0.2, 0.2)) * out;
+      g.fillStyle = C.ink; rr(bx - 8, by - 8 + 10, bw + 16, bh + 16, 50); g.fill();
+      g.fillStyle = C.white; g.strokeStyle = C.ink; g.lineWidth = 10; rr(bx, by, bw, bh, 40); g.fill(); g.stroke();
+      const fill = E.inOut(prog(t, 0.3, 0.9));
+      g.save(); rr(bx, by, bw, bh, 40); g.clip();
+      const gr = g.createLinearGradient(bx, 0, bx + bw, 0); gr.addColorStop(0, C.lime); gr.addColorStop(1, C.teal);
+      g.fillStyle = gr; g.fillRect(bx, by, bw * fill, bh);
+      g.fillStyle = "#ffffff66"; g.fillRect(bx, by + 10, bw * fill, 14);
+      g.restore();
+      label_(`LV ${fill >= 1 ? 5 : 4}`, bx + 110, by + bh + 64, 70, { fill: C.white });
+      label_(`+${Math.round(fill * 100)} XP`, bx + bw - 150, by + bh + 64, 70, { fill: C.lime });
+      g.globalAlpha = 1;
+    }
+    // Rankings board drops in from the top; "You" climbs one place every half beat.
+    if (t >= split - 0.07) {
+      const bt = t - split;
+      const R = CONFIG.rankings, n = R.others.length + 1;
+      const bw = LAND ? 760 : 850, rowH = LAND ? 116 : 138;
+      const top = LAND ? 250 : 600;
+      const slide = E.outBack(prog(t, split - 0.14, 0.2));
+      const stepLen = BEAT * 0.5, n0 = CONFIG.rankings.others.length + 1;
+      const ct = bt - (n0 - 1) * stepLen; // "You" is #1 from here: crown and confetti
+      if (ct >= 0) confetti(cx, top - 220, ct, 66, 80, 0.9); // behind the board
+      g.save(); g.translate(cx, top + 200); g.scale(0.55 + 0.45 * slide, 0.55 + 0.45 * slide); g.translate(-cx, -(top + 200)); g.globalAlpha = 1;
+      g.fillStyle = C.ink; rr(cx - bw / 2 - 26, top - 150 + 16, bw + 52, rowH * n + 190, 60); g.fill();
+      g.fillStyle = C.cream; g.strokeStyle = C.ink; g.lineWidth = 12; rr(cx - bw / 2 - 26, top - 150, bw + 52, rowH * n + 190, 60); g.fill(); g.stroke();
+      label_("RANKINGS", cx, top - 72, LAND ? 76 : 84, { fill: C.ink, stroke: C.cream, shadow: false, sw: 0.01 });
+      // Each move finishes exactly on its step time (24.25, 24.5, 24.75, 25.0 s in the 30 s cut).
+      const step = clamp(Math.floor(Math.max(0, bt) / stepLen), 0, n - 1); // 0 = still last
+      const next = step < n - 1 ? E.inOut(prog(bt, (step + 1) * stepLen - 0.12, 0.12)) : 0;
+      const glide = -next;
+      const youSlot = n - 1 - step;
+      const rows = [];
+      let oi = 0;
+      for (let slot = 0; slot < n; slot++) if (slot !== youSlot) { rows.push({ name: R.others[oi], score: R.scores[oi], pos: slot }); oi++; }
+      rows.push({ name: R.you, score: Math.round(lerp(2380, R.youFinal, step / (n - 1))), pos: youSlot + glide, you: true });
+      for (const row of rows) {
+        const y = top + row.pos * rowH;
+        const sc = row.you ? 1.05 : 1;
+        g.save(); g.translate(cx, y + rowH / 2); g.scale(sc, sc);
+        g.fillStyle = row.you ? C.yellow : C.white; g.strokeStyle = C.ink; g.lineWidth = row.you ? 10 : 6;
+        rr(-bw / 2, -rowH / 2 + 10, bw, rowH - 20, 36); g.fill(); g.stroke();
+        g.font = `700 ${rowH * 0.46}px ${FONT}`; g.textBaseline = "middle"; g.textAlign = "left"; g.fillStyle = C.ink;
+        g.fillText(`#${Math.round(row.pos) + 1}`, -bw / 2 + 36, 4);
+        g.fillText(row.name, -bw / 2 + 190, 4);
+        g.textAlign = "right";
+        g.fillText(String(row.score), bw / 2 - 36, 4);
+        g.restore();
+      }
+      g.restore(); g.globalAlpha = 1;
+      if (ct >= 0) {
+        const k = E.outElastic(prog(ct, 0, 0.6));
+        g.save(); g.translate(cx + bw / 2 - 150, top - 34); g.rotate(0.12); g.scale(k, k); crown(0, 0, LAND ? 56 : 64); g.restore(); // above the row's score, clear of "#1"
+      }
+    }
+    const cap = LAND ? { cx: 1440, cy: 520, size: 110, maxW: 800 } : { cx: W / 2, cy: 1452, size: 100, maxW: 940 };
+    const capIn = t < split ? 0 : t - split - 0.05; // the caption arrives with the board, clear of the XP bar
+    if (LAND) punch(CONFIG.text.progress, cap.cx, cap.cy, cap.size, t - 0.2, { accent: "ranks", maxW: cap.maxW });
+    else if (t >= split) punch(CONFIG.text.progress, cap.cx, cap.cy, cap.size, capIn, { accent: "ranks", maxW: cap.maxW });
+    badge(t + 1);
+  },
+
+  cta(s, t) {
+    backdrop(t, C.sky, C.mint, 13);
+    const cx = W / 2;
+    const P = LAND ? { logoY: 215, logoW: 700, cardY: 300, cardW: 150, btnY: 560, btnSize: 88, btnMax: 1100, urlY: 750, urlSize: 60, smallY: 890, smallSize: 46 }
+                   : { logoY: 480, logoW: 820, cardY: 870, cardW: 160, btnY: 1190, btnSize: 72, btnMax: 690, urlY: 1392, urlSize: 62, smallY: 1530, smallSize: 48 };
+    const beatPulse = 1 - prog((t % BEAT), 0, 0.3); // 1 on each beat, easing to 0
+    confetti(cx, LAND ? 300 : 620, t - 0.15, 91, 90, LAND ? 1.3 : 1);
+    confetti(cx, LAND ? 300 : 620, t - 2.0, 92, 70, LAND ? 1.3 : 1);
+    // Class avatars hopping beside the logo.
+    const stickers = CONFIG.stickers, n = stickers.length;
+    stickers.forEach((st, i) => {
+      const appear = E.outBack(prog(t, -0.02 + i * 0.03, 0.3));
+      if (appear <= 0) return;
+      const hop = Math.abs(Math.sin((t * Math.PI) / BEAT + i * 0.9)) * (LAND ? 40 : 54);
+      const w = P.cardW, h = w * 1.34;
+      let x, y;
+      if (LAND) { const side = i < Math.ceil(n / 2) ? -1 : 1, k = side < 0 ? i : i - Math.ceil(n / 2); x = cx + side * (475 + k * (w + 14)); y = P.cardY + (k % 2) * 30 + (side < 0 ? 0 : 20); }
+      else { x = cx + (i - (n - 1) / 2) * (w + 24); y = P.cardY + (i % 2 ? 24 : 0); }
+      g.save(); g.translate(x, y - hop); g.scale(appear, appear); g.rotate(Math.sin(t * 5 + i) * 0.06);
+      g.fillStyle = C.ink; rr(-w / 2 - 7, -h / 2 - 7 + 10, w + 14, h + 14, 34); g.fill();
+      g.fillStyle = st.ring; rr(-w / 2 - 7, -h / 2 - 7, w + 14, h + 14, 34); g.fill();
+      g.save(); rr(-w / 2, -h / 2, w, h, 28); g.clip();
+      drawMedia(st.still, { x: -w / 2, y: -h / 2, w, h }, { crop: CONFIG.stickerCrop });
+      g.restore();
+      g.strokeStyle = C.ink; g.lineWidth = 7; rr(-w / 2 - 7, -h / 2 - 7, w + 14, h + 14, 34); g.stroke();
+      g.restore();
+    });
+    // Logo plaque bouncing in.
+    const lk = E.outElastic(prog(t, -0.08, 0.8)); // already dropping in on the first frame
+    const m = media.logo;
+    const lw = P.logoW, lh = m && m.ok ? (lw * m.h) / m.w : lw * 0.27;
+    const ls = 1 + 0.03 * beatPulse;
+    g.save(); g.translate(cx, P.logoY + (1 - lk) * -420); g.rotate(Math.sin(t * 2.2) * 0.015); g.scale(ls, ls);
+    g.fillStyle = C.ink; rr(-lw / 2 - 30, -lh / 2 - 26 + 16, lw + 60, lh + 52, 58); g.fill();
+    g.fillStyle = "#fff7e8"; g.strokeStyle = C.ink; g.lineWidth = 12; rr(-lw / 2 - 30, -lh / 2 - 26, lw + 60, lh + 52, 58); g.fill(); g.stroke();
+    if (m && m.ok) g.drawImage(m.el, -lw / 2, -lh / 2, lw, lh);
+    else label_("PLAY SIMI", 0, 0, lh * 0.8, { fill: C.ink, stroke: C.cream, shadow: false, sw: 0.02, maxW: lw });
+    g.restore();
+    sparkles(cx, P.logoY, t - 0.35, 93, 16, 1.1);
+    // Button, pulsing on every beat.
+    const bk = E.outBack(prog(t, -0.08, 0.3)); // in with the logo
+    if (bk > 0) {
+      const pulse = 1 + 0.07 * beatPulse;
+      g.save(); g.translate(cx, P.btnY); g.scale(bk * pulse, bk * pulse);
+      const size = fitFont(CONFIG.text.cta, P.btnSize, P.btnMax);
+      const bw = g.measureText(CONFIG.text.cta).width + size * 1.3, bh = size * 2.1;
+      g.fillStyle = C.ink; rr(-bw / 2, -bh / 2 + 18, bw, bh, bh / 2); g.fill();
+      const gr = g.createLinearGradient(0, -bh / 2, 0, bh / 2); gr.addColorStop(0, "#ffd86b"); gr.addColorStop(1, "#ffab2e");
+      g.fillStyle = gr; g.strokeStyle = C.ink; g.lineWidth = 12; rr(-bw / 2, -bh / 2, bw, bh, bh / 2); g.fill(); g.stroke();
+      g.fillStyle = "#ffffff70"; rr(-bw / 2 + 34, -bh / 2 + 16, bw - 68, bh * 0.2, bh * 0.1); g.fill();
+      g.fillStyle = C.ink; g.textAlign = "center"; g.textBaseline = "middle"; g.font = `700 ${size}px ${FONT}`; g.fillText(CONFIG.text.cta, 0, size * 0.05);
+      g.restore();
+    }
+    const uk = E.outBack(prog(t, -0.02, 0.3));
+    if (uk > 0) chip(CONFIG.url, cx, P.urlY, P.urlSize, C.white, { scale: uk, padX: 0.55, maxW: LAND ? 1200 : 880 }); // navy on a white pill
+    const sk = prog(t, 0, 0.2);
+    if (sk > 0) { g.globalAlpha = sk; chip(CONFIG.text.small, cx, P.smallY, P.smallSize, C.white, { maxW: 860 }); g.globalAlpha = 1; }
+  },
+};
+function heart(x, y, s) {
+  g.beginPath(); g.moveTo(x, y + s * 0.9);
+  g.bezierCurveTo(x - s * 1.4, y - s * 0.1, x - s * 0.6, y - s * 1.1, x, y - s * 0.35);
+  g.bezierCurveTo(x + s * 0.6, y - s * 1.1, x + s * 1.4, y - s * 0.1, x, y + s * 0.9); g.closePath();
+}
+function crown(x, y, s) {
+  g.fillStyle = C.gold; g.strokeStyle = C.ink; g.lineWidth = s * 0.14; g.lineJoin = "round";
+  g.beginPath(); g.moveTo(x - s, y + s * 0.6); g.lineTo(x - s, y - s * 0.5); g.lineTo(x - s * 0.45, y); g.lineTo(x, y - s * 0.8); g.lineTo(x + s * 0.45, y); g.lineTo(x + s, y - s * 0.5); g.lineTo(x + s, y + s * 0.6); g.closePath(); g.fill(); g.stroke();
+}
+
+/* ===================================================================== frame */
+/** Moments that land on a beat: used for shake, flashes and sound effects. */
+const EVENTS = [];
+for (const s of SCENES) {
+  EVENTS.push({ t: s.start, kind: s.type === "hook" ? "start" : "scene" });
+  if (s.cuts) { let b = 0; s.cuts.forEach((c, i) => { if (i) EVENTS.push({ t: s.start + b * BEAT, kind: s.type === "hook" ? "cut" : "pop" }); if (c.sparkle) EVENTS.push({ t: s.start + b * BEAT + 0.05, kind: "sparkle" }); b += c.beats || 1; }); }
+  if (s.type === "create") { const n = s.beats >= 9 ? CONFIG.looks.length + 1 : Math.min(CONFIG.looks.length, s.beats); for (let i = 1; i < n; i++) EVENTS.push({ t: s.start + i * BEAT, kind: "pop" }); }
+  if (s.type === "play") { let b = 0; s.games.forEach(([, n], i) => { if (i) EVENTS.push({ t: s.start + b * BEAT, kind: "cut" }); b += n; }); }
+  if (s.type === "progress") { EVENTS.push({ t: s.start + 0.05, kind: "levelup" }); EVENTS.push({ t: s.start + 2.0, kind: "scene" }); for (let i = 1; i <= 3; i++) EVENTS.push({ t: s.start + 2.0 + i * BEAT * 0.5, kind: "pop" }); EVENTS.push({ t: s.start + 3.0, kind: "win" }); }
+  if (s.type === "cta") EVENTS.push({ t: s.start + 2.0, kind: "sparkle" });
+  if (s.type === "cta") { EVENTS.push({ t: s.start + 0.05, kind: "win" }); EVENTS.push({ t: s.start + 0.5, kind: "pop" }); }
+}
+function drawFrame(f) {
+  const time = f / FPS;
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.globalAlpha = 1; g.filter = "none";
+  g.fillStyle = C.sky; g.fillRect(0, 0, W, H);
+  let si = SCENES.findIndex((s) => time >= s.start && time < s.start + s.dur);
+  if (si < 0) si = SCENES.length - 1;
+  const s = SCENES[si], t = time - s.start;
+  // Screen shake from recent impacts.
+  let shx = 0, shy = 0;
+  for (const e of EVENTS) {
+    const dt = time - e.t;
+    if (dt < 0 || dt > 0.35 || e.kind === "sparkle") continue;
+    const amp = (e.kind === "pop" ? 9 : e.kind === "cut" ? 16 : 24) * Math.exp(-dt * 13);
+    shx += Math.sin(dt * 95 + e.t) * amp; shy += Math.cos(dt * 83 + e.t * 2) * amp;
+  }
+  // Whip: the scene flies in from one side and out the other.
+  const enter = si === 0 ? 1 : E.outBack(prog(t, 0, 0.22));
+  const exit = si === SCENES.length - 1 ? 0 : E.inCubic(prog(t, s.dur - 0.07, 0.07));
+  const dir = si % 2 ? -1 : 1;
+  const ox = (1 - enter) * dir * W * 0.16 - exit * dir * W * 1.05; // the new scene is already on screen on its beat frame
+  g.save();
+  g.translate(shx + ox, shy);
+  if (ox) { g.fillStyle = C.sky; g.fillRect(-W, 0, W * 3, H); }
+  DRAW[s.type](s, t, s.dur);
+  g.restore();
+  speedLines(Math.min(1, Math.abs(ox) / (W * 0.45)), 900 + si);
+  // White flash on every scene change.
+  const fl = si > 0 && t < 1.5 / FPS ? 0.6 : 0; // a single soft frame on each scene change
+  if (fl > 0) { g.fillStyle = `rgba(255,255,255,${fl * 0.4})`; g.fillRect(0, 0, W, H); }
+}
+
+/* ===================================================================== audio
+   One function builds the whole soundtrack on any AudioContext, so the live
+   page and the offline export are the same notes. */
+const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
+function buildAudio(ctx, out, from = 0, when = 0, musicBuffer = null, effectsOnly = false) {
+  const at = (t) => when + (t - from);
+  const ok = (t) => t >= from - 0.001;
+  const master = ctx.createGain(); master.gain.value = CONFIG.volume ?? 1.5;
+  const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -16; comp.knee.value = 6; comp.ratio.value = 14; comp.attack.value = 0.002; comp.release.value = 0.12;
+  const ceiling = ctx.createGain(); ceiling.gain.value = 0.82; // keeps the limited signal under full scale
+  master.connect(comp); comp.connect(ceiling); ceiling.connect(out);
+  const noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+  { const d = noise.getChannelData(0), r = rng(4242); for (let i = 0; i < d.length; i++) d[i] = r() * 2 - 1; }
+  const env = (t, peak, dur, attack = 0.004) => { const gn = ctx.createGain(); gn.gain.setValueAtTime(0.0001, at(t)); gn.gain.linearRampToValueAtTime(peak, at(t) + attack); gn.gain.exponentialRampToValueAtTime(0.0001, at(t) + dur); gn.connect(master); return gn; };
+  const osc = (type, freq, t, dur, peak, dest) => { const o = ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(freq, at(t)); o.connect(dest || env(t, peak, dur)); o.start(at(t)); o.stop(at(t) + dur + 0.05); return o; };
+  const nz = (t, dur, peak, type, freq, q = 0.8) => { const s = ctx.createBufferSource(); s.buffer = noise; s.loop = true; const f = ctx.createBiquadFilter(); f.type = type; f.frequency.setValueAtTime(freq, at(t)); f.Q.value = q; s.connect(f); f.connect(env(t, peak, dur)); s.start(at(t)); s.stop(at(t) + dur + 0.05); return f; };
+  const kick = (t) => { if (!ok(t)) return; const o = osc("sine", 150, t, 0.24, 0.95); o.frequency.exponentialRampToValueAtTime(42, at(t) + 0.13); };
+  const snare = (t, v = 1) => { if (!ok(t)) return; nz(t, 0.16, 0.42 * v, "bandpass", 1900, 0.7); osc("triangle", 190, t, 0.09, 0.25 * v); };
+  const hat = (t, open) => { if (!ok(t)) return; nz(t, open ? 0.16 : 0.045, 0.13, "highpass", 7500); };
+  const bass = (t, n, dur) => { if (!ok(t)) return; const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 520; f.connect(env(t, 0.3, dur, 0.008)); osc("square", midi(n), t, dur, 0, f); };
+  const lead = (t, n, dur, v = 1) => { if (!ok(t)) return; osc("square", midi(n), t, dur, 0.085 * v); osc("triangle", midi(n + 12), t, dur * 0.8, 0.04 * v); };
+  const pad = (t, notes, dur) => { if (!ok(t)) return; for (const n of notes) { const gn = ctx.createGain(); gn.gain.setValueAtTime(0.0001, at(t)); gn.gain.linearRampToValueAtTime(0.045, at(t) + 0.05); gn.gain.setValueAtTime(0.045, at(t) + dur - 0.1); gn.gain.linearRampToValueAtTime(0.0001, at(t) + dur); gn.connect(master); osc("triangle", midi(n), t, dur, 0, gn); } };
+
+  if (musicBuffer) {
+    const src = ctx.createBufferSource(); src.buffer = musicBuffer; const gn = ctx.createGain(); gn.gain.value = 0.8; src.connect(gn); gn.connect(master);
+    src.start(when, from % musicBuffer.duration, Math.max(0, DURATION - from));
+  } else if (!effectsOnly) {
+    // I–V–vi–IV in C, one bar (4 beats) per chord.
+    const CH = [{ root: 36, pad: [60, 64, 67], mel: [76, 79, 0, 76, 81, 79, 76, 0] }, { root: 43, pad: [59, 62, 67], mel: [74, 79, 0, 74, 83, 79, 74, 0] },
+                { root: 45, pad: [60, 64, 69], mel: [72, 76, 0, 72, 81, 79, 76, 72] }, { root: 41, pad: [60, 65, 69], mel: [77, 81, 84, 81, 79, 0, 76, 74] }];
+    const beats = Math.round(DURATION / BEAT);
+    const endBeat = beats - 1;
+    for (let b = 0; b < beats; b++) {
+      const t = b * BEAT, bar = Math.floor(b / 4), ch = CH[bar % 4], inBar = b % 4;
+      const intro = b < 4, last = b >= endBeat;
+      if (intro) {
+        kick(t);
+        if (b === 0) { snare(t, 0.9); pad(t, [60, 64, 67, 72], BEAT * 3.8); bass(t, 36, BEAT * 0.9); }
+        else hat(t + BEAT / 2);
+        bass(t + BEAT / 2, 36 + (b % 2 ? 7 : 12), BEAT * 0.38);
+        lead(t, [72, 76, 79, 84][b], BEAT * 0.45); lead(t + BEAT / 2, [76, 79, 84, 88][b], BEAT * 0.4, 0.8);
+        if (b === 3) for (let i = 0; i < 4; i++) snare(t + (i * BEAT) / 4, 0.5 + i * 0.15);
+        continue;
+      }
+      if (last) { kick(t); pad(t, [60, 64, 67, 72], BEAT * 0.9); lead(t, 84, BEAT * 0.8); bass(t, 36, BEAT * 0.8); continue; }
+      if (inBar === 0) pad(t, ch.pad, BEAT * 4);
+      if (inBar === 0 || inBar === 2) kick(t);
+      if (inBar === 2) kick(t + BEAT * 0.75);
+      if (inBar === 1 || inBar === 3) snare(t);
+      hat(t); hat(t + BEAT / 2, inBar === 3);
+      bass(t, ch.root + (inBar === 2 ? 12 : 0), BEAT * 0.42); bass(t + BEAT / 2, ch.root + (inBar === 3 ? 7 : 0), BEAT * 0.38);
+      const m0 = ch.mel[inBar * 2], m1 = ch.mel[inBar * 2 + 1];
+      if (m0) lead(t, m0, BEAT * 0.42); if (m1) lead(t + BEAT / 2, m1, BEAT * 0.42);
+    }
+  }
+  // Sound effects on the timeline's beats.
+  const pop = (t) => { if (!ok(t)) return; const o = osc("sine", 420, t, 0.09, 0.3); o.frequency.exponentialRampToValueAtTime(980, at(t) + 0.06); };
+  const whoosh = (t) => { if (!ok(t - 0.12)) return; const f = nz(t - 0.12, 0.3, 0.22, "bandpass", 500, 1.2); f.frequency.exponentialRampToValueAtTime(5200, at(t) + 0.12); };
+  const coin = (t) => { if (!ok(t)) return; osc("square", 988, t, 0.08, 0.12); osc("square", 1319, t + 0.075, 0.22, 0.12); };
+  const sparkle = (t) => { if (!ok(t)) return; [2093, 2637, 3136, 4186].forEach((f, i) => osc("sine", f, t + i * 0.045, 0.16, 0.09)); };
+  const fanfare = (t) => { if (!ok(t)) return; [72, 76, 79, 84].forEach((n, i) => osc("square", midi(n), t + i * 0.07, i === 3 ? 0.35 : 0.09, 0.13)); };
+  for (const e of EVENTS) {
+    if (e.kind === "start") sparkle(e.t);
+    else if (e.kind === "scene") { whoosh(e.t); pop(e.t); }
+    else if (e.kind === "cut") { whoosh(e.t); coin(e.t + 0.1); }
+    else if (e.kind === "pop") pop(e.t);
+    else if (e.kind === "sparkle") sparkle(e.t);
+    else if (e.kind === "levelup") { fanfare(e.t); sparkle(e.t + 0.3); }
+    else if (e.kind === "win") { coin(e.t); sparkle(e.t + 0.1); }
+  }
+  return master;
+}
+let actx = null, muted = false, musicBuffer = null, musicEl = null;
+function stopAudio() { if (actx) { actx.close().catch(() => {}); actx = null; } if (musicEl) musicEl.pause(); }
+/** (Re)starts the soundtrack from `from` seconds. Needs a click first in most browsers. */
+function startAudio(from) {
+  stopAudio();
+  if (muted || RENDER || from >= DURATION) return;
+  try {
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === "suspended") actx.resume().catch(() => {});
+    const ctx = actx;
+    const go = () => {
+      if (actx !== ctx) return;
+      buildAudio(ctx, ctx.destination, clockTime(), ctx.currentTime + 0.06, musicBuffer, !!musicEl);
+      if (musicEl) { musicEl.currentTime = clockTime() % (musicEl.duration || DURATION); musicEl.play().catch(() => {}); }
+    };
+    if (ctx.state === "running") go(); else ctx.addEventListener("statechange", () => ctx.state === "running" && go(), { once: true });
+  } catch {}
+}
+function wav(buffer) {
+  const n = buffer.length, ch = buffer.numberOfChannels, out = new DataView(new ArrayBuffer(44 + n * ch * 2));
+  const str = (o, s) => [...s].forEach((c, i) => out.setUint8(o + i, c.charCodeAt(0)));
+  str(0, "RIFF"); out.setUint32(4, 36 + n * ch * 2, true); str(8, "WAVEfmt "); out.setUint32(16, 16, true); out.setUint16(20, 1, true); out.setUint16(22, ch, true);
+  out.setUint32(24, buffer.sampleRate, true); out.setUint32(28, buffer.sampleRate * ch * 2, true); out.setUint16(32, ch * 2, true); out.setUint16(34, 16, true); str(36, "data"); out.setUint32(40, n * ch * 2, true);
+  const data = [...Array(ch)].map((_, c) => buffer.getChannelData(c));
+  let o = 44;
+  for (let i = 0; i < n; i++) for (let c = 0; c < ch; c++) { out.setInt16(o, clamp(data[c][i], -1, 1) * 32767, true); o += 2; }
+  return new Uint8Array(out.buffer);
+}
+
+/* ===================================================================== player */
+let playing = false, startPerf = 0, curFrame = -1;
+const clockTime = () => (playing ? (performance.now() - startPerf) / 1000 : Math.max(0, curFrame) / FPS);
+function syncClips() {
+  for (const [id, m] of Object.entries(media)) {
+    if (m.kind !== "clip" || !m.ok) continue;
+    const w = wanted.get(id);
+    if (!w || !playing) { if (!m.el.paused) m.el.pause(); if (w && Math.abs(m.el.currentTime - w.tau) > 0.05) m.el.currentTime = w.tau; continue; }
+    if (m.el.playbackRate !== w.rate) m.el.playbackRate = w.rate;
+    if (Math.abs(m.el.currentTime - w.tau) > 0.3) m.el.currentTime = w.tau;
+    if (m.el.paused) m.el.play().catch(() => {});
+  }
+}
+function show(f) {
+  curFrame = f;
+  wanted.clear();
+  drawFrame(f);
+  syncClips();
+  scrub.value = String(Math.round((f / (TOTAL - 1)) * 1000));
+  timeEl.textContent = `${(f / FPS).toFixed(1)} / ${DURATION.toFixed(1)}`;
+}
+function tick(now) {
+  if (playing) {
+    let f = Math.floor(((now - startPerf) / 1000) * FPS); // fixed 30 fps clock
+    if (f >= TOTAL) { f = TOTAL - 1; playing = false; playBtn.textContent = "Restart"; show(f); }
+    else show(f); // redrawn every tick so clips stay smooth; all motion still derives from f
+  }
+  requestAnimationFrame(tick);
+}
+function playFrom(sec) {
+  startPerf = performance.now() - sec * 1000;
+  playing = true; playBtn.textContent = "Restart";
+  startAudio(sec);
+}
+const scrub = document.getElementById("scrub"), timeEl = document.getElementById("time"), playBtn = document.getElementById("play");
+playBtn.onclick = () => playFrom(0);
+scrub.oninput = () => { playing = false; stopAudio(); show(Math.round((scrub.value / 1000) * (TOTAL - 1))); playBtn.textContent = "Restart"; };
+scrub.onchange = () => playFrom(curFrame / FPS);
+document.getElementById("mute").onclick = (e) => { muted = !muted; e.target.textContent = muted ? "Unmute" : "Mute"; if (muted) stopAudio(); else if (playing) startAudio(clockTime()); };
+document.getElementById("aspect").onclick = () => { LAND = !LAND; setSize(); show(Math.max(0, curFrame)); };
+addEventListener("pointerdown", (e) => { if (e.target.closest("#ui")) return; if (playing && (!actx || actx.state !== "running")) startAudio(clockTime()); document.getElementById("hint").style.display = "none"; });
+/** Clean recording mode: no UI, three-second countdown, then from frame 0. */
+function record() {
+  document.body.classList.add("rec");
+  playing = false; stopAudio(); show(0);
+  const count = document.getElementById("count");
+  count.style.display = "grid";
+  let n = 3; count.textContent = n;
+  const timer = setInterval(() => {
+    n--;
+    if (n > 0) { count.textContent = n; return; }
+    clearInterval(timer); count.style.display = "none"; playFrom(0);
+  }, 1000);
+}
+addEventListener("keydown", (e) => {
+  if (e.key === "r" || e.key === "R") record();
+  else if (e.key === "Escape") document.body.classList.remove("rec");
+  else if (e.key === " ") { e.preventDefault(); playFrom(0); }
+  else if (e.key === "m" || e.key === "M") document.getElementById("mute").click();
+});
+
+/* ===================================================================== boot */
+const ready = (async () => {
+  setSize();
+  const fonts = document.fonts ? Promise.race([Promise.all([document.fonts.load(`700 80px "Fredoka"`), document.fonts.load(`700 80px "Baloo 2"`)]).catch(() => {}), new Promise((r) => setTimeout(r, 3000))]) : Promise.resolve();
+  await Promise.all([fonts, ...CONFIG.assets.clips.map(loadClip), ...CONFIG.assets.stills.map(loadStill)]);
+  try { // optional music file; only readable when the page is served over http
+    const r = await fetch(CONFIG.assets.music);
+    if (r.ok) { const Ctx = window.OfflineAudioContext || window.webkitOfflineAudioContext; musicBuffer = await new Ctx(2, 44100, 44100).decodeAudioData(await r.arrayBuffer()); }
+  } catch {}
+  if (!musicBuffer && !RENDER) { // opened from disk: the file cannot be fetched, but an <audio> element can still play it
+    await new Promise((res) => {
+      const el = new Audio();
+      el.addEventListener("canplaythrough", () => { musicEl = el; el.volume = 0.8; res(); }, { once: true });
+      el.addEventListener("error", res, { once: true });
+      setTimeout(res, 1500);
+      el.src = CONFIG.assets.music;
+    });
+  }
+  show(0);
+  if (RENDER) { document.body.classList.add("rec"); return; }
+  if (Q.get("record") === "1") record(); else playFrom(0);
+  requestAnimationFrame(tick);
+})();
+/** Used by render.mjs: exact frames and the soundtrack as a WAV. */
+window.__promo = {
+  ready, fps: FPS, frames: TOTAL, duration: DURATION, get size() { return [W, H]; },
+  missing: () => Object.entries(media).filter(([, m]) => !m.ok).map(([id]) => id),
+  async frame(f) {
+    wanted.clear(); collecting = true; drawFrame(f); collecting = false;
+    await Promise.all([...wanted].map(([id, w]) => seek(media[id].el, w.tau)));
+    wanted.clear(); drawFrame(f);
+    return canvas.toDataURL("image/jpeg", 0.95).slice(23);
+  },
+  async audio() {
+    const Ctx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    const ctx = new Ctx(2, Math.ceil(DURATION * 44100), 44100);
+    buildAudio(ctx, ctx.destination, 0, 0, musicBuffer);
+    const bytes = wav(await ctx.startRendering());
+    let s = ""; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return btoa(s);
+  },
+};
+</script>
+</body>
+</html>

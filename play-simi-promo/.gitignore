@@ -1,0 +1,12 @@
+node_modules/
+raw/
+explore/
+.render-*.wav
+# Guest session cookies for the capture accounts: never commit.
+guest-state.json
+guest-friend-*.json
+# Reviewer working copies: renders, frames and scratch. The scores (json) and logs stay.
+review/**/*.mp4
+review/**/*.jpg
+review/**/*.png
+review/**/work/

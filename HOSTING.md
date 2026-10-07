@@ -1,5 +1,17 @@
 # Cloudflare hosting
 
+## New avatar and six premium sets — deployed 5 October 2026
+
+PR #35 was merged by the owner (`8aa97ec`) and `main` was deployed as Worker version **`521f60e1-8f21-4d1e-8a8a-ff517e58e48d`** at about **22:45 SGT**. Before deploying, 383 Node tests ran on merged `main` (366 passed, 17 browser checks skipped) and all 14 Cloudflare integration tests passed, including the build and dry run.
+
+After deploying: health returned `ready: true`; the live HTML referenced `index-d6_amCuS.js`, and both that file and `models/neighbour-chibi2.glb` matched the local build byte-for-byte; the new wardrobe pictures returned 200; the retired `models/neighbour-chibi.glb` returned 404; unauthenticated state returned 401 and private server paths 404; the old address still answered.
+
+`STRIPE_CATALOG` now carries 20 entries (16 sets, 4 donations). No schema, migration, binding or secret changed. Looks gain an optional `body` field inside the existing JSON.
+
+Not verified in production: a signed-in view of the wardrobe and the payment catalogue (that needs a production profile, and none was created), a purchase of a new set, and phones. The `Darecade server` Stripe key was given Products and Prices write to create the prices; the owner should remove it.
+
+Rollback: redeploy `bd9c68f`. Players who chose Boy or a new item keep those values in their saved look; the older code ignores `body` and resets out-of-range items to the default.
+
 ## Move to playsimi.danielquek.com — deployed 5 October 2026
 
 PRs #20 (rename to Play Simi) and #21 (the move) were merged and `main` (`3c3bb09`) was deployed as Worker version **`c9777ba6-0e14-4c97-8dd9-5103508f23ad`** at about **03:00 SGT**. Before deploying, 205 Node tests ran on `main` (201 passed, 4 browser checks skipped) and all nine Cloudflare integration tests passed.
