@@ -661,7 +661,7 @@ export function applyLook(
         ].includes(gear)) ||
       hair.hood ||
       (headSet >= 0 &&
-        ["mage", "ranger", "trainer", "academy", "otter", "neighbour"].includes(
+        ["mage", "ranger", "trainer", "otter", "neighbour"].includes(
           legendarySets[headSet].design.costume,
         )) ||
       (classHeadVisible &&
@@ -692,9 +692,7 @@ export function applyLook(
     seatHeadwear(
       (group) => costumeHead(group, legendarySets[headSet]),
       ["royal", "knight"].includes(legendarySets[headSet].design.costume),
-      ["apprentice-mage", "moon-student", "void-deck-weekend"].includes(
-        legendarySets[headSet].id,
-      )
+      ["mage", "neighbour"].includes(legendarySets[headSet].design.costume)
         ? 1.59
         : 1.7,
     );

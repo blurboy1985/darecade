@@ -341,21 +341,11 @@ dialog:has(.wardrobe-layout) {
   }
 }
 /* Daily-gift and reward hats, listed with the headwear they sit on. */
-.hat-shelf {
-  margin: 12px 0;
-  padding: 12px;
-  border-radius: 14px;
-  background: #f4f0ff;
-}
-.hat-shelf h3 {
-  margin: 0 0 8px;
-  font-size: 16px;
-}
-.hat-shelf .hat-options button {
+.wardrobe-controls > .hat-options button {
   min-height: 44px;
   font-size: 13px;
 }
-.hat-shelf [aria-pressed="true"] {
+.wardrobe-controls > .hat-options [aria-pressed="true"] {
   border-color: #7a5cd6;
   background: #e4dcff;
 }
