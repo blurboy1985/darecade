@@ -1045,6 +1045,14 @@ test(
       });
       assert.equal(guest.status, 200, JSON.stringify(guest.data));
       assert.match(guest.headers.get("set-cookie"), /Secure/);
+      assert.match(guest.headers.get("set-cookie"), /Max-Age=31536000/);
+      const renewed = await api("auth/session", undefined, guest.cookie);
+      assert.match(renewed.headers.get("set-cookie"), /Max-Age=31536000/);
+      assert.equal(renewed.data.id, guest.data.id);
+      assert.equal(
+        (await api("state", undefined, guest.cookie)).data.competitionReady,
+        true,
+      );
       let cookie = guest.cookie;
       const id = guest.data.id;
       assert.equal(

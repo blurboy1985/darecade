@@ -95,9 +95,9 @@ export function buildHair(parent: T.Object3D, index: number, capped = false) {
       hairLock(
         hair,
         color,
-        [side * 0.43, -0.19, -0.1],
-        [0.16, 0.43, 0.18],
-        side * 0.65,
+        [side * 0.43, -0.34, -0.13],
+        [0.15, 0.59, 0.17],
+        side * 0.45,
       );
       part(
         hair,
@@ -110,7 +110,7 @@ export function buildHair(parent: T.Object3D, index: number, capped = false) {
     }
   }
   if (style === "ponytail")
-    hairLock(hair, color, [0, -0.12, -0.44], [0.2, 0.48, 0.2], 0.65);
+    hairLock(hair, color, [0, -0.29, -0.44], [0.18, 0.66, 0.18], 0.5);
   if (style === "braid") {
     for (let i = 0; i < 6; i++)
       part(

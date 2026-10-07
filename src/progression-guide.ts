@@ -8,7 +8,7 @@ export function levelReward(xp: number) {
 
 export function coastProgress(save: Pick<Save, "xp" | "coastRecord">) {
   const record = save.coastRecord;
-  return `<section class="game-progress" aria-label="Coast Rush goals"><strong>${record.timeTicks ? `Next goal: beat ${raceTime(record.timeTicks)}` : "First goal: finish all 3 laps"}</strong><p>${record.timeTicks ? `Personal records · fastest ${raceTime(record.timeTicks)} · best place ${record.place || "—"}` : "No finished race yet. Find your line through Palm Bay."}</p><p>Guests earn +20 XP per saved round and a Play medal for a full finish. Verified email is only needed for the ranked leaderboard.</p>${levelReward(save.xp)}</section>`;
+  return `<section class="game-progress" aria-label="Coast Rush goals"><strong>${record.timeTicks ? `Next goal: beat ${raceTime(record.timeTicks)}` : "First goal: finish all 3 laps"}</strong><p>${record.timeTicks ? `Personal records · fastest ${raceTime(record.timeTicks)} · best place ${record.place || "—"}` : "No finished race yet. Find your line through Palm Bay."}</p><p>Guests earn +20 XP per saved round and a Play medal for a full finish. After your first finish, standard races enter the leaderboard. No email needed.</p>${levelReward(save.xp)}</section>`;
 }
 
 export function stageProgress(

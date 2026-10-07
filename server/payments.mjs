@@ -165,8 +165,6 @@ export class Payments {
     const profile = this.c.privateProfile(player);
     if (!profile.purchasesConfirmed)
       fail("Purchases are for players aged 18 and over only.", 403);
-    if (!profile.account)
-      fail("Save your account with email before making a payment.", 403);
     const product = this.catalog().find((p) => p.id === productId);
     if (!product) fail("This item is not available for purchase.");
     if (product.kind === "donation" && !profile.purchasesConfirmed)

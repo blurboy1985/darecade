@@ -228,8 +228,20 @@ export class CommunityCore {
     const token = randomBytes(32).toString("hex");
     this.db
       .prepare("INSERT INTO sessions VALUES(?,?,?)")
-      .run(hash(token), player, this.now() + 30 * DAY);
+      .run(hash(token), player, this.now() + this.sessionDays(player) * DAY);
     return token;
+  }
+  sessionDays(player) {
+    return this.hasAccount(player) ? 30 : 365;
+  }
+  // Only a valid, unexpired device session can extend its own access.
+  renewGuestSession(token) {
+    const player = this.lookup(token);
+    if (player && !this.hasAccount(player))
+      this.db
+        .prepare("UPDATE sessions SET expires=? WHERE token=?")
+        .run(this.now() + 365 * DAY, hash(token));
+    return player;
   }
   /**
    * At the old address: a single-use code that carries this session across.
@@ -376,7 +388,7 @@ export class CommunityCore {
         ? {
             email: account.email,
             created: account.created,
-            eligibleAt: account.created + DAY,
+            eligibleAt: account.created,
           }
         : null,
       notifications: { medalEmail: this.medalRewards.optedIn(id) },
@@ -436,14 +448,14 @@ export class CommunityCore {
     if (!patch || typeof patch !== "object") throw Error("Choose a setting.");
     if (
       Object.hasOwn(patch, "medalEmail") &&
-      (typeof patch.medalEmail !== "boolean" || !this.rankedAccount(id))
+      (typeof patch.medalEmail !== "boolean" || !this.hasAccount(id))
     )
       throw Error("Verify your email and choose an email preference.");
     let name;
     if (Object.hasOwn(patch, "name")) {
       if (typeof patch.name !== "string") throw Error("Choose a nickname.");
       name = patch.name.trim().replace(/\s+/g, " ");
-      if (!this.rankedAccount(id))
+      if (!this.hasAccount(id))
         throw Error(
           "Guests use generated names. Save with email to choose a nickname.",
         );
@@ -728,7 +740,7 @@ export class CommunityCore {
       await this.sendEmail(
         normal,
         "Your Play Simi sign-in request",
-        `Someone asked to sign in to Play Simi with this email address, but no Play Simi account uses it yet.\n\nPlayed as a guest? Your guest profile is saved on the server and accessed through your original browser session. Open Play Simi there, choose Menu → Account & privacy → Save with email, and enter this email. After linking, you can sign in on another device. Clearing cookies, signing out or session expiry can leave an unlinked guest profile inaccessible.\n\nNew to Play Simi? Start here: ${this.origin}\n\nIf you did not ask for this, ignore this email. We will not email this address again for at least an hour.`,
+        `Someone asked to sign in to Play Simi with this email address, but no Play Simi account uses it yet.\n\nPlayed as a guest? Your guest progress and purchases are saved in your original browser, with verified records on the server. Open Play Simi there, choose Menu → Account & privacy → Save with email, and enter this email. After linking, you can sign in on another device. Device access renews when you return for up to a year. Clearing browser data or a year away can leave an unlinked guest profile inaccessible.\n\nNew to Play Simi? Start here: ${this.origin}\n\nIf you did not ask for this, ignore this email. We will not email this address again for at least an hour.`,
         hash(randomBytes(32)),
         { notice: true },
       );
@@ -828,32 +840,19 @@ export class CommunityCore {
     this.relay.onChange?.();
     return { ok: true };
   }
-  eligibleAccount(id) {
-    const a = this.db
-      .prepare("SELECT created FROM accounts WHERE player=?")
-      .get(id);
-    return !!a && a.created + DAY <= this.now();
+  canCompete(id) {
+    return !!this.db
+      .prepare(
+        "SELECT 1 FROM profiles WHERE player=? AND consent=? AND player NOT IN (SELECT player FROM suspensions)",
+      )
+      .get(id, PRIVACY_VERSION);
   }
-  /** Why this player cannot challenge yet, with the real opening time. */
-  dareHold(id) {
-    const a = this.db
-      .prepare("SELECT created FROM accounts WHERE player=?")
-      .get(id);
-    if (!a)
-      return "Save with email to challenge. Shared challenges open 24 hours after account verification. Regular rounds are available now.";
-    const opens = new Date(a.created + DAY).toLocaleString("en-SG", {
-      timeZone: "Asia/Singapore",
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-    return `Your challenges open ${opens} SGT, 24 hours after account verification. Regular rounds are available now.`;
+  /** A session must still have consent and must not be suspended. */
+  dareHold() {
+    return "Challenges are unavailable for this profile. Reconnect to check your play session.";
   }
-  // Every verified round by an email account is ranked; only challenges wait 24h.
-  rankedAccount(id) {
+  // Email is only required for account-specific settings, never for play.
+  hasAccount(id) {
     return !!this.db.prepare("SELECT 1 FROM accounts WHERE player=?").get(id);
   }
   begin(id, game, target = null, dareId = null, targetRun = null) {
@@ -893,11 +892,9 @@ export class CommunityCore {
         this.db.prepare("SELECT 1 FROM suspensions WHERE player=?").get(target)
       )
         throw Error("This challenge is unavailable.");
-      if (!this.eligibleAccount(id)) throw Error(this.dareHold(id));
-      if (!this.eligibleAccount(target))
-        throw Error(
-          "This neighbour’s challenges are not open yet. Shared challenges open 24 hours after account verification.",
-        );
+      if (!this.canCompete(id)) throw Error(this.dareHold());
+      if (!this.canCompete(target))
+        throw Error("This neighbour’s challenges are unavailable.");
       if (
         this.db
           .prepare(
@@ -956,7 +953,7 @@ export class CommunityCore {
       ...run,
       seed,
       version: rulesVersion(game),
-      ranked: this.rankedAccount(id) && seed >= 0,
+      ranked: this.canCompete(id) && !(game === "coast" && seed < 0),
       dailySeed: seed === seedFor(game, day(at)),
     };
   }
@@ -1002,8 +999,7 @@ export class CommunityCore {
         "This replay was submitted faster than the round could be played.",
       );
     const saved = this.store.transaction(() => {
-      const ranked =
-        this.rankedAccount(id) && !(r.game === "coast" && r.seed < 0);
+      const ranked = this.canCompete(id) && !(r.game === "coast" && r.seed < 0);
       this.db
         .prepare(
           "UPDATE runs SET score=?,finished=?,status='finished',verified=1,eligible=?,replay=?,digest=? WHERE id=?",
@@ -1105,7 +1101,7 @@ export class CommunityCore {
       return this.db
         .prepare(
           `SELECT p.id,p.name,p.look,SUM(m.points) points FROM medals m
-        JOIN players p ON p.id=m.player JOIN accounts a ON a.player=p.id
+        JOIN players p ON p.id=m.player JOIN profiles a ON a.player=p.id
         WHERE m.day>=? AND m.day<? AND p.id NOT IN (SELECT player FROM suspensions)
         GROUP BY p.id ORDER BY points DESC,p.id ASC`,
         )
@@ -1151,6 +1147,7 @@ export class CommunityCore {
       ...(base.cards.get(id)?.guestBest || personal.self.best),
     };
     const profile = this.privateProfile(id);
+    const competitionReady = this.canCompete(id);
     return {
       ...personal,
       day: base.day,
@@ -1167,31 +1164,25 @@ export class CommunityCore {
       boards: Object.fromEntries(
         gameIds.map((game) => [
           game,
-          profile.account || game === "coast"
-            ? base.boards[game]
-                .filter((p) => allowed(p.id))
-                .slice(0, 50)
-                .map((p) => ({ ...p }))
-            : [],
+          base.boards[game]
+            .filter((p) => allowed(p.id))
+            .slice(0, 50)
+            .map((p) => ({ ...p })),
         ]),
       ),
       week: snapshot.week,
-      weekly: profile.account
-        ? structuredClone(
-            snapshot.weekly.filter((p) => allowed(p.id)).slice(0, 50),
-          )
-        : [],
-      lastWeek: profile.account
-        ? structuredClone(
-            snapshot.lastWeek.filter((p) => allowed(p.id)).slice(0, 50),
-          )
-        : [],
+      weekly: structuredClone(
+        snapshot.weekly.filter((p) => allowed(p.id)).slice(0, 50),
+      ),
+      lastWeek: structuredClone(
+        snapshot.lastWeek.filter((p) => allowed(p.id)).slice(0, 50),
+      ),
       dares: snapshot.dares
         .filter((d) => d.expires > this.now() && allowed(d.host))
         .map((d) => ({ ...d })),
       profile,
-      ...this.seasons.state(id, allowed, !!profile.account),
-      competitionReady: this.eligibleAccount(id),
+      ...this.seasons.state(id, allowed, competitionReady),
+      competitionReady,
       recentRuns: this.db
         .prepare(
           `SELECT id,game,score,finished FROM runs WHERE player=? AND verified=1

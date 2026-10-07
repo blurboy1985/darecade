@@ -804,7 +804,10 @@ test("sign-in requests for an address with no account send guidance, not a link,
     assert.equal(notice.code, undefined);
     assert.doesNotMatch(notice.text, /\d{6}/);
     assert.match(notice.text, /Account & privacy/);
-    assert.match(notice.text, /saved on the server.*original browser session/);
+    assert.match(
+      notice.text,
+      /saved in your original browser.*verified records on the server/,
+    );
     assert.doesNotMatch(notice.text, /More →|Create my account/);
     // Only a hash of the address is kept for throttling.
     assert.equal(

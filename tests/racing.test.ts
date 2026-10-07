@@ -568,8 +568,8 @@ test("new bests and race records come from replay, retry safely, and never put r
     assert.deepEqual(community.privateProfile(id).progress.coastRecord, record);
     assert.equal(
       community.state(id).boards.coast.length,
-      0,
-      "guests and AI are excluded",
+      1,
+      "standard guest races are ranked; AI are excluded",
     );
     assert.equal(store.db.prepare("SELECT COUNT(*) n FROM players").get().n, 1);
     const verified = community.join({
@@ -583,16 +583,16 @@ test("new bests and race records come from replay, retry safely, and never put r
       .run(verified, "board@example.test", now - 172800000);
     const rankedRun = store.begin(verified, "coast");
     store.finish(verified, rankedRun.id, 1000);
-    assert.equal(community.state(verified).boards.coast.length, 1);
+    assert.equal(community.state(verified).boards.coast.length, 2);
     assert.equal(
       community.state(id).boards.coast.length,
-      1,
-      "guests can read ranked Coast Rush times for comparison",
+      2,
+      "guests and accounts share the ranked board",
     );
-    assert.equal(community.state(id).boards.coast[0].id, verified);
+    assert.ok(community.state(id).boards.coast.some((p) => p.id === verified));
     assert.ok(
-      !community.state(id).boards.coast.some((p) => p.id === id),
-      "viewing the board never enters the guest's own result",
+      community.state(id).boards.coast.some((p) => p.id === id),
+      "validated standard races enter the guest's own result",
     );
   } finally {
     store.close();

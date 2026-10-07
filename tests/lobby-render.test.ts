@@ -11,6 +11,7 @@ import * as interactions from "../src/interactions.ts";
 import * as neighbourhood from "../src/neighbourhood.ts";
 import * as wardrobe from "../src/wardrobe.ts";
 import * as playMedals from "../src/play-medals.ts";
+import { levelReward } from "../src/progression-guide.ts";
 import { rooftops } from "../src/rooftops.ts";
 
 // Evaluate the actual render functions. The small element fixture only records
@@ -165,6 +166,7 @@ function harness() {
     ...neighbourhood,
     ...wardrobe,
     ...playMedals,
+    levelReward,
     rooftops,
     body,
     document: {
@@ -453,7 +455,7 @@ test("first-visit settings paths never start a race and Back returns to welcome"
 });
 
 // The remaining tests cover bugs from the 4 October 2026 playtest.
-test("locked dares show their real opening time and never promise dares for today", () => {
+test("unavailable challenges explain connection needs without an email gate", () => {
   const h = harness();
   h.context.shared.competitionReady = false;
   h.context.currentProfile = {
@@ -479,20 +481,17 @@ test("locked dares show their real opening time and never promise dares for toda
     h.context.dareView = view;
     h.run("renderSharedDares()");
     const html = h.body.innerHTML;
-    assert.match(html, /Your challenges open Mon, 5 Oct, 14:30 SGT/, view);
+    assert.match(html, /Connect to play challenges/, view);
     assert.doesNotMatch(html, /left today/, view);
     for (const button of playButtons(html)) assert.match(button, /disabled/);
     checkActions(html, `locked dares ${view}`);
   }
   h.run('renderPlayerInspector("p0")');
   assert.match(h.inspector.innerHTML, /Challenges are not open for you yet/);
-  assert.match(
-    h.inspector.innerHTML,
-    /Your challenges open Mon, 5 Oct, 14:30 SGT/,
-  );
+  assert.match(h.inspector.innerHTML, /Connect to play challenges/);
   assert.doesNotMatch(h.inspector.innerHTML, /Ready for a friendly challenge/);
 
-  // Once the wait is over, the count and a playable button appear together.
+  // Once connected, the count and a playable button appear together.
   h.context.shared.competitionReady = true;
   h.context.dareView = "neighbour";
   h.run("renderSharedDares()");
@@ -610,7 +609,8 @@ test("Rankings shows a guest the board and never opens the account dialog", () =
     assert.match(html, /<strong>1 \/ 3<\/strong> Play medal points today/);
     assert.doesNotMatch(html, /Guest rounds are not ranked/);
     assert.doesNotMatch(html, /Playing without email/);
-    assert.doesNotMatch(html, /Finish a round to (join the board|claim #1)/);
+    assert.match(html, /Rankings and challenges need no email/);
+    assert.match(html, /XP to your next Style token/);
     // Saving stays an offer on the board, not a wall in front of it.
     assert.match(html, /data-account>Link an email</);
     checkActions(html, `guest rankings ${period}`);

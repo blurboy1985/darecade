@@ -57,16 +57,21 @@ export function hairSurface(style: HairShape, capped: boolean) {
       let z = -0.015 + depth * Math.sin(polar) * Math.cos(angle);
       // Fade the ridges to zero at the welded crown. Keep valleys outside the
       // skull; surface shading comes from raised locks, not cuts into the scalp.
-      const relief =
-        (style === "messy" ? 0.065 : 0.045) * lock * Math.sin(polar);
+      const relief = (style === "messy" ? 0.05 : 0.03) * lock * Math.sin(polar);
       x += relief * Math.sin(angle);
       z += relief * Math.cos(angle);
       // Hats retain the original crown-height envelope.
       if (!capped) y += relief * 0.5;
       x += 0.055 * Math.sin(Math.PI * t) * Math.sin(polar);
       // Length grows from the lower side/back of the same shell, with no seam.
-      const length = style === "flowing" ? 0.57 : style === "bob" ? 0.19 : 0;
-      y -= length * (1 - front) * smooth(0.48, 1, t);
+      const length = style === "flowing" ? 0.86 : style === "bob" ? 0.34 : 0.1;
+      const fall = (1 - front) * smooth(0.48, 1, t);
+      // Loose waves widen below the ears and taper back toward the ends.
+      const wave =
+        length * 0.1 * Math.sin(t * Math.PI * 2.2 + angle * 2) * fall;
+      x += wave * Math.sin(angle);
+      z += wave * Math.cos(angle);
+      y -= length * fall;
       y += length * 0.12 * (1 - front) * (1 - edgeLock) * smooth(0.75, 1, t);
       if (style === "spiky" && !capped) {
         const tips = Math.pow(Math.max(0, Math.cos(angle * 5)), 6);

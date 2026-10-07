@@ -93,6 +93,12 @@ test(
       const setCookie = joined.headers.get("set-cookie")!;
       assert.match(setCookie, /HttpOnly/);
       assert.match(setCookie, /SameSite=Strict/);
+      assert.match(setCookie, /Max-Age=31536000/);
+      const renewed = await fetch(origin + "/api/auth/session", {
+        headers: { Cookie: setCookie.split(";")[0] },
+      });
+      assert.match(renewed.headers.get("set-cookie")!, /Max-Age=31536000/);
+      assert.equal((await renewed.json()).account, null);
       const cookie = setCookie.split(";")[0];
       const paymentsConfig = await fetch(origin + "/api/payments/config", {
         headers: { Cookie: cookie },

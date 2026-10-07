@@ -195,7 +195,7 @@ test("forged, fast, unfinished and abandoned rounds cannot award; finish and awa
   }
 });
 
-test("linking a synthetic email retains the guest identity and Play medals without ranking old rounds", async () => {
+test("linking a synthetic email retains the guest identity and Play medals without changing ranked rounds", async () => {
   const s = fixture();
   try {
     finish(s, "swarm");
@@ -218,7 +218,7 @@ test("linking a synthetic email retains the guest identity and Play medals witho
     assert.equal(
       s.store.db.prepare("SELECT eligible FROM runs WHERE player=?").get(s.id)
         .eligible,
-      0,
+      1,
     );
     assert.equal(finish(s, "swarm").result.playMedal, 0);
     assert.equal(finish(s, "hoops").result.playMedal, 1);

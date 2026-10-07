@@ -124,7 +124,7 @@ export class Seasons {
     const rows = this.db
       .prepare(
         `SELECT p.id,p.name,p.look,SUM(m.points) points FROM medals m
-      JOIN players p ON p.id=m.player JOIN accounts a ON a.player=p.id
+      JOIN players p ON p.id=m.player JOIN profiles a ON a.player=p.id
       WHERE m.day>=? AND (? IS NULL OR m.day<?) AND p.id NOT IN (SELECT player FROM suspensions)
       GROUP BY p.id ORDER BY points DESC,p.id ASC`,
       )

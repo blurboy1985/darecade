@@ -6,6 +6,21 @@ donations are S$2, S$5, S$10 or S$50, all in SGD. The separate
 local sandbox purchase and refund passed; no real payment has been processed
 as part of setup.
 
+## Guest purchases
+
+The current code allows guest purchases with no email account. A selected set
+opens its own purchase screen, with the configured SGD total and one checkout
+button after adult confirmation. Optional email backup is tucked into details.
+The purchase return reconciles payment with Stripe before caching the updated
+owned looks in `darecade-v1`. Ownership remains server-authoritative.
+
+Guests keep a HttpOnly device cookie for 365 days, renewed when the app opens.
+Existing unexpired 30-day guest sessions upgrade on their next visit. Expired
+or revoked sessions cannot be revived. Clearing browser data, changing browsers,
+private browsing or inactivity can lose access; optional email backup enables
+recovery and use on other devices. Account sessions retain their 30-day expiry.
+The existing inactive-profile retention and deletion rules still apply.
+
 ## Stripe setup status — 4 October 2026
 
 - Separate Darecade account: `acct_1UMkqGA6Maf1zlsl`.
@@ -47,7 +62,7 @@ as part of setup.
   it pointed at `https://darecade.daniel-tianwen.workers.dev/api/payments/webhook`,
   which still accepts signed events. The address was edited in place, so the
   signing secret is unchanged; the destination is now named `Play Simi
-  purchases`.
+purchases`.
 - Stripe delivered live event `evt_1UMlW5A6Maf1zlsltj5Rbx3y` with HTTP 200 and
   `received: true` at 17:15:48 SGT. Its initial attempt reached the previous
   deployment during propagation; Stripe's automatic retry recovered after
@@ -82,8 +97,9 @@ it, and starts the local server. Open `http://127.0.0.1:4174`. Use only
 [Stripe test cards](https://docs.stripe.com/testing). Ctrl+C stops both processes.
 
 Players can open **More → Support & purchases**, or **My look → Sets → Buy set
-options**. Prices appear only after the operator configures them. A saved email
-account is required before checkout. Players see the amount and the product
+options**. Prices appear only after the operator configures them. Guests can
+check out after confirming they are 18 or older. Email backup is optional.
+Players see the amount and the product
 before choosing Stripe's hosted checkout. Purchases are one-time, in SGD, and
 unlock all four pieces of a set without spending Style tokens or requiring
 medals. The earned-token route remains available. Donations grant no items,
@@ -113,13 +129,13 @@ publishable key is not needed for hosted Checkout.
 
 ## Configuration
 
-| Variable | Purpose |
-| --- | --- |
-| `PAYMENTS_ENABLED` | Must be the string `true` to allow new checkout sessions. Defaults to `false`. |
-| `STRIPE_SECRET_KEY` | Server-side Stripe secret. |
-| `STRIPE_WEBHOOK_SECRET` | Signing secret for `/api/payments/webhook`. |
-| `STRIPE_CATALOG` | JSON object mapping a product ID to `priceId` and integer `amount` in SGD cents. Defaults to `{}`. |
-| `PUBLIC_ORIGIN` | The canonical game origin. Stripe return and cancellation URLs use this value, never a client-supplied URL. |
+| Variable                | Purpose                                                                                                     |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `PAYMENTS_ENABLED`      | Must be the string `true` to allow new checkout sessions. Defaults to `false`.                              |
+| `STRIPE_SECRET_KEY`     | Server-side Stripe secret.                                                                                  |
+| `STRIPE_WEBHOOK_SECRET` | Signing secret for `/api/payments/webhook`.                                                                 |
+| `STRIPE_CATALOG`        | JSON object mapping a product ID to `priceId` and integer `amount` in SGD cents. Defaults to `{}`.          |
+| `PUBLIC_ORIGIN`         | The canonical game origin. Stripe return and cancellation URLs use this value, never a client-supplied URL. |
 
 Set IDs: `solar`, `moon`, `storm`, `sakura`, `nova`, `abyss`, `tide`, `phoenix`,
 `frost`, `galaxy`, and from 5 October 2026 `candy`, `boba`, `pixel`, `witch`,
@@ -184,12 +200,11 @@ emails and complete your merchant/support details in Stripe before launch.
 
 ## Validation
 
-Automated tests cover disabled configuration, saved-account requirements,
+Automated tests cover disabled configuration, guest checkout and age requirements,
 concurrent retries, unpaid and mismatched payments, forged and stale signatures,
 fulfilment, refunds, donations, account deletion and ownership isolation.
 External Stripe responses are simulated in the automated tests. The separate
-browser-based Stripe sandbox purchase and refund above also passed on 4 October
-2026. Production webhook delivery and unpaid live Checkout creation also
+browser-based Stripe sandbox purchase and refund above also passed on 4 October 2026. Production webhook delivery and unpaid live Checkout creation also
 passed as recorded above. A completed live charge and payout were not tested.
 
 The final pre-deployment checks passed 113 Node tests, 8 Cloudflare runtime

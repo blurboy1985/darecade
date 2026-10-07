@@ -157,6 +157,54 @@ function setup(secretKey = "sk_test_fixture", livemode = false) {
   };
 }
 
+test("guest purchases survive a new device session, retry safely and still revoke refunds", async () => {
+  const s = setup();
+  try {
+    assert.equal(s.c.privateProfile(s.player).account, null);
+    const checkout = await s.payments.checkout(s.player, "solar");
+    assert.equal(
+      (await s.payments.checkout(s.player, "solar")).url,
+      checkout.url,
+    );
+    const session = [...s.sessions.values()][0];
+    assert.deepEqual(
+      s.c.privateProfile(s.player).progress.wardrobePurchased,
+      [],
+    );
+    const other = s.c.join({
+      over13: true,
+      consent: true,
+      privacyVersion: PRIVACY_VERSION,
+    });
+    await assert.rejects(
+      s.payments.reconcile(session.id, other.me.id),
+      /not found/,
+    );
+    session.status = "complete";
+    session.payment_status = "paid";
+    await s.event(session);
+    await s.event(session);
+    const device = s.c.issue(s.player);
+    const restored = s.c.privateProfile(s.c.lookup(device));
+    assert.equal(restored.account, null);
+    assert.deepEqual(restored.progress.wardrobePurchased, ["solar"]);
+    assert.equal(s.payments.history(restored.id).length, 1);
+    s.c.patch(restored.id, setLook(0));
+    session.payment_intent.latest_charge.refunded = true;
+    await s.payments.reconcile(session.id, restored.id);
+    assert.deepEqual(
+      s.c.privateProfile(restored.id).progress.wardrobePurchased,
+      [],
+    );
+    assert.equal(
+      s.store.db.prepare("SELECT count(*) n FROM accounts").get().n,
+      0,
+    );
+  } finally {
+    s.close();
+  }
+});
+
 test("under-18 checkout is rejected before any Stripe request", async () => {
   const s = setup();
   try {
@@ -173,7 +221,7 @@ test("under-18 checkout is rejected before any Stripe request", async () => {
   }
 });
 
-test("payment configuration stays closed without secrets and saved accounts; prices stay server-owned", async () => {
+test("payment configuration stays closed without secrets; prices stay server-owned", async () => {
   const s = setup();
   try {
     const off = new Payments(s.c);
@@ -183,11 +231,6 @@ test("payment configuration stays closed without secrets and saved accounts; pri
       products: [],
     });
     await assert.rejects(() => off.checkout(s.player, "solar"), /coming soon/);
-    await assert.rejects(
-      () => s.payments.checkout(s.player, "solar"),
-      /Save your account/,
-    );
-    s.account();
     await assert.rejects(
       () => s.payments.checkout(s.player, "forged-price"),
       /not available/,

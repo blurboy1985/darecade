@@ -97,47 +97,40 @@ function finish(s: Setup, player: string, game: string, jump: boolean) {
   return { id: run.id, score: round.score };
 }
 
-test("1. a locked account is given the real time its dares open, and they open then", async () => {
+test("1. guests and new accounts can challenge validated scores immediately", async () => {
   const s = setup();
   try {
     const host = await register(s, "host@example.test"),
       me = await register(s, "me@example.test");
     finish(s, host.me.id, "noodle", false);
     const state = s.community.state(me.me.id);
-    assert.equal(state.competitionReady, false);
+    assert.equal(state.competitionReady, true);
     assert.equal(
       state.profile.account.eligibleAt,
-      state.profile.account.created + DAY,
-    );
-    const opens = /Your challenges open Wed, 7 Oct, 10:00 SGT, 24 hours after/;
-    assert.throws(
-      () => s.community.begin(me.me.id, "noodle", host.me.id),
-      opens,
+      state.profile.account.created,
     );
     assert.throws(() => s.community.postDare(me.me.id, "none"), /saved score/);
-    // A guest is told to save first, not given a time that does not exist.
     const guest = s.community.join(consent);
-    assert.throws(
-      () => s.community.begin(guest.me.id, "noodle", host.me.id),
-      /Save with email to challenge/,
+    assert.equal(s.community.state(guest.me.id).competitionReady, true);
+    assert.ok(
+      s.community.begin(guest.me.id, "noodle", host.me.id).targetScore > 0,
     );
-    s.tick(DAY);
-    assert.equal(s.community.state(me.me.id).competitionReady, true);
-    const dare = s.community.begin(me.me.id, "noodle", host.me.id);
-    assert.ok(dare.targetScore > 0, "a verified account can play a dare now");
+    assert.ok(
+      s.community.begin(me.me.id, "noodle", host.me.id).targetScore > 0,
+    );
   } finally {
     s.close();
   }
 });
 
-test("1. the dare screen copy names the opening time and each reason a button is off", () => {
+test("1. the dare screen names connection and gameplay limits without an email gate", () => {
   const opens = Date.parse("2026-10-05T14:30:00+08:00");
   assert.equal(dareHoldCopy(true, { eligibleAt: opens }), "");
   assert.match(
     dareHoldCopy(false, { eligibleAt: opens }),
-    /^Your challenges open Mon, 5 Oct, 14:30 SGT, 24 hours after your email was verified\./,
+    /Connect to play challenges/,
   );
-  assert.match(dareHoldCopy(false, null), /Save with email/);
+  assert.match(dareHoldCopy(false, null), /No email needed/);
   const open = { connected: true, left: 3 };
   assert.equal(dareBlock(open), "");
   assert.match(dareBlock({ ...open, connected: false }), /connection/);
