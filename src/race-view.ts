@@ -1,3 +1,4 @@
+import { resizeRenderer } from "./render-budget.ts";
 import { seededLook, distinctHair } from "./character-identity.ts";
 import * as T from "three";
 import { KartSteering, KartWheel, KART_WHEEL_RADIUS } from "./kart-motion";
@@ -75,7 +76,6 @@ export class RaceView {
       alpha: false,
       powerPreference: "high-performance",
     });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     this.renderer.outputColorSpace = T.SRGBColorSpace;
     this.renderer.toneMapping = T.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.2;
@@ -322,7 +322,7 @@ export class RaceView {
       const width = host.clientWidth,
         height = host.clientHeight;
       if (!width || !height || this.disposed) return;
-      this.renderer.setSize(width, height, false);
+      resizeRenderer(this.renderer, width, height, false);
       this.camera.aspect = width / height;
       this.camera.updateProjectionMatrix();
     });

@@ -126,3 +126,20 @@ test("activity props and repeated zoom never put the camera inside the avatar", 
     }
   `);
 });
+
+test("walking past a camera obstruction preserves the chosen orbit", () => {
+  run(`
+    world.obstacles=[{x:0,z:2.5,w:2,d:1,cameraHeight:3}];
+    const direction=new T.Vector3(0,Math.sin(world.pitch),Math.cos(world.pitch));
+    for(let i=0;i<=100;i++) {
+      world.player.root.position.set(-2+i*.04,.1,0);
+      world.updateCamera();
+      const focus=world.player.root.position.clone().add(new T.Vector3(0,1.2,0));
+      const boom=world.followCamera.position.clone().sub(focus);
+      assert.ok(boom.clone().normalize().distanceTo(direction)<1e-8,
+        'obstacles must fade instead of snapping the camera to another orbit');
+      assert.ok(Math.abs(boom.length()-world.followDistance)<1e-8,
+        'walking must not snap camera zoom at the edge of an obstruction');
+    }
+  `);
+});

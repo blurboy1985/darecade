@@ -1,3 +1,4 @@
+import { resizeRenderer } from "./render-budget.ts";
 import * as T from "three";
 
 type WaterUniforms = {
@@ -229,7 +230,6 @@ export function createPlotView(
       alpha: false,
       powerPreference: "low-power",
     });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.outputColorSpace = T.SRGBColorSpace;
     renderer.setClearColor("#715337");
     const canvas = renderer.domElement;
@@ -420,7 +420,7 @@ export function createPlotView(
       const width = host.clientWidth;
       const height = host.clientHeight;
       if (!width || !height) return;
-      renderer.setSize(width, height, false);
+      resizeRenderer(renderer, width, height, false);
       render();
     };
     observer = new ResizeObserver(resize);

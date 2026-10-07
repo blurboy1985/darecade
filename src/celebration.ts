@@ -1,9 +1,9 @@
+import { resizeRenderer } from "./render-budget.ts";
 import * as T from "three";
 
 /** One short, lightweight burst. Owns and releases all of its GPU resources. */
 export function celebrate(host: HTMLElement) {
   const renderer = new T.WebGLRenderer({ alpha: true, antialias: false });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
   host.append(renderer.domElement);
   const scene = new T.Scene();
   const camera = new T.PerspectiveCamera(45, 1, 0.1, 30);
@@ -40,7 +40,7 @@ export function celebrate(host: HTMLElement) {
   const resize = () => {
     const w = Math.max(1, host.clientWidth),
       h = Math.max(1, host.clientHeight);
-    renderer.setSize(w, h);
+    resizeRenderer(renderer, w, h);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
   };

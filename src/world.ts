@@ -1,3 +1,4 @@
+import { resizeRenderer } from "./render-budget.ts";
 import { cameraOcclusion } from "./camera-occlusion";
 import {
   seededLook,
@@ -223,6 +224,8 @@ function batchStatic(root: T.Object3D, preserve = new Set<T.Object3D>()) {
     const mesh = new T.Mesh(merged, mat);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
+    mesh.updateMatrix();
+    mesh.matrixAutoUpdate = false;
     root.add(mesh);
   }
 }
@@ -301,9 +304,7 @@ export class LobbyWorld {
   private accumulator = 0;
   private frames = 0;
   private monitor = 0;
-  private low = false;
   private motion = new WorldMotion();
-  private quality: "auto" | "quality" | "performance" = "auto";
   private jumpVelocity = 0;
   private jumpInput = new JumpInput();
   private elevation = 0.1;
@@ -319,7 +320,6 @@ export class LobbyWorld {
   private phoneOverview = true;
   private overviewBlend = 1;
 
-  private shadowAt = -1;
   private marker: T.Mesh;
   private listener: ResizeObserver;
   interactions!: InteractionScenes;
@@ -368,11 +368,6 @@ export class LobbyWorld {
       alpha: true,
       powerPreference: "high-performance",
     });
-    this.renderer.setPixelRatio(
-      Math.min(devicePixelRatio, host.clientWidth < 760 ? 1.25 : 1.5),
-    );
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = T.PCFShadowMap;
     this.renderer.outputColorSpace = T.SRGBColorSpace;
     this.renderer.toneMapping = T.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.35;
@@ -392,14 +387,6 @@ export class LobbyWorld {
     this.scene.add(this.ambient);
     this.sun = new T.DirectionalLight("#ffd0a1", 3.3);
     this.sun.position.set(-15, 25, 10);
-    this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(2048, 2048);
-    this.sun.shadow.camera.left = -32;
-    this.sun.shadow.camera.right = 44;
-    this.sun.shadow.camera.top = 26;
-    this.sun.shadow.camera.bottom = -26;
-    this.sun.shadow.normalBias = 0.06;
-    this.sun.shadow.bias = -0.0003;
     this.scene.add(this.sun);
     this.buildGround();
     this.buildArcade();
@@ -2011,10 +1998,10 @@ export class LobbyWorld {
   private resize() {
     const w = this.host.clientWidth,
       h = this.host.clientHeight;
-    this.mobile = w < 760;
-    this.renderer.shadowMap.autoUpdate = !this.mobile;
-    this.renderer.shadowMap.needsUpdate = true;
-    this.renderer.setSize(w, h);
+    if (!w || !h) return;
+    this.mobile =
+      matchMedia("(pointer: coarse)").matches || Math.min(w, h) < 600;
+    resizeRenderer(this.renderer, w, h);
     this.updateCamera();
   }
   private updateCamera() {
@@ -2039,55 +2026,11 @@ export class LobbyWorld {
         Math.cos(this.angle) * Math.cos(this.pitch),
       );
       this.followCamera.fov = this.mobile ? 60 : 52;
-      // Only static props participate. Choose a nearby clear view when pulling
-      // inward would put the camera inside the player's head.
-      const clearDistance = (direction: T.Vector3) => {
-        let distance = this.followDistance;
-        const ray = new T.Ray(focus, direction);
-        for (const o of this.obstacles) {
-          if (!o.cameraHeight) continue;
-          const bounds = new T.Box3(
-            new T.Vector3(o.x - o.w / 2 - 0.15, 0, o.z - o.d / 2 - 0.15),
-            new T.Vector3(
-              o.x + o.w / 2 + 0.15,
-              o.cameraHeight,
-              o.z + o.d / 2 + 0.15,
-            ),
-          );
-          // Activity rigs can sit inside a prop's coarse movement footprint.
-          // Its exit face is not an obstruction between the subject and camera.
-          if (bounds.containsPoint(focus)) continue;
-          const hit = ray.intersectBox(bounds, new T.Vector3());
-          if (hit)
-            distance = Math.min(
-              distance,
-              Math.max(0.05, focus.distanceTo(hit) - 0.15),
-            );
-        }
-        return distance;
-      };
-      let distance = clearDistance(offset);
-      const framing = Math.min(this.followDistance, ratio > 1.4 ? 3.6 : 3.2);
-      if (distance < framing) {
-        outer: for (const pitch of [Math.max(this.pitch, 0.6), 0.9, 1.3, 1.5]) {
-          for (const turn of [0, 0.4, -0.4, 0.8, -0.8, 1.6, -1.6, Math.PI]) {
-            const candidate = new T.Vector3(
-              Math.sin(this.angle + turn) * Math.cos(pitch),
-              Math.sin(pitch),
-              Math.cos(this.angle + turn) * Math.cos(pitch),
-            );
-            const clear = clearDistance(candidate);
-            if (clear > distance) {
-              distance = clear;
-              offset.copy(candidate);
-            }
-            if (distance >= framing) break outer;
-          }
-        }
-      }
+      // Foreground props already fade in cameraOcclusion. Keep the chosen
+      // orbit fixed: switching among obstruction candidates makes walking shake.
       this.followCamera.position
         .copy(focus)
-        .addScaledVector(offset, Math.max(framing, distance));
+        .addScaledVector(offset, this.followDistance);
       this.followCamera.position.y = Math.max(
         0.35,
         this.followCamera.position.y,
@@ -2651,12 +2594,12 @@ export class LobbyWorld {
       this.home.x = T.MathUtils.lerp(
         this.home.x,
         this.player.root.position.x,
-        0.025,
+        1 - Math.exp(-1.52 * dt),
       );
       this.home.z = T.MathUtils.lerp(
         this.home.z,
         this.player.root.position.z,
-        0.025,
+        1 - Math.exp(-1.52 * dt),
       );
       this.updateCamera();
     } else if (this.cameraMode === "isometric") {
@@ -2666,8 +2609,16 @@ export class LobbyWorld {
       const p = this.player.root.position;
       const z = p.x > 20 ? T.MathUtils.clamp(p.z - 5, -1, 5) : -1;
       if (Math.abs(x - this.home.x) + Math.abs(z - this.home.z) > 0.02) {
-        this.home.x = T.MathUtils.lerp(this.home.x, x, 0.06);
-        this.home.z = T.MathUtils.lerp(this.home.z, z, 0.06);
+        this.home.x = T.MathUtils.lerp(
+          this.home.x,
+          x,
+          1 - Math.exp(-3.71 * dt),
+        );
+        this.home.z = T.MathUtils.lerp(
+          this.home.z,
+          z,
+          1 - Math.exp(-3.71 * dt),
+        );
         this.updateCamera();
       }
     }
@@ -2768,17 +2719,12 @@ export class LobbyWorld {
             "idle";
       const near =
         a === this.player ||
-        a.root.position.distanceTo(this.camera.position) < 24;
+        a.root.position.distanceToSquared(this.camera.position) < 144;
       setAvatarDetail(a, near);
       animateDetails(a, this.clock, mode, this.reduced || !near);
     }
     // Finalize the character and skeleton before following that exact displayed pose.
     if (this.cameraMode === "third") this.updateCamera();
-    // Phone shadows update at 20 Hz; motion and the main scene stay at display rate.
-    if (this.mobile && this.clock - this.shadowAt >= 0.05) {
-      this.renderer.shadowMap.needsUpdate = true;
-      this.shadowAt = this.clock;
-    }
     this.occlusion?.update(
       this.player.root.position,
       this.camera.position,
@@ -2796,21 +2742,6 @@ export class LobbyWorld {
       this.renderer.domElement.dataset.drawCalls = String(
         this.renderer.info.render.calls,
       );
-      if (
-        fps < 29 &&
-        !this.low &&
-        this.quality === "auto" &&
-        !this.player.moving &&
-        !this.path.length
-      ) {
-        this.renderer.setPixelRatio(1);
-        this.renderer.shadowMap.enabled = false;
-        this.low = true;
-        window.dispatchEvent(new Event("performance-mode"));
-        document
-          .getElementById("quality-note")
-          ?.replaceChildren("Performance mode");
-      }
       this.monitor = 0;
       this.frames = 0;
       this.accumulator = 0;
@@ -2949,18 +2880,6 @@ export class LobbyWorld {
   }
   setReduced(value: boolean) {
     this.reduced = value;
-  }
-  setQuality(value: "auto" | "quality" | "performance") {
-    if (value === "performance")
-      window.dispatchEvent(new Event("performance-mode"));
-    this.quality = value;
-    this.low = value === "performance";
-    this.renderer.setPixelRatio(this.low ? 1 : Math.min(devicePixelRatio, 2));
-    this.renderer.shadowMap.enabled = !this.low;
-    this.renderer.shadowMap.needsUpdate = true;
-    this.monitor = 0;
-    this.frames = 0;
-    this.renderer.domElement.dataset.quality = value;
   }
   dispose() {
     this.cancelInteraction();

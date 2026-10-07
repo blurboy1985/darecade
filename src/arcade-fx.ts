@@ -1,3 +1,4 @@
+import { resizeRenderer } from "./render-budget.ts";
 import * as T from "three";
 import type { GameId } from "./state";
 
@@ -120,7 +121,6 @@ export function createArcadeFx(host: HTMLElement, id: GameId): ArcadeFx {
     sunTop: "#ffe6a1",
     sunBottom: "#ffd2a6",
   };
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
   renderer.setClearColor(theme.sky);
   renderer.domElement.className = "arcade-fx-canvas";
   host.append(renderer.domElement);
@@ -338,7 +338,7 @@ export function createArcadeFx(host: HTMLElement, id: GameId): ArcadeFx {
   const resize = () => {
     const w = Math.max(1, host.clientWidth),
       h = Math.max(1, host.clientHeight);
-    renderer.setSize(w, h, false);
+    resizeRenderer(renderer, w, h, false);
     camera.aspect = w / h;
     camera.fov = w / h < 0.8 ? 72 : 60;
     // Keep side bursts inside the view on narrow phones.

@@ -1,3 +1,4 @@
+import { resizeRenderer } from "./render-budget.ts";
 import * as T from "three";
 
 type Chip = {
@@ -29,8 +30,7 @@ export class BrickFx {
   private disposed = false;
   constructor(host: HTMLElement) {
     this.renderer = new T.WebGLRenderer({ alpha: true, antialias: true });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
-    this.renderer.setSize(440, 440, false);
+    resizeRenderer(this.renderer, 440, 440, false);
     this.renderer.setClearColor(0, 0);
     const canvas = this.renderer.domElement;
     canvas.className = "brick-fx";

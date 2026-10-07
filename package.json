@@ -12,6 +12,7 @@
     "cf:check": "npm run build && wrangler deploy --dry-run --outdir .browser/cloudflare-bundle",
     "cf:dev": "wrangler dev",
     "cf:deploy": "npm run build && wrangler deploy",
+    "test:mobile-render": "node scripts/mobile-render-check.mjs --check",
     "test:cloudflare": "npm run cf:check && node --test tests/cloudflare.test.mjs tests/relay-cloudflare.test.mjs",
     "load:test": "node scripts/load-test.mjs"
   },
