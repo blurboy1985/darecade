@@ -1,0 +1,145 @@
+/* The intro film's overlay. Loaded before the game's own styles, so it brings
+   its own copy of the display face. */
+@font-face {
+  font-family: "Fredoka";
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("/fonts/fredoka.woff2") format("woff2");
+}
+.intro {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: #202c3f;
+  color: #f8f5e9;
+  font-family: "Fredoka", "DM Sans", sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  transition: opacity 0.4s;
+}
+.intro-out {
+  opacity: 0;
+  pointer-events: none;
+}
+.intro-film {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  transition: opacity 0.25s;
+}
+.intro-done .intro-film,
+.intro-done .intro-skip,
+.intro-done .intro-start {
+  opacity: 0;
+  pointer-events: none;
+}
+.intro-start {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+  background: #202c3fd9;
+  transition: opacity 0.25s;
+}
+.intro-playing .intro-start {
+  display: none;
+}
+.intro-start img {
+  border-radius: 24px;
+  box-shadow: 0 0 0 4px #f8f5e9;
+}
+.intro-start h1 {
+  margin: 8px 0 0;
+  font-size: clamp(44px, 11vw, 76px);
+  font-weight: 700;
+  line-height: 1;
+}
+.intro-start p {
+  margin: 0 0 18px;
+  font-size: 20px;
+  color: #c9d2e3;
+}
+.intro-start small {
+  font-size: 15px;
+  color: #c9d2e3;
+}
+.intro-play {
+  min-height: 64px;
+  padding: 0 40px;
+  border: 4px solid #263447;
+  border-radius: 999px;
+  background: #bafa67;
+  color: #263447;
+  font:
+    700 26px "Fredoka",
+    "DM Sans",
+    sans-serif;
+  box-shadow: 0 6px 0 #141c2b;
+  cursor: pointer;
+  animation: intro-nudge 1s ease-in-out infinite;
+}
+.intro-play:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #141c2b;
+  animation: none;
+}
+@keyframes intro-nudge {
+  50% {
+    transform: scale(1.05);
+  }
+}
+.intro-skip {
+  position: absolute;
+  top: calc(14px + env(safe-area-inset-top));
+  right: calc(14px + env(safe-area-inset-right));
+  min-height: 44px;
+  padding: 0 20px;
+  border: 3px solid #f8f5e9;
+  border-radius: 999px;
+  background: #202c3fcc;
+  color: #f8f5e9;
+  font:
+    600 17px "Fredoka",
+    "DM Sans",
+    sans-serif;
+  cursor: pointer;
+}
+.intro-skip:hover {
+  background: #263447;
+}
+.intro-play:focus-visible,
+.intro-skip:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 4px;
+}
+.intro-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  font-size: 20px;
+  color: #c9d2e3;
+  pointer-events: none;
+}
+/* The game's own [hidden] rule has not loaded yet. */
+.intro-loading[hidden] {
+  display: none;
+}
+.intro-lines {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
