@@ -164,8 +164,7 @@
   overflow-y: auto;
 }
 .welcome-consent form > .primary {
-  position: sticky;
-  bottom: 0;
+  position: static;
   width: 100%;
 }
 @media (max-height: 500px) {

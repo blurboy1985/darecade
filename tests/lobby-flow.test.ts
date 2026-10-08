@@ -331,6 +331,7 @@ for (const failures of [
     const context = vm.createContext({
       profileQueue: Promise.resolve(),
       pendingPreferences: 0,
+      profileCleared: false,
       preferenceSaveFailed: false,
       sentPreferences: "queued",
       preferenceKeys: ["eye"],

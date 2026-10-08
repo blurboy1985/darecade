@@ -162,6 +162,7 @@ for (const width of [320, 390, 1440])
         chromium,
         [
           "--headless",
+          "--enable-automation",
           "--no-first-run",
           "--disable-background-networking",
           "--use-mock-keychain",

@@ -49,6 +49,7 @@ export async function browserDOM(
     chromium,
     [
       "--headless",
+      "--enable-automation",
       ...(gpu ? [] : ["--disable-gpu"]),
       "--no-first-run",
       "--disable-background-networking",

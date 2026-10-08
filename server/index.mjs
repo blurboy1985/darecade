@@ -245,6 +245,10 @@ const handler = async (req, res) => {
       }
       if (req.method === "POST" && url.pathname === "/api/privacy/delete") {
         if (data.confirm !== "DELETE") throw Error("Confirm account deletion.");
+        if (data.guestOnly === true && community.hasAccount(player))
+          throw Error(
+            "This profile is linked to an email. Use account deletion instead.",
+          );
         worlds.leave(player);
         const result = community.delete(player);
         cookie(res, null);

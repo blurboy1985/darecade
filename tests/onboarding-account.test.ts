@@ -95,7 +95,8 @@ test("account and privacy screens each offer at most three main actions", () => 
     account.indexOf("const render = () => {"),
     account.indexOf("const renderPrivacy = () => {"),
   );
-  assert.equal((root.match(/<button /g) ?? []).length, 3);
+  // Sign out and guest reset are mutually exclusive.
+  assert.equal((root.match(/<button /g) ?? []).length, 4);
   for (const id of ["save-account", "read-privacy", "logout"])
     assert.ok(root.includes(`id="${id}"`));
   assert.ok(!root.includes('id="export-data"'));
@@ -177,6 +178,9 @@ try {
   consent.requestSubmit();
   check(!consent.checkValidity(), 'age confirmation is also required');
   consent.elements.over13.checked = true;
+  consent.requestSubmit();
+  check(!consent.checkValidity(), 'a nickname is required even with both conditions checked');
+  consent.elements.name.value = 'Comet';
   consent.requestSubmit();
   await entering;
   check(!document.querySelector('#account-dialog').open, 'consent closes after joining');
@@ -304,6 +308,7 @@ try {
           .map(({ body }) => body),
         [
           {
+            name: "Comet",
             over13: true,
             consent: true,
             privacyVersion: "test-notice",

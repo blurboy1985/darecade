@@ -101,14 +101,14 @@ export function singaporeWeek(date = new Date()) {
 export function fresh(): Save {
   return {
     version: 1,
-    outfit: 2,
-    skin: 0,
-    eye: 0,
+    outfit: 5,
+    skin: 4,
+    eye: 1,
     body: 0,
-    clothing: 0,
-    // New players start as the source character: pink twin buns (free).
-    hair: 38,
-    baseHair: 38,
+    clothing: 8,
+    // Simple cardigan, trousers and black short hair. Existing saves keep their look.
+    hair: 112,
+    baseHair: 112,
     pet: 0,
     accessory: 0,
     hat: 0,

@@ -264,6 +264,7 @@ for (const viewport of viewports) {
         chromium,
         [
           "--headless",
+          "--enable-automation",
           "--no-first-run",
           "--disable-background-networking",
           "--use-mock-keychain",

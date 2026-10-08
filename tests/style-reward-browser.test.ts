@@ -161,6 +161,7 @@ for (const twoD of [true, false]) {
         chromium,
         [
           "--headless",
+          "--enable-automation",
           "--no-first-run",
           "--disable-background-networking",
           "--use-mock-keychain",

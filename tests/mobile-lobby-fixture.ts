@@ -272,7 +272,8 @@ export function mobileLobbyFixture(
       check(find('#medal-points').textContent.includes('4 Play medals') && find('#medal-points').textContent.includes('Ranked'), 'both medal types visible');
       const goal = find('.welcome-panel');
       check(visible(goal), 'first-round goal visible');
-      check(goal.getBoundingClientRect().height<=90, 'cap prompt no taller than 90px');
+      check(goal.getBoundingClientRect().height<=220, 'starter guide fits in a compact card');
+      check(visible(find('.starter-guide')), 'movement and game guide visible');
       const dismiss=goal.querySelector('[data-action="welcome-skip"]');
       check(hit(dismiss) && dismiss.getBoundingClientRect().height>=44, 'dismiss target reachable');
       ${`
