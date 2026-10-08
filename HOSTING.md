@@ -1,5 +1,17 @@
 # Cloudflare hosting
 
+## Intro film — deployed 8 October 2026
+
+PR #58 was merged (`2dff68a`) and `main` was deployed as Worker version **`4f5cf2f2-77b9-4f1b-ac39-73a2de9df0ed`** at about **23:29 SGT**. Before deploying, 519 Node tests ran on merged `main` (470 passed, 49 browser checks skipped) and all 15 Cloudflare integration tests passed, including the build and dry run.
+
+After deploying: health returned `ready: true`; the live HTML referenced `index-D7ikb1ug.js`, and that file, `intro-BCv-jhEs.js`, `intro-script-CZMook2g.js` and `intro-CmY_W6Tn.css` matched the local build byte-for-byte; unauthenticated state returned 401; the old address still answered. In Chromium against production with `?intro=1`, the start card showed, the film played, **Skip intro** and Esc each removed it, set the seen flag and loaded the game, and a plain automated visit went straight to the game, all with no page or console errors, so the content security policy does not block the film.
+
+No schema, migration, binding, variable or secret changed. The only new stored value is `playsimi-intro-seen` in the browser.
+
+Not verified in production: the sound (nobody has listened to the score), a full 40-second run to the logo (checked locally only), Safari, Firefox and a real phone.
+
+Rollback: redeploy `8b94c50`. The seen flag is ignored by older code.
+
 ## New avatar and six premium sets — deployed 5 October 2026
 
 PR #35 was merged by the owner (`8aa97ec`) and `main` was deployed as Worker version **`521f60e1-8f21-4d1e-8a8a-ff517e58e48d`** at about **22:45 SGT**. Before deploying, 383 Node tests ran on merged `main` (366 passed, 17 browser checks skipped) and all 14 Cloudflare integration tests passed, including the build and dry run.
