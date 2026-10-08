@@ -1,10 +1,12 @@
 // Play Simi sound: original background music and sound effects, synthesised
 // live with the Web Audio API. No audio files, samples or licences needed.
 //
-// Day and night share a nostalgic heartland melody with plucked strings and
-// soft organ. Games use energetic anime-inspired synth pop; Coast Rush has
-// a faster companion theme that accelerates on the final lap. Themes change
-// at bar boundaries. The engine, tyre and wind loops remain separate.
+// The lobby plays arcade pop in the style of the intro film: a square-wave
+// hook over a bouncing bass and a plain backbeat, with a slower, softer take
+// of the same tune at night. Games use energetic anime-inspired synth pop;
+// Coast Rush has a faster companion theme that accelerates on the final lap.
+// Themes change at bar boundaries. The engine, tyre and wind loops remain
+// separate.
 
 export type Sfx =
   | "click"
@@ -764,8 +766,8 @@ export function petSound(kind: number): Sfx {
 }
 
 // ---------------------------------------------------------------- music
-// Written eight-bar melodies give each place a recognisable hook. Nulls are
-// rests on an eighth-note grid; the second half answers the first half.
+// Written melodies give each place a recognisable hook. Nulls are rests on
+// an eighth-note grid; the second half answers the first half.
 type MelodyBar = readonly [
   number | null,
   number | null,
@@ -781,52 +783,56 @@ type Song = {
   swing: number;
   chords: readonly (readonly [number, number, number, ...number[]])[];
   melody: readonly MelodyBar[];
-  arrangement: "heartland" | "evening" | "anime" | "race";
+  arrangement: "arcade" | "arcade-night" | "anime" | "race";
 };
-const heartlandMelody: readonly MelodyBar[] = [
-  [72, null, 76, 79, 81, null, 79, 76],
-  [74, null, 72, 69, 72, null, null, null],
-  [69, 72, 74, null, 76, 74, 72, null],
-  [67, null, 69, 72, 74, null, null, null],
-  [76, null, 79, 81, 84, null, 81, 79],
-  [76, 74, 72, null, 69, null, 72, 74],
-  [77, null, 76, 74, 72, 69, 67, null],
-  [71, 74, 79, null, 72, null, null, null],
+// The lobby tune opens on the hook from the intro film (the bars that play
+// when the newcomer's shots start landing), then spends eight sparser bars
+// answering it so a long stay downstairs never hears the hook back to back.
+const lobbyMelody: readonly MelodyBar[] = [
+  [76, null, 79, 76, 84, null, 83, 79],
+  [74, null, 79, 74, 83, null, 81, 79],
+  [72, null, 76, 72, 81, null, 79, 76],
+  [72, null, 77, 72, 81, 79, 77, 76],
+  [76, null, 79, 76, 84, null, 83, 79],
+  [74, null, 79, 74, 83, null, 86, null],
+  [84, null, 81, 77, 81, null, 84, null],
+  [83, null, 79, 74, 79, 83, 86, null],
+  [67, null, 72, null, 76, null, null, null],
+  [67, null, 71, null, 74, null, null, null],
+  [69, null, 72, null, 76, null, 79, 76],
+  [77, null, 76, 72, 69, null, null, null],
+  [67, null, 72, null, 76, null, null, null],
+  [71, null, 74, null, 79, null, null, null],
+  [77, null, 81, null, 84, 81, 77, null],
+  [79, null, 83, null, 86, null, null, null],
 ];
+// C, G, A minor, F, then C, G, F, G to turn the loop around.
+const lobbyChords = [
+  [48, 52, 55],
+  [43, 47, 50],
+  [45, 48, 52],
+  [41, 45, 48],
+  [48, 52, 55],
+  [43, 47, 50],
+  [41, 45, 48],
+  [43, 47, 50],
+] as const;
 const songs: Record<Theme, Song> = {
-  // A small tribute to heartland evenings: plucked strings, rounded organ,
-  // pentatonic phrases and a gently lilting old-radio accompaniment.
+  // The intro film's tempo and band, mixed down to sit under a whole visit.
   day: {
-    bpm: 92,
-    swing: 0.16,
-    arrangement: "heartland",
-    chords: [
-      [48, 52, 55, 59],
-      [45, 48, 52, 55],
-      [53, 57, 60, 64],
-      [43, 47, 50, 53],
-      [48, 52, 55, 59],
-      [45, 48, 52, 55],
-      [50, 53, 57, 60],
-      [43, 47, 50, 53],
-    ],
-    melody: heartlandMelody,
+    bpm: 120,
+    swing: 0,
+    arrangement: "arcade",
+    chords: lobbyChords,
+    melody: lobbyMelody,
   },
+  // The same tune after dark: slower, a rounder lead and brushed drums.
   night: {
-    bpm: 76,
-    swing: 0.12,
-    arrangement: "evening",
-    chords: [
-      [48, 52, 55, 59],
-      [45, 48, 52, 55],
-      [53, 57, 60, 64],
-      [43, 47, 50, 53],
-      [52, 55, 59, 62],
-      [45, 48, 52, 55],
-      [50, 53, 57, 60],
-      [43, 47, 50, 53],
-    ],
-    melody: heartlandMelody,
+    bpm: 100,
+    swing: 0,
+    arrangement: "arcade-night",
+    chords: lobbyChords,
+    melody: lobbyMelody,
   },
   // Original anime-opening-inspired pop: IV-V-iii-vi lift, answered hooks,
   // octave bass, bright synth strings and a full backbeat.
@@ -886,17 +892,137 @@ let timer = 0,
   step = 0,
   nextAt = 0;
 
+/**
+ * The lobby's arcade pop, after the intro film: square-wave hook, bouncing
+ * sawtooth bass and a plain backbeat. Night plays the same notes with a
+ * rounder lead an octave down, a walking bass and no snare.
+ */
+function scheduleArcade(s: Song, i: number, at: number, spb: number) {
+  const out = musicBus;
+  const night = s.arrangement === "arcade-night";
+  const bar = Math.floor(i / 16);
+  const pos = i % 16;
+  const chord = s.chords[bar % s.chords.length];
+  const phrase = bar % s.melody.length;
+  // The answering eight bars drop the busiest drums.
+  const answer = phrase >= 8;
+
+  if (pos === 0)
+    chord.forEach((n) =>
+      tone({
+        type: "triangle",
+        f: midi(n + 12),
+        at,
+        dur: spb * 15.5,
+        vol: night ? 0.027 : 0.019,
+        attack: night ? 0.12 : 0.03,
+        out,
+        send: night ? 0.2 : 0.08,
+      }),
+    );
+  if (pos === 0 && phrase % 8 === 0 && !night)
+    hiss(at, 0.55, 0.02, "highpass", 5500, undefined, out);
+  if (pos % 2 !== 0) {
+    if (!night && !answer)
+      hiss(at, 0.02, 0.005, "highpass", 7500, undefined, out);
+    return;
+  }
+  const eighth = pos / 2;
+
+  if (!night || eighth % 2 === 0) {
+    const lift = night
+      ? [0, 12, 0, 7][eighth / 2]
+      : eighth === 2 || eighth === 5
+        ? 12
+        : eighth === 7
+          ? 7
+          : 0;
+    tone({
+      type: "sawtooth",
+      f: midi(chord[0] + lift),
+      at,
+      dur: spb * (night ? 3.4 : 1.7),
+      vol: night ? 0.052 : 0.06,
+      attack: 0.008,
+      filter: night ? 420 : 520,
+      out,
+    });
+  }
+  if (eighth === 0 || eighth === 4 || (eighth === 5 && !night && !answer))
+    tone({ f: 145, to: 43, at, dur: 0.14, vol: night ? 0.07 : 0.11, out });
+  if (eighth === 2 || eighth === 6) {
+    if (night) tone({ f: 720, to: 480, at, dur: 0.035, vol: 0.01, out });
+    else {
+      hiss(at, 0.12, 0.04, "bandpass", 2200, undefined, out, 0.8);
+      tone({
+        type: "triangle",
+        f: 190,
+        to: 125,
+        at,
+        dur: 0.09,
+        vol: 0.03,
+        out,
+      });
+    }
+  }
+  if (!night || eighth % 2)
+    hiss(
+      at,
+      0.03,
+      night ? 0.006 : eighth % 2 ? 0.014 : 0.008,
+      "highpass",
+      7500,
+      undefined,
+      out,
+    );
+
+  const melody = s.melody[phrase];
+  const note = melody[eighth];
+  if (note === null) return;
+  const dur = spb * (melody[eighth + 1] === null ? 3.4 : 1.7);
+  if (night) {
+    tone({
+      type: "triangle",
+      f: midi(note - 12),
+      at,
+      dur: dur * 1.3,
+      vol: 0.058,
+      filter: 2200,
+      out,
+      send: 0.2,
+    });
+    return;
+  }
+  tone({
+    type: "square",
+    f: midi(note),
+    at,
+    dur,
+    vol: 0.027,
+    filter: 2600,
+    out,
+    send: 0.06,
+  });
+  tone({
+    type: "triangle",
+    f: midi(note + 12),
+    at,
+    dur: dur * 0.7,
+    vol: 0.013,
+    out,
+  });
+}
 function scheduleStep(s: Song, i: number, at: number, spb: number) {
+  if (s.arrangement === "arcade" || s.arrangement === "arcade-night")
+    return scheduleArcade(s, i, at, spb);
   const out = musicBus;
   const bar = Math.floor(i / 16);
   const pos = i % 16;
   const chord = s.chords[bar % s.chords.length];
-  const energetic = s.arrangement === "anime" || s.arrangement === "race";
-  const evening = s.arrangement === "evening";
   const race = s.arrangement === "race";
   const root = chord[0] - 12;
 
-  if (energetic) {
+  {
     // Sustained strings under short guitar-like offbeat strums.
     if (pos === 0)
       chord.forEach((n) =>
@@ -969,63 +1095,6 @@ function scheduleStep(s: Song, i: number, at: number, spb: number) {
     );
     if (pos === 0 && bar % 4 === 0)
       hiss(at, 0.55, 0.027, "highpass", 5500, undefined, out);
-  } else {
-    // Alternating bass and lightly brushed rhythm leave room for the tune.
-    if (pos === 0 || pos === 8)
-      tone({
-        f: midi(root + (pos === 8 ? 7 : 0)),
-        at,
-        dur: spb * 5,
-        vol: evening ? 0.065 : 0.08,
-        attack: 0.012,
-        out,
-      });
-    if (pos === 0 || pos === 6 || pos === 10)
-      chord.forEach((n, k) => {
-        tone({
-          type: "triangle",
-          f: midi(n + 12),
-          at: at + k * 0.018,
-          dur: spb * (evening ? 6 : 3),
-          vol: evening ? 0.014 : 0.021,
-          filter: 1900,
-          out,
-          send: 0.12,
-        });
-      });
-    if (pos === 0)
-      chord.forEach((n) =>
-        tone({
-          f: midi(n),
-          at,
-          dur: spb * 15,
-          vol: evening ? 0.017 : 0.012,
-          attack: 0.16,
-          out,
-          send: 0.12,
-        }),
-      );
-    if (pos === 4 || pos === 12) {
-      hiss(at, 0.12, evening ? 0.008 : 0.016, "bandpass", 2400, undefined, out);
-      tone({
-        f: 720,
-        to: 480,
-        at,
-        dur: 0.035,
-        vol: evening ? 0.008 : 0.016,
-        out,
-      });
-    }
-    if (pos % 2 === 0)
-      hiss(
-        at,
-        0.035,
-        evening ? 0.004 : 0.009,
-        "highpass",
-        6500,
-        undefined,
-        out,
-      );
   }
 
   if (pos % 2 !== 0) return;
@@ -1033,41 +1102,25 @@ function scheduleStep(s: Song, i: number, at: number, spb: number) {
   const note = melody[pos / 2];
   if (note === null) return;
   const dur = spb * (melody[pos / 2 + 1] === null ? 3.6 : 1.8);
-  if (energetic) {
-    tone({
-      type: "sawtooth",
-      f: midi(note),
-      at,
-      dur,
-      vol: 0.026,
-      attack: 0.012,
-      filter: 3200,
-      out,
-      send: 0.08,
-    });
-    tone({
-      type: "triangle",
-      f: midi(note + 12),
-      at,
-      dur: dur * 0.75,
-      vol: 0.012,
-      out,
-    });
-  } else {
-    const n = note - (evening ? 12 : 0);
-    tone({
-      type: "triangle",
-      f: midi(n),
-      at,
-      dur: dur * 1.4,
-      vol: evening ? 0.045 : 0.052,
-      filter: 2400,
-      out,
-      send: 0.18,
-    });
-    // A quick upper partial gives the rounded pluck a small metallic attack.
-    tone({ f: midi(n + 19), at, dur: 0.09, vol: 0.008, out });
-  }
+  tone({
+    type: "sawtooth",
+    f: midi(note),
+    at,
+    dur,
+    vol: 0.026,
+    attack: 0.012,
+    filter: 3200,
+    out,
+    send: 0.08,
+  });
+  tone({
+    type: "triangle",
+    f: midi(note + 12),
+    at,
+    dur: dur * 0.75,
+    vol: 0.012,
+    out,
+  });
 }
 function scheduler() {
   if (!ctx) return;
