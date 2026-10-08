@@ -1,9 +1,9 @@
 // Play Simi sound: original background music and sound effects, synthesised
 // live with the Web Audio API. No audio files, samples or licences needed.
 //
-// The lobby plays a softer version of the intro film's hook: a rounded lead
-// over a bouncing bass and a plain backbeat, with a slower, softer take
-// of the same tune at night. Games use energetic anime-inspired synth pop;
+// Daytime in the lobby uses sustained chords, low bass and light percussion,
+// without a repeating solo synth melody. Night keeps the intro film's hook
+// in a slower arrangement. Games use energetic anime-inspired synth pop;
 // Coast Rush has a faster companion theme that accelerates on the final lap.
 // Themes change at bar boundaries. The engine, tyre and wind loops remain
 // separate.
@@ -783,7 +783,7 @@ type Song = {
   swing: number;
   chords: readonly (readonly [number, number, number, ...number[]])[];
   melody: readonly MelodyBar[];
-  arrangement: "arcade" | "arcade-night" | "anime" | "race";
+  arrangement: "lobby-day" | "arcade-night" | "anime" | "race";
 };
 // The lobby tune opens on the hook from the intro film (the bars that play
 // when the newcomer's shots start landing), then spends eight sparser bars
@@ -818,15 +818,15 @@ const lobbyChords = [
   [43, 47, 50],
 ] as const;
 const songs: Record<Theme, Song> = {
-  // The intro film's tempo and hook, with softer instruments for a whole visit.
+  // Keep the intro's chord progression, without a solo lead during a long visit.
   day: {
     bpm: 120,
     swing: 0,
-    arrangement: "arcade",
+    arrangement: "lobby-day",
     chords: lobbyChords,
-    melody: lobbyMelody,
+    melody: [],
   },
-  // The same tune after dark: slower, a rounder lead and brushed drums.
+  // Keep the existing night tune, with its rounder lead and brushed drums.
   night: {
     bpm: 100,
     swing: 0,
@@ -892,19 +892,48 @@ let timer = 0,
   step = 0,
   nextAt = 0;
 
-/**
- * The intro hook sits an octave lower on a soft lead, without a high octave
- * doubling it. Night uses a walking bass and unpitched brushed percussion.
- */
-function scheduleArcade(s: Song, i: number, at: number, spb: number) {
+/** A chord-led background bed, with no short solo notes or octave bass jumps. */
+function scheduleLobbyDay(s: Song, i: number, at: number, spb: number) {
   const out = musicBus;
-  const night = s.arrangement === "arcade-night";
+  const chord = s.chords[Math.floor(i / 16) % s.chords.length];
+  const pos = i % 16;
+  if (pos === 0)
+    chord.forEach((n) =>
+      tone({
+        type: "triangle",
+        f: midi(n + 12),
+        at,
+        dur: spb * 19.5,
+        vol: 0.019,
+        attack: 0.18,
+        filter: 950,
+        out,
+        send: 0.14,
+      }),
+    );
+  if (pos === 0 || pos === 8) {
+    tone({
+      f: midi(chord[0]),
+      at,
+      dur: spb * 7.5,
+      vol: 0.055,
+      attack: 0.05,
+      out,
+    });
+    tone({ f: 85, to: 45, at, dur: 0.17, vol: 0.045, attack: 0.02, out });
+  }
+  if (pos === 4 || pos === 12)
+    hiss(at, 0.16, 0.022, "bandpass", 900, undefined, out, 0.5);
+  if (pos % 4 === 2)
+    hiss(at, 0.06, 0.008, "lowpass", 2300, undefined, out, 0.6);
+}
+
+function scheduleLobbyNight(s: Song, i: number, at: number, spb: number) {
+  const out = musicBus;
   const bar = Math.floor(i / 16);
   const pos = i % 16;
   const chord = s.chords[bar % s.chords.length];
   const phrase = bar % s.melody.length;
-  // The answering eight bars drop the busiest drums.
-  const answer = phrase >= 8;
 
   if (pos === 0)
     chord.forEach((n) =>
@@ -913,67 +942,34 @@ function scheduleArcade(s: Song, i: number, at: number, spb: number) {
         f: midi(n + 12),
         at,
         dur: spb * 15.5,
-        vol: night ? 0.027 : 0.019,
-        attack: night ? 0.12 : 0.03,
+        vol: 0.027,
+        attack: 0.12,
         out,
-        send: night ? 0.2 : 0.08,
+        send: 0.2,
       }),
     );
-  if (pos === 0 && phrase % 8 === 0 && !night)
-    hiss(at, 0.55, 0.02, "highpass", 5500, undefined, out);
-  if (pos % 2 !== 0) {
-    if (!night && !answer)
-      hiss(at, 0.02, 0.005, "highpass", 7500, undefined, out);
-    return;
-  }
+  if (pos % 2 !== 0) return;
   const eighth = pos / 2;
 
-  if (!night || eighth % 2 === 0) {
-    const lift = night
-      ? [0, 12, 0, 7][eighth / 2]
-      : eighth === 2 || eighth === 5
-        ? 12
-        : eighth === 7
-          ? 7
-          : 0;
+  if (eighth % 2 === 0) {
+    const lift = [0, 12, 0, 7][eighth / 2];
     tone({
       type: "sawtooth",
       f: midi(chord[0] + lift),
       at,
-      dur: spb * (night ? 3.4 : 1.7),
-      vol: night ? 0.052 : 0.06,
+      dur: spb * 3.4,
+      vol: 0.052,
       attack: 0.008,
-      filter: night ? 420 : 520,
+      filter: 420,
       out,
     });
   }
-  if (eighth === 0 || eighth === 4 || (eighth === 5 && !night && !answer))
-    tone({ f: 145, to: 43, at, dur: 0.14, vol: night ? 0.07 : 0.11, out });
-  if (eighth === 2 || eighth === 6) {
-    if (night) hiss(at, 0.055, 0.012, "bandpass", 1400, undefined, out, 0.6);
-    else {
-      hiss(at, 0.12, 0.04, "bandpass", 2200, undefined, out, 0.8);
-      tone({
-        type: "triangle",
-        f: 190,
-        to: 125,
-        at,
-        dur: 0.09,
-        vol: 0.03,
-        out,
-      });
-    }
-  }
-  if (!night || eighth % 2)
-    hiss(
-      at,
-      0.03,
-      night ? 0.006 : eighth % 2 ? 0.014 : 0.008,
-      "highpass",
-      7500,
-      undefined,
-      out,
-    );
+  if (eighth === 0 || eighth === 4)
+    tone({ f: 145, to: 43, at, dur: 0.14, vol: 0.07, out });
+  if (eighth === 2 || eighth === 6)
+    hiss(at, 0.055, 0.012, "bandpass", 1400, undefined, out, 0.6);
+  if (eighth % 2)
+    hiss(at, 0.03, 0.006, "highpass", 7500, undefined, out);
 
   const melody = s.melody[phrase];
   const note = melody[eighth];
@@ -984,16 +980,17 @@ function scheduleArcade(s: Song, i: number, at: number, spb: number) {
     f: midi(note - 12),
     at,
     dur: dur * 1.3,
-    vol: night ? 0.045 : 0.03,
+    vol: 0.045,
     attack: 0.035,
-    filter: night ? 900 : 1200,
+    filter: 900,
     out,
-    send: night ? 0.2 : 0.1,
+    send: 0.2,
   });
 }
 function scheduleStep(s: Song, i: number, at: number, spb: number) {
-  if (s.arrangement === "arcade" || s.arrangement === "arcade-night")
-    return scheduleArcade(s, i, at, spb);
+  if (s.arrangement === "lobby-day") return scheduleLobbyDay(s, i, at, spb);
+  if (s.arrangement === "arcade-night")
+    return scheduleLobbyNight(s, i, at, spb);
   const out = musicBus;
   const bar = Math.floor(i / 16);
   const pos = i % 16;
