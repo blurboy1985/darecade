@@ -44,7 +44,8 @@ test(
         const reports = [];
         audio.setTheme('race');
         for (const mood of ['day', 'night', 'game', 'race']) {
-          const buffer = await renderMusic(mood, 28, 22050);
+          // The slower night arrangement needs 38.4 seconds for all 16 bars.
+          const buffer = await renderMusic(mood, 42, 22050);
           if (audio.theme !== 'race') throw Error('Preview changed the selected theme');
           let peak = 0, energy = 0;
           for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
