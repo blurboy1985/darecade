@@ -1,5 +1,19 @@
 # Cloudflare hosting
 
+## Lobby music in the intro film's style — deployed 8 October 2026
+
+PR #60 was merged (`cd20115`) and `main` was deployed as Worker version **`75e90f4a-e292-4d42-beae-60ae2d096854`** about twelve minutes after the intro film below. Before merging, 519 Node tests ran (470 passed, 49 browser checks skipped) and all 15 Cloudflare integration tests passed, including the build and dry run.
+
+The day and night lobby themes now play arcade pop like the intro: a square-wave lead on the film's hook, a bouncing bass and a backbeat at 120 beats a minute, with a slower, softer take at night. Game and Coast Rush music are unchanged. Rendered offline in Chromium, the new themes are slightly quieter than the ones they replace (day 0.0181 against 0.0216, night 0.0189 against 0.0201), with no clipping and no silent second over a full 16-bar loop.
+
+After deploying: health returned `ready: true`; the live HTML referenced `index-BTtkUEZk.js`, and `main-D4TgoN4J.js`, which carries the new music, matched the local build byte-for-byte; unauthenticated state returned 401; the old address still answered; the game and the intro loaded in Chromium with no page or console errors.
+
+No schema, migration, binding, variable or secret changed.
+
+Not verified: the sound itself. Nobody but the owner can listen to it; the checks are numerical. `tests/music-browser.test.ts` times out on the Windows machine used here with or without this change, so its assertions were run through a separate Chromium harness.
+
+Rollback: redeploy `2dff68a` (keeps the intro film, restores the earlier lobby music).
+
 ## Intro film — deployed 8 October 2026
 
 PR #58 was merged (`2dff68a`) and `main` was deployed as Worker version **`4f5cf2f2-77b9-4f1b-ac39-73a2de9df0ed`** at about **23:29 SGT**. Before deploying, 519 Node tests ran on merged `main` (470 passed, 49 browser checks skipped) and all 15 Cloudflare integration tests passed, including the build and dry run.
