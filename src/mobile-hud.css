@@ -180,7 +180,7 @@
 .world-actions {
   position: fixed;
   z-index: 10;
-  right: 12px;
+  right: max(12px, env(safe-area-inset-right));
   bottom: max(14px, env(safe-area-inset-bottom));
   display: flex;
   gap: 10px;
@@ -198,6 +198,16 @@
 .round-action svg {
   width: 22px;
   height: 22px;
+}
+#lobby-jump {
+  width: 76px;
+  height: 76px;
+  font-size: 16px;
+  font-weight: 700;
+  touch-action: none;
+}
+#lobby-jump:active {
+  background: #c7e76b;
 }
 .emote-control {
   position: fixed;
@@ -251,7 +261,7 @@
   height: 64px;
 }
 .hud .nearby-prompt {
-  bottom: 75px;
+  bottom: calc(100px + env(safe-area-inset-bottom));
   right: 12px;
   padding: 7px 10px;
   max-width: 190px;
@@ -267,6 +277,7 @@
   max-width: calc(100vw - 30px);
 }
 .is-playing .world-actions,
+.is-away .world-actions,
 .is-playing .world-zoom,
 .is-playing .emote-control,
 .is-interacting .emote-control,
@@ -292,9 +303,6 @@ body:has(dialog[open]) .emote-control {
   .world-zoom {
     top: 64px;
     right: 68px;
-  }
-  .hud .nearby-prompt {
-    bottom: 68px;
   }
 }
 /* Result actions stay available while the score and detail scroll. */
@@ -700,8 +708,7 @@ img {
 @media (hover: hover) and (pointer: fine) {
   .hud #joystick,
   .game-touch,
-  .race-touch,
-  #lobby-jump {
+  .race-touch {
     display: none !important;
   }
 }

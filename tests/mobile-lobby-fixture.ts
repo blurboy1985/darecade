@@ -292,9 +292,10 @@ export function mobileLobbyFixture(
       }
       const jump=find('#lobby-jump');
       check(!!jump, 'jump control exists');
-      if (touchControls) {
+      {
         check(visible(jump) && hit(jump), 'Jump touch target unobstructed');
-        check(jump.getBoundingClientRect().width>=44 && jump.getBoundingClientRect().height>=44, 'Jump touch target at least 44px');
+        check(jump.textContent==='Jump', 'Jump has a visible word label');
+        check(jump.getBoundingClientRect().width>=76 && jump.getBoundingClientRect().height>=76, 'Jump target at least 76px');
         const canvas=find('#world canvas');
         jump.click(); jump.click();
         check(find('#world canvas')===canvas && !find('#modal').open, 'repeated Jump keeps the scene open');
@@ -308,7 +309,7 @@ export function mobileLobbyFixture(
           check(!visible(jump), 'Jump hidden during '+state);
           document.body.classList.remove(state);
         }
-      } else check(!visible(jump), 'Jump hidden on desktop or in 2D');
+      }
       check(goal.hidden, 'dismiss clears the scene');
       check(JSON.parse(localStorage.getItem('darecade-v1')).welcomeDismissed, 'dismiss survives saving');
       check(profile.progress.rounds===0 && !profile.progress.unlockedHats.includes(2), 'dismiss does not complete or grant reward');

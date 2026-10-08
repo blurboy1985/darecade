@@ -1,5 +1,4 @@
 import { resizeRenderer } from "./render-budget.ts";
-import { cameraOcclusion } from "./camera-occlusion";
 import {
   seededLook,
   identitySeed,
@@ -238,7 +237,6 @@ export class LobbyWorld {
   camera: T.OrthographicCamera | T.PerspectiveCamera = this.mapCamera;
   cameraMode: "isometric" | "third" = "isometric";
   pitch = 0.34;
-  private occlusion?: ReturnType<typeof cameraOcclusion>;
   private revealAt = -Infinity;
   private revealYaw = 0;
   followDistance = 7;
@@ -478,7 +476,6 @@ export class LobbyWorld {
         ),
       ]),
     );
-    this.occlusion = cameraOcclusion(this.root);
     const playerRing = new T.Mesh(
       new T.RingGeometry(0.52, 0.7, 32),
       new T.MeshBasicMaterial({ color: "#e7ffab", side: T.DoubleSide }),
@@ -1430,7 +1427,6 @@ export class LobbyWorld {
         batchStatic(gltf.scene);
         placeholder.clear();
         placeholder.add(gltf.scene);
-        this.occlusion?.include(gltf.scene);
         gltf.scene.traverse((o) => {
           if (o instanceof T.Mesh) {
             o.castShadow = true;
@@ -2026,8 +2022,8 @@ export class LobbyWorld {
         Math.cos(this.angle) * Math.cos(this.pitch),
       );
       this.followCamera.fov = this.mobile ? 60 : 52;
-      // Foreground props already fade in cameraOcclusion. Keep the chosen
-      // orbit fixed: switching among obstruction candidates makes walking shake.
+      // Keep the chosen orbit fixed: switching among obstruction candidates
+      // makes walking shake. Foreground props retain their solid silhouettes.
       this.followCamera.position
         .copy(focus)
         .addScaledVector(offset, this.followDistance);
@@ -2725,11 +2721,6 @@ export class LobbyWorld {
     }
     // Finalize the character and skeleton before following that exact displayed pose.
     if (this.cameraMode === "third") this.updateCamera();
-    this.occlusion?.update(
-      this.player.root.position,
-      this.camera.position,
-      this.cameraMode === "third",
-    );
     this.renderer.render(this.scene, this.camera);
     this.renderer.domElement.dataset.elevation =
       this.player.root.position.y.toFixed(2);
@@ -2905,7 +2896,6 @@ export class LobbyWorld {
       if (a) avatars.add(a);
     });
     avatars.forEach(disposeAvatar);
-    this.occlusion?.dispose();
     this.renderer.dispose();
   }
 }

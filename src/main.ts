@@ -365,7 +365,7 @@ app.innerHTML = `
   </main>
   <div id="graphics-message" hidden></div>
   <footer class="bottom-bar"><div class="profile"><span class="avatar-icon" id="avatar-icon"><i></i></span><span><strong id="player-name">New neighbour</strong><span id="player-account" hidden>Guest mode</span><small id="medal-points">0 MEDALS</small><span id="level-label">LEVEL 1</span><span class="xp-track"><i id="xp-fill"></i></span></span></div><nav class="dock lobby-dock" aria-label="Main actions"><button class="selected" data-open="arcade" data-main-action>${icon("game")}<span>Play</span></button><button data-open="wardrobe" data-main-action>${icon("shirt")}<span>My look</span></button><button class="phone-more" data-open="phone-menu" data-main-action>${icon("settings")}<span>Menu</span></button></nav><span class="footer-note" id="quality-note">3D WORLD</span></footer>
-  <div class="world-actions"><button id="lobby-jump" class="round-action" data-emote="jump" aria-label="Jump">↑</button></div>
+  <div class="world-actions"><button id="lobby-jump" class="round-action" data-emote="jump" aria-label="Jump" aria-keyshortcuts="Space">Jump</button></div>
   <div class="emote-control"><button class="round-action" id="quick-emotes-toggle" aria-label="Emotes" aria-controls="quick-emotes" aria-expanded="false">${icon("smile")}</button>
   <div id="quick-emotes" role="group" aria-label="Favourite emotes" hidden><button data-emote="wave" aria-label="Wave">👋</button><button data-emote="dance" aria-label="Dance">♫</button><button data-open="emotes">More</button></div></div>
   <div class="world-zoom"><button data-action="zoom-out" aria-label="Zoom out">−</button><button data-action="zoom-in" aria-label="Zoom in">+</button></div>
@@ -2400,6 +2400,19 @@ function showGraphicsProblem(contextLost = false) {
 }
 bindJoystick(document.querySelector<HTMLElement>("#joystick")!, (x, y) => {
   if (world) world.joystick = { x, y };
+});
+const jumpButton = document.querySelector<HTMLButtonElement>("#lobby-jump")!;
+jumpButton.addEventListener("pointerdown", (event) => {
+  if (event.button !== 0) return;
+  event.preventDefault();
+  // A second touch may never produce a click while the joystick is held.
+  // Reuse the normal action on press, including its hint and idle handling.
+  jumpButton.click();
+});
+jumpButton.addEventListener("click", (event) => {
+  // Pointer release must not queue a second jump. Keyboard and assistive
+  // activation have detail 0, as does the programmatic click above.
+  if (event.detail > 0) event.stopPropagation();
 });
 function updateClock() {
   document.querySelector("#sgt-clock")!.textContent = new Intl.DateTimeFormat(
