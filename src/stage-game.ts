@@ -38,7 +38,6 @@ export function mountStage(
     save: Save;
     sound: (name: Sfx) => void;
     report: (event: string, value?: unknown) => Promise<void>;
-    simple: boolean;
   },
 ) {
   const root = document.createElement("div");
@@ -96,18 +95,17 @@ export function mountStage(
   });
   resetHud();
   note();
-  if (!ctx.simple)
-    void Promise.all([import("./stage-view"), loadCharacter()])
-      .then(([module]) => {
-        if (live())
-          view = new module.StageView(
-            root.querySelector(".stage-view")!,
-            ctx.save,
-            reduced,
-          );
-      })
-      // The note highway is the whole game; the scene is decoration.
-      .catch(() => {});
+  void Promise.all([import("./stage-view"), loadCharacter()])
+    .then(([module]) => {
+      if (live())
+        view = new module.StageView(
+          root.querySelector(".stage-view")!,
+          ctx.save,
+          reduced,
+        );
+    })
+    // The note highway is the whole game; the scene is decoration.
+    .catch(() => {});
   const press = (lane: number) => {
     if (!show || show.ended) return;
     if (show.mode === "warmup" && lane !== 0 && lane !== 3) return;

@@ -63,7 +63,6 @@ export type Save = {
   sound: boolean;
   music: boolean;
   reduced: boolean;
-  twoD: boolean;
   light: string;
   claims: string[];
   cameraMode: "isometric" | "third";
@@ -150,7 +149,6 @@ export function fresh(): Save {
     reduced:
       typeof matchMedia === "function" &&
       matchMedia("(prefers-reduced-motion: reduce)").matches,
-    twoD: false,
     light: "auto",
     claims: [],
     welcome: "new",
@@ -245,7 +243,7 @@ export function normalise(raw: unknown, fallback: Save): Save {
   for (const key of ["xp", "rounds", "medalTokens"] as const)
     if (Number.isFinite(r[key]) && r[key]! >= 0)
       s[key] = Math.floor(Math.min(r[key]!, 1e8));
-  for (const key of ["sound", "music", "reduced", "cat", "twoD"] as const)
+  for (const key of ["sound", "music", "reduced", "cat"] as const)
     if (typeof r[key] === "boolean") s[key] = r[key]!;
   for (const key of ["visited", "claims"] as const)
     if (Array.isArray(r[key]))

@@ -7,14 +7,14 @@ import { join } from "node:path";
 import { browserDOM } from "./browser-dom.ts";
 
 const chromium = process.env.DARECADE_TEST_CHROMIUM;
-for (const [width, simple, reduced] of [
+for (const [width, unavailable, reduced] of [
   [320, false, false],
   [390, false, true],
   [1280, false, false],
   [320, true, false],
 ] as const) {
   test(
-    `solved plot pictures remain visible at ${width}px, simple=${simple}, reduced=${reduced}`,
+    `solved plot pictures remain visible at ${width}px, unavailable=${unavailable}, reduced=${reduced}`,
     { skip: !chromium, timeout: 45000 },
     async () => {
       assert.ok(chromium);
@@ -31,16 +31,17 @@ for (const [width, simple, reduced] of [
         for(const cell of cells){
           const rect=cell.getBoundingClientRect();check(rect.width>40&&rect.height>40,'visible tile size');
           const svg=getComputedStyle(cell.querySelector('svg'));
-          if(${simple}) check(svg.visibility==='visible','fallback picture visible');
+          if(${unavailable}) check(svg.visibility==='visible','fallback picture visible');
           else {check(!!document.querySelector('.plot-3d-ready canvas'),'3D canvas ready');check(getComputedStyle(cell).backgroundColor==='rgba(0, 0, 0, 0)','tile covers 3D picture: '+cell.className);}
         }
       };
+      if(${unavailable}) { const getContext=HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext=function(type,...args){return String(type).startsWith('webgl')?null:getContext.call(this,type,...args)}; }
       try{ check(innerWidth===${width},"exact viewport width");
         for(const crop of ['chilli','pandan','sunflower']){
           const save=fresh();save.reduced=${reduced};const planted=Date.now();plantCrop(save,crop,planted);let finish;let reports=0;
-          mountPlots(document.querySelector('#modal-body'),{save,simple:${simple},sound(){},report(event,value){reports++;return new Promise(resolve=>{finish=()=>{check(tendCrop(save,value,Date.now()),'valid watering');resolve();};});}});
+          mountPlots(document.querySelector('#modal-body'),{save,sound(){},report(event,value){reports++;return new Promise(resolve=>{finish=()=>{check(tendCrop(save,value,Date.now()),'valid watering');resolve();};});}});
           document.querySelector('#plot-tend').click();
-          if(!${simple})await wait(()=>document.querySelector('.plot-3d-ready'));
+          if(!${unavailable})await wait(()=>document.querySelector('.plot-3d-ready'));
           const trail=createWaterTrail(crop,planted);let solution;
           for(let n=0;n<64;n++){const t=[n%4,Math.floor(n/4)%4,Math.floor(n/16)];if(traceWater(trailTiles(trail,t)).complete){solution=t;break;}}
           check(!!solution,'solution exists');
@@ -51,7 +52,7 @@ for (const [width, simple, reduced] of [
           check(document.querySelector('.trail-meter').textContent==='Every channel is flowing!','solved');
           check(reports===1,'one save');pictures();finish();await wait(()=>document.querySelector('#plot-again'));pictures();
           check(document.querySelector('.plot-tag').textContent.includes('WATERING SAVED'),'save confirmed');
-          if(!${simple}){
+          if(!${unavailable}){
             const canvas=document.querySelector('.plot-visual canvas');
             canvas.dispatchEvent(new Event('webglcontextlost',{cancelable:true}));
             check(!document.querySelector('.plot-3d-ready'),'lost context reveals fallback');

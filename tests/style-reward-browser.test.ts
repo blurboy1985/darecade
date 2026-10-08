@@ -17,11 +17,11 @@ import { spawn } from "node:child_process";
 import { fresh } from "../src/state.ts";
 
 // Runs the built application with canned API responses, never player accounts
-// or a mail transport. Real DOM, Three.js and CSS exercise both fallback paths.
+// or a mail transport. Real DOM, Three.js and CSS exercise rewards after legacy preference migration.
 const chromium = process.env.DARECADE_TEST_CHROMIUM;
 for (const twoD of [true, false]) {
   test(
-    `built lobby and reward work with ${twoD ? "saved 2D mode" : "WebGL unavailable"}`,
+    `built lobby and reward work with ${twoD ? "a migrated 2D preference" : "3D"}`,
     {
       skip: chromium
         ? false
@@ -55,7 +55,7 @@ for (const twoD of [true, false]) {
       let notices = 0, claims = 0, contexts = 0;
       const nativeContext = HTMLCanvasElement.prototype.getContext;
       HTMLCanvasElement.prototype.getContext = function(type, ...args) {
-        if (String(type).startsWith('webgl')) { contexts++; return null; }
+        if (String(type).startsWith('webgl')) { contexts++; }
         return nativeContext.call(this, type, ...args);
       };
       localStorage.setItem('darecade-v1', JSON.stringify(profile.progress));
@@ -78,17 +78,15 @@ for (const twoD of [true, false]) {
         const reward = () => document.querySelector('.style-reward');
         const award = (tokens) => { notices = tokens; profile.styleRewards = tokens; window.dispatchEvent(new CustomEvent('account-profile', { detail: profile })); };
         try {
-          await until(() => document.body.classList.contains('mode-2d') && !document.querySelector('#loading'));
-          check(!document.querySelector('#fallback').hidden, 'fallback lobby visible');
-          check(getComputedStyle(document.querySelector('#camera-toggle')).display === 'none', 'camera hidden in 2D');
-          check(document.querySelector('#interaction').hidden, 'nearby interaction cleared');
-          check(!document.querySelector('#world canvas'), 'world canvas removed');
-          check(JSON.parse(localStorage.getItem('darecade-v1')).twoD === ${twoD}, 'temporary graphics failure must not save 2D preference');
-          check(${twoD} ? contexts === 0 : contexts > 0, 'correct startup path');
+          await until(() => document.querySelector('#world canvas') && !document.querySelector('#loading'));
+          check(!document.querySelector('#fallback'), 'retired lobby absent');
+          check(!document.querySelector('[data-action="2d"]'), 'retired mode toggle absent');
+          check(!('twoD' in JSON.parse(localStorage.getItem('darecade-v1'))), 'legacy preference is removed');
+          check(contexts > 0, '3D startup path');
                     award(2);
           await until(reward);
           check(reward().textContent.includes('+2 Style tokens'), 'multiple token count');
-          check(!reward().querySelector('canvas'), 'static reveal in 2D');
+          check(reward().textContent.includes('Style'), 'reward remains readable in 3D');
           reward().querySelector('.text-button').click();
           check(!reward(), 'dismiss removes reward');
           award(1);
@@ -108,7 +106,7 @@ for (const twoD of [true, false]) {
           await new Promise(r => setTimeout(r, 100));
           check(!reward(), 'dismissed notices do not replay');
           document.querySelector('[data-open="arcade"]').click();
-          check(document.querySelector('#modal').open, 'Games opens in 2D');
+          check(document.querySelector('#modal').open, 'Games opens in 3D');
           check(document.querySelector('#modal-body').textContent.includes('Play outside'), 'Games heading');
           check(innerWidth === 390, 'real CSS viewport is 390px');
           check(document.documentElement.scrollWidth <= innerWidth, 'mobile has no horizontal overflow');

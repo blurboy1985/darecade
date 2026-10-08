@@ -91,16 +91,6 @@ export function mountAvatarCards(host: HTMLElement, worn: Look) {
     eye: worn.eye,
     outfit: worn.outfit,
   };
-  if (document.body.classList.contains("mode-2d")) {
-    host
-      .querySelectorAll<HTMLImageElement>("[data-thumbnail]")
-      .forEach((img) => {
-        const [slot, index] = (img.dataset.thumbnail || "").split(":");
-        img.src = `/wardrobe/${slot}-${index}.png`;
-        img.classList.add("is-ready");
-      });
-    return;
-  }
   thumbnailJobs.length = 0;
   const observer = new IntersectionObserver(
     (entries) => {

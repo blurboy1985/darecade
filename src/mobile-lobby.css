@@ -63,8 +63,7 @@
   height: 20px;
   margin: 0;
 }
-.first-race:not(.mode-2d) .welcome-panel,
-.mode-2d #fallback-welcome {
+.first-race .welcome-panel {
   width: min(350px, calc(100vw - 24px)) !important;
   max-width: 350px;
   display: flex;
@@ -76,11 +75,10 @@
   background: #fffdf3f2;
   backdrop-filter: blur(8px);
 }
-.welcome-active:not(.welcome-played):not(.is-interacting):not(.mode-2d)
-  .welcome-panel {
+.welcome-active:not(.welcome-played):not(.is-interacting) .welcome-panel {
   display: flex;
 }
-.first-race:not(.mode-2d) .welcome-panel {
+.first-race .welcome-panel {
   top: 104px;
   left: 24px;
 }
@@ -99,8 +97,7 @@
   font-size: 11px;
   line-height: 1.3;
 }
-.first-race .welcome-panel .primary,
-.mode-2d #fallback-welcome .primary {
+.first-race .welcome-panel .primary {
   position: static;
   width: auto !important;
   min-width: 48px;
@@ -122,9 +119,6 @@
 }
 .cap-goal-dismiss:hover {
   background: #e9efde;
-}
-#fallback-welcome[hidden] {
-  display: none;
 }
 .lobby-jump {
   display: none;
@@ -163,7 +157,6 @@
     bottom: calc(192px + env(safe-area-inset-bottom));
   }
 }
-.mode-2d .lobby-jump,
 .is-away .lobby-jump,
 .is-interacting .lobby-jump,
 .inspecting .lobby-jump,
@@ -214,9 +207,6 @@ body:has(dialog[open]) .lobby-jump {
   .style-reward {
     bottom: calc(144px + env(safe-area-inset-bottom));
   }
-  .mode-2d .fallback {
-    bottom: calc(136px + env(safe-area-inset-bottom));
-  }
   .toast {
     bottom: calc(144px + env(safe-area-inset-bottom));
   }
@@ -245,7 +235,7 @@ body:has(dialog[open]) .lobby-jump {
     padding: 4px 8px;
     font-size: 10px;
   }
-  .first-race:not(.mode-2d) .welcome-panel {
+  .first-race .welcome-panel {
     top: calc(96px + env(safe-area-inset-top));
     left: 12px;
     padding: 8px;
@@ -279,10 +269,7 @@ body:has(dialog[open]) .lobby-jump {
   .nearby-prompt {
     bottom: calc(172px + env(safe-area-inset-bottom));
   }
-  .mode-2d .fallback {
-    bottom: calc(84px + env(safe-area-inset-bottom));
-  }
-  .first-race:not(.mode-2d) .welcome-panel {
+  .first-race .welcome-panel {
     top: 72px;
   }
 }
@@ -428,7 +415,7 @@ body:has(dialog[open]) .lobby-jump {
     font-size: 9px;
     max-width: 125px;
   }
-  .first-race:not(.mode-2d) .welcome-panel {
+  .first-race .welcome-panel {
     top: 100px;
   }
   #modal {
@@ -615,7 +602,7 @@ body:has(dialog[open]) .lobby-jump {
     letter-spacing: 0;
     line-height: 12px;
   }
-  .first-race:not(.mode-2d) .welcome-panel {
+  .first-race .welcome-panel {
     top: 126px;
   }
 }

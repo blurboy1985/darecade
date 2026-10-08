@@ -3,10 +3,9 @@ export const menuPages = {
   "phone-menu": {
     title: "Menu",
     actions: [
-      { label: "My look", target: "wardrobe", icon: "shirt" },
       { label: "Quests & rankings", target: "quests", icon: "trophy" },
       { label: "Sound & display", target: "preferences", icon: "sound" },
-      { label: "Change world", target: "worlds", icon: "compass" },
+      { label: "Neighbourhood", target: "map", icon: "compass" },
     ] satisfies MenuAction[],
   },
 } as const;

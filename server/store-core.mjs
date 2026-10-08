@@ -41,6 +41,7 @@ export class StoreCore {
       ["dare", "TEXT"],
       ["target_run", "TEXT"],
       ["race_result", "TEXT"],
+      ["reward_receipt", "TEXT"],
     ])
       if (!columns.includes(name))
         this.db.exec(`ALTER TABLE runs ADD COLUMN ${name} ${type}`);

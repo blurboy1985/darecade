@@ -10,6 +10,7 @@ export function mobileLobbyFixture(
   account = false,
   twoD = false,
   automated: boolean | "wardrobe" | "relay-retired" = true,
+  extraScript = "",
 ) {
   const root = resolve("dist");
   const profile = {
@@ -92,7 +93,7 @@ export function mobileLobbyFixture(
       check(!find('#setting-quality'), 'graphics modes are removed');
       check(!!find('#setting-sound') && !!find('#setting-reduced'), 'sound and accessibility preferences remain');
       find('#close-modal').click();
-      if (!${twoD}) {
+      {
         const canvas=find('#world canvas');
         check(!!canvas && canvas.width <= canvas.clientWidth * 1.25 + 1, 'legacy quality preference cannot exceed rendering budget');
       }
@@ -101,11 +102,14 @@ export function mobileLobbyFixture(
         const fetch=window.fetch;
         window.fetch=(input,init)=>{requests.push(String(input));return fetch(input,init);};
         const before=JSON.parse(localStorage.getItem('darecade-v1'));
-        for(const id of ['arcade','map','surroundings','soon']) {
+        for(const id of ['arcade','surroundings','soon']) {
           const link=document.createElement('button');link.dataset.open=id;document.body.append(link);link.click();link.remove();
           await wait(()=>find('#modal').open && find('#modal h2')?.textContent==='Play');
           check(!find('[data-open="relay"]') && !find('#modal').textContent.includes('Neighbourhood Relay'), id+' has no Relay');
-          check(!!find('[data-game="coast"]') && !!find('[data-open="stage"]') && !!find('[data-open="plots"]'), id+' keeps arcade, stage and plots');
+          check(document.querySelectorAll('[data-game]').length<=3, id+' limits primary game choices');
+          find('#play-section').value='outside';find('#play-section').dispatchEvent(new Event('change',{bubbles:true}));
+          check(!!find('[data-open="stage"]') && !!find('[data-open="plots"]'), id+' keeps stage and plots');
+          find('#play-section').value='arcade';find('#play-section').dispatchEvent(new Event('change',{bubbles:true}));
           check(document.documentElement.scrollWidth<=innerWidth, id+' has no horizontal overflow');
           find('#close-modal').click();
         }
@@ -143,14 +147,15 @@ export function mobileLobbyFixture(
       toggle.click();
       find('#quick-emotes [data-open="emotes"]').click();
       check(emotes.hidden, 'opening More collapses actions');
-      check(document.querySelectorAll('#modal-body [data-emote]').length===6, 'More shows all six emotes without Next');
-      check(!find('#modal-body [data-page="emotes"]'), 'emotes have no second page');
+      check(document.querySelectorAll('#modal-body [data-emote]').length===3, 'More shows three emotes');
+      const nextEmotes=[...document.querySelectorAll('[data-page="emotes"]')].find(button=>button.textContent.includes('Next'));nextEmotes.click();
+      check(!!find('[data-emote="think"]') && document.querySelectorAll('#modal-body [data-emote]').length===3, 'remaining three emotes reachable');
       find('#close-modal').click();
       find('.lobby-dock [data-open="wardrobe"]').click();
       await wait(()=>find('.wardrobe-controls'));
       const identity=find('.look-identity'), tabs=find('.look-tabs');
         check(identity.getBoundingClientRect().top < tabs.getBoundingClientRect().top, 'settings precede catalogue');
-        if (!${twoD}) {
+        {
           find('[data-preview-view="face"]').click();
           check(find('[data-preview-view="face"]').getAttribute('aria-pressed')==='true', 'face camera is selected');
           find('[data-preview-view="body"]').click();
@@ -181,7 +186,6 @@ export function mobileLobbyFixture(
       check(firstCard.getAttribute('aria-pressed')==='false', 'previous item is deselected');
       find('[data-undo-look]').click();
       check(JSON.parse(localStorage.getItem('darecade-v1')).clothing===64, 'Undo restores the previous outfit');
-      if (${twoD}) check(find('.look-2d-image').getAttribute('src')==='/wardrobe/outfits-80.png', '2D undo keeps the complete outfit art');
       const girlLook=JSON.parse(localStorage.getItem('darecade-v1'));
       find('.look-identity').open=true;
       find('[data-body="1"]').click();
@@ -243,7 +247,6 @@ export function mobileLobbyFixture(
       check(locked.isConnected && locked.getAttribute('aria-pressed')==='true', 'locked preview preserves its card');
       check(JSON.parse(localStorage.getItem('darecade-v1')).pet===savedPet, 'preview never equips an unowned item');
       check(find('[data-redeem-set="piece:solar:pet"]').disabled && !!find('[data-buy-set="solar"]'), 'insufficient tokens show a cash option');
-      if (${twoD}) check(find('.look-2d-image').getAttribute('src')==='/wardrobe/pet-26.png', '2D preview shows the selected pet');
       find('[data-reset-look]').click();
       check(locked.getAttribute('aria-pressed')==='false', 'reset clears preview selection');
       profile.progress.wardrobePurchased=['solar'];
@@ -267,33 +270,29 @@ export function mobileLobbyFixture(
       check(find('#player-account').textContent===${JSON.stringify(account ? "Saved account" : "Guest mode")}, 'correct account status');
       check(find('#level-label').textContent.includes('235 XP') && find('#level-label').textContent.includes('Level 3'), 'level and total XP visible');
       check(find('#medal-points').textContent.includes('4 Play medals') && find('#medal-points').textContent.includes('Ranked'), 'both medal types visible');
-      const goal = find('${twoD ? "#fallback-welcome" : ".welcome-panel"}');
+      const goal = find('.welcome-panel');
       check(visible(goal), 'first-round goal visible');
       check(goal.getBoundingClientRect().height<=90, 'cap prompt no taller than 90px');
       const dismiss=goal.querySelector('[data-action="welcome-skip"]');
       check(hit(dismiss) && dismiss.getBoundingClientRect().height>=44, 'dismiss target reachable');
-      ${
-        twoD
-          ? `check(find('#camera-toggle').hidden, '2D hides unavailable camera');`
-          : `
+      ${`
       const camera=find('#camera-toggle');
       check(visible(camera) && hit(camera), 'camera target unobstructed');
       check(camera.getBoundingClientRect().width>=36 && camera.getBoundingClientRect().height>=36, 'compact camera target at least 36px');
       const initial=camera.getAttribute('aria-pressed');
       camera.click(); check(camera.getAttribute('aria-pressed')!==initial, 'camera toggles to birds eye');
       camera.click(); check(camera.getAttribute('aria-pressed')===initial, 'camera toggles back to third person');
-      `
-      }
+      `}
       dismiss.click();
       const touchControls = !matchMedia('(hover: hover) and (pointer: fine)').matches;
-      if (!${twoD} && ${width} <= 900 && touchControls) {
+      if (${width} <= 900 && touchControls) {
         const stick=find('#joystick');
         check(visible(stick) && hit(stick), 'world joystick is visible and unobstructed');
         check(getComputedStyle(stick).touchAction==='none', 'world joystick keeps native touch capture');
       }
       const jump=find('#lobby-jump');
       check(!!jump, 'jump control exists');
-      if (!${twoD} && touchControls) {
+      if (touchControls) {
         check(visible(jump) && hit(jump), 'Jump touch target unobstructed');
         check(jump.getBoundingClientRect().width>=44 && jump.getBoundingClientRect().height>=44, 'Jump touch target at least 44px');
         const canvas=find('#world canvas');
@@ -318,7 +317,7 @@ export function mobileLobbyFixture(
       menu.focus(); menu.click();
       check(!visible(jump), 'Jump hidden behind open menu');
       const items=[...document.querySelectorAll('.simple-menu .menu-choice')];
-      check(items.length===${menuPages["phone-menu"].actions.length + 1}, 'all destinations on first menu page');
+      check(items.length===${menuPages["phone-menu"].actions.length}, 'all destinations on first menu page');
       check(!find('.simple-menu details') && !find('.simple-menu .choice-pager'), 'no category gates or paging');
       for(const item of items){ item.scrollIntoView({block:'center'}); check(visible(item)&&hit(item)&&item.getBoundingClientRect().height>=44,'reachable menu item: '+item.textContent.trim()); }
       find('.simple-menu [data-open="preferences"]').click();
@@ -337,11 +336,11 @@ export function mobileLobbyFixture(
   </script>`;
   const html = readFileSync(resolve(root, "index.html"), "utf8").replace(
     "<head>",
-    "<head>" + script,
+    "<head>" + script + (extraScript ? `<script>${extraScript}</script>` : ""),
   );
   return createServer((req, res) => {
     const path = new URL(req.url || "/", "http://localhost").pathname;
-    if (path === "/fixture" || (!automated && path === "/")) {
+    if (path === "/fixture" || (!automated && !extraScript && path === "/")) {
       res.setHeader("Content-Type", "text/html");
       res.end(html);
       return;

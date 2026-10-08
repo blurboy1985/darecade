@@ -47,6 +47,7 @@ for (const name of ["", "   ", "x", " x "]) {
       focus: () => (focused = true),
     };
     const context = vm.createContext({
+      HTMLSelectElement: class HTMLSelectElement {},
       gameGeneration: 1,
       body: {
         querySelector: (selector: string) =>
@@ -117,6 +118,7 @@ for (const outcome of [
         selector === "#nickname" ? input : status,
     };
     const context = vm.createContext({
+      HTMLSelectElement: class HTMLSelectElement {},
       Error,
       save: { nameChosen: false, rounds: 1, welcome: "played" },
       gameGeneration: 1,
@@ -193,6 +195,7 @@ test("native menu selectors restore focus after their own redraw", () => {
     let redraws = 0;
     const focused: string[] = [];
     const context = vm.createContext({
+      HTMLSelectElement: class HTMLSelectElement {},
       boardTab: "week",
       boardGame: "noodle",
       gameIds: ["noodle", "coast"],
@@ -221,6 +224,7 @@ function click(
 ) {
   const toasts: string[] = [];
   const context = vm.createContext({
+    HTMLSelectElement: class HTMLSelectElement {},
     toast: (message: string) => toasts.push(message),
     event: {
       target: {
@@ -306,3 +310,48 @@ test("a claim click always answers: rewarded, already claimed, or not finished",
   assert.deepEqual(again.sent, []);
   assert.deepEqual(claim(1, []).toasts, ["Not finished yet. Keep going!"]);
 });
+
+for (const failures of [
+  [true, false],
+  [false, true],
+]) {
+  test(`queued appearance saves report the final request correctly: ${failures}`, async () => {
+    const mutation = tree.statements.find(
+      (node) =>
+        ts.isFunctionDeclaration(node) && node.name?.text === "profileMutation",
+    )!;
+    const code = ts.transpileModule(mutation.getText(tree), {
+      compilerOptions: {
+        target: ts.ScriptTarget.ES2022,
+        module: ts.ModuleKind.None,
+      },
+    }).outputText;
+    let calls = 0;
+    const accepted: number[] = [];
+    const context = vm.createContext({
+      profileQueue: Promise.resolve(),
+      pendingPreferences: 0,
+      preferenceSaveFailed: false,
+      sentPreferences: "queued",
+      preferenceKeys: ["eye"],
+      save: { eye: 3 },
+      renderLookSaveStatus() {},
+      toast() {},
+      api: async () => {
+        if (failures[calls++]) throw Error("offline");
+        return { progress: { eye: 3 } };
+      },
+      acceptProfile: (p: { progress: { eye: number } }) =>
+        accepted.push(p.progress.eye),
+    });
+    vm.runInContext(
+      code +
+        '\nprofileMutation("profile", {eye: 1}); profileMutation("profile", {eye: 3});',
+      context,
+    );
+    await context.profileQueue;
+    assert.equal(context.pendingPreferences, 0);
+    assert.equal(context.preferenceSaveFailed, failures[1]);
+    assert.deepEqual(accepted, [3]);
+  });
+}

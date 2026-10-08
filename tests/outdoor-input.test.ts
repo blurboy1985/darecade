@@ -66,6 +66,7 @@ function harness(id: "hoops" | "fishing" = "hoops") {
         case "./state":
           return { fishSpecies, HOOPS_SHOTS };
         case "./outdoor.css":
+        case "./graphics-support":
           return {};
         default:
           throw Error(`Unexpected import: ${path}`);
@@ -83,13 +84,19 @@ function harness(id: "hoops" | "fishing" = "hoops") {
     setTimeout: () => 1,
   });
   vm.runInContext(compiled, context);
+  // Replace only the asynchronous graphics boundary; input and simulation stay real.
+  exports.OutdoorGame.prototype.load = function () {
+    this.view = { draw() {}, dispose() {} };
+    this.last = now;
+    this.frame = context.requestAnimationFrame(this.loop);
+  };
   const game = new exports.OutdoorGame(
     container,
     id,
     (score: number, replay: Replay) => finished.push({ score, replay }),
     () => {},
     77,
-    { simple: true, reduced: true },
+    { reduced: true },
   );
   const sim: Simulation = game.sim;
   const emit = (target: EventTarget, type: string, properties = {}) =>

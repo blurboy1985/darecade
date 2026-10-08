@@ -128,6 +128,7 @@ export class ArcadeGame extends Simulation {
           .catch(() => {});
     }
     container.querySelector("#start-game")!.addEventListener("click", () => {
+      if (this.started || this.disposed) return;
       this.started = true;
       this.countdown = id === "hop" ? 3 : 0;
       container.querySelector("#game-cover")!.remove();

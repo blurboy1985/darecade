@@ -17,6 +17,7 @@ import type { Sfx } from "./audio";
 import type { FxEvent } from "./arcade-fx";
 import type { OutdoorView } from "./outdoor-view";
 import "./outdoor.css";
+import { mountGraphicsMessage } from "./graphics-support";
 
 const LOSSES = {
   early: "Too soon. It swam off.",
@@ -53,7 +54,10 @@ export class OutdoorGame {
     private readonly finish: (score: number, replay: Replay) => void,
     private readonly sound: (name: Sfx) => void,
     seed: number,
-    private readonly options: { reduced: boolean; simple: boolean },
+    private readonly options: {
+      reduced: boolean;
+      graphicsFailure?: (contextLost: boolean) => void;
+    },
   ) {
     this.sim = new Simulation(id, seed);
     const hoops = id === "hoops";
@@ -76,7 +80,7 @@ export class OutdoorGame {
           hoops
             ? `${press} to stop the marker in the green. The bright centre is a swish worth 3; the rest of the green is worth 2. Baskets in a row add up to 3 more. The green narrows, and from the fourth shot it slides.`
             : `${press} to cast, then again the moment the float dips. Hold to reel, and let go while the fish thrashes or the line snaps. Rare fish score more and fight harder.`
-        }</p><button class="primary" id="start-game">PLAY <span>▶</span></button></div>
+        }</p><button class="primary" id="start-game" disabled>PLAY <span>▶</span></button></div>
       </div>
       <button class="outdoor-action" id="outdoor-action" disabled>${hoops ? "SHOOT" : "CAST"}</button>
       <div class="game-controls"><span>${touch ? "Tap the big button or the scene" : "Space, Enter or click"}${hoops ? "" : " · hold to reel"}</span><button class="text-button" id="pause-game" disabled>Pause</button></div>
@@ -148,37 +152,43 @@ export class OutdoorGame {
     void this.load();
   }
   private async load() {
-    if (!this.options.simple)
-      try {
-        const module = await import("./outdoor-view");
-        if (this.disposed) return;
-        this.view = new module.OutdoorView(
-          this.container.querySelector(".outdoor-view")!,
-          this.sim.outdoor!,
-          this.options.reduced,
-        );
-        this.view.renderer.domElement.addEventListener(
-          "webglcontextlost",
-          (e) => {
-            e.preventDefault();
-            this.view?.dispose();
-            this.view = null;
-            this.root.classList.add("simple-outdoor");
-          },
-          { signal: this.abort.signal },
-        );
-      } catch {
-        // The meters carry the whole round without the 3D scene.
-        this.view?.dispose();
-        this.view = null;
-      }
+    try {
+      const module = await import("./outdoor-view");
+      if (this.disposed) return;
+      this.view = new module.OutdoorView(
+        this.container.querySelector(".outdoor-view")!,
+        this.sim.outdoor!,
+        this.options.reduced,
+      );
+      this.view.renderer.domElement.addEventListener(
+        "webglcontextlost",
+        (e) => {
+          e.preventDefault();
+          this.graphicsFailure(true);
+        },
+        { signal: this.abort.signal },
+      );
+    } catch {
+      if (!this.disposed) this.graphicsFailure(false);
+      return;
+    }
     if (this.disposed) return;
-    if (!this.view) this.root.classList.add("simple-outdoor");
+    this.container.querySelector<HTMLButtonElement>("#start-game")!.disabled =
+      false;
     this.last = performance.now();
     this.frame = requestAnimationFrame(this.loop);
   }
+  private graphicsFailure(contextLost: boolean) {
+    if (this.disposed) return;
+    this.paused = true;
+    this.held = this.pendingPress = false;
+    cancelAnimationFrame(this.frame);
+    this.dispose();
+    if (this.options.graphicsFailure) this.options.graphicsFailure(contextLost);
+    else mountGraphicsMessage(this.container, contextLost);
+  }
   private start() {
-    if (this.started) return;
+    if (this.started || this.disposed || !this.view) return;
     this.started = true;
     this.container.querySelector<HTMLElement>("#game-cover")!.hidden = true;
     this.container.querySelector<HTMLButtonElement>("#pause-game")!.disabled =

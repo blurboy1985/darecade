@@ -87,7 +87,7 @@ dialog.game-modal.racing-modal {
 }
 .coast-game[data-status="ready"] .race-hud,
 .coast-game[data-status="ready"] .race-item,
-.coast-game[data-status="ready"]:not(.simple-race) .race-map,
+.coast-game[data-status="ready"] .race-map,
 .coast-game[data-status="ready"] .race-speed {
   visibility: hidden;
 }
@@ -447,21 +447,6 @@ dialog.game-modal.racing-modal {
   flex-wrap: wrap;
   gap: 8px;
 }
-.simple-race .race-map {
-  width: 100%;
-  height: 100%;
-  inset: 0;
-  border-radius: 0;
-}
-.simple-race .race-hud,
-.simple-race .race-speed,
-.simple-race .race-notice {
-  z-index: 1;
-}
-.simple-race .race-cover {
-  z-index: 2;
-  background: #173d4ff2;
-}
 @media (max-width: 600px) {
   .race-board .podium-cards {
     grid-template-columns: minmax(0, 1fr);
@@ -726,7 +711,7 @@ dialog.game-modal.racing-modal {
 .coast-game[data-status="finished"] .race-speed,
 .coast-game[data-status="finished"] .race-item,
 .coast-game[data-status="finished"] .race-notice,
-.coast-game[data-status="finished"]:not(.simple-race) .race-map {
+.coast-game[data-status="finished"] .race-map {
   visibility: hidden;
 }
 .coast-game[data-status="finished"] .race-touch,
@@ -1078,5 +1063,29 @@ dialog.game-modal.racing-modal {
   .race-finish .secondary {
     min-height: 44px;
     padding: 6px 16px;
+  }
+}
+.coast-game[data-input="touch"] .race-touch {
+  display: grid !important;
+}
+/* Keep the road between the driver and horizon open on narrow/short screens. */
+@media (max-width: 600px), (max-height: 500px) {
+  .coast-game .race-item {
+    min-width: 72px;
+    min-height: 48px;
+    max-width: 100px;
+    padding: 5px 7px;
+    gap: 1px;
+  }
+  .coast-game .race-item b {
+    font-size: 13px;
+  }
+  .coast-game .race-nameplate {
+    padding: 2px 4px;
+    font-size: 11px;
+    line-height: 14px;
+    max-width: 85px;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }

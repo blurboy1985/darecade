@@ -90,9 +90,8 @@ const waterFragment = `
 /** A decorative layer. The HTML grid owns every control and accessible label. */
 export function createPlotView(
   host: HTMLElement,
-  options: { reduced: boolean; simple: boolean },
+  options: { reduced: boolean },
 ): PlotView | null {
-  if (options.simple) return null;
   const geometries = new Set<T.BufferGeometry>();
   const materials = new Set<T.Material>();
   const scene = new T.Scene();

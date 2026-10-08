@@ -1,3 +1,5 @@
+import { rewardReceipt, type RewardReceipt } from "./reward-receipt";
+import { supports3D, mountGraphicsMessage } from "./graphics-support";
 import { levelReward } from "./progression-guide";
 import { savedLookAllowed } from "./saved-looks.ts";
 import { installControls } from "./ui-controls";
@@ -18,7 +20,6 @@ import {
   withoutHeadwear,
   favouriteProgress,
   savedLookShelf,
-  outfitPreviewImage,
   wardrobeSections,
   wardrobeFilters,
   type WardrobeSection,
@@ -89,6 +90,7 @@ import {
 import { residents } from "./neighbourhood";
 import {
   readSave,
+  normalise,
   completeWelcomeRound,
   firstRoundGoalPending,
   writeSave,
@@ -158,9 +160,10 @@ let tryingLook: TryOn = null;
 let fittingView: "body" | "face" = "body";
 let fittingExpanded = false;
 let gamePage = 0;
+let playSection: "arcade" | "outside" = "arcade";
 let outdoorPage = 0;
-let emote2d = { id: "", until: 0 };
 let questPage = 0;
+let emotePage = 0;
 // True while a new player is led from their first result through naming and
 // dressing their character, on the way to saving it.
 let setupGuide = false;
@@ -199,7 +202,7 @@ function flushStyleTokens() {
   const count = pendingStyleTokens;
   pendingStyleTokens = 0;
   dismissStyleReward?.();
-  dismissStyleReward = showStyleReward(count, save.reduced || is2d, () => {
+  dismissStyleReward = showStyleReward(count, save.reduced, () => {
     document.querySelector<HTMLDialogElement>("#account-dialog")?.close();
     wardrobeFilter = "Legendary";
     open("wardrobe");
@@ -232,6 +235,7 @@ window.addEventListener("session-expired", () => {
   }
 });
 type SavedRound = {
+  rewards?: RewardReceipt;
   playMedal?: number;
   earnedXp?: number;
   race?: RaceResult & { newBest: boolean };
@@ -283,21 +287,37 @@ const preferenceKeys = [
   "sound",
   "music",
   "reduced",
-  "twoD",
   "light",
   "cameraMode",
   "awayActivity",
   "welcomeDismissed",
 ] as const;
 let pendingPreferences = 0;
+let preferenceSaveFailed = false;
+function renderLookSaveStatus() {
+  const status = body.querySelector<HTMLElement>("#look-save-status");
+  if (status)
+    status.textContent = tryingLook
+      ? "Preview only · your saved look is unchanged"
+      : pendingPreferences
+        ? "Saving your look…"
+        : preferenceSaveFailed
+          ? "Look not saved yet. Reopen My look to retry."
+          : "Saved look · owned selections save automatically";
+}
 function profileMutation(path: string, data: unknown) {
   const preferenceChange = path === "profile";
-  if (preferenceChange) pendingPreferences++;
+  if (preferenceChange) {
+    pendingPreferences++;
+    preferenceSaveFailed = false;
+    renderLookSaveStatus();
+  }
   profileQueue = profileQueue
     .then(async () => {
       let p: Profile;
       try {
         p = await api<Profile>(path, data);
+        if (preferenceChange) preferenceSaveFailed = false;
       } finally {
         if (preferenceChange) pendingPreferences--;
       }
@@ -311,9 +331,13 @@ function profileMutation(path: string, data: unknown) {
       if (p.styleRewards) void claimStyleRewards();
     })
     .catch((error) => {
-      if (preferenceChange) sentPreferences = "";
+      if (preferenceChange) {
+        sentPreferences = "";
+        preferenceSaveFailed = true;
+      }
       toast((error as Error).message);
-    });
+    })
+    .finally(renderLookSaveStatus);
   return profileQueue;
 }
 function progress(event: string, value?: unknown) {
@@ -326,7 +350,7 @@ let socialPanel = "";
 let syncing = false;
 let syncRequested = false;
 let sharedSignature = "";
-let is2d = false;
+let graphicsBlocked = false;
 let nearId = "";
 let toastTimer = 0;
 let lastFocus: HTMLElement | null = null;
@@ -338,12 +362,12 @@ app.innerHTML = `
   <main class="hud"><section class="welcome-panel" aria-label="Welcome"></section>
   <div class="move-hint"><kbd>W</kbd><span><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><p>Move <i>·</i> tap to walk</p></div>
   <div id="joystick" class="joystick touch-stick" role="group" aria-label="Drag to walk"><span></span></div>
-  <div id="fallback" class="fallback" hidden></div>
   </main>
+  <div id="graphics-message" hidden></div>
   <footer class="bottom-bar"><div class="profile"><span class="avatar-icon" id="avatar-icon"><i></i></span><span><strong id="player-name">New neighbour</strong><span id="player-account" hidden>Guest mode</span><small id="medal-points">0 MEDALS</small><span id="level-label">LEVEL 1</span><span class="xp-track"><i id="xp-fill"></i></span></span></div><nav class="dock lobby-dock" aria-label="Main actions"><button class="selected" data-open="arcade" data-main-action>${icon("game")}<span>Play</span></button><button data-open="wardrobe" data-main-action>${icon("shirt")}<span>My look</span></button><button class="phone-more" data-open="phone-menu" data-main-action>${icon("settings")}<span>Menu</span></button></nav><span class="footer-note" id="quality-note">3D WORLD</span></footer>
   <div class="world-actions"><button id="lobby-jump" class="round-action" data-emote="jump" aria-label="Jump">↑</button></div>
   <div class="emote-control"><button class="round-action" id="quick-emotes-toggle" aria-label="Emotes" aria-controls="quick-emotes" aria-expanded="false">${icon("smile")}</button>
-  <div id="quick-emotes" role="group" aria-label="Favourite emotes" hidden><button data-emote="wave" aria-label="Wave">👋</button><button data-emote="dance" aria-label="Dance">♫</button><button data-emote="cheer" aria-label="Cheer">🙌</button><button data-emote="victory" aria-label="Victory">✌</button><button data-open="emotes">More</button></div></div>
+  <div id="quick-emotes" role="group" aria-label="Favourite emotes" hidden><button data-emote="wave" aria-label="Wave">👋</button><button data-emote="dance" aria-label="Dance">♫</button><button data-open="emotes">More</button></div></div>
   <div class="world-zoom"><button data-action="zoom-out" aria-label="Zoom out">−</button><button data-action="zoom-in" aria-label="Zoom in">+</button></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <dialog id="modal"><div class="modal-top"><span class="eyebrow" id="modal-kicker">THE NEIGHBOURHOOD</span><button id="close-modal" class="close-button" aria-label="Close panel">×</button></div><div id="modal-body"></div></dialog>
@@ -461,7 +485,7 @@ function renderStats() {
     "--outfit",
     outfits[save.outfit],
   );
-  if (world && !is2d)
+  if (world)
     refreshHeadshot(document.querySelector<HTMLElement>("#avatar-icon")!, save);
   document.documentElement.classList.toggle("reduced", save.reduced);
 }
@@ -544,6 +568,7 @@ function openShell(kicker: string, keepPreview = false) {
   }
 }
 function close() {
+  tryingLook = null;
   world?.updateAvatar();
   dismissStyleReward?.();
   window.setTimeout(flushStyleTokens, 0);
@@ -567,7 +592,7 @@ function close() {
     ? lastFocus
     : document.querySelector<HTMLElement>(
         firstRoundGoalPending(save) && !save.welcomeDismissed
-          ? `${is2d ? "#fallback-welcome" : ".welcome-panel"} [data-action="welcome-start"]`
+          ? `.welcome-panel [data-action="welcome-start"]`
           : '.lobby-dock [data-open="phone-menu"]',
       );
   // Return keyboard navigation to the lobby without arming a HUD button.
@@ -607,9 +632,8 @@ function updateTryOn(selection?: { name: string; image: string }) {
   panel.querySelector(".try-actions")!.innerHTML = tryingLook
     ? `<button class="primary" data-equip-look ${canEquip ? "" : "disabled"}>${canEquip ? "Equip look" : "Locked · preview only"}</button><button class="text-button" data-reset-look>Back to my look</button>`
     : `<button class="secondary" data-undo-look ${undoLook ? "" : "disabled"}>Undo</button><span>Tap a look to wear it</span>`;
-  if (preview && is2d)
-    preview.innerHTML = `<img class="look-2d-image" src="${tryingLook?.image ?? selection?.image ?? outfitPreviewImage(save)}" alt="${tryingLook?.name ?? selection?.name ?? clothingNames[save.clothing]}">${actionButton("2d", "Return to 3D", "secondary")}`;
   refreshWardrobeCards(body, save, shared?.self?.points ?? 0, tryingLook);
+  renderLookSaveStatus();
 }
 function actionButton(action: string, label: string, klass = "primary") {
   return `<button class="${klass}" data-action="${action}">${label}</button>`;
@@ -631,7 +655,7 @@ function cards() {
     fishing:
       '<span class="jetty-deck"></span><span class="jetty-rod"></span><span class="jetty-fish">◀</span><b>CAST & CHILL</b>',
   };
-  const choices = { items: playIds, page: gamePage, total: 1 };
+  const choices = pageChoices(playIds, gamePage);
   return `<div class="game-grid compact-games">${choices.items.map((id) => `<button class="game-card ${id}" data-game="${id}"><div class="game-art ${id}-art">${art[id]}</div><span class="eyebrow">${games[id].genre}</span><h3>${games[id].name}</h3><div><span>${id === "coast" ? "3 laps" : id === "hoops" ? "10 shots" : id === "swarm" ? "120s" : "60s"} · BEST ${id === "coast" && save.coastRecord.timeTicks ? raceTime(save.coastRecord.timeTicks) : formatScore(id, shared?.self.best[id] ?? 0)}</span>${icon("arrow")}</div></button>`).join("")}</div>${pager(choices.page, choices.total, "games")}`;
 }
 function questTabs(active: string) {
@@ -647,8 +671,12 @@ function questTabs(active: string) {
     .join("")}</nav>`;
 }
 function open(id: string) {
+  if (graphicsBlocked) return;
   setEmotesOpen(false);
-  if (["map", "surroundings"].includes(id)) id = "arcade";
+  if (["surroundings", "soon"].includes(id)) {
+    playSection = "outside";
+    id = "arcade";
+  }
   if (["settings", "controls"].includes(id)) id = "preferences";
   if (id === "account") {
     void openAccount();
@@ -710,20 +738,7 @@ function open(id: string) {
     return;
   }
   if (id === "cat") {
-    if (!is2d) {
-      startOutdoor("pet");
-      return;
-    }
-    visit("cat");
-    if (!save.cat) {
-      save.cat = true;
-      progress("cat");
-      save.xp += 15;
-      persist();
-    }
-    world?.act("wave");
-    openShell("THE UNOFFICIAL MAYOR");
-    body.innerHTML = `<div class="cat-portrait">${icon("cat")}</div><h2>Meet Kopi.</h2><p class="lead">Professional sunbeam finder.<br>Part-time arcade supervisor.</p><div class="note">Kopi leans into your hand and gives a tiny, approving purr. You’ve made a friend.</div>${actionButton("pet", "Give another head scratch ♡")}<p class="fine-print">A little pause is part of the adventure.</p>`;
+    startOutdoor("pet");
     return;
   }
   openShell(
@@ -738,13 +753,12 @@ function open(id: string) {
             : id === "stage"
               ? "ARCADE ROW"
               : "PLAY SIMI",
-    id === "wardrobe" && !is2d,
+    id === "wardrobe",
   );
   if (id === "stage") {
     mountStage(body, {
       save,
       sound: beep,
-      simple: is2d,
       report: (event, value) => {
         progress(event, value);
         return profileQueue;
@@ -765,7 +779,6 @@ function open(id: string) {
     };
     mount[id](body, {
       save,
-      simple: is2d,
       sound: beep,
       // The save is refreshed from the server's reply before this resolves.
       report: (event, value) => {
@@ -783,29 +796,25 @@ function open(id: string) {
   } else if (isMenuPage(id)) {
     modal.classList.add("directory-panel");
     const page = menuPages[id];
-    body.innerHTML = `<h2>${page.title}</h2><div class="simple-menu" aria-label="Menu">${page.actions.map((action) => `<button class="menu-choice" data-open="${action.target}">${icon(action.icon)}<span>${action.label}</span>${icon("arrow")}</button>`).join("")}<button class="menu-choice" ${currentProfile?.account ? 'data-action="logout"' : 'data-action="save-email"'}>${icon("settings")}<span>${currentProfile?.account ? "Log out" : "Save with email"}</span>${icon("arrow")}</button></div><div class="menu-links"><button class="text-button" data-open="privacy">Privacy & data</button><button class="text-button" data-open="help">Help/Report</button></div>`;
+    body.innerHTML = `<h2>${page.title}</h2><div class="simple-menu" aria-label="Menu">${page.actions.map((action) => `<button class="menu-choice" data-open="${action.target}">${icon(action.icon)}<span>${action.label}</span>${icon("arrow")}</button>`).join("")}</div><div class="menu-links"><button class="text-button" ${currentProfile?.account ? 'data-action="logout"' : 'data-action="save-email"'}>${icon("settings")}<span>${currentProfile?.account ? "Log out" : "Save with email"}</span>${icon("arrow")}</button><button class="text-button" data-open="privacy">Privacy & data</button><button class="text-button" data-open="help">Help/Report</button></div>`;
   } else if (id === "arcade") {
-    body.innerHTML = `<h2>Play</h2>${cards()}<h3>Play outside</h3><div class="outside-cards">${[
-      ["stage", "Open Stage", "♫"],
-      ["plots", "Community Plots", "🌱"],
-    ]
-      .map(
-        ([id, name, emoji]) =>
-          `<button class="menu-choice" data-open="${id}"><span>${emoji}</span><strong>${name}</strong></button>`,
-      )
-      .join("")}${[
-      ["dragon", "Dragon Rooftop", "🐉"],
-      ["swing", "Swings", "✦"],
-      ["pet", "Pet Kopi", "🐈"],
-      ["bench0", "Take a seat", "📖"],
-    ]
-      .map(
-        ([id, name, emoji]) =>
-          `<button class="menu-choice" data-environment="${id}"><span>${emoji}</span><strong>${name}</strong></button>`,
-      )
-      .join(
-        "",
-      )}</div><p class="fine-print">Play medals reward qualifying finishes. Ranked arcade medals land at midnight.</p>`;
+    const outside = pageChoices(
+      [
+        { id: "stage", name: "Open Stage", icon: "♫", kind: "open" },
+        { id: "plots", name: "Community Plots", icon: "🌱", kind: "open" },
+        {
+          id: "dragon",
+          name: "Dragon Rooftop",
+          icon: "🐉",
+          kind: "environment",
+        },
+        { id: "swing", name: "Swings", icon: "✦", kind: "environment" },
+        { id: "pet", name: "Pet Kopi", icon: "🐈", kind: "environment" },
+        { id: "bench0", name: "Take a seat", icon: "📖", kind: "environment" },
+      ],
+      outdoorPage,
+    );
+    body.innerHTML = `<h2>Play</h2><label class="field-label" for="play-section">Choose activities</label><select id="play-section" class="destination-select"><option value="arcade" ${playSection === "arcade" ? "selected" : ""}>Arcade games</option><option value="outside" ${playSection === "outside" ? "selected" : ""}>Play outside</option></select>${playSection === "arcade" ? cards() : `<h3>Play outside</h3><div class="outside-cards">${outside.items.map((item) => `<button class="menu-choice" data-${item.kind}="${item.id}"><span>${item.icon}</span><strong>${item.name}</strong></button>`).join("")}</div>${pager(outside.page, outside.total, "play-outside")}`}<p class="fine-print">Play medals reward qualifying finishes. Ranked arcade medals land at midnight.</p>`;
   } else if (id === "shop") {
     const taken = save.giftDay === singaporeDay();
     body.innerHTML = `<h2>${taken ? "Good choice!" : "Pick a free hat"}</h2><p class="lead">${taken ? "It’s in your collection. Choose any complete outfit in My look to change your style." : "Yours to keep."}</p><div class="gift-grid">${[
@@ -829,25 +838,26 @@ function open(id: string) {
     const medals = shared?.self?.points ?? 0;
     const shown = tryingLook?.look ?? save;
     world?.updateAvatar(shown);
-    body.innerHTML = `<div class="wardrobe-layout ${fittingExpanded ? "fitting-expanded" : ""}"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${tryingLook ? "Trying on" : escapeText(nickname)}</strong><small>${is2d ? "Catalogue image · custom combinations need 3D" : "DRAG TO TURN"}</small><div class="preview-tools" aria-label="Preview camera"><button data-preview-view="body" aria-pressed="${fittingView === "body"}" ${is2d ? "disabled" : ""}>Full body</button><button data-preview-view="face" aria-pressed="${fittingView === "face"}" ${is2d ? "disabled" : ""}>Face</button><button data-expand-preview aria-expanded="${fittingExpanded}">${fittingExpanded ? "Back to collection" : "Larger preview"}</button></div><span class="look-caption">${tryingLook?.name ?? clothingNames[save.clothing]}</span><div class="try-actions" role="status"><button class="secondary" data-undo-look ${undoLook ? "" : "disabled"}>Undo</button><button class="text-button" data-reset-look>Back to my look</button></div></div><div class="wardrobe-controls">${setupGuide ? '<span class="eyebrow setup-step">STEP 1 OF 2 · NAME & LOOK</span>' : ""}${setupGuide ? "<h2>Make it yours</h2>" : `<span class="eyebrow">YOUR COLLECTION</span><h2>My look</h2><div class="style-wallet"><strong>${tokenSummary(save)}</strong><small>Tokens buy looks. +1 per 100 XP, up to +3 daily from ranked medals.</small></div>`}<details class="look-identity" ${setupGuide ? "open" : ""}><summary>Character settings</summary><form id="nickname-form" novalidate><label class="field-label" for="nickname">NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" ${currentProfile?.account ? "" : "readonly"} value="${escapeText(typed)}" minlength="2" maxlength="20" autocomplete="off" placeholder="Choose your nickname" aria-describedby="nickname-status" required><button class="secondary" type="submit" ${currentProfile?.account ? "" : "disabled"}>Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form><label class="field-label">CHARACTER</label><div class="body-options">${["Girl", "Boy"].map((label, i) => `<button data-body="${i}" class="${save.body === i ? "active" : ""}" aria-pressed="${save.body === i}">${label}</button>`).join("")}</div><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">EYE COLOUR</label><div class="swatches">${["#db779f", "#865035", "#328cca", "#469267", "#8763bd"].map((c, i) => `<button data-eye="${i}" style="--swatch:${c}" aria-label="${["Original", "Brown", "Blue", "Green", "Violet"][i]} eyes" aria-pressed="${(save.eye || 0) === i}"></button>`).join("")}</div></details>${favouriteProgress(save)}${savedLookShelf(save)}${setupGuide ? `<details class="setup-more" ${moreLooksOpen ? "open" : ""}><summary>Browse looks</summary>` : ""}<div class="look-tabs" aria-label="Wardrobe sections">${wardrobeSections.map((label) => `<button data-wardrobe-section="${label}" aria-pressed="${wardrobeSection === label}">${label}</button>`).join("")}</div><div class="collection-tabs" aria-label="Item tiers" ${wardrobeSection === "Hair" ? "hidden" : ""}>${wardrobeFilters.map((label) => `<button data-wardrobe-filter="${label}" aria-pressed="${wardrobeFilter === label}">${label}</button>`).join("")}</div>${wardrobeSection === "Headwear" ? hatShelf(save) : ""}${wardrobeBrowser(wardrobeSection, wardrobeFilter, save, medals, tryingLook)}<p class="fine-print">Cosmetic only. No gameplay advantage. Choose a complete outfit, or mix clothes, hair and headwear. Pets and magic are selected separately.</p>${setupGuide ? "</details>" : ""}${setupGuide ? actionButton("setup-save", "Save & continue →") : actionButton("done-look", "Done")}</div></div>`;
+    body.innerHTML = `<div class="wardrobe-layout ${fittingExpanded ? "fitting-expanded" : ""}"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${tryingLook ? "Trying on" : escapeText(nickname)}</strong><small>DRAG TO TURN</small><div class="preview-tools" aria-label="Preview camera"><button data-preview-view="body" aria-pressed="${fittingView === "body"}" >Full body</button><button data-preview-view="face" aria-pressed="${fittingView === "face"}" >Face</button><button data-expand-preview aria-expanded="${fittingExpanded}">${fittingExpanded ? "Back to collection" : "Larger preview"}</button></div><span class="look-caption">${tryingLook?.name ?? clothingNames[save.clothing]}</span><p id="look-save-status" role="status"></p><div class="try-actions" role="status"><button class="secondary" data-undo-look ${undoLook ? "" : "disabled"}>Undo</button><button class="text-button" data-reset-look>Back to my look</button></div></div><div class="wardrobe-controls">${setupGuide ? '<span class="eyebrow setup-step">STEP 1 OF 2 · NAME & LOOK</span>' : ""}${setupGuide ? "<h2>Make it yours</h2>" : `<span class="eyebrow">YOUR COLLECTION</span><h2>My look</h2><div class="style-wallet"><strong>${tokenSummary(save)}</strong><small>Tokens buy looks. +1 per 100 XP, up to +3 daily from ranked medals.</small></div>`}<details class="look-identity" ${setupGuide ? "open" : ""}><summary>Character settings</summary><form id="nickname-form" novalidate><label class="field-label" for="nickname">NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" ${currentProfile?.account ? "" : "readonly"} value="${escapeText(typed)}" minlength="2" maxlength="20" autocomplete="off" placeholder="Choose your nickname" aria-describedby="nickname-status" required><button class="secondary" type="submit" ${currentProfile?.account ? "" : "disabled"}>Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form><label class="field-label">CHARACTER</label><div class="body-options">${["Girl", "Boy"].map((label, i) => `<button data-body="${i}" class="${save.body === i ? "active" : ""}" aria-pressed="${save.body === i}">${label}</button>`).join("")}</div><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">EYE COLOUR</label><div class="swatches">${["#db779f", "#865035", "#328cca", "#469267", "#8763bd"].map((c, i) => `<button data-eye="${i}" style="--swatch:${c}" aria-label="${["Original", "Brown", "Blue", "Green", "Violet"][i]} eyes" aria-pressed="${(save.eye || 0) === i}"></button>`).join("")}</div></details>${favouriteProgress(save)}${savedLookShelf(save)}${setupGuide ? `<details class="setup-more" ${moreLooksOpen ? "open" : ""}><summary>Browse looks</summary>` : ""}<div class="look-tabs" aria-label="Wardrobe sections">${wardrobeSections.map((label) => `<button data-wardrobe-section="${label}" aria-pressed="${wardrobeSection === label}">${label}</button>`).join("")}</div><div class="collection-tabs" aria-label="Item tiers" ${wardrobeSection === "Hair" ? "hidden" : ""}>${wardrobeFilters.map((label) => `<button data-wardrobe-filter="${label}" aria-pressed="${wardrobeFilter === label}">${label}</button>`).join("")}</div>${wardrobeSection === "Headwear" ? hatShelf(save) : ""}${wardrobeBrowser(wardrobeSection, wardrobeFilter, save, medals, tryingLook)}<p class="fine-print">Cosmetic only. No gameplay advantage. Choose a complete outfit, or mix clothes, hair and headwear. Pets and magic are selected separately.</p>${setupGuide ? "</details>" : ""}${setupGuide ? actionButton("setup-save", "Save & continue →") : actionButton("done-look", "Done")}</div></div>`;
+    renderLookSaveStatus();
+    if (preferenceSaveFailed) persist();
     mountAvatarCards(body, save);
-    if (!is2d)
-      for (const image of Array.from(
-        body.querySelectorAll<HTMLImageElement>("[data-saved-thumbnail]"),
-      )) {
-        const look = save.savedLooks[Number(image.dataset.savedThumbnail)];
-        if (look)
-          void avatarPortrait(look, "set")
-            .then((url) => {
-              if (image.isConnected) {
-                image.src = url;
-                image.alt = "Your saved combination";
-              }
-            })
-            .catch(() => {});
-      }
+    for (const image of Array.from(
+      body.querySelectorAll<HTMLImageElement>("[data-saved-thumbnail]"),
+    )) {
+      const look = save.savedLooks[Number(image.dataset.savedThumbnail)];
+      if (look)
+        void avatarPortrait(look, "set")
+          .then((url) => {
+            if (image.isConnected) {
+              image.src = url;
+              image.alt = "Your saved combination";
+            }
+          })
+          .catch(() => {});
+    }
     const preview = body.querySelector<HTMLElement>(".character-preview")!;
-    if (!is2d) {
+    {
       try {
         if (characterPreview)
           characterPreview.mount(preview, { ...shown, reduced: save.reduced });
@@ -860,8 +870,7 @@ function open(id: string) {
       } catch {
         preview.textContent = "Your look will appear in the neighbourhood.";
       }
-    } else
-      preview.innerHTML = `<img class="look-2d-image" src="${tryingLook?.image ?? outfitPreviewImage(save)}" alt="${tryingLook?.name ?? clothingNames[save.clothing]}">${actionButton("2d", "Return to 3D", "secondary")}`;
+    }
     body.querySelector<HTMLFormElement>("#nickname-form")!.onsubmit = async (
       e,
     ) => {
@@ -915,7 +924,7 @@ function open(id: string) {
       )
       .join(
         "",
-      )}</details></div></div></div><div class="hunt-panel"><span class="big-coin">✦</span><div><h3>Pixel hunt</h3><p>Find 5 coins → Sprout hat + 50 XP</p><strong>${save.coins.length} / 5</strong></div></div>${is2d ? '<p class="fine-print">Needs 3D. Or grab a free Sprout hat at the Mama Shop.</p>' : ""}<div class="mission-list">${choices.items
+      )}</details></div></div></div><div class="hunt-panel"><span class="big-coin">✦</span><div><h3>Pixel hunt</h3><p>Find 5 coins → Sprout hat + 50 XP</p><strong>${save.coins.length} / 5</strong></div></div><div class="mission-list">${choices.items
       .map((m) => {
         const progress = missionProgress(save, m.id);
         return `<div><span class="mission-check ${progress >= m.total ? "complete" : ""}">${progress >= m.total ? "✓" : icon("star")}</span><span><strong>${m.name}</strong><small>${m.detail} · ${progress}/${m.total}</small></span><button data-claim="${m.id}" ${progress < m.total || save.claims.includes(m.id) ? "disabled" : ""}>${save.claims.includes(m.id) ? "CLAIMED ✓" : progress >= m.total ? `CLAIM +${m.xp} XP` : `${progress}/${m.total} · +${m.xp} XP`}</button></div>`;
@@ -945,20 +954,23 @@ function open(id: string) {
     socialPanel = "board";
     renderSharedBoard();
   } else if (id === "emotes") {
-    const choices = [
-      ["wave", "👋", "Hello, neighbour"],
-      ["cheer", "🙌", "Big cheer"],
-      ["dance", "🪩", "Tiny dance party"],
-      ["jump", "⚡", "Jump for joy"],
-      ["victory", "✌", "Nailed it"],
-      ["think", "💭", "Deep thoughts"],
-    ];
-    body.innerHTML = `<h2>Emotes</h2><p class="fine-print">Say hello in your world. No email needed.</p><div class="emote-grid">${choices
+    const choices = pageChoices(
+      [
+        ["wave", "👋", "Hello, neighbour"],
+        ["cheer", "🙌", "Big cheer"],
+        ["dance", "🪩", "Tiny dance party"],
+        ["jump", "⚡", "Jump for joy"],
+        ["victory", "✌", "Nailed it"],
+        ["think", "💭", "Deep thoughts"],
+      ],
+      emotePage,
+    );
+    body.innerHTML = `<h2>Emotes</h2><p class="fine-print">Say hello in your world. No email needed.</p><div class="emote-grid">${choices.items
       .map(
         ([id, e, n]) =>
           `<button data-emote="${id}"><span>${e}</span><strong>${n}</strong></button>`,
       )
-      .join("")}</div>`;
+      .join("")}</div>${pager(choices.page, choices.total, "emotes")}`;
   } else if (id === "neighbours") {
     socialPanel = "neighbours";
     renderSharedNeighbours();
@@ -986,7 +998,7 @@ function open(id: string) {
       )
       .join(
         "",
-      )}</select></label><div class="settings-row"><span><strong>Lightweight lobby</strong><small>No 3D world</small></span>${actionButton("2d", is2d ? "Return to 3D" : "Use 2D", "secondary")}</div>${playtestEnabled ? '<details class="menu-details"><summary>Phone test</summary><button class="secondary" data-action="phone-test">Give feedback</button></details>' : ""}<p class="fine-print">Character model based on “Chibi Girl Character” by Syed’s Creation, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>, modified. <a href="https://sketchfab.com/3d-models/chibi-girl-character-3e795731d68d416eb0b8770a6b363e65" target="_blank" rel="noopener">Source</a>.</p>`;
+      )}</select></label>${playtestEnabled ? '<details class="menu-details"><summary>Phone test</summary><button class="secondary" data-action="phone-test">Give feedback</button></details>' : ""}<p class="fine-print">Character model based on “Chibi Girl Character” by Syed’s Creation, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>, modified. <a href="https://sketchfab.com/3d-models/chibi-girl-character-3e795731d68d416eb0b8770a6b363e65" target="_blank" rel="noopener">Source</a>.</p>`;
   } else if (id === "controls") {
     body.innerHTML = `<button class="text-button menu-back" data-open="phone-menu">← Back</button><h2>Camera & controls</h2><p>WASD or tap to walk. E to interact. Space to jump.</p><label class="settings-row"><span>View</span><select id="setting-camera"><option value="third" ${save.cameraMode === "third" ? "selected" : ""}>Third person</option><option value="isometric" ${save.cameraMode === "isometric" ? "selected" : ""}>Bird’s-eye</option></select></label><label class="settings-row"><span>Zoom</span><input id="setting-zoom" type="range" min="0" max="100" value="50" data-previous="50" aria-label="Camera zoom"></label><div class="camera-buttons"><button class="secondary" data-action="rotate-left" aria-label="Rotate view left">↶</button><button class="secondary" data-action="reset-view">Reset view</button><button class="secondary" data-action="rotate-right" aria-label="Rotate view right">↷</button></div>`;
   } else if (id === "surroundings") {
@@ -1002,40 +1014,12 @@ function open(id: string) {
       { id: "cabinet-noodle", label: "Noodle Run", emoji: "🕹", walk: false },
       { id: "cabinet-coast", label: "Palm Bay", emoji: "🏎", walk: false },
     ];
-    const choices = pageChoices(
-      is2d
-        ? [
-            ...options.filter((choice) => choice.walk),
-            ...options.filter((choice) => !choice.walk),
-          ]
-        : options,
-      outdoorPage,
-    );
-    body.innerHTML = `<h2>Play outside</h2><div class="outdoor-grid">${choices.items.map((choice) => `<button ${choice.walk ? "data-walk" : "data-environment"}="${choice.id}" ${is2d && !choice.walk ? "disabled" : ""}><span>${choice.emoji}</span><strong>${choice.label}</strong></button>`).join("")}</div>${pager(choices.page, choices.total, "outside")}${is2d ? '<p class="fine-print">Some activities need 3D. Fishing, hoops and plots work here.</p>' : ""}`;
+    const choices = pageChoices(options, outdoorPage);
+    body.innerHTML = `<h2>Play outside</h2><div class="outdoor-grid">${choices.items.map((choice) => `<button ${choice.walk ? "data-walk" : "data-environment"}="${choice.id}" ><span>${choice.emoji}</span><strong>${choice.label}</strong></button>`).join("")}</div>${pager(choices.page, choices.total, "outside")}`;
   } else if (id === "garden") {
     body.innerHTML = `<div class="garden-portrait">${icon("leaf")}</div><h2>Pocket Garden</h2><p class="lead">Nothing to chase. Just breathe.</p><button class="primary" data-environment="bench0">Sit & read →</button>`;
   } else if (id === "playground") {
     body.innerHTML = `<div class="dragon-portrait">✦</div><h2>Dragon Rooftop</h2><p class="lead">Ride, flip, and pose for photos.</p><button class="primary" data-environment="dragon">Ride the rooftop →</button><button class="secondary" data-action="dragon-pose">Strike a pose</button>`;
-  } else if (id === "soon") {
-    body.innerHTML = `<h2>Play</h2>${cards()}<h3>Play outside</h3><div class="outside-cards">${[
-      ["stage", "Open Stage", "♫"],
-      ["plots", "Community Plots", "🌱"],
-    ]
-      .map(
-        ([id, name, emoji]) =>
-          `<button class="menu-choice" data-open="${id}"><span>${emoji}</span><strong>${name}</strong></button>`,
-      )
-      .join("")}${[
-      ["dragon", "Dragon Rooftop", "🐉"],
-      ["swing", "Swings", "✦"],
-      ["pet", "Pet Kopi", "🐈"],
-      ["bench0", "Take a seat", "📖"],
-    ]
-      .map(
-        ([id, name, emoji]) =>
-          `<button class="menu-choice" data-environment="${id}"><span>${emoji}</span><strong>${name}</strong></button>`,
-      )
-      .join("")}</div>`;
   } else {
     body.innerHTML = `<h2>Take a breather.</h2><p class="lead">30 minutes in. Stretch, sip some water.</p><div class="note">Your progress is saved.</div>${actionButton("close", "Back when I’m ready")}`;
   }
@@ -1047,6 +1031,7 @@ function openDares(view: typeof dareView = "home") {
   renderSharedDares();
 }
 async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
+  if (graphicsBlocked) return;
   if (save.away) {
     save.away = false;
     save.awaySince = 0;
@@ -1063,8 +1048,7 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
         : "ARCADE ROW",
   );
   const generation = gameGeneration;
-  body.innerHTML =
-    '<h2>Getting the grid ready…</h2><progress aria-label="Loading race session"></progress>';
+  body.innerHTML = `<h2>Getting ${games[id].name} ready…</h2><progress aria-label="Loading ${games[id].name}"></progress>`;
   let run: Run | null = null;
   try {
     run = await api<Run>("run", {
@@ -1096,7 +1080,7 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
     "afterbegin",
     '<div class="arcade-fx" aria-hidden="true"></div>',
   );
-  if (!is2d && !save.reduced)
+  if (!save.reduced)
     arcadeFx = createArcadeFx(modal.querySelector(".arcade-fx")!, id);
   const target = run?.targetScore || 0;
   document.querySelector("#modal-kicker")!.textContent = target
@@ -1170,7 +1154,7 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
           (reward || !save.nameChosen || save.welcome !== "complete");
         body.innerHTML =
           id === "coast"
-            ? `<h2 class="result-score">${result?.race ? raceTime(result.race.timeTicks) : formatScore(id, score)}<small>${result?.race?.finished ? "YOUR THREE-LAP TIME" : "TIME · RACE INCOMPLETE"}</small></h2>${result?.race?.newBest ? '<p class="new-best">New personal best!</p>' : ""}<div class="round-breakdown"><span>XP<strong>+${result?.earnedXp ?? 0}</strong></span><span>Place<strong>${result?.race?.place ?? "—"} / 8</strong></span></div>${reward ? '<p class="result-encouragement">First finish · +35 bonus XP</p>' : ""}<div class="button-row"><button class="primary" data-replay="coast">Play again</button><button class="secondary" data-action="setup-look">${setup ? "Create my name & look" : "Edit my name & look"}</button></div><details class="race-extra-details"><summary>Race details & leaderboard</summary>${raceSummary}${raceComparison(score, today, !!result?.ranked)}<p class="fine-print">Races allow 180 seconds until your first finish; standard races then allow 120 seconds.</p><p>${result ? `Verified round · +${result.earnedXp ?? 0} XP${reward ? " · First finish · +35 bonus XP" : ""}` : "Offline · this round was not saved."}</p>${!currentProfile?.account ? '<button class="secondary" data-account>Save with email</button>' : ""}</details>`
+            ? `<h2 class="result-score">${result?.race ? raceTime(result.race.timeTicks) : formatScore(id, score)}<small>${result?.race?.finished ? "YOUR THREE-LAP TIME" : "TIME · RACE INCOMPLETE"}</small></h2>${result?.race?.newBest ? '<p class="new-best">New personal best!</p>' : ""}<div class="round-breakdown"><span>Place<strong>${result?.race?.place ?? "—"} / 8</strong></span></div><div class="button-row"><button class="primary" data-replay="coast">Play again</button><button class="secondary" data-action="setup-look">${setup ? "Create my name & look" : "Edit my name & look"}</button></div><details class="race-extra-details"><summary>Race details & leaderboard</summary>${raceSummary}${raceComparison(score, today, !!result?.ranked)}<p class="fine-print">Races allow 180 seconds until your first finish; standard races then allow 120 seconds.</p><p>${result ? `Verified round · +${result.earnedXp ?? 0} XP${reward ? " · First finish · +35 bonus XP" : ""}` : "Offline · this round was not saved."}</p>${!currentProfile?.account ? '<button class="secondary" data-account>Save with email</button>' : ""}</details>`
             : '<div class="result-star">' +
               icon(target ? "trophy" : "game") +
               '</div><h2 class="result-score">' +
@@ -1256,7 +1240,7 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
         if (score > 0 && arcadeFx) {
           arcadeFx.setUrgency(0);
           arcadeFx.fire("end");
-        } else if (score > 0 && !is2d && !save.reduced) {
+        } else if (score > 0 && !save.reduced) {
           try {
             disposeCelebration = celebrate(
               body.querySelector(".finish-effects")!,
@@ -1271,7 +1255,14 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
             .querySelector(".result-score")!
             .insertAdjacentHTML(
               "afterend",
-              `<div class="round-breakdown"><span>XP<strong>${result ? `+${result.earnedXp ?? 0}` : "0"}</strong></span><span>Rank<strong>${result?.ranked && standing ? "#" + standing.rank : result?.ranked ? "—" : "Guest"}</strong><small>${standingNote(!!result?.ranked, standing, score, formatScore(id, standing?.score ?? 0))}</small></span></div>`,
+              `<div class="round-breakdown"><span>Rank<strong>${result?.ranked && standing ? "#" + standing.rank : result?.ranked ? "—" : "Guest"}</strong><small>${standingNote(!!result?.ranked, standing, score, formatScore(id, standing?.score ?? 0))}</small></span></div>`,
+            );
+        if (result)
+          body
+            .querySelector(".result-score")!
+            .insertAdjacentHTML(
+              "afterend",
+              rewardReceipt(result.rewards, result.profile.progress.xp),
             );
         beep(score > target ? "win" : "finish");
       } catch (error) {
@@ -1298,7 +1289,7 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
           save,
           {
             reduced: save.reduced,
-            simple: save.twoD,
+            graphicsFailure: showGraphicsProblem,
             target,
             playerName: currentProfile?.name ?? "You",
             progress: save,
@@ -1315,7 +1306,7 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
             onFinish,
             (name) => beep(name),
             run?.seed ?? (save.coastRecord.timeTicks ? 314159 : -314160),
-            { reduced: save.reduced, simple: save.twoD },
+            { reduced: save.reduced, graphicsFailure: showGraphicsProblem },
           )
         : new ArcadeGame(
             id,
@@ -1336,16 +1327,6 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
   game.onTime = (left) =>
     arcadeFx?.setUrgency(left <= 10 ? (10 - left) / 10 : 0);
   game.onPause = (paused) => arcadeFx?.setPaused(paused);
-  const start = mount.querySelector<HTMLButtonElement>("#start-game");
-  if (start?.disabled) {
-    const ready = new MutationObserver(() => {
-      if (!start.isConnected || !start.disabled) {
-        ready.disconnect();
-        if (start.isConnected && generation === gameGeneration) start.click();
-      }
-    });
-    ready.observe(start, { attributes: true, attributeFilter: ["disabled"] });
-  } else start?.click();
 }
 
 document.addEventListener("click", (e) => {
@@ -1562,6 +1543,11 @@ document.addEventListener("click", (e) => {
     renderSharedBoard();
     return;
   }
+  if (b.dataset.page === "play-outside") {
+    outdoorPage = Number(b.dataset.pageIndex);
+    open("arcade");
+    return;
+  }
   if (b.dataset.page) {
     const page = Number(b.dataset.pageIndex);
     if (b.dataset.page === "games") {
@@ -1571,6 +1557,10 @@ document.addEventListener("click", (e) => {
     if (b.dataset.page === "outside") {
       outdoorPage = page;
       open("surroundings");
+    }
+    if (b.dataset.page === "emotes") {
+      emotePage = page;
+      open("emotes");
     }
     if (b.dataset.page === "quests") {
       questPage = page;
@@ -1622,20 +1612,18 @@ document.addEventListener("click", (e) => {
     return;
   }
   if (b.dataset.open) {
-    if (b.dataset.open === "arcade") gamePage = 0;
+    if (b.dataset.open === "arcade") {
+      gamePage = 0;
+      playSection = "arcade";
+    }
     open(b.dataset.open);
     return;
   }
   if (b.dataset.walk) {
     const id = b.dataset.walk;
     close();
-    if (is2d) {
-      visit(id);
-      open(id);
-    } else {
-      world?.go(id);
-      toast(`Let’s wander over to ${spots.find((s) => s.id === id)?.name}.`);
-    }
+    world?.go(id);
+    toast(`Let’s wander over to ${spots.find((s) => s.id === id)?.name}.`);
     return;
   }
   if (b.dataset.rooftop) {
@@ -1742,8 +1730,7 @@ document.addEventListener("click", (e) => {
     }
     if (modal.open) close();
     resumeFromIdle();
-    if (is2d) emote2d = { id, until: Date.now() + 4000 };
-    else world?.act(id);
+    world?.act(id);
 
     return;
   }
@@ -1870,8 +1857,7 @@ document.addEventListener("click", (e) => {
       world?.updateAvatar();
       playtestEvent("cosmetic-worn");
       close();
-      if (is2d) open("cat");
-      else startOutdoor("pet");
+      startOutdoor("pet");
       return;
     }
     if (a === "visit-neighbour" || a === "report-neighbour") {
@@ -1887,25 +1873,13 @@ document.addEventListener("click", (e) => {
       const id = body.querySelector<HTMLSelectElement>("#destination")!.value;
       const place = spots.find((s) => s.id === id)?.name || id;
       close();
-      if (is2d) {
-        visit(id);
-        open(id);
-      } else if (save.away)
-        toast("You’re away. Choose “I’m back” to walk again.");
+      if (save.away) toast("You’re away. Choose “I’m back” to walk again.");
       else if (!world?.go(id))
         toast(
           `No clear path to ${place} from here. Walk closer and try again.`,
         );
       // Arriving at once opens the place; otherwise say where the walk leads.
       else if (!modal.open) toast(`Heading to ${place}.`);
-      return;
-    }
-    if (a === "fallback-go") {
-      const id = document.querySelector<HTMLSelectElement>(
-        "#fallback-destination",
-      )!.value;
-      visit(id);
-      open(id);
       return;
     }
     if (
@@ -1975,19 +1949,6 @@ document.addEventListener("click", (e) => {
       toast("Prrrr. You have been approved by Kopi.");
       return;
     }
-    if (a === "2d") {
-      if (is2d) {
-        save.twoD = false;
-        persist();
-        void profileQueue.then(() => location.reload());
-        return;
-      }
-      save.twoD = true;
-      persist();
-      enable2D();
-      close();
-      return;
-    }
     close();
     if (a === "done-look") toast("Fresh look. Same excellent you.");
     if (a === "dragon-pose") world?.act("victory");
@@ -2024,6 +1985,11 @@ modal.addEventListener("click", (e) => {
   }
 });
 document.addEventListener("change", (e) => {
+  if (e.target instanceof HTMLSelectElement && e.target.id === "play-section") {
+    playSection = e.target.value === "outside" ? "outside" : "arcade";
+    open("arcade");
+    return;
+  }
   const el = e.target as HTMLInputElement;
   if (el.id === "setting-zoom") {
     world?.setZoom((Number(el.value) - Number(el.dataset.previous || 50)) / 20);
@@ -2183,7 +2149,7 @@ function renderCameraUI() {
     ? world.cameraMode === "third"
     : save.cameraMode === "third";
   const toggle = document.querySelector<HTMLButtonElement>("#camera-toggle")!;
-  toggle.hidden = is2d;
+  toggle.hidden = graphicsBlocked;
   toggle.setAttribute("aria-pressed", String(third));
   toggle.setAttribute(
     "aria-label",
@@ -2192,9 +2158,9 @@ function renderCameraUI() {
   toggle.querySelector("span")!.textContent = third
     ? "Bird’s-eye"
     : "Third person";
-  document.body.classList.toggle("third-person", third && !is2d);
+  document.body.classList.toggle("third-person", third && !graphicsBlocked);
   (document.querySelector("#camera-hint") as HTMLElement).hidden =
-    !third || is2d;
+    !third || graphicsBlocked;
   document.querySelector("#camera-hint")!.textContent = matchMedia(
     "(pointer: coarse)",
   ).matches
@@ -2213,10 +2179,6 @@ document
   );
 function startOutdoor(id: string) {
   dismissStyleReward?.();
-  if (is2d) {
-    toast("Switch to 3D in Settings to play with the surroundings.");
-    return;
-  }
   if (modal.open) close();
   dismissInspector();
   void world?.interact(id, true);
@@ -2322,11 +2284,6 @@ function showResident(id: string) {
   if (modal.open) close();
   dismissInspector();
   const detail = `<span class="eyebrow">EXAMPLE NEIGHBOUR · AWAY ACTIVITY</span><h3>${r.name}</h3><p>${r.bio}</p><div class="resident-outfit"><i style="background:${outfits[r.outfit]}"></i><span>${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][r.outfit]} outfit · ${["No hat", "Bucket hat", "Lilac cap", "Sprout hat"][r.hat]}</span></div><strong>${activities[r.activity].icon} ${activities[r.activity].name}</strong>`;
-  if (is2d) {
-    openShell("YOUR NEIGHBOURHOOD");
-    body.innerHTML = `${detail}<div class="note">Switch to 3D in Settings to orbit, zoom, and watch this activity.</div>`;
-    return;
-  }
   world?.inspectResident(id);
   renderCameraUI();
   const inspector = document.querySelector<HTMLElement>("#inspector")!;
@@ -2416,31 +2373,30 @@ window.addEventListener("pagehide", () => {
   worldConnection.stop();
 });
 window.addEventListener("pageshow", (e) => {
-  if (e.persisted) {
+  if (e.persisted && !graphicsBlocked) {
     if (profileReady) worldConnection.start();
     world?.setAway(save.away);
     renderAway();
   }
 });
-function enable2D() {
-  is2d = true;
-  // A lost graphics context is temporary, not a saved request for 2D mode.
+function showGraphicsProblem(contextLost = false) {
+  graphicsBlocked = true;
+  worldConnection.stop();
   characterPreview?.dispose();
   characterPreview = null;
+  if (modal.open) close();
   const previousWorld = world;
   world = null;
   previousWorld?.dispose();
-  if (modal.open) close();
+  document.querySelector("#world")!.replaceChildren();
   nearId = "";
   document.body.classList.remove("has-nearby");
+  document.body.classList.add("graphics-unavailable");
   document.querySelector<HTMLButtonElement>("#interaction")!.hidden = true;
-  document.body.classList.add("mode-2d");
-  const el = document.querySelector<HTMLDivElement>("#fallback")!;
-  el.hidden = false;
-  el.innerHTML = `<div class="fallback-content"><span class="eyebrow">2D WORLD</span><h1>Meet you downstairs.</h1><p>Choose Play, My look or Menu.</p><section id="fallback-welcome"></section><label class="field-label" for="fallback-destination">Choose a spot</label><select class="destination-select" id="fallback-destination">${spots.map((spot) => `<option value="${spot.id}">${spot.name}</option>`).join("")}</select><button class="secondary" data-action="fallback-go">Play →</button></div>`;
-  document.querySelector("#quality-note")!.textContent = "2D LOBBY";
-  renderCameraUI();
-  renderWelcome();
+  mountGraphicsMessage(
+    document.querySelector<HTMLElement>("#graphics-message")!,
+    contextLost,
+  );
 }
 bindJoystick(document.querySelector<HTMLElement>("#joystick")!, (x, y) => {
   if (world) world.joystick = { x, y };
@@ -2480,34 +2436,37 @@ setInterval(() => {
 }, 60_000);
 renderStats();
 captureInvite();
-const accountReady = ensureAccount().then((p) => {
-  scoreOutbox.resume();
-  try {
-    if (!localStorage.getItem("darecade-preview-backup")) {
-      const old = localStorage.getItem("darecade-v1");
-      if (old) localStorage.setItem("darecade-preview-backup", old);
-    }
-  } catch {}
-  Object.assign(save, p.progress);
-  writeSave(save);
-  profileReady = true;
-  worldConnection.start();
-  sentPreferences = JSON.stringify(
-    Object.fromEntries(preferenceKeys.map((k) => [k, save[k]])),
-  );
-  renderStats();
-  renderWelcome();
-  void syncSocial();
-  // A new player who arrived by a friend's link is tied to them now; both are
-  // rewarded when the first round is finished.
-  void acceptPendingInvite(save.rounds).then((invite) => {
-    if (invite)
-      toast(
-        `${invite.name} invited you. Finish a round and you both get +${invite.xp} XP.`,
+const graphicsReady = supports3D();
+const accountReady = graphicsReady
+  ? ensureAccount().then((p) => {
+      scoreOutbox.resume();
+      try {
+        if (!localStorage.getItem("darecade-preview-backup")) {
+          const old = localStorage.getItem("darecade-v1");
+          if (old) localStorage.setItem("darecade-preview-backup", old);
+        }
+      } catch {}
+      Object.assign(save, normalise(p.progress, save));
+      writeSave(save);
+      profileReady = true;
+      worldConnection.start();
+      sentPreferences = JSON.stringify(
+        Object.fromEntries(preferenceKeys.map((k) => [k, save[k]])),
       );
-  });
-  return p;
-});
+      renderStats();
+      renderWelcome();
+      void syncSocial();
+      // A new player who arrived by a friend's link is tied to them now; both are
+      // rewarded when the first round is finished.
+      void acceptPendingInvite(save.rounds).then((invite) => {
+        if (invite)
+          toast(
+            `${invite.name} invited you. Finish a round and you both get +${invite.xp} XP.`,
+          );
+      });
+      return p;
+    })
+  : Promise.resolve(null);
 window.addEventListener("account-profile", ((event: CustomEvent<Profile>) => {
   if (!profileReady) return;
   if (sessionExpired) {
@@ -2528,7 +2487,10 @@ window.addEventListener("account-profile", ((event: CustomEvent<Profile>) => {
       s.accessory,
     ].join();
   const before = look(save);
-  Object.assign(save, event.detail.progress, { away, awaySince });
+  Object.assign(save, normalise(event.detail.progress, save), {
+    away,
+    awaySince,
+  });
   writeSave(save);
   // Rebuilding the 3D avatar is slow; do it only when the look changed.
   if (look(save) !== before) world?.updateAvatar();
@@ -2556,14 +2518,12 @@ function showPaymentReturn() {
 }
 requestAnimationFrame(async () => {
   try {
-    await accountReady;
-    if (save.twoD) {
-      enable2D();
-      renderAway();
-      document.querySelector("#loading")!.remove();
-      showPaymentReturn();
+    if (!graphicsReady) {
+      showGraphicsProblem();
+      document.querySelector("#loading")?.remove();
       return;
     }
+    await accountReady;
     await loadCharacter();
     // Warm the race module while the player explores; the driver is shared.
     window.setTimeout(() => {
@@ -2581,12 +2541,7 @@ requestAnimationFrame(async () => {
         b.querySelector("span")!.textContent = name;
       },
       playerName: currentProfile?.name,
-      fallback: () => {
-        enable2D();
-        toast(
-          "Switched to the lightweight lobby. Your games and progress are still here.",
-        );
-      },
+      graphicsLost: () => showGraphicsProblem(true),
     });
     if (!navigator.onLine && !save.away) {
       save.away = true;
@@ -2614,8 +2569,8 @@ requestAnimationFrame(async () => {
         .addEventListener("click", () => location.reload());
       return;
     }
-    console.warn("3D unavailable. Using accessible lobby.", error);
-    enable2D();
+    console.warn("3D startup failed.", error);
+    showGraphicsProblem();
   }
   document.querySelector("#loading")!.remove();
   showPaymentReturn();
@@ -2636,11 +2591,7 @@ function presenceData() {
     x: world?.player.root.position.x ?? 0,
     z: world?.player.root.position.z ?? 10,
     yaw: world?.player.root.rotation.y,
-    emote: is2d
-      ? Date.now() < emote2d.until
-        ? emote2d.id
-        : ""
-      : world?.emote || "",
+    emote: world?.emote || "",
   };
 }
 async function syncSocial() {
@@ -2941,16 +2892,6 @@ function showPlayer(id: string) {
     )
   )
     return;
-  if (is2d) {
-    const player = [
-      ...(shared?.friends || []),
-      ...(shared?.players || []),
-    ].find((p) => p.id === id);
-    if (!player) return;
-    openShell("NEIGHBOUR");
-    body.innerHTML = playerProfile(player);
-    return;
-  }
   if (modal.open) close();
   dismissInspector();
   world?.inspectResident(`player:${id}`);
@@ -3092,15 +3033,6 @@ function renderWelcome() {
   if (el.dataset.welcome !== String(firstRace)) {
     el.innerHTML = html;
     el.dataset.welcome = String(firstRace);
-  }
-  const fallback = document.querySelector("#fallback-welcome");
-  if (fallback instanceof HTMLElement) fallback.hidden = el.hidden;
-  if (
-    fallback instanceof HTMLElement &&
-    fallback.dataset.welcome !== String(firstRace)
-  ) {
-    fallback.innerHTML = html;
-    fallback.dataset.welcome = String(firstRace);
   }
 }
 

@@ -1960,66 +1960,6 @@ dialog::backdrop {
     transform: translateX(80px);
   }
 }
-.fallback {
-  position: absolute;
-  inset: 100px 0 101px;
-  overflow: auto;
-  pointer-events: auto;
-  text-align: center;
-  padding: 28px 30px;
-  background: radial-gradient(ellipse at top, #e8e8d8, #c9d6c1);
-}
-.fallback h1 {
-  font-size: 42px;
-  letter-spacing: -2px;
-}
-.fallback > p {
-  font-size: 12px;
-  margin-top: 15px;
-  color: #8b987e;
-}
-.fallback > .eyebrow {
-  color: #8e9c7b;
-}
-.fallback-zones {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  max-width: 810px;
-  margin: 30px auto;
-}
-.fallback-zones button {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 15px;
-  padding: 27px 12px;
-  border-radius: 13px;
-  background: #f9f5e4b5;
-  border: 1px solid #fdf6e6;
-}
-.fallback-zones svg {
-  width: 30px;
-  height: 30px;
-  color: #739375;
-}
-.fallback-zones strong {
-  font-size: 12px;
-}
-.fallback-zones span {
-  font-size: 7px;
-  color: #9aa386;
-}
-.mode-2d .welcome-panel,
-.mode-2d .quest-card,
-.mode-2d .right-rail,
-.mode-2d .scene-label,
-.mode-2d .world-controls,
-.mode-2d .move-hint,
-.mode-2d #interaction,
-.mode-2d .joystick {
-  display: none !important;
-}
 .reduced * {
   animation: none !important;
   transition: none !important;
@@ -2732,24 +2672,6 @@ dialog::backdrop {
     font-size: 10px;
     padding: 12px;
   }
-  .fallback {
-    inset: 80px 0 84px;
-    padding: 25px 17px;
-  }
-  .fallback h1 {
-    font-size: 33px;
-  }
-  .fallback-zones {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    margin-top: 25px;
-  }
-  .fallback-zones button {
-    padding: 20px 10px;
-  }
-  .fallback-zones strong {
-    font-size: 11px;
-  }
   #loading p {
     font-size: 10px;
     text-align: center;
@@ -2911,9 +2833,6 @@ dialog::backdrop {
   }
   .toast {
     bottom: 78px;
-  }
-  .fallback {
-    inset: 67px 0 64px;
   }
 }
 .hat-options button:disabled {
@@ -3634,4 +3553,63 @@ select {
   .bottom-bar .dock button span {
     font-size: 10px;
   }
+}
+/* A graphics failure is a stopped session, never another world mode. */
+.graphics-unavailable #app > :not(#graphics-message) {
+  display: none !important;
+}
+#graphics-message {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  padding: 24px;
+  background: #f5ecd9;
+  color: #244850;
+  z-index: 100;
+}
+#graphics-message[hidden] {
+  display: none;
+}
+.graphics-message {
+  max-width: 460px;
+  line-height: 1.6;
+}
+.graphics-message h1 {
+  font-size: clamp(26px, 6vw, 38px);
+  line-height: 1.15;
+}
+.graphics-message button {
+  min-height: 44px;
+}
+.reward-receipt {
+  max-width: 420px;
+  margin: 12px auto 18px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  background: #e6f2dc;
+  color: #244850;
+  text-align: left;
+}
+.reward-receipt h3 {
+  margin: 0 0 8px;
+  font-size: 28px;
+}
+.reward-receipt h3 small {
+  font-size: 14px;
+  font-weight: 500;
+}
+.reward-receipt ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.reward-receipt li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.reward-receipt p {
+  font-size: 13px;
 }
