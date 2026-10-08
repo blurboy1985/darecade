@@ -1,8 +1,8 @@
 // Play Simi sound: original background music and sound effects, synthesised
 // live with the Web Audio API. No audio files, samples or licences needed.
 //
-// The lobby plays arcade pop in the style of the intro film: a square-wave
-// hook over a bouncing bass and a plain backbeat, with a slower, softer take
+// The lobby plays a softer version of the intro film's hook: a rounded lead
+// over a bouncing bass and a plain backbeat, with a slower, softer take
 // of the same tune at night. Games use energetic anime-inspired synth pop;
 // Coast Rush has a faster companion theme that accelerates on the final lap.
 // Themes change at bar boundaries. The engine, tyre and wind loops remain
@@ -818,7 +818,7 @@ const lobbyChords = [
   [43, 47, 50],
 ] as const;
 const songs: Record<Theme, Song> = {
-  // The intro film's tempo and band, mixed down to sit under a whole visit.
+  // The intro film's tempo and hook, with softer instruments for a whole visit.
   day: {
     bpm: 120,
     swing: 0,
@@ -893,9 +893,8 @@ let timer = 0,
   nextAt = 0;
 
 /**
- * The lobby's arcade pop, after the intro film: square-wave hook, bouncing
- * sawtooth bass and a plain backbeat. Night plays the same notes with a
- * rounder lead an octave down, a walking bass and no snare.
+ * The intro hook sits an octave lower on a soft lead, without a high octave
+ * doubling it. Night uses a walking bass and unpitched brushed percussion.
  */
 function scheduleArcade(s: Song, i: number, at: number, spb: number) {
   const out = musicBus;
@@ -951,7 +950,7 @@ function scheduleArcade(s: Song, i: number, at: number, spb: number) {
   if (eighth === 0 || eighth === 4 || (eighth === 5 && !night && !answer))
     tone({ f: 145, to: 43, at, dur: 0.14, vol: night ? 0.07 : 0.11, out });
   if (eighth === 2 || eighth === 6) {
-    if (night) tone({ f: 720, to: 480, at, dur: 0.035, vol: 0.01, out });
+    if (night) hiss(at, 0.055, 0.012, "bandpass", 1400, undefined, out, 0.6);
     else {
       hiss(at, 0.12, 0.04, "bandpass", 2200, undefined, out, 0.8);
       tone({
@@ -980,36 +979,16 @@ function scheduleArcade(s: Song, i: number, at: number, spb: number) {
   const note = melody[eighth];
   if (note === null) return;
   const dur = spb * (melody[eighth + 1] === null ? 3.4 : 1.7);
-  if (night) {
-    tone({
-      type: "triangle",
-      f: midi(note - 12),
-      at,
-      dur: dur * 1.3,
-      vol: 0.058,
-      filter: 2200,
-      out,
-      send: 0.2,
-    });
-    return;
-  }
-  tone({
-    type: "square",
-    f: midi(note),
-    at,
-    dur,
-    vol: 0.027,
-    filter: 2600,
-    out,
-    send: 0.06,
-  });
   tone({
     type: "triangle",
-    f: midi(note + 12),
+    f: midi(note - 12),
     at,
-    dur: dur * 0.7,
-    vol: 0.013,
+    dur: dur * 1.3,
+    vol: night ? 0.045 : 0.03,
+    attack: 0.035,
+    filter: night ? 900 : 1200,
     out,
+    send: night ? 0.2 : 0.1,
   });
 }
 function scheduleStep(s: Song, i: number, at: number, spb: number) {
