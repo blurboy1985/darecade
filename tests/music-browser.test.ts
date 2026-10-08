@@ -64,6 +64,8 @@ test(
             }
           }
           if (peak >= 0.99) throw Error(mood + ' clips: ' + peak);
+          if (mood === 'day' && peak > 0.25)
+            throw Error('Day background music has a loud spike: ' + peak);
           reports.push({ mood, peak, rms: Math.sqrt(energy / (buffer.length * 2)) });
         }
         document.querySelector('#result').textContent = JSON.stringify(reports);
