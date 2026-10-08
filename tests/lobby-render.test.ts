@@ -102,6 +102,7 @@ function harness() {
   let replacements = 0;
   const nodes = new Map<string, ReturnType<typeof element>>();
   const body = {
+    querySelectorAll: () => [],
     get innerHTML() {
       return html;
     },
@@ -201,7 +202,10 @@ function harness() {
     },
     connected: true,
     save: { ...state.fresh(), rounds: 1 },
-    is2d: true,
+    graphicsBlocked: false,
+    playSection: "arcade",
+    renderLookSaveStatus: noop,
+    preferenceSaveFailed: false,
     innerWidth: 1024,
     world: null,
     wardrobeTab: "clothing",
@@ -646,9 +650,12 @@ test("My look exposes complete sets, independent components and their tiers", ()
   );
 });
 
-test("More emotes shows all six choices immediately", () => {
+test("More emotes pages all six choices in groups of three", () => {
   const h = harness();
   h.run('open("emotes")');
-  assert.equal([...h.body.innerHTML.matchAll(/data-emote=/g)].length, 6);
-  assert.doesNotMatch(h.body.innerHTML, /data-page=/);
+  assert.equal([...h.body.innerHTML.matchAll(/data-emote=/g)].length, 3);
+  assert.match(h.body.innerHTML, /data-page="emotes"/);
+  h.run('emotePage = 1; open("emotes")');
+  assert.equal([...h.body.innerHTML.matchAll(/data-emote=/g)].length, 3);
+  assert.match(h.body.innerHTML, /data-emote="think"/);
 });

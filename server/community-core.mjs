@@ -79,7 +79,6 @@ const prefs = [
   "sound",
   "music",
   "reduced",
-  "twoD",
   "light",
   "cameraMode",
   "awayActivity",
@@ -969,7 +968,10 @@ export class CommunityCore {
     if (r.status === "finished") {
       if (r.digest !== digest)
         throw Error("This round was already saved with a different result.");
+      const receipt = r.reward_receipt ? JSON.parse(r.reward_receipt) : {};
       return {
+        ...receipt,
+        xpTokens: undefined, // The receipt is replayed, the one-time notification is not.
         playMedal: this.playMedals.earned(id, r.id),
         race: r.race_result ? JSON.parse(r.race_result) : undefined,
         score: r.score,
@@ -1045,21 +1047,48 @@ export class CommunityCore {
           .prepare("UPDATE runs SET race_result=? WHERE id=?")
           .run(JSON.stringify(race), r.id);
       }
+      const components = [];
       // East Side rewards come from the replay, never from the browser's word.
       if (result.outdoor?.catches)
         for (const fish of result.outdoor.catches) catchFish(p, fish);
-      if (result.outdoor && "made" in result.outdoor)
-        scoreHoops(p, result.outdoor.made);
+      if (p.xp > xpBefore)
+        components.push({ kind: "fish", xp: p.xp - xpBefore });
+      if (result.outdoor && "made" in result.outdoor) {
+        const xp = scoreHoops(p, result.outdoor.made);
+        if (xp) components.push({ kind: "hoops", xp });
+      }
+      const beforeWelcome = p.xp;
       const welcome =
         r.game === "coast" && result.score > 0 && completeWelcomeRound(p);
+      if (p.xp > beforeWelcome)
+        components.push({ kind: "welcome", xp: p.xp - beforeWelcome });
+      const beforeInvite = p.xp;
       const invite =
         p.rounds === 0 && result.score > 0 ? this.payInvite(id, p, at) : null;
+      if (p.xp > beforeInvite)
+        components.push({ kind: "invite", xp: p.xp - beforeInvite });
       if (result.score > 0) p.rounds++;
       const earnedXp =
         result.score > 0
           ? Math.min(20, Math.max(1, Math.ceil(result.score / 50)))
           : 0;
       p.xp += earnedXp;
+      components.unshift({ kind: "round", xp: earnedXp });
+      const receipt = {
+        earnedXp,
+        welcome,
+        invite,
+        xpTokens: Math.floor(p.xp / 100) - Math.floor(xpBefore / 100),
+        rewards: {
+          totalXp: p.xp - xpBefore,
+          xpBefore,
+          xpAfter: p.xp,
+          components,
+        },
+      };
+      this.db
+        .prepare("UPDATE runs SET reward_receipt=? WHERE id=?")
+        .run(JSON.stringify(receipt), r.id);
       if (!result.race?.novice)
         p.best[r.game] = Math.max(p.best[r.game], result.score);
       this.save(id, p, { at });
@@ -1069,10 +1098,7 @@ export class CommunityCore {
         won: !!r.target && result.score > r.targetScore,
         verified: true,
         ranked,
-        welcome,
-        earnedXp,
-        xpTokens: Math.floor(p.xp / 100) - Math.floor(xpBefore / 100),
-        invite,
+        ...receipt,
         race,
         profile: this.privateProfile(id),
       };

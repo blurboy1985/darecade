@@ -344,7 +344,7 @@ export class LobbyWorld {
       visit: (id: string) => void;
       coin: (id: string) => void;
       near: (name: string, id: string) => void;
-      fallback: () => void;
+      graphicsLost: () => void;
       playerName?: string;
     },
   ) {
@@ -380,7 +380,7 @@ export class LobbyWorld {
     this.renderer.domElement.addEventListener("webglcontextlost", (e) => {
       e.preventDefault();
       this.running = false;
-      callbacks.fallback();
+      callbacks.graphicsLost();
     });
     this.scene.add(this.root);
     this.ambient = new T.HemisphereLight("#ffe9da", "#687e84", 2.6);

@@ -84,7 +84,7 @@ for (const width of [320, 390, 1440])
       const select=(value)=>{const el=document.querySelector('#board-period');el.value=value;el.dispatchEvent(new Event('change',{bubbles:true}));};
       const fit=()=>{const d=document.querySelector('#modal');check(document.documentElement.scrollWidth<=innerWidth+1,'page overflow');check(d.scrollWidth<=d.clientWidth+1,'dialog overflow');};
       try {
-        await wait(()=>document.body.classList.contains('mode-2d')&&!document.querySelector('#loading'));
+        await wait(()=>!!document.querySelector('#world canvas')&&!document.querySelector('#loading'));
         click('[data-open="phone-menu"]');click('[data-open="quests"]');click('[data-open="board"]');
         await wait(()=>document.querySelector('#board-period')?.value==='season:opening');
         check(document.querySelector('#modal-body').textContent.includes('A fresh season'),'fresh state');

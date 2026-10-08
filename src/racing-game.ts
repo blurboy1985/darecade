@@ -1,3 +1,4 @@
+import { mountGraphicsMessage } from "./graphics-support";
 import { bindJoystick, joystickMarkup } from "./joystick";
 import { MovementInput } from "./movement-input";
 import {
@@ -80,7 +81,8 @@ export class RacingGame {
   private outroDone = false;
   private outroResolve: (() => void) | null = null;
   private previousTheme: Theme | null = null;
-  private readonly touch: boolean;
+  private touch: boolean;
+  private readonly graphicsFailure: (lost: boolean) => void;
   private readonly buttons: HTMLButtonElement[];
   private readonly finishCard: HTMLElement;
   private readonly itemBox: HTMLElement;
@@ -105,7 +107,7 @@ export class RacingGame {
     look: Look,
     options: {
       reduced: boolean;
-      simple: boolean;
+      graphicsFailure?: (lost: boolean) => void;
       target: number;
       best: number;
       /** Edge steering help, for a driver with no finished race yet. */
@@ -128,7 +130,7 @@ export class RacingGame {
     // Phones get touch wording; keyboards keep the key names.
     const touch = (this.touch =
       typeof matchMedia === "function" &&
-      matchMedia("(pointer: coarse)").matches);
+      matchMedia("(any-pointer: coarse)").matches);
     const use = touch ? "Tap ITEM" : "Press E";
     container.innerHTML = `<section class="coast-game" tabindex="-1" aria-label="Coast Rush street race">
       <div class="race-head"><span>PALM BAY <b>3 LAPS · 8 KARTS</b></span><span>7 GAME CHARACTERS</span></div>
@@ -140,11 +142,11 @@ export class RacingGame {
         <div class="race-speed"><b id="race-speed">0</b><span>KM/H</span></div>
         <button class="race-item" data-race-control="item" aria-label="Use held item"><span id="race-item-label">ITEM</span><b id="race-item">Empty</b><small id="race-pickups">🐚 0 / ${SHELLS}</small></button><div class="race-notice" role="status" aria-live="polite">Loading your driver…</div>
         <div class="race-finish" role="status" hidden></div>
-        <div class="race-pause" hidden><h3>Taking a breather</h3><button class="primary" data-resume-race>Resume</button><button class="secondary" data-quit-race>Quit race</button></div><div class="race-cover"><span class="eyebrow">PLAY SIMI / ISLAND CIRCUIT</span><h3>COAST<br><em>RUSH</em></h3>${options.progress ? coastProgress(options.progress) : "<p>Your avatar. Seven rivals. Three laps.</p>"}<progress class="race-loading" max="3" value="0" aria-label="Loading race"></progress><button class="primary" id="start-game" disabled>Getting your kart ready…</button><button class="race-sound" data-race-sound></button><details class="race-guide"><summary>Controls & items</summary><div class="race-instructions">${touch ? "<span>STEER<br><b>Joystick</b></span><span>DRIVE<br><b>Tap GO</b></span><span>DRIFT<br><b>Hold, then release</b></span>" : "<span>DRIVE<br><b>W A S D</b></span><span>DRIFT<br><b>Hold SPACE</b></span><span>ITEM<br><b>Tap E</b></span>"}</div><ul class="race-legend"><li><b>🎁 Crates</b>Each gives one of five items at random. ${use} to use it.</li><li class="race-items"><span><b>🛡 Shield</b>blocks hits for 3s</span><span><b>⚡ Turbo</b>2s speed burst</span><span><b>🚀 Missile</b>spins the kart in front</span><span><b>🌩 Storm</b>slows every kart ahead</span><span><b>🥥 Coconut</b>dropped behind you; spins a chaser</span></li><li><b>🐚 Shells</b>Bonus pickups, 12 a lap. They never change your time or medals.</li></ul><p class="race-tip">${touch ? "Tap GO once and the kart keeps driving; pull the joystick down to brake. Hold DRIFT through a bend, then let go for a Mini, Super or Ultra turbo." : "Hold W to go. A/D steer, S brakes. Hold Space through a bend, then release for a Mini, Super or Ultra turbo."} At turbo speed the tight bends push you wide unless you drift. A hit costs a 0.75s stop.${options.assist ? " Until your first finish, the kart steers itself back from the road edge when you are not steering." : ""}</p><small>Same kart for everyone · ${this.sim.race!.novice ? "3 minute first-finish" : "2 minute"} limit · Pause or P stops the clock<br>7 rivals are game characters, not real players.</small></details></div>
+        <div class="race-pause" hidden><h3>Taking a breather</h3><button class="primary" data-resume-race>Resume</button><button class="secondary" data-quit-race>Quit race</button></div><div class="race-cover"><span class="eyebrow">PLAY SIMI / ISLAND CIRCUIT</span><h3>COAST<br><em>RUSH</em></h3>${options.progress ? coastProgress(options.progress) : "<p>Your avatar. Seven rivals. Three laps.</p>"}<progress class="race-loading" max="3" value="0" aria-label="Loading race"></progress><button class="primary" id="start-game" disabled>Getting your kart ready…</button><button class="race-sound" data-race-sound></button><details class="race-guide"><summary>Controls & items</summary><div class="race-instructions">${touch ? "<span>STEER<br><b>Joystick</b></span><span>DRIVE<br><b>Tap GO</b></span><span>DRIFT<br><b>Hold, then release</b></span>" : "<span>DRIVE<br><b>W A S D</b></span><span>DRIFT<br><b>Hold SPACE</b></span><span>ITEM<br><b>Tap E</b></span>"}</div><ul class="race-legend"><li><b>🎁 Crates</b>Each gives one of five items at random. <span class="race-use">${use}</span> to use it.</li><li class="race-items"><span><b>🛡 Shield</b>blocks hits for 3s</span><span><b>⚡ Turbo</b>2s speed burst</span><span><b>🚀 Missile</b>spins the kart in front</span><span><b>🌩 Storm</b>slows every kart ahead</span><span><b>🥥 Coconut</b>dropped behind you; spins a chaser</span></li><li><b>🐚 Shells</b>Bonus pickups, 12 a lap. They never change your time or medals.</li></ul><p class="race-tip"><span class="race-tip-input">${touch ? "Tap GO once and the kart keeps driving; pull the joystick down to brake. Hold DRIFT through a bend, then let go for a Mini, Super or Ultra turbo." : "Hold W to go. A/D steer, S brakes. Hold Space through a bend, then release for a Mini, Super or Ultra turbo."}</span> At turbo speed the tight bends push you wide unless you drift. A hit costs a 0.75s stop.${options.assist ? " Until your first finish, the kart steers itself back from the road edge when you are not steering." : ""}</p><small>Same kart for everyone · ${this.sim.race!.novice ? "3 minute first-finish" : "2 minute"} limit · Pause or P stops the clock<br>7 rivals are game characters, not real players.</small></details></div>
       </div>
       <div class="race-charge"><label for="drift-charge">DRIFT TURBO <span id="drift-label">Hold ${touch ? "DRIFT" : "Space"} while moving</span></label><meter id="drift-charge" min="0" max="1" low=".333" optimum="1" value="0">0</meter></div>
       <div class="race-touch" aria-label="Driving controls"><div class="race-steer">${joystickMarkup("Steer")}</div><div class="race-pedals"><button data-race-control="drift">DRIFT</button><button data-race-control="gas" aria-pressed="false">GO</button></div></div>
-      <div class="race-footer"><span>${touch ? "Tap GO to drive · pull the joystick down to brake" : "Hold W or tap GO to drive · Hits cost a 0.75s stop"}</span><span><button class="text-button" data-race-sound></button><button class="text-button" id="pause-game" disabled>Pause</button></span></div>
+      <div class="race-footer"><span class="race-footer-guidance">${touch ? "Tap GO to drive · pull the joystick down to brake" : "Hold W or tap GO to drive · Hits cost a 0.75s stop"}</span><span><button class="text-button" data-race-sound></button><button class="text-button" id="pause-game" disabled>Pause</button></span></div>
     </section>`;
     this.pausePanel = container.querySelector(".race-pause")!;
     this.pausePanel
@@ -168,6 +170,20 @@ export class RacingGame {
     this.itemBox = container.querySelector(".race-item")!;
     this.shells = container.querySelector("#race-pickups")!;
     const listener = { signal: this.abort.signal };
+    this.setInput(touch);
+    this.stats.addEventListener(
+      "pointerdown",
+      (event) => {
+        if (
+          event.pointerType === "touch" ||
+          event.pointerType === "pen" ||
+          (event.target instanceof Element &&
+            event.target.closest(".race-touch, .race-item"))
+        )
+          this.setInput(true);
+      },
+      { ...listener, capture: true },
+    );
     const soundButtons =
       container.querySelectorAll<HTMLButtonElement>("[data-race-sound]");
     const showSound = () =>
@@ -283,7 +299,10 @@ export class RacingGame {
       b.addEventListener("pointercancel", release, listener);
       b.addEventListener("lostpointercapture", release, listener);
     });
-    void this.load(look, options.simple, options.playerName);
+    this.graphicsFailure =
+      options.graphicsFailure ??
+      ((lost) => mountGraphicsMessage(this.container, lost));
+    void this.load(look, options.playerName);
   }
   /**
    * A control was pressed. Wakes a kart that paused itself, and latches or
@@ -295,12 +314,12 @@ export class RacingGame {
     this.cruise = latchThrottle(this.cruise, control);
     return true;
   }
-  private async load(look: Look, simple: boolean, playerName?: string) {
+  private async load(look: Look, playerName?: string) {
     const progress =
       this.container.querySelector<HTMLProgressElement>(".race-loading")!;
     progress.value = 1;
     try {
-      if (!simple) {
+      {
         const [module] = await Promise.all([
           import("./race-view"),
           loadCharacter(),
@@ -320,12 +339,10 @@ export class RacingGame {
         );
       }
     } catch {
-      // Physics and replay remain identical in the low-graphics view.
-      this.view?.dispose();
-      this.view = null;
+      if (!this.disposed) this.graphicsFailure(false);
+      return;
     }
     if (this.disposed) return;
-    if (!this.view) this.enableSimple();
     progress.value = 3;
     progress.hidden = true;
     this.status = "ready";
@@ -336,22 +353,12 @@ export class RacingGame {
     button.textContent = "Race! →";
     this.frame = requestAnimationFrame(this.loop);
   }
-  private enableSimple() {
-    this.stats.classList.add("simple-race");
-    this.host.replaceChildren();
-    this.cover.querySelector(".race-tip")!.textContent = this.touch
-      ? "Simple view: coral is you; coloured dots are game characters. Tap GO, steer with the arrows, hold DRIFT in bends and tap ITEM."
-      : "Simple view: coral is you; coloured dots are game characters. Hold W or GO, A/D steer, Space to drift, E for your item.";
-  }
   private contextLost = (e: Event) => {
     e.preventDefault();
     if (this.disposed) return;
     this.onBlur();
-    const view = this.view;
-    this.view = null;
-    view?.dispose();
-    this.enableSimple();
-    this.notice.textContent = "Graphics interrupted. Resume in simple view.";
+    cancelAnimationFrame(this.frame);
+    this.graphicsFailure(true);
   };
   private start() {
     if (this.status !== "ready") return;
@@ -365,6 +372,22 @@ export class RacingGame {
     this.last = performance.now();
     this.container.querySelector<HTMLButtonElement>("#pause-game")!.disabled =
       false;
+  }
+  private setInput(touch: boolean) {
+    this.touch = touch;
+    this.stats.dataset.input = touch ? "touch" : "keyboard";
+    this.container.querySelector(".race-instructions")!.innerHTML = touch
+      ? "<span>STEER<br><b>Joystick</b></span><span>DRIVE<br><b>Tap GO</b></span><span>DRIFT<br><b>Hold DRIFT</b></span>"
+      : "<span>DRIVE<br><b>W A S D / arrows</b></span><span>DRIFT<br><b>Hold Space</b></span><span>ITEM<br><b>Press E</b></span>";
+    this.container.querySelector(".race-use")!.textContent = touch
+      ? "Tap ITEM"
+      : "Press E";
+    this.container.querySelector(".race-tip-input")!.textContent = touch
+      ? "Tap GO once to keep driving; pull the joystick down to brake. Hold DRIFT through a bend, then release for a turbo."
+      : "Hold W or Up to accelerate; A/D or Left/Right steer; S or Down brakes. Hold Space through a bend, then release for a turbo.";
+    this.container.querySelector(".race-footer-guidance")!.textContent = touch
+      ? "Tap GO to drive · joystick to steer and brake"
+      : "Hold W / ↑ to drive · A/D to steer · E for item";
   }
   private keyDown = (e: KeyboardEvent) => {
     const key = /^Key[WASDE]$/.test(e.code)
@@ -386,11 +409,27 @@ export class RacingGame {
     ) {
       e.preventDefault();
       if (!this.paused && ["racing", "countdown"].includes(this.status)) {
+        this.setInput(false);
         this.keys.add(key);
         if (!e.repeat) this.keyboard.press(key);
         if (key === "s" || key === "arrowdown") this.cruise = false;
       }
     }
+    if (
+      [
+        "w",
+        "a",
+        "s",
+        "d",
+        "e",
+        " ",
+        "arrowup",
+        "arrowdown",
+        "arrowleft",
+        "arrowright",
+      ].includes(key)
+    )
+      this.setInput(false);
     if (key === "p" && !e.repeat) this.togglePause();
     if (key === "enter" && this.status === "finished" && this.outroTime > 1) {
       e.preventDefault();
@@ -798,7 +837,7 @@ export class RacingGame {
         ctx.fillStyle = kind === "crate" ? "#83fff1" : "#fff0a6";
         ctx.fillRect(point.x - 1.5, point.y - 1.5, 3, 3);
       });
-    // Coconuts and missiles show here too, as the simple view has no 3D scene.
+    // Coconuts and missiles stay visible on the shared minimap.
     for (const [objects, colour] of [
       [race.coconuts, "#c98a4b"],
       [race.missiles, "#ff5a4a"],

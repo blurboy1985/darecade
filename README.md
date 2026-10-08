@@ -54,7 +54,7 @@ Run `npm run load:test` after building to test 150 synthetic players for five mi
 
 ### First-round welcome quest
 
-The welcome Play opens Coast Rush after the age and consent checks. A world is assigned automatically through HTTP while the live socket connects, with no room picker before the first game. Walking, nearby interactions and the three permanent Games / Neighbourhood / Menu routes are available immediately. Games always opens the three-page picker. Completing a first round at any score unlocks the Lilac cap and grants +35 bonus cosmetic XP once, alongside the normal +20 round XP. “Make it yours” opens the optional character setup. “Play again” and “Explore” remain available. Skipping, interrupted walks and reloads retain progress. The 2D fallback offers the same reward and a location selector. The reward is issued once per server profile after a verified round; existing preview saves are archived during the server-progression migration.
+The welcome Play opens Coast Rush after the age and consent checks. A world is assigned automatically through HTTP while the live socket connects, with no room picker before the first game. Walking, nearby interactions and the three permanent Play / My look / Menu routes are available immediately. Play offers arcade and outdoor activities, with at most three primary choices per page. Menu → Neighbourhood keeps destination navigation and Change world available. Completing a first round at any score unlocks the Lilac cap and grants +35 bonus cosmetic XP once, alongside the normal +20 round XP. “Make it yours” opens the optional character setup. “Play again” and “Explore” remain available. Skipping, interrupted walks and reloads retain progress. Play Simi requires WebGL 2. If 3D cannot start or its graphics context is lost, an accessible explanation offers Retry and troubleshooting without starting a broken session or changing saved progress. Legacy 2D preferences migrate to the 3D startup path. The reward is issued once per server profile after a verified round; existing preview saves are archived during the server-progression migration.
 
 ### Real-phone playtest
 
@@ -96,12 +96,12 @@ The production site is emitted to `dist/`. `npm run preview` serves it at http:/
 - Chibi characters from the CC0 KayKit Adventurers pack: eight outfits (ranger, wizard, knight and explorer, each with or without a cape), eight heads and hats, six outfit colours, eight skin tones, earnable hats, seven companion pets and seven animated accessory choices. Clothing and effects are cosmetic only. Six avatar actions, a kickable ball and a bicycle bell remain available.
 - Five reachable treasure coins, a free Sprout hat on completion, a named sticker album, three claimable exploration missions, XP and cosmetic level progression.
 - Pick one of three named daily gifts. Daily eligibility uses Singapore midnight; the weekly coin hunt resets on Monday, Singapore time. Earned items persist. No missed-day penalty.
-- Day, golden-hour and night lighting, plus an option to follow Singapore time. Sound is synthesized locally, enabled for new profiles after a browser gesture, and can be muted; existing sound preferences are preserved. Reduced decorative motion, a 30-active-minute break reminder, and a functional 2D lobby when WebGL fails or is disabled in Settings.
+- Day, golden-hour and night lighting, plus an option to follow Singapore time. Sound is synthesized locally, enabled for new profiles after a browser gesture, and can be muted; existing sound preferences are preserved. Reduced decorative motion, a 30-active-minute break reminder, and accessible Retry guidance when the required 3D graphics are unavailable.
 - Local persistence with malformed-save recovery. Fonts and art are served locally. The background world stops rendering while an activity panel is open.
 
 ## Guest play and Play medals
 
-Guests use the same privacy-filtered live world and six emotes without email. Menu → Friends brings Emotes forward; 2D emotes broadcast through the real world protocol. Rankings starts with a personal daily goal: up to three Play medal points per Singapore day, once per qualifying game. These points never change ranked medals, XP, tokens or ownership. [Section 3 checks](SECTION3-QA.md) list qualifying finishes, browser steps and evidence.
+Guests use the same privacy-filtered live world and six emotes without email. The Emotes control offers Wave, Dance and More; emotes broadcast through the real world protocol. Rankings starts with a personal daily goal: up to three Play medal points per Singapore day, once per qualifying game. These points never change ranked medals, XP, tokens or ownership. [Section 3 checks](SECTION3-QA.md) list qualifying finishes, browser steps and evidence.
 
 Guest progress is stored on the server and accessed through the original browser session; local storage also keeps preferences. Cookie clearing, sign-out or 30-day session expiry can lose access to an unlinked profile. Linking an unused email keeps that identity and its rewards, enables recovery and cross-device play, and ranks future arcade rounds. Existing-account conflicts offer an explicit switch, without merging characters.
 
@@ -119,24 +119,24 @@ The changes have automated structural and request-flow coverage. Browser-only te
 
 ## Controls
 
-| Action                 | Control                                                            |
-| ---------------------- | ------------------------------------------------------------------ |
-| Walk                   | WASD, arrows, tap the ground, or mobile joystick                   |
-| Walk to a destination  | Neighbourhood → choose a spot                                            |
-| Nearby interaction     | E or the on-screen location button                                 |
-| Jump                   | Space                                                              |
-| Change the view        | Upfront camera button; also Menu → Settings → Camera & controls |
-| Third-person view      | V or Camera & controls; drag to orbit; scroll/pinch to zoom        |
-| Inspect an outfit      | Menu → Friends → Neighbours, or click one in the world; Esc returns    |
-| Away activity          | Menu → Settings → Account & safety → Step away                  |
-| Play with surroundings | Play outside, click a prop, or press E at its nearby prompt        |
-| Stop an interaction    | Stop, Escape, or a movement key; the player returns to the path    |
-| Noodle Run             | Arrows/WASD, swipe, or on-screen direction buttons                 |
-| Brick Bash             | A/D, left/right, drag, or on-screen left/right buttons             |
-| Hop Hop                | Space, W, up arrow, tap the game or the JUMP button                |
-| Star Swarm             | WASD/arrows, drag the ship or on-screen directions; automatic fire |
+| Action                 | Control                                                                                  |
+| ---------------------- | ---------------------------------------------------------------------------------------- |
+| Walk                   | WASD, arrows, tap the ground, or mobile joystick                                         |
+| Walk to a destination  | Neighbourhood → choose a spot                                                            |
+| Nearby interaction     | E or the on-screen location button                                                       |
+| Jump                   | Space                                                                                    |
+| Change the view        | Upfront camera button; also Menu → Settings → Camera & controls                          |
+| Third-person view      | V or Camera & controls; drag to orbit; scroll/pinch to zoom                              |
+| Inspect an outfit      | Menu → Friends → Neighbours, or click one in the world; Esc returns                      |
+| Away activity          | Menu → Settings → Account & safety → Step away                                           |
+| Play with surroundings | Play outside, click a prop, or press E at its nearby prompt                              |
+| Stop an interaction    | Stop, Escape, or a movement key; the player returns to the path                          |
+| Noodle Run             | Arrows/WASD, swipe, or on-screen direction buttons                                       |
+| Brick Bash             | A/D, left/right, drag, or on-screen left/right buttons                                   |
+| Hop Hop                | Space, W, up arrow, tap the game or the JUMP button                                      |
+| Star Swarm             | WASD/arrows, drag the ship or on-screen directions; automatic fire                       |
 | Coast Rush             | W/up to accelerate; A/D steer; S/down brake; Space drift; E item; matching touch buttons |
-| Pause a game           | P or Pause; losing focus pauses automatically                      |
+| Pause a game           | P or Pause; losing focus pauses automatically                                            |
 
 ## Scope and remaining product work
 
@@ -205,7 +205,6 @@ See `QA.md` for checked behaviours, screenshots, and limits. Mobile browser emul
 - A heartbeat preserves outfit, away activity and position. A closed page signals departure; a lost connection becomes offline after 15 seconds. Another active tab keeps that guest online. Away avatars stay available after restart.
 - `npm test` includes isolated in-memory database tests. Browser QA uses `.browser/social-data`, separate from the actual neighbourhood data. `PORT` and `DARECADE_DATA` environment variables allow an isolated QA server.
 
-
 ## Wardrobe, magic and sound expansion — 3 October 2026
 
 - **Outfits (24):** the eight KayKit sets plus mix-and-match tops, legs and capes (for example Spellblade, Battle mage, Forest druid). See `bodySets` in `src/character.ts`.
@@ -244,11 +243,10 @@ npm run build
 
 Increment the model URL revision in `src/character.ts` when exporting a changed model, so returning browsers fetch the new asset. The model source folder must be present to rebuild; Blender is unnecessary for normal play. See `art/characters/CREDITS.md` for provenance.
 
-
 ## My Look and scoring refresh — 3 October 2026
 
 My Look has a server-saved nickname (2–20 letters/numbers/spaces/hyphens), eight KayKit outfits and eight head options. Gender is not collected. Mix any head with any outfit; clothes include ranger, wizard, knight and explorer styles, with or without a cape.
 
-Seven companions include a bunny, fox, small dragon and owl; seven magic choices include a moon halo, crystal crown, rainbow ribbon and bubbles. A lightweight Three.js star burst celebrates completed rounds, releases its GPU resources, and respects reduced motion and 2D mode. The three decorative podium mannequins have been removed from the central plaza; actual shared players remain.
+Seven companions include a bunny, fox, small dragon and owl; seven magic choices include a moon halo, crystal crown, rainbow ribbon and bubbles. A lightweight Three.js star burst celebrates completed rounds, releases its GPU resources, and respects reduced motion. The three decorative podium mannequins have been removed from the central plaza; actual shared players remain.
 
 Rankings have separate weekly and daily views, tied-rank podium cards and a personal summary showing awarded weekly medals, pending midnight medals and lifetime medals. Round results distinguish game score, cosmetic XP and daily rank. Existing server scoring and Singapore reset rules are unchanged. Nicknames are public; email, link and phone-like strings are rejected, and inappropriate-name reporting uses the existing private report/hide flow. Free-form names still require operator moderation before a public launch.

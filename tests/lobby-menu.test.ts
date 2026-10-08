@@ -10,10 +10,10 @@ import {
 
 const source = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
 
-test("Menu has the four permanent routes, with session and legal actions rendered separately", () => {
+test("Menu has the three permanent routes, with session and legal actions rendered separately", () => {
   assert.deepEqual(
     menuPages["phone-menu"].actions.map((a) => a.label),
-    ["My look", "Quests & rankings", "Sound & display", "Change world"],
+    ["Quests & rankings", "Sound & display", "Neighbourhood"],
   );
   assert.ok(isMenuPage("phone-menu"));
   assert.equal(isMenuPage("toString"), false);
@@ -49,7 +49,7 @@ test("world keeps three stable routes and a separate nearby action", () => {
   }
 });
 
-test("first visit and 2D retain privacy and player reporting routes", () => {
+test("first visit retains privacy and player reporting routes", () => {
   assert.match(source, /data-open="phone-menu"/);
   assert.match(source, /data-open="neighbours">Nearby players/);
   const invitation =
@@ -62,7 +62,7 @@ test("first visit and 2D retain privacy and player reporting routes", () => {
       source.indexOf("function showPlayer("),
     ),
   );
-  assert.match(playerPanel, /if \(is2d\)[\s\S]*?playerProfile/);
+  assert.match(playerPanel, /renderPlayerInspector/);
 });
 
 test("closing setup prevents a delayed name save from reopening email", () => {

@@ -22,7 +22,7 @@ import {
 // Run the actual mountPlots implementation with the real state/trail functions.
 // This synthetic element fixture exercises handlers, rendering, async work and
 // lifecycle bookkeeping. It does not prove native keyboard, CSS, WebGL or mobile
-// behavior. The simple-renderer branch deliberately never imports WebGL.
+// behavior. The unavailable graphics import leaves the accessible HTML grid.
 const source = readFileSync(
   new URL("../src/plots.ts", import.meta.url),
   "utf8",
@@ -251,7 +251,6 @@ function harness(
     host,
     ctx: {
       save,
-      simple: true,
       sound: (name: string) => sounds.push(name),
       report: (event: string, value: unknown) => {
         reports.push({ event, value: structuredClone(value) });

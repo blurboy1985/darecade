@@ -141,14 +141,12 @@ function harness(save = state.fresh()) {
     host: Element,
     ctx: {
       save: state.Save;
-      simple: boolean;
       sound: (name: string) => void;
       report: (event: string, value?: unknown) => Promise<void>;
     },
   ) => void;
   mount(host, {
     save,
-    simple: true,
     sound: (name) => sounds.push(name),
     report: async (event, value) => {
       reports.push({ event, value });

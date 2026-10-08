@@ -134,14 +134,14 @@ for (const viewport of viewports) {
         };
         const openStage = async () => {
           find('.lobby-dock [data-open="arcade"]').click();
-          find('[data-open="stage"]').click();
+          find('#play-section').value='outside'; find('#play-section').dispatchEvent(new Event('change',{bubbles:true})); find('[data-open="stage"]').click();
           await until(() => find('#stage-mode'), 'Stage panel');
         };
         const setMode = value => { find('#stage-mode').value = value; find('#stage-mode').dispatchEvent(new Event('change', { bubbles: true })); };
         const performRequests = () => requests.filter(request => request.path === 'progress' && request.data?.event === 'perform');
         const savedStage = () => { const p = JSON.parse(localStorage.getItem('darecade-v1')); return [p.xp, p.stageBest, p.stageXp, p.stageDay, p.stageLast]; };
         try {
-          await until(() => document.body.classList.contains('mode-2d') && !find('#loading'), 'built lobby loaded');
+          await until(() => !!find('#world canvas') && !find('#loading'), 'built lobby loaded');
           check(innerWidth === ${viewport.width} && innerHeight === ${viewport.height}, 'actual iframe CSS viewport');
           await openCoast();
           check(find('.game-progress').textContent.includes('First goal: finish all 3 laps'), 'Coast first finish goal');
@@ -149,8 +149,8 @@ for (const viewport of viewports) {
           check(find('.game-progress').textContent.includes('Guests earn +20 XP'), 'existing Coast XP copy');
           const cover = find('.race-cover'), guide = find('.race-guide');
           check(getComputedStyle(cover).overflowY === 'auto', 'Coast cover can scroll');
-          await until(()=>find('.coast-game').dataset.status !== 'ready','card starts race directly');
-          check(find('.coast-game').dataset.status === 'countdown','one card press starts countdown');
+          check(find('.coast-game').dataset.status === 'ready','card waits for explicit Start'); find('#start-game').click(); advance();
+          check(find('.coast-game').dataset.status === 'countdown','explicit Start begins countdown');
           check(guide.textContent.includes('Shield') && guide.textContent.includes('Coconut'),'item instructions preserved');
           check(document.documentElement.scrollWidth <= innerWidth + 1, 'Coast has no document horizontal overflow');
           check(find('#modal').scrollWidth <= find('#modal').clientWidth + 1, 'Coast has no modal horizontal overflow');
@@ -212,7 +212,7 @@ for (const viewport of viewports) {
           find('#stage-start').click(); advance(120);
           playableStage('Returning Show');
           check(find('#stage-progress').getBoundingClientRect().height === 0, 'large progress card is hidden only during play');
-          parent.postMessage({ result: 'pass', report: { viewport: ${JSON.stringify(viewport)}, checks, performReports: performRequests().length, timing: 'test-controlled RAF: two 40-second warmups', graphics: 'saved 2D mode; real DOM/CSS/2D canvas' } }, location.origin);
+          parent.postMessage({ result: 'pass', report: { viewport: ${JSON.stringify(viewport)}, checks, performReports: performRequests().length, timing: 'test-controlled RAF: two 40-second warmups', graphics: 'legacy 2D preference migrated; real DOM/CSS/3D world' } }, location.origin);
         } catch (error) { parent.postMessage({ result: 'fail', report: { viewport: ${JSON.stringify(viewport)}, checks, error: error.stack } }, location.origin); }
       });
       </script>`;

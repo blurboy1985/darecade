@@ -54,9 +54,3 @@ test("pipe geometry rejects masks outside the supported two-connector domain", (
     assert.equal(createPlotPipeCurve(mask), null);
   }
 });
-
-test("simple mode exits before touching DOM or WebGL", () => {
-  // A DOM host is deliberately absent, proving simple mode is a zero-work path.
-  // @ts-expect-error The deliberately invalid host must never be accessed.
-  assert.equal(createPlotView(null, { reduced: false, simple: true }), null);
-});

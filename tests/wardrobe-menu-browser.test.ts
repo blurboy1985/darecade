@@ -17,7 +17,7 @@ for (const [width, height, account, twoD] of [
   [320, 568, false, true],
 ] as const) {
   test(
-    `wardrobe scrolling and all emotes at ${width}x${height} ${account ? "account" : "guest"} ${twoD ? "2D" : "3D"}`,
+    `wardrobe scrolling and all emotes at ${width}x${height} ${account ? "account" : "guest"} ${twoD ? "migrated 2D preference" : "3D"}`,
     { skip: chromium ? false : "Set DARECADE_TEST_CHROMIUM", timeout: 45000 },
     async () => {
       assert.ok(chromium);

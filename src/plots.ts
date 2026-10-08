@@ -178,21 +178,19 @@ export function mountPlots(host: HTMLElement, ctx: ActivityContext) {
       "Follow the water from IN to OUT. Only the golden pipes turn.";
     render("[data-pipe]");
     const game = screen;
-    if (!ctx.simple && !ctx.save.twoD)
-      void import("./plot-view")
-        .then(({ createPlotView }) => {
-          if (!live() || screen !== game) return;
-          visual = createPlotView(visualHost, {
-            reduced,
-            simple: false,
-          });
-          const tiles = trailTiles(game.trail, game.turns);
-          const flow = traceWater(tiles);
-          visual?.update(tiles, flow.wet, flow.complete, game.crop);
-        })
-        .catch(() => {
-          /* The HTML pipes remain fully playable without 3D. */
+    void import("./plot-view")
+      .then(({ createPlotView }) => {
+        if (!live() || screen !== game) return;
+        visual = createPlotView(visualHost, {
+          reduced,
         });
+        const tiles = trailTiles(game.trail, game.turns);
+        const flow = traceWater(tiles);
+        visual?.update(tiles, flow.wet, flow.complete, game.crop);
+      })
+      .catch(() => {
+        /* The HTML pipes remain fully playable without 3D. */
+      });
   };
   const submitTrail = (game: TrailScreen) => {
     if (game.mode === "practice") {

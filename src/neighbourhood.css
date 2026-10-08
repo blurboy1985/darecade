@@ -321,17 +321,6 @@
   font-size: 12px !important;
   font-weight: 700;
 }
-.mode-2d #camera-toggle,
-.mode-2d #camera-hint,
-.mode-2d #inspector {
-  display: none !important;
-}
-.mode-2d .neighbour-tools {
-  top: 90px;
-}
-.mode-2d .fallback {
-  padding-top: 65px;
-}
 @media (max-width: 1150px) and (min-width: 761px) {
   .neighbour-tools {
     top: 100px;
@@ -484,9 +473,6 @@
   }
   .four-games .brick-art {
     padding: 14px 18px 40px;
-  }
-  .mode-2d .neighbour-tools {
-    top: 75px;
   }
 }
 
@@ -723,12 +709,6 @@
   }
   .is-away .world-controls {
     bottom: 134px;
-  }
-  .mode-2d .neighbour-tools {
-    top: 67px;
-  }
-  .mode-2d .fallback {
-    padding-top: 60px;
   }
 }
 .ranking-grid,

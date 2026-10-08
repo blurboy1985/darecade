@@ -59,7 +59,12 @@ export class RaceView {
   private readonly foam: T.InstancedMesh;
   private readonly cameraFollow = new RaceCameraFollow();
   private readonly nameLayer = document.createElement("div");
-  private readonly nameplates: { kart: T.Group; element: HTMLElement }[] = [];
+  private readonly nameplates: {
+    kart: T.Group;
+    element: HTMLElement;
+    name: string;
+    player: boolean;
+  }[] = [];
   private disposed = false;
   private readonly look: Look;
   private readonly reduced: boolean;
@@ -337,7 +342,7 @@ export class RaceView {
     element.className = `race-nameplate${player ? " race-nameplate-player" : ""}`;
     element.textContent = `${name} · ${player ? "You" : "CPU"}`;
     this.nameLayer.append(element);
-    this.nameplates.push({ kart, element });
+    this.nameplates.push({ kart, element, name, player });
   }
   private drawNameplates() {
     const width = this.nameLayer.clientWidth;
@@ -350,7 +355,14 @@ export class RaceView {
         a.kart.position.distanceToSquared(this.camera.position) -
         b.kart.position.distanceToSquared(this.camera.position),
     );
-    for (const { kart, element } of ordered) {
+    const compact = width <= 600 || height <= 300;
+    for (const { kart, element, name, player } of ordered) {
+      const label = compact
+        ? player
+          ? "You"
+          : name
+        : `${name} · ${player ? "You" : "CPU"}`;
+      if (element.textContent !== label) element.textContent = label;
       const projected = kart.position
         .clone()
         .add(new T.Vector3(0, 2.5, 0))
@@ -358,6 +370,7 @@ export class RaceView {
       const x = Math.round(((projected.x + 1) * width) / 2);
       const y = Math.round(((1 - projected.y) * height) / 2);
       element.hidden =
+        (compact && !player && occupied.length >= 3) ||
         projected.z < -1 ||
         projected.z > 1 ||
         x < 0 ||

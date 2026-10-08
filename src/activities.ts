@@ -8,7 +8,6 @@ import "./activities.css";
 export type ActivityContext = {
   /** The live save; it reflects the server's answer once report() resolves. */
   save: Save;
-  simple?: boolean;
   sound: (name: Sfx) => void;
   report: (event: string, value?: unknown) => Promise<void>;
 };

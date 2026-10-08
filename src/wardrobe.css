@@ -89,12 +89,6 @@ dialog:has(.wardrobe-layout) {
 .wardrobe-controls .look-tabs button {
   font-size: 12px !important;
 }
-.look-2d-image {
-  display: block;
-  width: 100%;
-  height: 80%;
-  object-fit: contain;
-}
 .wardrobe-controls .style-wallet {
   margin: 0;
 }
