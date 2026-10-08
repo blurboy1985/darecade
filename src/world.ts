@@ -412,7 +412,7 @@ export class LobbyWorld {
       save.hat,
       save,
     );
-    this.player.root.rotation.y = Math.PI;
+    this.player.root.rotation.y = save.cameraMode === "third" ? 0 : this.angle;
     const markerGeo = new T.RingGeometry(0.55, 0.68, 32);
     this.marker = new T.Mesh(
       markerGeo,

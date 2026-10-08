@@ -224,6 +224,12 @@ function disposeArcadeFx() {
 let characterPreview: ReturnType<typeof createCharacterPreview> | null = null;
 let shared: SharedState | null = null;
 let profileReady = false;
+let profileCleared = false;
+window.addEventListener("account-cleared", () => {
+  profileCleared = true;
+  profileReady = false;
+  worldConnection.stop();
+});
 let sessionExpired = false;
 window.addEventListener("session-expired", () => {
   worldConnection.stop();
@@ -321,6 +327,7 @@ function profileMutation(path: string, data: unknown) {
       } finally {
         if (preferenceChange) pendingPreferences--;
       }
+      if (profileCleared) return;
       // Earlier saves must not undo a newer choice while its request is queued.
       if (pendingPreferences)
         Object.assign(
@@ -416,6 +423,7 @@ document
 const modal = document.querySelector<HTMLDialogElement>("#modal")!;
 const body = document.querySelector<HTMLDivElement>("#modal-body")!;
 function persist() {
+  if (profileCleared) return;
   if (profileReady) {
     const prefs = Object.fromEntries(preferenceKeys.map((k) => [k, save[k]]));
     const stamp = JSON.stringify(prefs);
@@ -796,7 +804,7 @@ function open(id: string) {
   } else if (isMenuPage(id)) {
     modal.classList.add("directory-panel");
     const page = menuPages[id];
-    body.innerHTML = `<h2>${page.title}</h2><div class="simple-menu" aria-label="Menu">${page.actions.map((action) => `<button class="menu-choice" data-open="${action.target}">${icon(action.icon)}<span>${action.label}</span>${icon("arrow")}</button>`).join("")}</div><div class="menu-links"><button class="text-button" ${currentProfile?.account ? 'data-action="logout"' : 'data-action="save-email"'}>${icon("settings")}<span>${currentProfile?.account ? "Log out" : "Save with email"}</span>${icon("arrow")}</button><button class="text-button" data-open="privacy">Privacy & data</button><button class="text-button" data-open="help">Help/Report</button></div>`;
+    body.innerHTML = `<h2>${page.title}</h2><div class="simple-menu" aria-label="Menu">${page.actions.map((action) => `<button class="menu-choice" data-open="${action.target}">${icon(action.icon)}<span>${action.label}</span>${icon("arrow")}</button>`).join("")}</div><div class="menu-links"><button class="text-button" ${currentProfile?.account ? 'data-action="logout"' : 'data-action="save-email"'}>${icon("settings")}<span>${currentProfile?.account ? "Log out" : "Save with email"}</span>${icon("arrow")}</button>${!currentProfile?.account ? '<button class="text-button" data-open="account">Guest account &amp; reset</button>' : ""}<button class="text-button" data-open="privacy">Privacy & data</button><button class="text-button" data-open="help">Help/Report</button></div>`;
   } else if (id === "arcade") {
     const outside = pageChoices(
       [
@@ -838,7 +846,7 @@ function open(id: string) {
     const medals = shared?.self?.points ?? 0;
     const shown = tryingLook?.look ?? save;
     world?.updateAvatar(shown);
-    body.innerHTML = `<div class="wardrobe-layout ${fittingExpanded ? "fitting-expanded" : ""}"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${tryingLook ? "Trying on" : escapeText(nickname)}</strong><small>DRAG TO TURN</small><div class="preview-tools" aria-label="Preview camera"><button data-preview-view="body" aria-pressed="${fittingView === "body"}" >Full body</button><button data-preview-view="face" aria-pressed="${fittingView === "face"}" >Face</button><button data-expand-preview aria-expanded="${fittingExpanded}">${fittingExpanded ? "Back to collection" : "Larger preview"}</button></div><span class="look-caption">${tryingLook?.name ?? clothingNames[save.clothing]}</span><p id="look-save-status" role="status"></p><div class="try-actions" role="status"><button class="secondary" data-undo-look ${undoLook ? "" : "disabled"}>Undo</button><button class="text-button" data-reset-look>Back to my look</button></div></div><div class="wardrobe-controls">${setupGuide ? '<span class="eyebrow setup-step">STEP 1 OF 2 · NAME & LOOK</span>' : ""}${setupGuide ? "<h2>Make it yours</h2>" : `<span class="eyebrow">YOUR COLLECTION</span><h2>My look</h2><div class="style-wallet"><strong>${tokenSummary(save)}</strong><small>Tokens buy looks. +1 per 100 XP, up to +3 daily from ranked medals.</small></div>`}<details class="look-identity" ${setupGuide ? "open" : ""}><summary>Character settings</summary><form id="nickname-form" novalidate><label class="field-label" for="nickname">NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" ${currentProfile?.account ? "" : "readonly"} value="${escapeText(typed)}" minlength="2" maxlength="20" autocomplete="off" placeholder="Choose your nickname" aria-describedby="nickname-status" required><button class="secondary" type="submit" ${currentProfile?.account ? "" : "disabled"}>Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form><label class="field-label">CHARACTER</label><div class="body-options">${["Girl", "Boy"].map((label, i) => `<button data-body="${i}" class="${save.body === i ? "active" : ""}" aria-pressed="${save.body === i}">${label}</button>`).join("")}</div><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">EYE COLOUR</label><div class="swatches">${["#db779f", "#865035", "#328cca", "#469267", "#8763bd"].map((c, i) => `<button data-eye="${i}" style="--swatch:${c}" aria-label="${["Original", "Brown", "Blue", "Green", "Violet"][i]} eyes" aria-pressed="${(save.eye || 0) === i}"></button>`).join("")}</div></details>${favouriteProgress(save)}${savedLookShelf(save)}${setupGuide ? `<details class="setup-more" ${moreLooksOpen ? "open" : ""}><summary>Browse looks</summary>` : ""}<div class="look-tabs" aria-label="Wardrobe sections">${wardrobeSections.map((label) => `<button data-wardrobe-section="${label}" aria-pressed="${wardrobeSection === label}">${label}</button>`).join("")}</div><div class="collection-tabs" aria-label="Item tiers" ${wardrobeSection === "Hair" ? "hidden" : ""}>${wardrobeFilters.map((label) => `<button data-wardrobe-filter="${label}" aria-pressed="${wardrobeFilter === label}">${label}</button>`).join("")}</div>${wardrobeSection === "Headwear" ? hatShelf(save) : ""}${wardrobeBrowser(wardrobeSection, wardrobeFilter, save, medals, tryingLook)}<p class="fine-print">Cosmetic only. No gameplay advantage. Choose a complete outfit, or mix clothes, hair and headwear. Pets and magic are selected separately.</p>${setupGuide ? "</details>" : ""}${setupGuide ? actionButton("setup-save", "Save & continue →") : actionButton("done-look", "Done")}</div></div>`;
+    body.innerHTML = `<div class="wardrobe-layout ${fittingExpanded ? "fitting-expanded" : ""}"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${tryingLook ? "Trying on" : escapeText(nickname)}</strong><small>DRAG TO TURN</small><div class="preview-tools" aria-label="Preview camera"><button data-preview-view="body" aria-pressed="${fittingView === "body"}" >Full body</button><button data-preview-view="face" aria-pressed="${fittingView === "face"}" >Face</button><button data-expand-preview aria-expanded="${fittingExpanded}">${fittingExpanded ? "Back to collection" : "Larger preview"}</button></div><span class="look-caption">${tryingLook?.name ?? clothingNames[save.clothing]}</span><p id="look-save-status" role="status"></p><div class="try-actions" role="status"><button class="secondary" data-undo-look ${undoLook ? "" : "disabled"}>Undo</button><button class="text-button" data-reset-look>Back to my look</button></div></div><div class="wardrobe-controls">${setupGuide ? '<span class="eyebrow setup-step">STEP 1 OF 2 · NAME & LOOK</span>' : ""}${setupGuide ? "<h2>Make it yours</h2>" : `<span class="eyebrow">YOUR COLLECTION</span><h2>My look</h2><div class="style-wallet"><strong>${tokenSummary(save)}</strong><small>Tokens buy looks. +1 per 100 XP, up to +3 daily from ranked medals.</small></div>`}<details class="look-identity" ${setupGuide ? "open" : ""}><summary>Character settings</summary><form id="nickname-form" novalidate><label class="field-label" for="nickname">NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" value="${escapeText(typed)}" minlength="2" maxlength="20" autocomplete="off" placeholder="Choose your nickname" aria-describedby="nickname-status" required><button class="secondary" type="submit">Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form><label class="field-label">CHARACTER</label><div class="body-options">${["Girl", "Boy"].map((label, i) => `<button data-body="${i}" class="${save.body === i ? "active" : ""}" aria-pressed="${save.body === i}">${label}</button>`).join("")}</div><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">EYE COLOUR</label><div class="swatches">${["#db779f", "#865035", "#328cca", "#469267", "#8763bd"].map((c, i) => `<button data-eye="${i}" style="--swatch:${c}" aria-label="${["Original", "Brown", "Blue", "Green", "Violet"][i]} eyes" aria-pressed="${(save.eye || 0) === i}"></button>`).join("")}</div></details>${favouriteProgress(save)}${savedLookShelf(save)}${setupGuide ? `<details class="setup-more" ${moreLooksOpen ? "open" : ""}><summary>Browse looks</summary>` : ""}<div class="look-tabs" aria-label="Wardrobe sections">${wardrobeSections.map((label) => `<button data-wardrobe-section="${label}" aria-pressed="${wardrobeSection === label}">${label}</button>`).join("")}</div><div class="collection-tabs" aria-label="Item tiers" ${wardrobeSection === "Hair" ? "hidden" : ""}>${wardrobeFilters.map((label) => `<button data-wardrobe-filter="${label}" aria-pressed="${wardrobeFilter === label}">${label}</button>`).join("")}</div>${wardrobeSection === "Headwear" ? hatShelf(save) : ""}${wardrobeBrowser(wardrobeSection, wardrobeFilter, save, medals, tryingLook)}<p class="fine-print">Cosmetic only. No gameplay advantage. Choose a complete outfit, or mix clothes, hair and headwear. Pets and magic are selected separately.</p>${setupGuide ? "</details>" : ""}${setupGuide ? actionButton("setup-save", "Save & continue →") : actionButton("done-look", "Done")}</div></div>`;
     renderLookSaveStatus();
     if (preferenceSaveFailed) persist();
     mountAvatarCards(body, save);
@@ -986,7 +994,7 @@ function open(id: string) {
         "",
       )}</select><div class="button-row">${actionButton("start-away", "Step away")}${actionButton("save-away", "Save choice", "secondary")}</div><p class="fine-print">Away time earns no XP.</p>`;
   } else if (id === "preferences") {
-    body.innerHTML = `<button class="text-button menu-back" data-open="phone-menu">← Back</button><h2>Sound & display</h2><label class="settings-row"><span><strong>Sound effects</strong><small>Blips and sparkles</small></span><input id="setting-sound" type="checkbox" ${save.sound ? "checked" : ""}></label><label class="settings-row"><span><strong>Background music</strong><small>Lo-fi, pads and chiptune</small></span><input id="setting-music" type="checkbox" ${save.music ? "checked" : ""} ${save.sound ? "" : "disabled"}></label><label class="settings-row"><span><strong>Reduce motion</strong><small>Calmer effects</small></span><input id="setting-reduced" type="checkbox" ${save.reduced ? "checked" : ""}></label><label class="settings-row"><span><strong>Time of day</strong><small>Your local clock or pick a mood</small></span><select id="setting-light">${[
+    body.innerHTML = `<button class="text-button menu-back" data-open="phone-menu">← Back</button><h2>Sound & display</h2><label class="settings-row"><span><strong>Sound effects</strong><small>Blips and sparkles</small></span><input id="setting-sound" type="checkbox" ${save.sound ? "checked" : ""}></label><label class="settings-row"><span><strong>Background music</strong><small>Upbeat arcade pop and racing beats</small></span><input id="setting-music" type="checkbox" ${save.music ? "checked" : ""} ${save.sound ? "" : "disabled"}></label><label class="settings-row"><span><strong>Reduce motion</strong><small>Calmer effects</small></span><input id="setting-reduced" type="checkbox" ${save.reduced ? "checked" : ""}></label><label class="settings-row"><span><strong>Time of day</strong><small>Your local clock or pick a mood</small></span><select id="setting-light">${[
       ["auto", "Follow my local clock"],
       ["day", "Daylight"],
       ["dusk", "Golden hour"],
@@ -1816,10 +1824,7 @@ document.addEventListener("click", (e) => {
         b.disabled = true;
         try {
           await profileQueue;
-          if (
-            currentProfile?.account &&
-            (!save.nameChosen || name !== currentProfile?.name)
-          ) {
+          if (!save.nameChosen || name !== currentProfile?.name) {
             acceptProfile(await api<Profile>("profile", { name }));
           }
           if (save.rounds > 0 && save.welcome !== "complete") {
@@ -2363,6 +2368,7 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 window.addEventListener("pagehide", () => {
+  if (profileCleared) return;
   dismissStyleReward?.();
   pendingStyleTokens = 0;
   if (!save.away) {
@@ -2617,7 +2623,8 @@ async function syncSocial() {
   const player = currentProfile?.id;
   try {
     const next = await api<SharedState>("state");
-    if (player !== currentProfile?.id || next.me !== player) return;
+    if (profileCleared || player !== currentProfile?.id || next.me !== player)
+      return;
     shared = next;
     // XP is monotonic. Include passive invite awards without letting an older
     // poll undo a newer/queued progress response or local preference choice.
@@ -3039,7 +3046,7 @@ function renderWelcome() {
     firstRace && !save.welcomeDismissed,
   );
   document.body.classList.toggle("welcome-played", save.welcome === "played");
-  const invitation = `<div class="cap-goal-copy"><strong>${firstVisitCopy.title}</strong><span>${firstVisitCopy.detail}</span></div><button class="primary" data-action="welcome-start" aria-label="Race at Palm Bay for bonus XP">Race</button><button class="cap-goal-dismiss" data-action="welcome-skip" aria-label="Dismiss first-race goal" title="Explore first">×</button>`;
+  const invitation = `<div class="cap-goal-copy"><strong>${firstVisitCopy.title}</strong><span>${firstVisitCopy.detail}</span><span class="starter-guide"><b>Move:</b> joystick or WASD.<br><b>Look:</b> drag. <b>Jump:</b> Space / Jump.<br><b>Play</b> for games. <b>My look</b> to customise.</span></div><button class="primary" data-action="welcome-start" aria-label="Race at Palm Bay for bonus XP">Race</button><button class="cap-goal-dismiss" data-action="welcome-skip" aria-label="Dismiss first-race goal" title="Explore first">×</button>`;
   const el = document.querySelector<HTMLElement>(".welcome-panel")!;
   el.hidden = !firstRace || save.welcomeDismissed;
   const html = firstRace ? invitation : "";

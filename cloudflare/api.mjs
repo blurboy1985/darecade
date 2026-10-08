@@ -196,6 +196,11 @@ export async function handleApi(
       return json(c.export(id));
     if (method === "POST" && path === "/api/privacy/delete") {
       if (data.confirm !== "DELETE") fail("Confirm account deletion.", 400);
+      if (data.guestOnly === true && c.hasAccount(id))
+        fail(
+          "This profile is linked to an email. Use account deletion instead.",
+          409,
+        );
       await worlds?.disconnect(id);
       return withCookie(c.delete(id), null);
     }

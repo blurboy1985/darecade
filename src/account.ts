@@ -76,6 +76,8 @@ function privacyNotice() {
   );
 }
 function clearLocalProfile() {
+  currentProfile = null;
+  window.dispatchEvent(new Event("account-cleared"));
   localStorage.removeItem("darecade-v1");
   localStorage.removeItem("darecade-preview-backup");
 }
@@ -229,7 +231,7 @@ export async function ensureAccount(): Promise<Profile> {
     const { d, host } = shell(false);
     d.classList.add("welcome-consent");
     const welcome = () => {
-      host.innerHTML = `<span class="eyebrow">BEFORE YOU PLAY</span><h2>Welcome to Play Simi</h2><p>A cosy neighbourhood for ages 13 and older.</p><form id="consent-form"><label class="consent-choice"><input type="checkbox" name="over13" required> I'm 13 or older</label><label class="consent-choice"><input type="checkbox" name="consent" required> I understand how my information is used and agree to the privacy notice.</label><details class="account-details privacy-details"><summary>Privacy notice</summary>${privacySummary}${privacyNotice()}</details><button class="primary">Agree & play →</button><p role="status"></p></form><button class="secondary" id="existing-account">I have an account</button>`;
+      host.innerHTML = `<span class="eyebrow">BEFORE YOU PLAY</span><h2>Welcome to Play Simi</h2><p>A cosy neighbourhood for ages 13 and older.</p><form id="consent-form"><label for="welcome-name">Your nickname<input id="welcome-name" name="name" required minlength="2" maxlength="20" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="e.g. MoonOtter" aria-describedby="welcome-name-help"></label><p class="fine-print" id="welcome-name-help">Use a made-up name, 2–20 letters, numbers, underscores or hyphens. No real names or contact details.</p><label class="consent-choice"><input type="checkbox" name="over13" required> I'm 13 or older</label><label class="consent-choice"><input type="checkbox" name="consent" required> I understand how my information is used and agree to the privacy notice.</label><details class="account-details privacy-details"><summary>Privacy notice</summary>${privacySummary}${privacyNotice()}</details><button class="primary">Agree & play →</button><p role="status"></p></form><button class="secondary" id="existing-account">I have an account</button>`;
       host.querySelector("#existing-account")!.addEventListener("click", () =>
         emailForm(host, "auth/login-code", {
           back: welcome,
@@ -247,6 +249,7 @@ export async function ensureAccount(): Promise<Profile> {
         button.disabled = true;
         try {
           const p = await api<Profile>("auth/join", {
+            name: String(new FormData(form).get("name") ?? "").trim(),
             over13: true,
             consent: true,
             privacyVersion: config.privacyVersion,
@@ -304,7 +307,7 @@ export async function openAccount(
         },
       });
     const render = () => {
-      host.innerHTML = `<span class="eyebrow">ACCOUNT & PRIVACY</span><h2>Your account</h2><p>${p.account ? `Signed in as <strong>${esc(p.account.email)}</strong>. Your avatar and progress follow this account.` : "Playing without email. Progress and purchases stay with this browser on this device. Email backup is optional."}</p>${!p.account ? `<details class="account-details"><summary>Your guest progress</summary><p>${guestSaveCopy}</p><p>${emailSaveCopy}</p></details>` : ""}<p>Rankings and challenges are open without email. Three outgoing challenges per day. No points lost when another player wins.</p>${p.season ? `<p>${esc(p.season.name)} · ${p.season.xp} Season XP · ${p.progress.xp} Lifetime XP</p>` : ""}${!p.account ? '<button class="primary" id="save-account">Save with email →</button>' : ""}${p.account ? `<label class="consent-choice"><input id="medal-email" type="checkbox" ${p.notifications?.medalEmail ? "checked" : ""}> Email my daily medal awards</label><p class="fine-print">One email on days you win medals. Turn off here anytime.</p>` : ""}<div class="account-actions"><button class="secondary" id="read-privacy">Privacy &amp; data</button>${p.account ? '<button class="secondary" id="logout">Sign out</button>' : ""}</div><p role="status" id="account-status"></p>`;
+      host.innerHTML = `<span class="eyebrow">ACCOUNT & PRIVACY</span><h2>Your account</h2><p>${p.account ? `Signed in as <strong>${esc(p.account.email)}</strong>. Your avatar and progress follow this account.` : "Playing without email. Progress and purchases stay with this browser on this device. Email backup is optional."}</p>${!p.account ? `<details class="account-details"><summary>Your guest progress</summary><p>${guestSaveCopy}</p><p>${emailSaveCopy}</p></details>` : ""}<p>Rankings and challenges are open without email. Three outgoing challenges per day. No points lost when another player wins.</p>${p.season ? `<p>${esc(p.season.name)} · ${p.season.xp} Season XP · ${p.progress.xp} Lifetime XP</p>` : ""}${!p.account ? '<button class="primary" id="save-account">Save with email →</button>' : ""}${p.account ? `<label class="consent-choice"><input id="medal-email" type="checkbox" ${p.notifications?.medalEmail ? "checked" : ""}> Email my daily medal awards</label><p class="fine-print">One email on days you win medals. Turn off here anytime.</p>` : ""}<div class="account-actions"><button class="secondary" id="read-privacy">Privacy &amp; data</button>${p.account ? '<button class="secondary" id="logout">Sign out</button>' : '<button class="danger" id="reset-guest">Reset guest &amp; start afresh</button>'}</div><p role="status" id="account-status"></p>`;
       host
         .querySelector<HTMLInputElement>("#medal-email")
         ?.addEventListener("change", async (event) => {
@@ -327,6 +330,9 @@ export async function openAccount(
       host
         .querySelector("#read-privacy")!
         .addEventListener("click", renderPrivacy);
+      host
+        .querySelector("#reset-guest")
+        ?.addEventListener("click", () => renderDelete(true));
       host.querySelector("#logout")?.addEventListener("click", async () => {
         await api("auth/logout", {});
         clearLocalProfile();
@@ -357,28 +363,37 @@ export async function openAccount(
             ).message;
           }
         });
-      host.querySelector("#delete-data")!.addEventListener("click", () => {
-        host.innerHTML =
-          '<h2>Leave no avatar behind.</h2><p>This permanently removes your account, avatar, progress, scores and challenges. You will be signed out on every device.</p><form><label>Type DELETE to confirm<input name="confirm" required pattern="DELETE" autocomplete="off"></label><button class="danger">Delete my profile</button><p role="status"></p></form><button class="secondary" id="keep-account">Cancel · keep my account</button>';
-        host
-          .querySelector("#keep-account")!
-          .addEventListener("click", renderPrivacy);
-        host.querySelector("form")!.addEventListener("submit", async (e) => {
-          e.preventDefault();
-          try {
-            await api("privacy/delete", {
-              confirm: new FormData(e.currentTarget as HTMLFormElement).get(
-                "confirm",
-              ),
-            });
-            clearLocalProfile();
-            location.reload();
-          } catch (err) {
-            host.querySelector("[role=status]")!.textContent = (
-              err as Error
-            ).message;
-          }
-        });
+      host
+        .querySelector("#delete-data")!
+        .addEventListener("click", () => renderDelete(false));
+    };
+    const renderDelete = (reset: boolean) => {
+      if (reset && p.account) return;
+      host.innerHTML = reset
+        ? '<h2>Start afresh?</h2><p>This permanently deletes this guest profile, including your name, avatar, progress, scores, tokens, challenges and access to purchased items. Purchases are not refunded or transferred. You cannot undo this.</p><p>You will return to the welcome screen to choose a new name and agree again.</p><form><label>Type RESET to confirm<input name="confirm" required pattern="RESET" autocomplete="off"></label><button class="danger">Reset my guest account</button><p role="status"></p></form><button class="secondary" id="keep-account">Cancel · keep playing</button>'
+        : '<h2>Leave no avatar behind.</h2><p>This permanently removes your account, avatar, progress, scores and challenges. You will be signed out on every device.</p><form><label>Type DELETE to confirm<input name="confirm" required pattern="DELETE" autocomplete="off"></label><button class="danger">Delete my profile</button><p role="status"></p></form><button class="secondary" id="keep-account">Cancel · keep my account</button>';
+      host
+        .querySelector("#keep-account")!
+        .addEventListener("click", reset ? render : renderPrivacy);
+      host.querySelector("form")!.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const form = e.currentTarget as HTMLFormElement;
+        if (!form.reportValidity()) return;
+        const button = form.querySelector("button")!;
+        button.disabled = true;
+        try {
+          await api("privacy/delete", {
+            guestOnly: reset,
+            confirm: reset ? "DELETE" : new FormData(form).get("confirm"),
+          });
+          clearLocalProfile();
+          location.reload();
+        } catch (err) {
+          host.querySelector("[role=status]")!.textContent = (
+            err as Error
+          ).message;
+          button.disabled = false;
+        }
       });
     };
     if (options.privacy) renderPrivacy();

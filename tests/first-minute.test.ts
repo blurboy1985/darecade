@@ -101,5 +101,5 @@ test("eye colour is optional for old saves and never changes owned cosmetics", (
   assert.equal(next.eye, 3);
   assert.deepEqual(next.wardrobePurchased, old.wardrobePurchased);
   assert.equal(next.xp, 350);
-  assert.equal(normalise({ ...old, eye: 999 }, fresh()).eye, 0);
+  assert.equal(normalise({ ...old, eye: 999 }, fresh()).eye, fresh().eye);
 });

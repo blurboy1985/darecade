@@ -721,9 +721,9 @@ test("nickname and appearance edits validate before writing and never award rank
       assert.equal(s.community.privateProfile(id).progress.nameChosen, false);
       assert.equal(s.community.privateProfile(id).progress.pet, 0);
     }
-    assert.throws(
-      () => s.community.patch(id, { name: "MoonMochi" }),
-      /generated names/,
+    assert.equal(
+      s.community.patch(id, { name: "MoonMochi" }).name,
+      "MoonMochi",
     );
     s.store.db
       .prepare("INSERT INTO accounts VALUES(?,?,?)")

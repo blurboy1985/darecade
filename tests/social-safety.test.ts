@@ -92,7 +92,7 @@ test("nickname filtering rejects contact, real-name patterns and profanity", () 
     assert.equal(nicknameError(name), null);
 });
 
-test("actual guest creation keeps seeded free hairstyles and existing saves unchanged", () => {
+test("actual guest creation uses the neutral starter and keeps saved looks unchanged", () => {
   const directory = mkdtempSync(join(tmpdir(), "simi-guest-looks-"));
   const store = new Store(":memory:");
   const c = new Community(store, { directory });
@@ -113,8 +113,8 @@ test("actual guest creation keeps seeded free hairstyles and existing saves unch
       eyes.add((p.progress.skin + p.progress.hair) % 5);
       assert.equal(JSON.stringify(c.privateProfile(me.id).progress), saved);
     }
-    assert.ok(hairs.size >= 15);
-    assert.equal(eyes.size, 5);
+    assert.deepEqual([...hairs], [112]);
+    assert.equal(eyes.size, 1);
   } finally {
     store.close();
     rmSync(directory, { recursive: true, force: true });

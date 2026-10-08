@@ -55,7 +55,7 @@ test("malformed saves recover without invalid avatar parts or duplicate collecti
     f,
   );
   assert.equal(s.outfit, f.outfit);
-  assert.equal(s.skin, 0);
+  assert.equal(s.skin, f.skin);
   assert.equal(s.hat, 0);
   assert.equal(s.xp, 0);
   assert.equal(s.rounds, 0);

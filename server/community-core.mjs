@@ -316,6 +316,15 @@ export class CommunityCore {
     return this.privateProfile(id);
   }
   join(data, legacyToken) {
+    // Older clients can still join with a generated name. New entry forms
+    // supply a nickname, validated before creating any player or session.
+    let name;
+    if (Object.hasOwn(data, "name")) {
+      if (typeof data.name !== "string") throw Error("Choose a nickname.");
+      name = data.name.normalize("NFKC").trim();
+      const error = nicknameError(name);
+      if (error) throw Error(error);
+    }
     const band =
       data.over13 === true ? "13+" : this.eligible(data.month, data.year);
     if (data.consent !== true || data.privacyVersion !== PRIVACY_VERSION)
@@ -334,9 +343,11 @@ export class CommunityCore {
       if (this.db.prepare("SELECT 1 FROM profiles WHERE player=?").get(id))
         throw Error("Please sign in again.");
       const save = fresh();
-      const look = JSON.parse(
-        this.db.prepare("SELECT look FROM players WHERE id=?").get(id).look,
-      );
+      const look = existing
+        ? JSON.parse(
+            this.db.prepare("SELECT look FROM players WHERE id=?").get(id).look,
+          )
+        : {};
       Object.assign(
         save,
         normalise(
@@ -351,6 +362,10 @@ export class CommunityCore {
       // Legacy looks predate Legendary ownership; never import an unowned set.
       for (const [slot, start] of Object.entries(setStarts))
         if (setForItem(slot, save[slot])) save[slot] = 0;
+      if (name !== undefined) {
+        this.db.prepare("UPDATE players SET name=? WHERE id=?").run(name, id);
+        save.nameChosen = true;
+      }
       this.db
         .prepare("UPDATE players SET look=? WHERE id=?")
         .run(
@@ -454,10 +469,6 @@ export class CommunityCore {
     if (Object.hasOwn(patch, "name")) {
       if (typeof patch.name !== "string") throw Error("Choose a nickname.");
       name = patch.name.trim().replace(/\s+/g, " ");
-      if (!this.hasAccount(id))
-        throw Error(
-          "Guests use generated names. Save with email to choose a nickname.",
-        );
       const error = nicknameError(name);
       if (error) throw Error(error);
     }

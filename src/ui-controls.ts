@@ -104,6 +104,9 @@ export function installControls() {
     document
       .querySelectorAll<HTMLInputElement>("input[type=checkbox]")
       .forEach((input) => {
+        // Consent is a required form choice, so retain the native checkbox,
+        // keyboard focus and browser validation instead of a settings switch.
+        if (input.closest("#consent-form")) return;
         let b = input.nextElementSibling as HTMLButtonElement | null;
         if (!b?.classList.contains("kit-switch")) {
           b = document.createElement("button");

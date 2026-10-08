@@ -1,0 +1,41 @@
+{
+  "results": [
+    {
+      "width": 320,
+      "height": 568,
+      "nickname": true,
+      "guide": true,
+      "reset": true,
+      "freshId": true,
+      "errors": 0
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "nickname": true,
+      "guide": true,
+      "reset": true,
+      "freshId": true,
+      "errors": 0
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "nickname": true,
+      "guide": true,
+      "reset": true,
+      "freshId": true,
+      "errors": 0
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "nickname": true,
+      "guide": true,
+      "reset": true,
+      "freshId": true,
+      "errors": 0
+    }
+  ],
+  "errors": []
+}
