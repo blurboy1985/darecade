@@ -1,5 +1,31 @@
 # Cloudflare hosting
 
+## Lobby music in the intro film's style — deployed 8 October 2026
+
+PR #60 was merged (`cd20115`) and `main` was deployed as Worker version **`75e90f4a-e292-4d42-beae-60ae2d096854`** about twelve minutes after the intro film below. Before merging, 519 Node tests ran (470 passed, 49 browser checks skipped) and all 15 Cloudflare integration tests passed, including the build and dry run.
+
+The day and night lobby themes now play arcade pop like the intro: a square-wave lead on the film's hook, a bouncing bass and a backbeat at 120 beats a minute, with a slower, softer take at night. Game and Coast Rush music are unchanged. Rendered offline in Chromium, the new themes are slightly quieter than the ones they replace (day 0.0181 against 0.0216, night 0.0189 against 0.0201), with no clipping and no silent second over a full 16-bar loop.
+
+After deploying: health returned `ready: true`; the live HTML referenced `index-BTtkUEZk.js`, and `main-D4TgoN4J.js`, which carries the new music, matched the local build byte-for-byte; unauthenticated state returned 401; the old address still answered; the game and the intro loaded in Chromium with no page or console errors.
+
+No schema, migration, binding, variable or secret changed.
+
+Not verified: the sound itself. Nobody but the owner can listen to it; the checks are numerical. `tests/music-browser.test.ts` times out on the Windows machine used here with or without this change, so its assertions were run through a separate Chromium harness.
+
+Rollback: redeploy `2dff68a` (keeps the intro film, restores the earlier lobby music).
+
+## Intro film — deployed 8 October 2026
+
+PR #58 was merged (`2dff68a`) and `main` was deployed as Worker version **`4f5cf2f2-77b9-4f1b-ac39-73a2de9df0ed`** at about **23:29 SGT**. Before deploying, 519 Node tests ran on merged `main` (470 passed, 49 browser checks skipped) and all 15 Cloudflare integration tests passed, including the build and dry run.
+
+After deploying: health returned `ready: true`; the live HTML referenced `index-D7ikb1ug.js`, and that file, `intro-BCv-jhEs.js`, `intro-script-CZMook2g.js` and `intro-CmY_W6Tn.css` matched the local build byte-for-byte; unauthenticated state returned 401; the old address still answered. In Chromium against production with `?intro=1`, the start card showed, the film played, **Skip intro** and Esc each removed it, set the seen flag and loaded the game, and a plain automated visit went straight to the game, all with no page or console errors, so the content security policy does not block the film.
+
+No schema, migration, binding, variable or secret changed. The only new stored value is `playsimi-intro-seen` in the browser.
+
+Not verified in production: the sound (nobody has listened to the score), a full 40-second run to the logo (checked locally only), Safari, Firefox and a real phone.
+
+Rollback: redeploy `8b94c50`. The seen flag is ignored by older code.
+
 ## New avatar and six premium sets — deployed 5 October 2026
 
 PR #35 was merged by the owner (`8aa97ec`) and `main` was deployed as Worker version **`521f60e1-8f21-4d1e-8a8a-ff517e58e48d`** at about **22:45 SGT**. Before deploying, 383 Node tests ran on merged `main` (366 passed, 17 browser checks skipped) and all 14 Cloudflare integration tests passed, including the build and dry run.
