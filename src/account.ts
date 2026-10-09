@@ -1,4 +1,5 @@
 import { api } from "./social";
+import { SEEN_KEY } from "./intro-script";
 import type { Save } from "./state";
 import type { SeasonProgress } from "./season";
 import type { PlayMedalProgress } from "../shared/play-medals";
@@ -386,6 +387,7 @@ export async function openAccount(
             guestOnly: reset,
             confirm: reset ? "DELETE" : new FormData(form).get("confirm"),
           });
+          if (reset) localStorage.removeItem(SEEN_KEY);
           clearLocalProfile();
           location.reload();
         } catch (err) {

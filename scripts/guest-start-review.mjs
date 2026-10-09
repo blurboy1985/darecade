@@ -72,7 +72,12 @@ const server = await createServer({
 await server.listen();
 origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 community.origin = origin;
-const browser = await chromium.launch({ channel: "chrome", headless: true });
+const browser = await chromium.launch({
+  channel: "chrome",
+  headless: true,
+  // Exercise the same intro policy as a person, rather than its automation skip.
+  args: ["--disable-blink-features=AutomationControlled"],
+});
 const output = "output/playwright/guest-start";
 mkdirSync(output, { recursive: true });
 try {
@@ -82,10 +87,15 @@ try {
     [844, 390],
     [1280, 800],
   ]) {
-    const context = await browser.newContext({ viewport: { width, height } });
+    const context = await browser.newContext({
+      viewport: { width, height },
+      reducedMotion: "no-preference",
+    });
     const page = await context.newPage();
     page.on("pageerror", (e) => errors.push(e.message));
     await page.goto(origin);
+    assert.equal(await page.evaluate(() => navigator.webdriver), false);
+    await page.locator(".intro-skip").click();
     await page.locator("#consent-form").waitFor();
     const form = page.locator("#consent-form");
     assert.equal(await form.evaluate((f) => f.checkValidity()), false);
@@ -137,12 +147,29 @@ try {
       false,
     );
     await page.locator("#keep-account").click();
+    assert.equal(
+      await page.evaluate(() => localStorage.getItem("playsimi-intro-seen")),
+      "1",
+    );
     assert.equal(await page.locator("#reset-guest").isVisible(), true);
     assert.equal(community.privateProfile(profile.id).name, "StarOtter");
     await page.locator("#reset-guest").click();
     await page.locator('[name="confirm"]').fill("RESET");
     await page.screenshot({ path: `${output}/reset-${width}.png` });
     await page.locator("#account-content form button").click();
+    await page.locator(".intro-play").waitFor({ timeout: 5000 });
+    assert.equal(
+      await page.evaluate(() => localStorage.getItem("playsimi-intro-seen")),
+      null,
+    );
+    // The start button pulses continuously; keyboard activation does not wait
+    // for the animation to become stationary.
+    await page.locator(".intro-play").press("Enter");
+    await page.waitForFunction(
+      () => document.querySelector(".intro-lines")?.textContent,
+    );
+    await page.screenshot({ path: `${output}/reset-intro-${width}.png` });
+    await page.locator(".intro-skip").click();
     await page.locator("#welcome-name").waitFor();
     assert.throws(() => community.privateProfile(profile.id));
     assert.equal(
@@ -172,6 +199,7 @@ try {
       guide: true,
       reset: true,
       freshId: true,
+      introReplaysAfterReset: true,
       errors: 0,
     });
     await context.close();

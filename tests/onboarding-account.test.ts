@@ -239,6 +239,10 @@ try {
         "/social": social,
         "/lobby-menu": lobbyMenu,
         "/play-medals": playMedals,
+        "/intro-script": readFileSync(
+          new URL("../src/intro-script.ts", import.meta.url),
+          "utf8",
+        ),
       };
       if (modules[path]) {
         response.setHeader("Content-Type", "text/javascript; charset=utf-8");
