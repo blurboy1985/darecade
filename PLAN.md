@@ -1,37 +1,37 @@
-# Lobby music in the intro film's style — 8 October 2026
+# Bigger, more obvious nearby action prompt — 10 October 2026
 
-Branch `lobby-arcade-music`. The owner liked the intro film's score and asked
-for the lobby and world background music in a similar genre, as a new pull
-request, then merged and deployed.
+Branch `worktree-bigger-action-prompt`. The owner asked for the "E" action
+button to be bigger and more obvious when the player is near any structure
+that has an action, as its own pull request.
 
 ## Done means
 
-- The lobby's day and night music is arcade pop like the intro: square-wave
-  lead, bouncing sawtooth bass, kick, snare and hats, using the film's hook.
-- Night is the same tune, slower and softer, so evenings stay calm.
-- Game and Coast Rush music are unchanged.
-- No louder than the music it replaces; no clipping and no silent stretches.
-- `npm test`, `npm run build` and `npm run test:cloudflare` pass.
+- The `#interaction` prompt is clearly larger on desktop and phones, with a
+  prominent `E` keycap, and draws the eye when it appears.
+- It applies to every nearby structure: they all share the one prompt through
+  the `near` callback in `src/world.ts`.
+- It still clears Jump, the zoom buttons and the dock at every tested size,
+  and stays hidden while away, interacting or inspecting.
+- Calm mode and `prefers-reduced-motion` get no animation.
+- `npm test` and `npm run build` pass.
 
 ## Steps
 
-1. Measure the current moods with `renderMusic` (peak, loudness).
-2. `src/audio.ts`: add the `arcade` and `arcade-night` arrangements and a
-   16-bar lobby tune; remove the plucked-string arrangement they replace.
-3. Re-measure and match the old loudness.
-4. README, tests, pull request.
-5. Merge, deploy, check production, record it in `HOSTING.md`.
+1. `src/lobby-ui.css`: larger prompt, keycap, appear and pulse animations.
+2. `src/mobile-hud.css`: drop the global size overrides that shrink it to
+   11px text; keep its position.
+3. Test that pins the size so it cannot quietly shrink again.
+4. Screenshot it in Chromium at phone and desktop sizes.
+5. Tests, build, pull request.
 
 ## Assumptions
 
-- "Lobby/world" means the day and night themes, which play everywhere
-  outside a game.
-- It loops for a whole visit, so it is mixed well below the film's level and
-  the second eight bars are sparser than the first.
+- "Bigger and more obvious" is a styling change; the range at which the
+  prompt appears and what `E` does are unchanged.
+- On touch screens the `E` keycap stays hidden (as all `kbd` are); the prompt
+  itself is the tap target and grows the same way.
 
 ## Risks
 
-- Nobody can hear it before it ships except the owner. The checks are
-  numerical: loudness, clipping, silence.
-- `tests/music-browser.test.ts` times out on this Windows machine on `main`
-  as well; its assertions were run through a separate Chromium harness.
+- `src/mobile-lobby.css` also positions the prompt but is only loaded by one
+  browser test, not the app; it is left alone.
