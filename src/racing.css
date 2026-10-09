@@ -1185,3 +1185,76 @@ dialog.game-modal.racing-modal {
 .race-nameplate-rival {
   border-color: #ffd166;
 }
+/* Multiplayer quick chat: recent lines, and a picker of the fixed ones. */
+.race-chat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  max-width: 260px;
+}
+.race-screen > .race-chat {
+  position: absolute;
+  left: 15px;
+  top: 92px;
+}
+.race-chat-log {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: none;
+}
+.race-chat-log li {
+  padding: 5px 10px;
+  border-radius: 12px;
+  background: #163c4cdf;
+  color: #eaf8e8;
+  font-size: 12px;
+}
+.race-chat-log li.is-you {
+  background: #e8f7b5;
+  color: #183e47;
+}
+.race-chat-bar {
+  display: flex;
+  gap: 8px;
+}
+.race-chat-bar button {
+  min-height: 36px;
+}
+.race-chat-lines {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.race-chat-lines[hidden] {
+  display: none;
+}
+.race-chat-lines button {
+  min-height: 40px;
+  padding: 4px 10px;
+  border: 1px solid #a5bdb1;
+  border-bottom-width: 3px;
+  border-radius: 11px;
+  background: #e0ebd8;
+  color: #254d4e;
+  font:
+    700 11px "DM Sans",
+    sans-serif;
+  text-align: left;
+}
+.race-chat-lines button:disabled {
+  opacity: 0.5;
+}
+.race-chat-lines kbd {
+  font: inherit;
+  opacity: 0.6;
+}
+@media (pointer: coarse) {
+  .race-chat-lines kbd {
+    display: none;
+  }
+}

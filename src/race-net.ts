@@ -42,6 +42,8 @@ type Handlers = {
   hit(hit: Hit): void;
   used(kart: number, item: NonNullable<RaceItem>): void;
   end(results: ResultRow[]): void;
+  /** A player, by their place in the room's player list, said one of `CHAT_LINES`. */
+  chat(from: number, line: number): void;
   /** The room refused, or the connection dropped. */
   error(message: string): void;
 };
@@ -111,6 +113,10 @@ export class RaceNet {
   start() {
     this.send({ t: "start" });
   }
+  /** Says one of `CHAT_LINES` to the room. */
+  say(line: number) {
+    this.send({ t: "chat", line });
+  }
   private send(data: Record<string, unknown>) {
     if (this.open) this.socket!.send(JSON.stringify(data));
   }
@@ -147,6 +153,7 @@ export class RaceNet {
       socket?.close();
       this.handlers.error(String(packet.message));
     } else if (packet.t === "end") this.handlers.end(packet.results);
+    else if (packet.t === "chat") this.handlers.chat(packet.from, packet.line);
     else if (!this.race) return;
     else if (packet.t === "w") this.snapshot(packet);
     else if (packet.t === "hit") {
