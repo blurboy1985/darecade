@@ -15,16 +15,139 @@ import { animatePet } from "./pets";
 import { outfits, skins } from "./state";
 import {
   boostPads,
+  HARBOUR,
   RIVALS,
   itemCrates,
   pickups,
   RACE_DISTANCE,
   ROAD_HALF_WIDTH,
+  SPIN_TICKS,
   TRACK_LENGTH,
+  WALL,
+  WAVE_RANGE,
+  trackBounds,
   trackClearance,
+  trackCurve,
   trackPoint,
   type CoastRace,
+  type TurboTier,
 } from "../shared/racing";
+
+/** Who is in each of the other karts: a computer driver, or a player's avatar. */
+export type RivalKart = { name: string; color: string; look: Look | null };
+const TIER_SPARKS: Record<TurboTier, string> = {
+  Mini: "#6cd7ff",
+  Super: "#ffb347",
+  Ultra: "#ff6fd8",
+};
+const SLIP = 0.42;
+const HOP = 0.24;
+
+/** A pool of short-lived instanced sprites: sparks, smoke and tyre marks. */
+class Puffs {
+  readonly mesh: T.InstancedMesh;
+  private readonly items: {
+    x: number;
+    y: number;
+    z: number;
+    vx: number;
+    vy: number;
+    vz: number;
+    life: number;
+    span: number;
+    size: number;
+    yaw: number;
+  }[];
+  private next = 0;
+  private readonly pose = new T.Object3D();
+  private readonly colour = new T.Color();
+  private readonly grow: number;
+  private readonly gravity: number;
+  constructor(
+    scene: T.Scene,
+    geometry: T.BufferGeometry,
+    material: T.Material,
+    count: number,
+    grow: number,
+    gravity: number,
+  ) {
+    this.grow = grow;
+    this.gravity = gravity;
+    this.mesh = new T.InstancedMesh(geometry, material, count);
+    this.mesh.frustumCulled = false;
+    this.items = Array.from({ length: count }, () => ({
+      x: 0,
+      y: 0,
+      z: 0,
+      vx: 0,
+      vy: 0,
+      vz: 0,
+      life: 0,
+      span: 1,
+      size: 0,
+      yaw: 0,
+    }));
+    this.pose.scale.setScalar(0);
+    this.pose.updateMatrix();
+    for (let i = 0; i < count; i++) {
+      this.mesh.setMatrixAt(i, this.pose.matrix);
+      this.mesh.setColorAt(i, this.colour.set("#ffffff"));
+    }
+    scene.add(this.mesh);
+  }
+  emit(
+    x: number,
+    y: number,
+    z: number,
+    vx: number,
+    vy: number,
+    vz: number,
+    span: number,
+    size: number,
+    colour: string,
+    yaw = 0,
+  ) {
+    const i = this.next;
+    this.next = (this.next + 1) % this.items.length;
+    Object.assign(this.items[i], {
+      x,
+      y,
+      z,
+      vx,
+      vy,
+      vz,
+      life: span,
+      span,
+      size,
+      yaw,
+    });
+    this.mesh.setColorAt(i, this.colour.set(colour));
+    this.mesh.instanceColor!.needsUpdate = true;
+  }
+  update(dt: number) {
+    this.items.forEach((p, i) => {
+      if (p.size === 0) return;
+      p.life -= dt;
+      p.vy -= this.gravity * dt;
+      p.x += p.vx * dt;
+      p.y = Math.max(0.16, p.y + p.vy * dt);
+      p.z += p.vz * dt;
+      const age = 1 - Math.max(0, p.life) / p.span;
+      // Smoke swells as it thins; sparks and tyre marks shrink away.
+      const scale =
+        p.life <= 0
+          ? 0
+          : p.size * (this.grow > 0 ? 1 + this.grow * age : 1 - age ** 4);
+      if (p.life <= 0) p.size = 0;
+      this.pose.position.set(p.x, p.y, p.z);
+      this.pose.rotation.set(0, p.yaw, 0);
+      this.pose.scale.setScalar(scale);
+      this.pose.updateMatrix();
+      this.mesh.setMatrixAt(i, this.pose.matrix);
+    });
+    this.mesh.instanceMatrix.needsUpdate = true;
+  }
+}
 
 /** Original Palm Bay scenery. The view never writes to the race simulation. */
 export class RaceView {
@@ -36,6 +159,7 @@ export class RaceView {
   private readonly geometries = new Set<T.BufferGeometry>();
   private readonly materials = new Map<string, T.MeshStandardMaterial>();
   private readonly textures: T.Texture[] = [];
+  private readonly flats: T.Material[] = [];
   private readonly wheels: KartWheel[];
   private readonly wheel = new T.Group();
   private readonly steering = new KartSteering();
@@ -44,8 +168,21 @@ export class RaceView {
     avatar: Avatar;
     wheels: KartWheel[];
     cloud: T.Mesh;
+    bubble: T.Mesh;
+    slip: number;
   }[] = [];
-  private readonly missiles: T.Group[] = [];
+  private readonly missiles: { rocket: T.Group; crab: T.Group }[] = [];
+  private readonly cloud: T.Mesh;
+  private readonly rings: T.Mesh[] = [];
+  private readonly sparks: Puffs;
+  private readonly smoke: Puffs;
+  private readonly skids: Puffs;
+  /** The kart's slide angle, its hop when a drift starts, and where it last left a tyre mark. */
+  private slip = 0;
+  private hop = 0;
+  private wasDrifting = false;
+  private skidAt = 0;
+  private puffClock = 0;
   private readonly coconuts: T.Mesh[] = [];
   private readonly trackItems: {
     group: T.Group;
@@ -64,6 +201,7 @@ export class RaceView {
     element: HTMLElement;
     name: string;
     player: boolean;
+    tag: string;
   }[] = [];
   private disposed = false;
   private readonly look: Look;
@@ -218,67 +356,11 @@ export class RaceView {
     shieldMaterial.transparent = true;
     shieldMaterial.opacity = 0.22;
     shieldMaterial.depthWrite = false;
-    const rivalHair = new Set([this.look.hair ?? 0]);
-    RIVALS.forEach((r, i) => {
-      const kart = new T.Group();
-      this.scene.add(kart);
-      const wheels = this.buildKart(kart, r.color);
-      const look = seededLook(`rival:${i}:${r.name}`);
-      look.hair = distinctHair(look.hair, rivalHair);
-      rivalHair.add(look.hair);
-      const avatar = createAvatar(
-        kart,
-        0,
-        -0.15,
-        r.color,
-        skins[look.skin % skins.length],
-        0,
-        look,
-      );
-      avatar.root.position.y = -0.14;
-      avatar.root.scale.setScalar(0.94);
-      const wheel = this.mesh(
-        kart,
-        this.geo(new T.TorusGeometry(0.25, 0.035, 6, 18)),
-        this.mat("#263c49"),
-        0,
-        0.95,
-        -0.04,
-      );
-      wheel.rotation.x = -0.55;
-      for (const [name, x] of [
-        ["Kart_grip_r", -0.22],
-        ["Kart_grip_l", 0.22],
-      ] as const) {
-        const grip = new T.Object3D();
-        grip.name = name;
-        grip.position.x = x;
-        wheel.add(grip);
-      }
-      this.addNameplate(kart, r.name, false);
-      // A storm cloud sits over a rival while it is slowed.
-      const cloud = this.mesh(
-        kart,
-        this.geo(new T.SphereGeometry(1, 10, 6)),
-        this.mat("#56677a"),
-        0,
-        3.7,
-        0,
-      );
-      cloud.scale.set(1.5, 0.55, 1.2);
-      cloud.visible = false;
-      const bolt = this.mesh(
-        cloud,
-        this.geo(new T.ConeGeometry(0.16, 1.1, 4)),
-        this.mat("#ffe27a", 1.6),
-        0,
-        -1.3,
-        0,
-      );
-      bolt.rotation.x = Math.PI;
-      this.rivals.push({ kart, avatar, wheels, cloud });
-    });
-    for (let i = 0; i < 3; i++) {
+    this.cloud = this.stormCloud(this.kart);
+    this.setRivals(
+      RIVALS.map((r) => ({ name: r.name, color: r.color, look: null })),
+    );
+    for (let i = 0; i < 6; i++) {
       const missile = new T.Group();
       const body = this.mesh(
         missile,
@@ -309,9 +391,36 @@ export class RaceView {
       trail.rotation.x = -Math.PI / 2;
       missile.visible = false;
       this.scene.add(missile);
-      this.missiles.push(missile);
+      // A crab scuttles up the road after the leader.
+      const crab = new T.Group();
+      const shell = this.mesh(
+        crab,
+        this.geo(new T.SphereGeometry(0.55, 10, 8)),
+        this.mat("#e4553f", 0.35),
+        0,
+        0,
+        0,
+      );
+      shell.scale.set(1.25, 0.6, 0.9);
+      for (const x of [-1, 1]) {
+        const claw = this.mesh(
+          crab,
+          this.geo(new T.SphereGeometry(0.28, 8, 6)),
+          this.mat("#f0705a", 0.35),
+          x * 0.78,
+          0.12,
+          0.45,
+        );
+        claw.scale.set(0.9, 0.7, 1.3);
+        for (const z of [-0.3, 0, 0.3])
+          this.box(crab, x * 0.72, -0.25, z, 0.5, 0.08, 0.08, "#b8412f");
+        this.box(crab, x * 0.22, 0.42, 0.3, 0.1, 0.3, 0.1, "#1d303c");
+      }
+      crab.visible = false;
+      this.scene.add(crab);
+      this.missiles.push({ rocket: missile, crab });
     }
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 8; i++) {
       const coconut = this.mesh(
         this.scene,
         this.geo(new T.SphereGeometry(0.5, 10, 8)),
@@ -323,6 +432,56 @@ export class RaceView {
       coconut.visible = false;
       this.coconuts.push(coconut);
     }
+    for (let i = 0; i < 3; i++) {
+      const material = new T.MeshBasicMaterial({
+        color: "#bff4ff",
+        transparent: true,
+        opacity: 0,
+        side: T.DoubleSide,
+        depthWrite: false,
+      });
+      this.flats.push(material);
+      const ring = this.mesh(
+        this.scene,
+        this.geo(new T.RingGeometry(0.82, 1, 40)),
+        material,
+        0,
+        0.3,
+        0,
+      );
+      ring.rotation.x = -Math.PI / 2;
+      ring.visible = false;
+      this.rings.push(ring);
+    }
+    const flat = (opacity: number) => {
+      const material = new T.MeshBasicMaterial({
+        color: "#ffffff",
+        transparent: opacity < 1,
+        opacity,
+        depthWrite: opacity === 1,
+      });
+      this.flats.push(material);
+      return material;
+    };
+    this.sparks = new Puffs(
+      this.scene,
+      this.geo(new T.OctahedronGeometry(0.11)),
+      flat(1),
+      90,
+      0,
+      9,
+    );
+    this.smoke = new Puffs(
+      this.scene,
+      this.geo(new T.IcosahedronGeometry(0.3, 1)),
+      flat(0.3),
+      60,
+      2.6,
+      -0.9,
+    );
+    const mark = this.geo(new T.PlaneGeometry(0.24, 0.85));
+    mark.rotateX(-Math.PI / 2);
+    this.skids = new Puffs(this.scene, mark, flat(0.5), 220, 0, 0);
     this.observer = new ResizeObserver(() => {
       const width = host.clientWidth,
         height = host.clientHeight;
@@ -333,16 +492,124 @@ export class RaceView {
     });
     this.observer.observe(host);
   }
+  /** Puts these drivers in the other karts. A multiplayer room calls it with each new grid. */
+  setRivals(karts: RivalKart[]) {
+    for (const { kart, avatar } of this.rivals.splice(0)) {
+      this.scene.remove(kart);
+      this.disposeAvatar(avatar);
+    }
+    for (let i = this.nameplates.length - 1; i >= 0; i--)
+      if (!this.nameplates[i].player)
+        this.nameplates.splice(i, 1)[0].element.remove();
+    const rivalHair = new Set([this.look.hair ?? 0]);
+    karts.forEach((r, i) => {
+      const kart = new T.Group();
+      this.scene.add(kart);
+      // A player keeps their own outfit and hat; a computer driver wears its kart colour.
+      const seeded = seededLook(`rival:${i}:${r.name}`);
+      seeded.hair = distinctHair(seeded.hair, rivalHair);
+      if (!r.look) rivalHair.add(seeded.hair);
+      const look = r.look ?? seeded;
+      const colour = r.look ? (outfits[look.outfit] ?? r.color) : r.color;
+      const wheels = this.buildKart(kart, colour);
+      const avatar = createAvatar(
+        kart,
+        0,
+        -0.15,
+        colour,
+        skins[look.skin % skins.length],
+        r.look ? look.hat : 0,
+        look,
+      );
+      if (avatar.pet) avatar.pet.root.visible = false;
+      avatar.root.position.y = -0.14;
+      avatar.root.scale.setScalar(0.94);
+      const wheel = this.mesh(
+        kart,
+        this.geo(new T.TorusGeometry(0.25, 0.035, 6, 18)),
+        this.mat("#263c49"),
+        0,
+        0.95,
+        -0.04,
+      );
+      wheel.rotation.x = -0.55;
+      for (const [name, x] of [
+        ["Kart_grip_r", -0.22],
+        ["Kart_grip_l", 0.22],
+      ] as const) {
+        const grip = new T.Object3D();
+        grip.name = name;
+        grip.position.x = x;
+        wheel.add(grip);
+      }
+      this.addNameplate(kart, r.name, false, !r.look);
+      const cloud = this.stormCloud(kart);
+      const bubble = this.mesh(
+        kart,
+        this.shield.geometry,
+        this.shield.material as T.Material,
+        0,
+        0.9,
+        0,
+      );
+      bubble.visible = false;
+      this.rivals.push({ kart, avatar, wheels, cloud, bubble, slip: 0 });
+    });
+  }
+  /** A storm cloud sits over a kart while it is slowed. */
+  private stormCloud(kart: T.Group) {
+    const cloud = this.mesh(
+      kart,
+      this.geo(new T.SphereGeometry(1, 10, 6)),
+      this.mat("#56677a"),
+      0,
+      3.7,
+      0,
+    );
+    cloud.scale.set(1.5, 0.55, 1.2);
+    cloud.visible = false;
+    const bolt = this.mesh(
+      cloud,
+      this.geo(new T.ConeGeometry(0.16, 1.1, 4)),
+      this.mat("#ffe27a", 1.6),
+      0,
+      -1.3,
+      0,
+    );
+    bolt.rotation.x = Math.PI;
+    return cloud;
+  }
+  private disposeAvatar(avatar: Avatar) {
+    avatar.materials.forEach((m) => m.dispose());
+    disposeMagic(avatar.magic);
+    avatar.model.traverse((o) => {
+      if (o instanceof T.SkinnedMesh) o.skeleton.dispose();
+    });
+  }
+  /** A wave spreads from where it was set off. */
+  wave(distance: number, offset: number) {
+    const ring = this.rings.find((r) => !r.visible) ?? this.rings[0];
+    const at = trackPoint(distance, offset);
+    ring.position.set(at.x, 0.3, at.z);
+    ring.scale.setScalar(1);
+    ring.visible = true;
+  }
   private geo<G extends T.BufferGeometry>(g: G): G {
     this.geometries.add(g);
     return g;
   }
-  private addNameplate(kart: T.Group, name: string, player: boolean) {
+  private addNameplate(
+    kart: T.Group,
+    name: string,
+    player: boolean,
+    cpu = false,
+  ) {
     const element = document.createElement("span");
-    element.className = `race-nameplate${player ? " race-nameplate-player" : ""}`;
-    element.textContent = `${name} · ${player ? "You" : "CPU"}`;
+    element.className = `race-nameplate${player ? " race-nameplate-player" : ""}${cpu || player ? "" : " race-nameplate-rival"}`;
+    const tag = player ? " · You" : cpu ? " · CPU" : "";
+    element.textContent = name + tag;
     this.nameLayer.append(element);
-    this.nameplates.push({ kart, element, name, player });
+    this.nameplates.push({ kart, element, name, player, tag });
   }
   private drawNameplates() {
     const width = this.nameLayer.clientWidth;
@@ -356,12 +623,8 @@ export class RaceView {
         b.kart.position.distanceToSquared(this.camera.position),
     );
     const compact = width <= 600 || height <= 300;
-    for (const { kart, element, name, player } of ordered) {
-      const label = compact
-        ? player
-          ? "You"
-          : name
-        : `${name} · ${player ? "You" : "CPU"}`;
+    for (const { kart, element, name, player, tag } of ordered) {
+      const label = compact ? (player ? "You" : name) : name + tag;
       if (element.textContent !== label) element.textContent = label;
       const projected = kart.position
         .clone()
@@ -377,6 +640,7 @@ export class RaceView {
         x > width ||
         y < 85 ||
         y > height - 45 ||
+        !kart.visible ||
         kart.position.distanceTo(this.camera.position) > 65;
       if (element.hidden) continue;
       const labelWidth = element.offsetWidth;
@@ -712,15 +976,34 @@ export class RaceView {
       o.scale.set(1.2 + (i % 3), 1 + (i % 2), 1.5);
       o.rotation.y = i * 0.8;
     });
-    // Hills fill the widest gaps between sections, clear of the houses.
-    [
-      [61, -12],
-      [58, 6],
-      [-52, -12],
-      [-50, 6],
-      [-55, -22],
-    ].forEach(([x, z], i) => {
-      const room = trackClearance(x, z) - 20;
+    // Hills fill the widest gaps inside the route, wherever it leaves room.
+    const shore = Array.from({ length: 120 }, (_, i) =>
+      trackPoint((i / 120) * TRACK_LENGTH),
+    );
+    const inland = (x: number, z: number) =>
+      shore.reduce((inside, a, i) => {
+        const b = shore[(i + 1) % shore.length];
+        return a.z > z !== b.z > z &&
+          x < a.x + ((z - a.z) / (b.z - a.z)) * (b.x - a.x)
+          ? !inside
+          : inside;
+      }, false);
+    const spots: { x: number; z: number; room: number }[] = [];
+    for (let x = trackBounds.minX; x < trackBounds.maxX; x += 6)
+      for (let z = trackBounds.minZ; z < trackBounds.maxZ; z += 6) {
+        const room = trackClearance(x, z) - 20;
+        if (room > 4 && inland(x, z)) spots.push({ x, z, room });
+      }
+    const hills: typeof spots = [];
+    for (const spot of spots.sort((a, b) => b.room - a.room))
+      if (
+        hills.length < 5 &&
+        hills.every(
+          (h) => Math.hypot(h.x - spot.x, h.z - spot.z) > h.room + spot.room,
+        )
+      )
+        hills.push(spot);
+    hills.forEach(({ x, z, room }, i) => {
       const mountain = this.mesh(
         this.scene,
         rock,
@@ -731,8 +1014,16 @@ export class RaceView {
       );
       mountain.scale.set(room, room * (0.7 + (i % 3) * 0.15), room * 0.85);
     });
-    for (let i = 0; i < 7; i++) {
-      const g = this.onTrack((0.14 + i * 0.037) * TRACK_LENGTH, -18);
+    // Houses line the inland side wherever no other stretch of road is near.
+    const plots = Array.from({ length: 48 }, (_, i) => (i / 48) * TRACK_LENGTH)
+      .filter((d) => {
+        const p = trackPoint(d, -18);
+        return trackClearance(p.x, p.z) > 17.5;
+      })
+      .filter((_, i) => i % 3 === 0)
+      .slice(0, 9);
+    for (const [i, plot] of plots.entries()) {
+      const g = this.onTrack(plot, -18);
       this.box(
         g,
         0,
@@ -755,11 +1046,11 @@ export class RaceView {
       this.box(g, 0, 1, 1.67, 1.1, 2, 0.06, "#405762");
     }
     // Jetty and lighthouse mark the harbour inside the hairpin.
-    const pier = this.onTrack(TRACK_LENGTH * 0.335, 11);
+    const pier = this.onTrack(HARBOUR, 6.6);
     pier.rotation.y += Math.PI / 2;
     for (let i = 0; i < 7; i++)
       this.box(pier, 0, -0.1, i * 1.1, 5, 0.25, 1, "#b88761");
-    const lighthouse = this.onTrack(TRACK_LENGTH * 0.335, 24);
+    const lighthouse = this.onTrack(HARBOUR, 16.5);
     this.mesh(
       lighthouse,
       this.geo(new T.CylinderGeometry(1.2, 1.8, 9, 12)),
@@ -879,12 +1170,125 @@ export class RaceView {
       (motion?.distance ?? race.distance) +
       race.speed * (roll - (roll * roll) / 5);
     const p = raceTrackPose(distance, motion?.offset ?? race.offset);
-    this.kart.position.set(p.x, 0.15, p.z);
-    // Keep the chassis level. Steering and drift must not rock the whole view.
-    this.kart.rotation.set(0, p.yaw, 0);
-    const visualSteer = this.steering.update(steer, dt);
+    const racing = outro < 0 && !ready;
+    const ease = (rate: number) =>
+      this.reduced ? 1 : 1 - Math.exp(-dt * rate);
+    // A drift swings the nose into the bend and holds it there. Otherwise the
+    // kart points a little the way it is sliding across the road.
+    const slide = !racing
+      ? 0
+      : race.drifting
+        ? race.driftDir * SLIP + steer * 0.14
+        : Math.atan2(race.lateralSpeed, Math.max(race.speed, 10)) * 0.8;
+    this.slip += (slide - this.slip) * ease(race.drifting ? 9 : 6);
+    if (race.drifting && !this.wasDrifting) this.hop = HOP;
+    this.wasDrifting = race.drifting;
+    this.hop = Math.max(0, this.hop - dt);
+    const lift = this.reduced ? 0 : Math.sin((this.hop / HOP) * Math.PI) * 0.3;
+    // An item hit spins the kart twice round as it slows.
+    const spun =
+      race.spin && racing && !this.reduced
+        ? (1 - race.spin / SPIN_TICKS) * Math.PI * 4
+        : 0;
+    this.kart.position.set(p.x, 0.15 + lift, p.z);
+    // The body rolls away from the slide; the camera is not attached to it.
+    this.kart.rotation.set(
+      0,
+      p.yaw + this.slip + spun,
+      this.reduced ? 0 : this.slip * 0.16,
+    );
+    // Front wheels and the driver's hands counter-steer through a slide.
+    const visualSteer = this.steering.update(steer, dt) - this.slip * 2.2;
     this.wheel.rotation.z = -visualSteer * 0.4;
     this.wheels.forEach((w) => w.pose(visualSteer));
+    const tangent = new T.Vector3(Math.sin(p.yaw), 0, Math.cos(p.yaw));
+    const side = new T.Vector3(Math.cos(p.yaw), 0, -Math.sin(p.yaw));
+    this.puffClock = Math.min(4, this.puffClock + dt * 45);
+    const puffs = Math.floor(this.puffClock);
+    this.puffClock -= puffs;
+    const scatter = () => Math.random() - 0.5;
+    if (racing) {
+      this.kart.updateMatrixWorld();
+      const rear = [-0.79, 0.79].map((x) =>
+        new T.Vector3(x, 0, -0.64).applyMatrix4(this.kart.matrixWorld),
+      );
+      if (race.drifting) {
+        // Tyre marks stay on the road for a few seconds.
+        if (Math.abs(distance - this.skidAt) > 0.5) {
+          this.skidAt = distance;
+          for (const w of rear)
+            this.skids.emit(
+              w.x,
+              0.17,
+              w.z,
+              0,
+              0,
+              0,
+              5,
+              1,
+              "#22313a",
+              this.kart.rotation.y,
+            );
+        }
+        // Sparks take the colour of the turbo the drift has earned so far.
+        const colour = race.tier ? TIER_SPARKS[race.tier] : "";
+        if (!this.reduced)
+          for (let n = 0; n < puffs; n++)
+            for (const w of rear) {
+              this.smoke.emit(
+                w.x,
+                0.3,
+                w.z,
+                scatter() * 2,
+                0.5,
+                scatter() * 2,
+                0.5,
+                0.55,
+                colour || "#eef3f5",
+              );
+              if (colour)
+                this.sparks.emit(
+                  w.x,
+                  0.25,
+                  w.z,
+                  -tangent.x * 5 + scatter() * 4,
+                  2.4 + Math.random() * 2,
+                  -tangent.z * 5 + scatter() * 4,
+                  0.4,
+                  1,
+                  colour,
+                );
+            }
+      }
+      // Rubbing the wall throws sparks from that side of the kart.
+      if (race.scraping && race.speed > 4 && !this.reduced)
+        for (let n = 0; n < puffs; n++) {
+          const edge = Math.sign(race.offset) * 0.95;
+          this.sparks.emit(
+            p.x + side.x * edge,
+            0.4,
+            p.z + side.z * edge,
+            -side.x * edge * 3 + scatter() * 3,
+            2 + Math.random() * 2,
+            -side.z * edge * 3 + scatter() * 3,
+            0.35,
+            1,
+            "#ffc56b",
+          );
+        }
+    }
+    this.sparks.update(dt);
+    this.smoke.update(dt);
+    this.skids.update(dt);
+    for (const ring of this.rings) {
+      if (!ring.visible) continue;
+      const size = ring.scale.x + (dt * WAVE_RANGE) / 0.45;
+      ring.scale.setScalar(size);
+      (ring.material as T.MeshBasicMaterial).opacity =
+        0.8 * (1 - size / WAVE_RANGE);
+      ring.visible = size < WAVE_RANGE;
+    }
+    this.cloud.visible = race.slow > 0 && racing;
     animateDetails(this.avatar, time, "drive", true);
     if (this.avatar.pet) {
       this.avatar.pet.root.position.set(1.12, 0.5, -0.18);
@@ -896,14 +1300,20 @@ export class RaceView {
     this.shield.visible = race.shield > 0;
     this.shield.scale.setScalar(1);
     race.rivals.forEach((r, i) => {
-      const { kart, avatar, wheels } = this.rivals[i];
+      const rival = this.rivals[i];
+      if (!rival) return;
+      const { kart, avatar, wheels } = rival;
+      // A player who left a multiplayer race takes their kart with them.
+      kart.visible = r.distance > -500;
+      if (!kart.visible) return;
       // Finishers roll on and park beyond the line instead of stacking on it.
       const since = r.finishTick
         ? (race.ticks - r.finishTick) / 60 + Math.max(outro, 0)
         : 0;
       const park = 42 + i * 6;
       const along = r.finishTick
-        ? RACE_DISTANCE + park * (1 - Math.exp((-since * r.pace) / park))
+        ? RACE_DISTANCE +
+          park * (1 - Math.exp((-since * (r.pace || 20)) / park))
         : (motion?.rivals[i].distance ?? r.distance) +
           r.speed * Math.max(outro, 0);
       const at = raceTrackPose(
@@ -911,20 +1321,64 @@ export class RaceView {
         (motion?.rivals[i].offset ?? r.offset) +
           Math.sign(r.offset) * 1.4 * (1 - Math.exp(-since)),
       );
+      // Another player's kart reports its drift. A computer kart slides
+      // through anything tighter than a sweeper.
+      const curve = trackCurve(r.distance);
+      const drift = r.finishTick
+        ? 0
+        : (r.drift ??
+          (Math.abs(curve) > 1 / 30 && r.speed > 12 ? Math.sign(curve) : 0));
+      rival.slip += (drift * SLIP - rival.slip) * ease(7);
+      const spin =
+        r.spin && !r.finishTick && !this.reduced
+          ? (1 - r.spin / SPIN_TICKS) * Math.PI * 4
+          : 0;
       kart.position.set(at.x, 0.15, at.z);
-      // Hits still stop the racer, without a repeated spinning animation.
-      kart.rotation.set(0, at.yaw, 0);
-      this.rivals[i].cloud.visible = r.slow > 0 && !r.finishTick;
-      wheels.forEach((w) => w.pose(0));
+      kart.rotation.set(
+        0,
+        at.yaw + rival.slip + spin,
+        this.reduced ? 0 : rival.slip * 0.16,
+      );
+      rival.cloud.visible = r.slow > 0 && !r.finishTick;
+      rival.bubble.visible = r.shield > 0 && !r.finishTick;
+      wheels.forEach((w) => w.pose(-rival.slip * 2.2));
+      if (
+        drift &&
+        racing &&
+        puffs &&
+        !this.reduced &&
+        kart.position.distanceToSquared(this.kart.position) < 3600
+      )
+        this.smoke.emit(
+          at.x - Math.sin(at.yaw) * 0.7 + scatter(),
+          0.3,
+          at.z - Math.cos(at.yaw) * 0.7 + scatter(),
+          scatter() * 2,
+          0.5,
+          scatter() * 2,
+          0.5,
+          0.55,
+          "#eef3f5",
+        );
       animateDetails(avatar, time, "drive", true);
     });
-    this.missiles.forEach((mesh, i) => {
+    this.missiles.forEach(({ rocket, crab }, i) => {
       const m = race.missiles[i];
-      mesh.visible = !!m && outro < 0;
+      rocket.visible = !!m && !m.crab && outro < 0;
+      crab.visible = !!m && m.crab && outro < 0;
       if (!m) return;
       const at = trackPoint(m.distance, m.offset);
-      mesh.position.set(at.x, 1, at.z);
-      mesh.rotation.y = at.yaw;
+      if (m.crab) {
+        crab.position.set(
+          at.x,
+          0.55 + Math.abs(Math.sin(time * 18)) * 0.15,
+          at.z,
+        );
+        crab.rotation.y = at.yaw + Math.sin(time * 14) * 0.25;
+      } else {
+        rocket.position.set(at.x, 1, at.z);
+        rocket.rotation.y = at.yaw;
+      }
     });
     this.coconuts.forEach((mesh, i) => {
       const c = race.coconuts[i];
@@ -938,8 +1392,6 @@ export class RaceView {
       if (!this.reduced && kind === "pickup")
         group.children[0].rotation.y = time * 1.5;
     });
-    const tangent = new T.Vector3(Math.sin(p.yaw), 0, Math.cos(p.yaw));
-    const side = new T.Vector3(Math.cos(p.yaw), 0, -Math.sin(p.yaw));
     // The lobby shows the driver from the front. At the finish the chase
     // camera swings round the kart's left side to reach the same view.
     const swing =
@@ -985,6 +1437,7 @@ export class RaceView {
     this.geometries.forEach((g) => g.dispose());
     this.materials.forEach((m) => m.dispose());
     this.textures.forEach((t) => t.dispose());
+    this.flats.forEach((m) => m.dispose());
     this.renderer.dispose();
     this.renderer.forceContextLoss();
     this.renderer.domElement.remove();

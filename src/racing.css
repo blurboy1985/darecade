@@ -1089,3 +1089,99 @@ dialog.game-modal.racing-modal {
     text-overflow: ellipsis;
   }
 }
+
+/* Multiplayer: the lobby on the cover, live standings and other players' names. */
+.race-cover .race-versus {
+  margin-top: 8px;
+}
+.race-cover.in-lobby > :not(.race-lobby, .eyebrow, h3) {
+  display: none;
+}
+.race-lobby {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  width: min(100%, 340px);
+  margin-top: 6px;
+}
+.race-lobby[hidden] {
+  display: none;
+}
+.race-lobby h4 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+.race-lobby p {
+  margin: 0;
+  font-size: 0.82rem;
+}
+.race-lobby .race-code {
+  font-size: 2.4rem;
+  letter-spacing: 0.3em;
+  margin-right: -0.3em;
+  line-height: 1;
+}
+.race-join {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.race-join label {
+  flex-basis: 100%;
+  font-size: 0.8rem;
+}
+.race-join input {
+  width: 6.5em;
+  padding: 8px 10px;
+  border: 2px solid currentColor;
+  border-radius: 10px;
+  background: #fffdf2;
+  color: #16313b;
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  text-align: center;
+  text-transform: uppercase;
+}
+.race-lobby-note {
+  min-height: 1.2em;
+  font-weight: 600;
+}
+.race-lobby-note:empty {
+  display: none;
+}
+.race-roster,
+.versus-ladder {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 3px;
+}
+.race-roster li,
+.versus-ladder li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 14%);
+  font-size: 0.85rem;
+}
+.race-roster li.is-you,
+.versus-ladder li.is-you {
+  background: rgb(255 146 123 / 38%);
+  font-weight: 700;
+}
+.race-finish .versus-ladder {
+  flex: none;
+  width: min(100%, 340px);
+  max-height: 40%;
+  overflow-y: auto;
+  margin: 6px 0;
+}
+.race-nameplate-rival {
+  border-color: #ffd166;
+}

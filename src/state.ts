@@ -58,7 +58,7 @@ export type Save = {
   cat: boolean;
   rounds: number;
   best: Record<GameId, number>;
-  coastRecord: { version: 3; timeTicks: number; place: number };
+  coastRecord: { version: 4; timeTicks: number; place: number };
   coastLegacyBest: number;
   sound: boolean;
   music: boolean;
@@ -138,7 +138,7 @@ export function fresh(): Save {
       hoops: 0,
       fishing: 0,
     },
-    coastRecord: { version: 3, timeTicks: 0, place: 0 },
+    coastRecord: { version: 4, timeTicks: 0, place: 0 },
     coastLegacyBest: 0,
     cameraMode: "third",
     awayActivity: "jog",
@@ -306,7 +306,7 @@ export function normalise(raw: unknown, fallback: Save): Save {
       s.best[key] = Math.min(1e7, Math.floor(r.best![key]));
   const record = r.coastRecord;
   if (
-    record?.version === 3 &&
+    record?.version === 4 &&
     Number.isInteger(record.timeTicks) &&
     record.timeTicks >= 0 &&
     record.timeTicks <= 10800 &&
@@ -320,14 +320,15 @@ export function normalise(raw: unknown, fallback: Save): Save {
       : 0;
   } else {
     // Keep the best from the previous rules, but never compare it with the
-    // current route: two laps, then three on the old loop, now the winding one.
+    // current route: two laps, three on the old loop, the winding route, and
+    // now the drift route.
     s.coastLegacyBest =
       s.best.coast ||
       (Number.isFinite(r.coastLegacyBest)
         ? Math.max(0, r.coastLegacyBest!)
         : 0);
     s.best.coast = 0;
-    s.coastRecord = { version: 3, timeTicks: 0, place: 0 };
+    s.coastRecord = { version: 4, timeTicks: 0, place: 0 };
   }
   return s;
 }
