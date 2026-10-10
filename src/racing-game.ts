@@ -24,6 +24,7 @@ import {
 } from "../shared/racing";
 import { ROOM_CODE } from "../shared/race-room";
 import { RaceNet, type Go, type ResultRow, type RoomState } from "./race-net";
+import { RaceChat } from "./race-chat";
 import { loadCharacter, type Look } from "./character";
 import { audio, type Sfx, type Theme } from "./audio";
 import type { FxEvent } from "./arcade-fx";
@@ -70,6 +71,7 @@ export class RacingGame {
   private race: CoastRace;
   private net: RaceNet | null = null;
   private room: RoomState | null = null;
+  private chat: RaceChat;
   private grid: Go["karts"] = [];
   private you = 0;
   private results: ResultRow[] | null = null;
@@ -184,6 +186,10 @@ export class RacingGame {
     this.host = container.querySelector(".race-view")!;
     this.cover = container.querySelector(".race-cover")!;
     this.lobby = container.querySelector(".race-lobby")!;
+    // The lobby and the results redraw themselves, so chat sits beside them.
+    this.chat = new RaceChat((line) => this.net?.say(line));
+    this.chat.element.hidden = true;
+    container.querySelector(".race-screen")!.append(this.chat.element);
     this.map = container.querySelector(".race-map")!;
     this.stats = container.querySelector(".coast-game")!;
     this.timer = container.querySelector("#run-score")!;
@@ -264,7 +270,7 @@ export class RacingGame {
         else if (action === "start") this.net?.start();
         else if (action === "leave" || action === "back") {
           this.net?.close();
-          this.room = null;
+          this.setRoom(null);
           if (action === "leave") this.showLobby();
           else {
             this.cover.classList.remove("in-lobby");
@@ -444,10 +450,17 @@ export class RacingGame {
     const waiting = room.players.length < room.min;
     this.lobby.innerHTML = `<span class="eyebrow">RACE CODE</span><strong class="race-code">${room.code}</strong><p>Friends open Coast Rush, choose Race friends live and enter this code.</p><ol class="race-roster">${room.players.map((p, i) => `<li class="${i === room.you ? "is-you" : ""}"><span>${safe(p.name)}</span><b>${[i === room.host ? "Host" : "", i === room.you ? "You" : ""].filter(Boolean).join(" · ")}</b></li>`).join("")}</ol><p class="race-lobby-note" role="status">${safe(note) || (waiting ? "Waiting for another player to join…" : hosting ? `${room.players.length} players · ${room.cap - room.players.length} computer karts fill the grid.` : `Waiting for ${safe(room.players[room.host]?.name ?? "the host")} to start.`)}</p>${hosting ? `<button class="primary" data-versus="start"${waiting ? " disabled" : ""}>Start race →</button>` : ""}<button class="text-button" data-versus="leave">Leave</button>`;
   }
+  /** Chat is there for as long as the player is in a room. */
+  private setRoom(room: RoomState | null) {
+    this.room = room;
+    this.chat.element.hidden = !room;
+    if (room) this.chat.setPlayers(room.players, room.you);
+    else this.chat.clear();
+  }
   private connect(code: string | null) {
     this.net ??= new RaceNet({
       room: (state) => {
-        this.room = state;
+        this.setRoom(state);
         if (this.status === "ready") this.showLobby();
       },
       go: (go) => this.beginVersus(go),
@@ -467,8 +480,9 @@ export class RacingGame {
       end: (results) => {
         this.results = results;
       },
+      chat: (from, line) => this.chat.heard(from, line),
       error: (message) => {
-        this.room = null;
+        this.setRoom(null);
         if (this.status === "ready") this.showLobby(message);
         else if (this.race.versus) this.leaveRoom(message);
       },
@@ -522,7 +536,7 @@ export class RacingGame {
   /** Leaves the room, or reports that it was lost. A solo race is one tap away. */
   private leaveRoom(message: string) {
     this.net?.close();
-    this.room = null;
+    this.setRoom(null);
     this.status = "finished";
     this.outroDone = true;
     this.pausePanel.hidden = true;
@@ -612,6 +626,11 @@ export class RacingGame {
   private keyDown = (e: KeyboardEvent) => {
     // Typing a room code is not driving.
     if (e.target instanceof HTMLInputElement) return;
+    // In a room, the number keys say a line without leaving the wheel.
+    if (this.room && !e.repeat && this.chat.key(e.key)) {
+      e.preventDefault();
+      return;
+    }
     const key = /^Key[WASDE]$/.test(e.code)
       ? e.code.slice(3).toLowerCase()
       : e.key.toLowerCase();

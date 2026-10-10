@@ -515,6 +515,12 @@ test(
       const friend = connect("code=" + lobby.code.toLowerCase(), friendCookie);
       assert.equal((await friend.next("room")).players.length, 2);
       assert.equal((await host.next("room")).players.length, 2);
+      // Lobby chat: a fixed line reaches both players; typed words go nowhere.
+      friend.socket.send(JSON.stringify({ t: "chat", line: "hi, I'm Ben" }));
+      friend.socket.send(JSON.stringify({ t: "chat", line: 1 }));
+      const said = { t: "chat", from: 1, line: 1 };
+      assert.deepEqual(await host.next("chat"), said);
+      assert.deepEqual(await friend.next("chat"), said);
       friend.socket.send(JSON.stringify({ t: "start" }));
       host.socket.send(JSON.stringify({ t: "start" }));
       const [goHost, goFriend] = [

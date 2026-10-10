@@ -1193,10 +1193,16 @@ dialog.game-modal.racing-modal {
   gap: 6px;
   max-width: 260px;
 }
+.race-chat[hidden] {
+  display: none;
+}
+/* Over the item button, above the results and below the pause panel. */
 .race-screen > .race-chat {
   position: absolute;
-  left: 15px;
-  top: 92px;
+  right: 12px;
+  bottom: 100px;
+  z-index: 5;
+  align-items: flex-end;
 }
 .race-chat-log {
   margin: 0;
@@ -1224,6 +1230,22 @@ dialog.game-modal.racing-modal {
 }
 .race-chat-bar button {
   min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid #ffffff33;
+  border-radius: 18px;
+  background: #163c4cdf;
+  color: #eaf8e8;
+  font:
+    700 12px "DM Sans",
+    sans-serif;
+}
+.race-chat-bar button[aria-pressed="true"],
+.race-chat-bar button[aria-expanded="true"] {
+  background: #e8f7b5;
+  color: #183e47;
+}
+.race-chat-bar button:disabled {
+  opacity: 0.5;
 }
 .race-chat-lines {
   display: grid;

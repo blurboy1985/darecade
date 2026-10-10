@@ -28,7 +28,7 @@ export class RaceChat {
         (line, i) =>
           `<button type="button" data-chat-line="${i}"><kbd>${i + 1}</kbd> ${line}</button>`,
       ).join("")}</div>
-      <div class="race-chat-bar"><button type="button" class="text-button" data-chat-open aria-expanded="false">Chat</button><button type="button" class="text-button" data-chat-mute aria-pressed="false">Mute chat</button></div>`;
+      <div class="race-chat-bar"><button type="button" data-chat-open aria-expanded="false">Chat</button><button type="button" data-chat-mute aria-pressed="false">Mute chat</button></div>`;
     this.log = this.element.querySelector(".race-chat-log")!;
     this.lines = this.element.querySelector(".race-chat-lines")!;
     this.toggle = this.element.querySelector("[data-chat-open]")!;
