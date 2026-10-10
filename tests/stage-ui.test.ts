@@ -357,10 +357,10 @@ test("warmup ignores unused lanes and repeated keys without changing the two-lan
   const h = harness();
   try {
     h.start();
-    for (const key of ["f", "j", "ArrowDown", "ArrowUp"]) h.key(key);
+    for (const key of ["s", "w", "ArrowDown", "ArrowUp"]) h.key(key);
     h.frame();
+    h.key("a", true);
     h.key("d", true);
-    h.key("k", true);
     h.frame();
     assert.equal(h.show().counts.stray, 0);
     assert.equal(h.show().ended, false);
@@ -460,6 +460,32 @@ test("closing or removing the Stage panel pauses the session and removes its key
 
 const returning = () =>
   Object.assign(state.fresh(), { stageBest: 5000 }) as state.Save;
+
+test("W A S D play the same lanes as the arrow keys", async () => {
+  const h = harness(returning());
+  try {
+    h.mode("show");
+    assert.match(h.find("#stage-goal").textContent, /A S W D/);
+    h.start();
+    // Left, down, up, right: with Caps Lock on as well.
+    const keys = ["a", "S", "w", "D"];
+    while (!h.show().ended) {
+      for (const note of h.show().notes)
+        if (note.tick === h.show().tick + 1) h.key(keys[note.lane]);
+      h.frame();
+    }
+    await nextTurn();
+    assert.equal(h.show().counts.perfect, h.show().notes.length);
+    assert.equal(h.show().counts.stray, 0);
+    // The old home-row keys no longer press a lane.
+    h.start();
+    for (const key of ["f", "j", "k"]) h.key(key);
+    h.frame();
+    assert.equal(h.show().counts.stray, 0);
+  } finally {
+    h.dispose();
+  }
+});
 
 test("a show plays its song from its own clock, calls Great, and hushes the background theme", async () => {
   const h = harness(returning());

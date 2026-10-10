@@ -42,10 +42,10 @@ const KEYS: Record<string, number> = {
   arrowdown: 1,
   arrowup: 2,
   arrowright: 3,
-  d: 0,
-  f: 1,
-  j: 2,
-  k: 3,
+  a: 0,
+  s: 1,
+  w: 2,
+  d: 3,
 };
 /** Notes are drawn this many ticks before they reach the line. */
 const AHEAD = 96;
@@ -148,10 +148,10 @@ export function mountStage(
     find(".stage-hype").hidden = warmup;
     feverButton.hidden = warmup;
     goal.textContent = warmup
-      ? `Land ${STAGE_WARMUP_GOAL} notes. Use the two outer lanes: ← / → or D / K. No booing, no XP or saved score.`
+      ? `Land ${STAGE_WARMUP_GOAL} notes. Use the two outer lanes: ← / → or A / D. No booing, no XP or saved score.`
       : encore
         ? "A faster song with double arrows: press both lanes together. Aim for a star: 30% of a perfect show."
-        : "Press each arrow on the beat of the song. Aim for a star: 30% of a perfect show. Four lanes, left to right: ← ↓ ↑ → or D F J K.";
+        : "Press each arrow on the beat of the song. Aim for a star: 30% of a perfect show. Four lanes, left to right: ← ↓ ↑ → or A S W D.";
     start.textContent = warmup
       ? "Start warm-up →"
       : encore

@@ -6,7 +6,7 @@ The Open Stage fills the back of Simi Plaza, in the middle of the island, added 
 
 Walk onto the stage, or choose **Open Stage** under Explore. A show lasts forty seconds.
 
-- Arrows fall down four lanes. Press the matching arrow key, D F J K, or the coloured button as each reaches the line.
+- Arrows fall down four lanes. Press the matching arrow key, W A S D (A left, S down, W up, D right), or the coloured button as each reaches the line.
 - Within about 67 ms is **Perfect** (100 points), within 133 ms **Great** (75), and within 200 ms **Good** (50), early or late. A note that passes the line is a **Miss**, and pressing with no note there is **Too soon**.
 - Every eight hits in a row add half again to the points, up to three times. A miss or a stray press resets the combo.
 - The crowd's **hype** rises with hits and falls with misses and stray presses. At zero the show is booed off and ends early.
