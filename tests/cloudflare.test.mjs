@@ -532,6 +532,101 @@ test(
 );
 
 test(
+  "Cloudflare world chat reaches players on sockets and on polling",
+  { timeout: 30000 },
+  async () => {
+    const { mf, api } = runtime();
+    const sockets = [];
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const connect = async (cookie) => {
+      const response = await mf.dispatchFetch(
+        origin + "/api/world/connect?world=world-1",
+        {
+          headers: { Upgrade: "websocket", Cookie: cookie, Origin: origin },
+        },
+      );
+      assert.equal(response.status, 101);
+      const socket = response.webSocket;
+      const inbox = [];
+      socket.addEventListener("message", (event) =>
+        inbox.push(JSON.parse(event.data)),
+      );
+      socket.accept();
+      sockets.push(socket);
+      return { socket, inbox };
+    };
+    try {
+      const users = [];
+      for (let n = 0; n < 3; n++) {
+        const user = await api(
+          "auth/join",
+          {
+            month: 1,
+            year: 2000,
+            consent: true,
+            privacyVersion: PRIVACY_VERSION,
+          },
+          "",
+          { "CF-Connecting-IP": `192.0.2.${n + 1}` },
+        );
+        assert.equal(user.status, 200);
+        users.push(user);
+      }
+      await api("world/poll", { x: 0 }, users[0].cookie);
+      const speaker = await connect(users[0].cookie);
+      const listener = await connect(users[1].cookie);
+      speaker.socket.send(JSON.stringify({ x: 1, say: "  hello\nworld  " }));
+      const said = (inbox) => inbox.flatMap((packet) => packet.c || []);
+      for (let i = 0; i < 100 && !said(listener.inbox).length; i++)
+        await sleep(50);
+      // The listener's first packet named everyone; a message carries a slot.
+      const slots = new Map(
+        listener.inbox.flatMap((packet) => packet.p).map((p) => [p[0], p[1]]),
+      );
+      assert.deepEqual(
+        said(listener.inbox).map(([, slot, text]) => [slots.get(slot), text]),
+        [[users[0].data.id, "hello world"]],
+      );
+      assert.equal(said(speaker.inbox).length, 1);
+      // Too soon after the last one: dropped, and the socket stays open.
+      speaker.socket.send(JSON.stringify({ x: 2, say: "again" }));
+      const polled = await api(
+        "world/poll?world=world-1",
+        { x: 0 },
+        users[2].cookie,
+      );
+      assert.equal(polled.status, 200);
+      assert.deepEqual(
+        polled.data.c.map((m) => m[2]),
+        ["hello world"],
+      );
+      await sleep(1600);
+      const spoken = await api(
+        "world/poll?world=world-1",
+        { x: 0, say: "hi from a poll" },
+        users[2].cookie,
+      );
+      assert.deepEqual(
+        spoken.data.c.map((m) => m[2]),
+        ["hello world", "hi from a poll"],
+      );
+      for (let i = 0; i < 100 && said(listener.inbox).length < 2; i++)
+        await sleep(50);
+      assert.deepEqual(
+        said(listener.inbox).map((m) => m[2]),
+        ["hello world", "hi from a poll"],
+      );
+    } finally {
+      for (const socket of sockets)
+        try {
+          socket.close();
+        } catch {}
+      await mf.dispose();
+    }
+  },
+);
+
+test(
   "Cloudflare race rooms seat two players by code, stream the race and close when empty",
   { timeout: 30000 },
   async () => {

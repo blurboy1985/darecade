@@ -58,6 +58,7 @@ import "./neighbourhood.css";
 import { api, type SharedState, type SharedPlayer, type Run } from "./social";
 import type { SeasonStanding } from "./season";
 import { WorldConnection } from "./world-connection";
+import { WorldChat } from "./world-chat";
 import { WorldPicker, worldCode } from "./world-picker";
 import {
   ensureAccount,
@@ -421,6 +422,21 @@ document
       setEmotesOpen(false);
   });
 const modal = document.querySelector<HTMLDialogElement>("#modal")!;
+const worldChat = new WorldChat((text) => worldConnection.say(text));
+app.append(worldChat.element);
+document.addEventListener("keydown", (event) => {
+  // Enter starts a message, unless a button or a field already has the key.
+  if (
+    event.key === "Enter" &&
+    !event.repeat &&
+    !modal.open &&
+    worldChat.element.checkVisibility() &&
+    !document.activeElement?.matches("input, textarea, select, button, a")
+  ) {
+    event.preventDefault();
+    worldChat.show(true);
+  }
+});
 const body = document.querySelector<HTMLDivElement>("#modal-body")!;
 function persist() {
   if (profileCleared) return;
@@ -3012,6 +3028,11 @@ const worldConnection = new WorldConnection(
         : status === "joining"
           ? "Joining world…"
           : `${room} · ${status === "offline" ? "offline" : "reconnecting…"}`;
+  },
+  (from, text) => {
+    // A muted player's messages are hidden, like their emotes.
+    if (!shared?.muted?.includes(from.id))
+      worldChat.heard(from.name, text, from.id === currentProfile?.id);
   },
 );
 const worldPicker = new WorldPicker(

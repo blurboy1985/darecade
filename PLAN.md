@@ -1,60 +1,63 @@
-# Coast Rush: multiplayer chat — 10 October 2026
+# World chat — 10 October 2026
 
-Branch `coast-rush-chat`, stacked on `coast-rush-multiplayer` (pull request
-#68). The owner asked for another pull request that adds chat to multiplayer
-races.
+Branch `world-chat`, from `main`. The owner asked for chat in the shared
+world and said to ignore the guidelines, which I read as the "no free-text
+chat" rule in ACCOUNTS.md and PRIVACY-REVIEW.md. So this is typed chat.
 
 ## Done means
 
-- Players in a race room can send each other short messages in the lobby,
-  during the race and on the results screen, and see who said what.
-- Works on the Node preview and on Cloudflare (both share `RaceHost`).
+- A player in a world can type a message and everyone else in that world
+  sees it with the sender's name, on both transports (HTTP polling on the
+  Node preview, WebSockets on Cloudflare).
+- Typing does not walk the avatar or trigger world shortcuts.
 - `npm test`, `npm run build` and `npm run test:cloudflare` pass, and two
-  players exchange messages end to end against the running server.
+  players exchange messages against the running preview server.
 
 ## Assumptions
 
-- **Quick chat, not typed chat.** ACCOUNTS.md and PRIVACY-REVIEW.md both say
-  the product has no free-text chat, accounts are age-banded and the only
-  social signals are allowlisted emotes. So a player picks from a fixed list
-  of lines and only the line's number travels. The room never relays text a
-  player wrote. Typed chat would need a privacy review and moderation first;
-  that is the owner's call and is not in this pull request.
-- Chat is room-wide and not stored. It ends with the room.
-- Blocked pairs are already kept out of the same room, so chat needs no
-  block check of its own. Each player can also mute chat on their own screen.
-- One line every 1.5 seconds per player.
+- Typed text, up to 120 characters, one message every 1.5 seconds per player.
+- World-wide, not stored: the world keeps the last 10 seconds in memory so a
+  2-second poll cannot miss a message, then drops it.
+- Blocks already hide players from each other in a world; chat follows the
+  same check. A muted player's messages are not shown, like their emotes.
+- No word filter and no moderation queue. The owner chose to set the
+  guidelines aside; this is recorded as an open risk, not solved here.
+- Messages show in a panel, not as a bubble over the avatar.
 
 ## Steps
 
-1. `shared/race-chat.ts`: the lines and the gap between them.
-2. `shared/race-room.ts`: a `chat` message, checked and relayed with the
-   sender's place in the player list.
-3. `src/race-net.ts`: `say(line)` and a `chat` handler.
-4. `tests/race-chat.test.ts`.
-5. Client: `src/race-chat.ts` panel (recent lines, line picker, mute),
-   mounted in the race screen so it shows over the lobby, the race and the
-   results; number keys say a line.
-6. ACCOUNTS.md, PRIVACY-REVIEW.md and COAST-RUSH.md; pull request against
-   `coast-rush-multiplayer`.
+1. `shared/world-chat.ts`: limits and the text clean-up.
+2. `server/world-core.mjs`: `say`, carried on a movement message as `say`,
+   delivered in snapshots as `c: [id, slot, text]`.
+3. `tests/world-chat.test.ts`.
+4. `src/world-connection.ts`: `say(text)` and a `heard` callback.
+5. `src/world-chat.ts` panel and its styles; mounted in `src/main.ts`.
+6. Sign-up notice in `src/account.ts`, ACCOUNTS.md and PRIVACY-REVIEW.md:
+   they say there is no chat, which stops being true.
 
 ## Risks
 
-- Stacked on #68: if that branch changes, this one needs a rebase, and it
-  should merge only after #68 does.
-- The lobby and the results card re-render their contents, so the panel must
-  live outside both.
+- Typed chat between teens (13–17) and adults with no moderation. The
+  privacy review was written on the basis of no free-text chat.
+- The sign-up notice changes. Players who already consented were told there
+  is no chat.
+- The phone HUD is already crowded.
 - `tests/music-browser.test.ts` times out on this Windows machine on `main`.
 
 ## Outcome
 
-- All six steps done. `npm test` 493 pass, 0 fail, 49 skipped (484 before);
-  `npm run test:cloudflare` 16 of 16; `npm run build` clean.
+- All six steps done. `npm test` 503 pass, 0 fail, 49 skipped (493 before);
+  `npm run test:cloudflare` 17 of 17, with a new test that sends chat over
+  real WebSockets and over polling; `npm run build` clean.
 - Checked in desktop Chrome against the Node preview with a scripted second
-  player: lines went both ways in the lobby, during the race and on the
-  results; a typed message was dropped; the picker and the number keys both
-  send; muting empties the log and stops sending.
-- One change from the first plan: the panel sits above the item button, not
-  under the map, which moves down during a race.
-- Not done here: nothing is merged or deployed, and nothing was tried on a
-  phone. The picker is 260px wide, so it needs a look on a small screen.
+  player: messages went both ways with the right names, markup in a message
+  showed as text, a message sent too soon was dropped, and messages left the
+  world after 10 seconds. Enter opened the box and sent.
+- The browser player did not move while typing a message with w, a, s and d
+  in it, but the tab was in the background and the 3D scene was not drawing,
+  so try this once by hand.
+- Not done: nothing is committed, merged or deployed, and nothing was tried
+  on a phone, where the on-screen keyboard may cover the box.
+- For the owner to decide: `PRIVACY_VERSION` is still `2026-10-03` although
+  the notice text changed. Raising it asks every player to consent again.
+- Not built: a bubble over the avatar, a word filter, reporting a message.

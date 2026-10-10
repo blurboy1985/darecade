@@ -1,7 +1,7 @@
 /**
  * Everything a player can say in a race room. A player picks a line and only
- * its number travels, so a room never carries words a player wrote: the
- * product has no free-text chat.
+ * its number travels, so a room never carries words a player wrote. Typed
+ * chat is only in the shared world; see `world-chat.ts`.
  */
 export const CHAT_LINES = [
   "Hello!",

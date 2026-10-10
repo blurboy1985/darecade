@@ -17,6 +17,8 @@ type Packet = {
   p: [number, string, string, SharedPlayer["look"]][];
   d: number[][];
   gone: number[];
+  /** Messages said in the world: id, the sender's slot, the text. */
+  c?: [number, number, string][];
 };
 
 export class WorldConnection {
@@ -35,6 +37,8 @@ export class WorldConnection {
   private generation = 0;
   private lastReceived = 0;
   private lastSent = 0;
+  private saying = "";
+  private lastHeard = 0;
   constructor(
     private position: () => Movement,
     private update: (players: SharedPlayer[]) => void,
@@ -42,7 +46,17 @@ export class WorldConnection {
     private status: (
       state: "joining" | "connected" | "reconnecting" | "offline",
     ) => void = () => {},
+    private heard: (from: SharedPlayer, text: string) => void = () => {},
   ) {}
+  /** Says a message to the world with the next update. */
+  say(text: string) {
+    this.saying = text;
+  }
+  private outgoing() {
+    const say = this.saying;
+    this.saying = "";
+    return say ? { ...this.position(), say } : this.position();
+  }
   async join(world: string) {
     if (world === this.world && !this.stopped) return;
     const connection = crypto.randomUUID();
@@ -203,7 +217,7 @@ export class WorldConnection {
       if (!navigator.onLine) this.status("offline");
     }
     if (this.socket?.readyState !== WebSocket.OPEN) return;
-    const message = JSON.stringify(this.position());
+    const message = JSON.stringify(this.outgoing());
     if (message !== this.previous || Date.now() - this.lastSent >= 4000) {
       this.socket.send(message);
       this.previous = message;
@@ -213,11 +227,12 @@ export class WorldConnection {
   private async poll(generation = this.generation) {
     if (this.stopped || !this.polling || generation !== this.generation) return;
     const connection = this.connection;
+    const data = this.outgoing();
     try {
       const suffix =
         `?connection=${this.connection}` +
         (this.world ? `&world=${this.world}` : "");
-      const packet = await api<Packet>(`world/poll${suffix}`, this.position());
+      const packet = await api<Packet>(`world/poll${suffix}`, data);
       if (
         this.stopped ||
         !this.polling ||
@@ -227,6 +242,8 @@ export class WorldConnection {
         return;
       this.receive(packet);
     } catch {
+      // A message that did not get through goes with the next update.
+      if ("say" in data && !this.saying) this.saying = data.say;
       if (
         !this.stopped &&
         this.polling &&
@@ -295,5 +312,12 @@ export class WorldConnection {
         });
     }
     this.update([...this.players.values()].map((p) => ({ ...p })));
+    for (const [id, slot, text] of packet.c || []) {
+      // Polling repeats recent messages; ids rise, so each is heard once.
+      if (id <= this.lastHeard) continue;
+      this.lastHeard = id;
+      const from = this.players.get(slot);
+      if (from) this.heard({ ...from }, text);
+    }
   }
 }
