@@ -1,63 +1,63 @@
-# Merge and deploy the open pull requests — 10 October 2026
+# World chat — 10 October 2026
 
-Branch `worktree-merge-deploy-prs`. The owner asked for every open pull
-request to be merged and deployed. Two are open: #67 (bigger nearby action
-prompt) and #69 (Open Stage: dance styles, Fever, Encore and Stage Party).
+Branch `world-chat`, from `main`. The owner asked for chat in the shared
+world and said to ignore the guidelines, which I read as the "no free-text
+chat" rule in ACCOUNTS.md and PRIVACY-REVIEW.md. So this is typed chat.
 
 ## Done means
 
-- #67 and #69 are merged into `main`.
-- `npm test`, `npm run build` and `npm run test:cloudflare` pass on the merged
-  code.
-- `main` is deployed with `npm run cf:deploy` and the live site is checked:
-  health, the asset names in the live page, and asset bytes against the build.
-- The deployment is recorded in HOSTING.md.
-
-## Found
-
-- Both branches are one commit ahead of `main` and seven behind (#68 and #70
-  landed after they were cut). Each conflicts with `main` in `PLAN.md` only;
-  `README.md` and `server/index.mjs` merge by themselves.
-- No CI checks and no branch protection, so the tests run here.
-
-## Steps
-
-1. Merge `main` into `bigger-action-prompt`, keep that branch's `PLAN.md`,
-   test, push, merge #67.
-2. Merge the new `main` into `open-stage-party`, keep that branch's
-   `PLAN.md`, run all three suites (this tree is what `main` becomes), push,
-   merge #69.
-3. Build merged `main` and deploy it.
-4. Check production.
-5. Record the deployment in HOSTING.md and this file, as a pull request.
+- A player in a world can type a message and everyone else in that world
+  sees it with the sender's name, on both transports (HTTP polling on the
+  Node preview, WebSockets on Cloudflare).
+- Typing does not walk the avatar or trigger world shortcuts.
+- `npm test`, `npm run build` and `npm run test:cloudflare` pass, and two
+  players exchange messages against the running preview server.
 
 ## Assumptions
 
-- Conflicts are resolved by merging `main` into each branch, not by rebasing,
-  so nothing is force-pushed.
-- `PLAN.md` holds one task's plan at a time; the earlier plans stay in history.
+- Typed text, up to 120 characters, one message every 1.5 seconds per player.
+- World-wide, not stored: the world keeps the last 10 seconds in memory so a
+  2-second poll cannot miss a message, then drops it.
+- Blocks already hide players from each other in a world; chat follows the
+  same check. A muted player's messages are not shown, like their emotes.
+- No word filter and no moderation queue. The owner chose to set the
+  guidelines aside; this is recorded as an open risk, not solved here.
+- Messages show in a panel, not as a bubble over the avatar.
+
+## Steps
+
+1. `shared/world-chat.ts`: limits and the text clean-up.
+2. `server/world-core.mjs`: `say`, carried on a movement message as `say`,
+   delivered in snapshots as `c: [id, slot, text]`.
+3. `tests/world-chat.test.ts`.
+4. `src/world-connection.ts`: `say(text)` and a `heard` callback.
+5. `src/world-chat.ts` panel and its styles; mounted in `src/main.ts`.
+6. Sign-up notice in `src/account.ts`, ACCOUNTS.md and PRIVACY-REVIEW.md:
+   they say there is no chat, which stops being true.
 
 ## Risks
 
-- #69 keeps party rooms in memory: this deploy ends nothing today, but every
-  later deploy ends parties in progress.
-- A deploy restarts the Race rooms, so a Coast Rush multiplayer race in
-  progress at that moment is cut off.
-- Rollback is a redeploy of `f0ce6e2`. Neither pull request changes a schema,
-  migration, binding, variable or secret.
+- Typed chat between teens (13–17) and adults with no moderation. The
+  privacy review was written on the basis of no free-text chat.
+- The sign-up notice changes. Players who already consented were told there
+  is no chat.
+- The phone HUD is already crowded.
+- `tests/music-browser.test.ts` times out on this Windows machine on `main`.
 
 ## Outcome
 
-- #67 merged as `b74d211` and #69 as `c8f3ace`. No pull request was open
-  afterwards.
-- The tree that became `main` passed `npm test` (515 pass, 0 fail, 49
-  skipped), `npm run test:cloudflare` (16 of 16) and `npm run build`.
-- Deployed as Worker version `74aaede0-dae7-49fd-9263-26a7c79514a4` at about
-  14:42 SGT. Health is ready, and the live page and eight of its assets match
-  the build byte-for-byte.
-- One thing the plan did not expect: the last deployment was #65, so this one
-  also put #66, #68 and #70 live, with the new `Race` Durable Object and
-  migration `v3`. The rollback above is therefore a redeploy of `4da7d3f`
-  that keeps the `RACE` binding and the `v3` migration.
-- Not done: nothing behind the welcome check was tried in production, and
-  nothing was tried on a phone. HOSTING.md has the full record.
+- All six steps done. `npm test` 503 pass, 0 fail, 49 skipped (493 before);
+  `npm run test:cloudflare` 17 of 17, with a new test that sends chat over
+  real WebSockets and over polling; `npm run build` clean.
+- Checked in desktop Chrome against the Node preview with a scripted second
+  player: messages went both ways with the right names, markup in a message
+  showed as text, a message sent too soon was dropped, and messages left the
+  world after 10 seconds. Enter opened the box and sent.
+- The browser player did not move while typing a message with w, a, s and d
+  in it, but the tab was in the background and the 3D scene was not drawing,
+  so try this once by hand.
+- Not done: nothing is committed, merged or deployed, and nothing was tried
+  on a phone, where the on-screen keyboard may cover the box.
+- For the owner to decide: `PRIVACY_VERSION` is still `2026-10-03` although
+  the notice text changed. Raising it asks every player to consent again.
+- Not built: a bubble over the avatar, a word filter, reporting a message.

@@ -1,5 +1,10 @@
 import { activityIds } from "../src/catalog.ts";
 import { BOUNDS } from "../src/navigation.ts";
+import {
+  WORLD_CHAT_GAP_MS,
+  WORLD_CHAT_KEEP_MS,
+  worldChatText,
+} from "../shared/world-chat.ts";
 export const WORLD_CAP = 30;
 export const activities = activityIds;
 export const emotes = [
@@ -49,6 +54,9 @@ export function visibleTo(a, b) {
 export class WorldState {
   players = new Map();
   revision = 0;
+  // Recent messages only; nothing a player says is stored.
+  chat = [];
+  chatId = 0;
   constructor(now = Date.now) {
     this.now = now;
   }
@@ -76,9 +84,24 @@ export class WorldState {
     if (p.moveTimes.length >= 5) return false;
     p.moveTimes.push(this.now());
     p.seen = this.now();
+    // A message rides on a movement update, so both transports carry it.
+    const said = data.say !== undefined && this.say(id, data.say);
     const next = clampMovement(data, p);
-    if (Object.keys(next).every((key) => next[key] === p[key])) return false;
+    if (Object.keys(next).every((key) => next[key] === p[key])) return said;
     Object.assign(p, next, { revision: ++this.revision });
+    return true;
+  }
+  say(id, value) {
+    const p = this.players.get(id);
+    const text = worldChatText(value);
+    const now = this.now();
+    if (!p || !text || (p.saidAt && now - p.saidAt < WORLD_CHAT_GAP_MS))
+      return false;
+    p.saidAt = now;
+    // Ids follow the clock, so they keep rising after a world restarts.
+    this.chatId = Math.max(this.chatId + 1, now);
+    this.chat = this.chat.filter((m) => m.at > now - WORLD_CHAT_KEEP_MS);
+    this.chat.push({ id: this.chatId, from: id, text, at: now });
     return true;
   }
   snapshot(id, known = new Map(), full = false) {
@@ -103,8 +126,24 @@ export class WorldState {
         gone.push(old.slot);
         known.delete(key);
       }
-    return full || p.length || d.length || gone.length
-      ? { t: full ? "sync" : "delta", at: this.now(), p, d, gone }
-      : null;
+    // A full snapshot repeats every recent message; ids let a client skip repeats.
+    const c = [];
+    const heard = full ? 0 : recipient.heard || 0;
+    for (const m of this.chat) {
+      const sender = this.players.get(m.from);
+      if (
+        m.id > heard &&
+        m.at > this.now() - WORLD_CHAT_KEEP_MS &&
+        sender &&
+        visibleTo(recipient, sender)
+      )
+        c.push([m.id, sender.slot, m.text]);
+    }
+    if (this.chat.length) recipient.heard = this.chat.at(-1).id;
+    if (!full && !p.length && !d.length && !gone.length && !c.length)
+      return null;
+    const packet = { t: full ? "sync" : "delta", at: this.now(), p, d, gone };
+    if (c.length) packet.c = c;
+    return packet;
   }
 }
