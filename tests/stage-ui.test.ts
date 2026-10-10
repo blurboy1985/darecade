@@ -7,6 +7,7 @@ import ts from "typescript";
 import * as rules from "../shared/stage.ts";
 import * as partyRules from "../shared/stage-party.ts";
 import * as moves from "../src/stage-moves.ts";
+import * as songRules from "../src/stage-song.ts";
 import * as state from "../src/state.ts";
 import * as guide from "../src/progression-guide.ts";
 
@@ -100,6 +101,8 @@ function harness(save = state.fresh()) {
   const shows: rules.StageShow[] = [];
   const reports: { event: string; value: unknown }[] = [];
   const sounds: string[] = [];
+  const song: { sound: songRules.StageSound; delay: number }[] = [];
+  const hushes: boolean[] = [];
   const frames = new Map<number, (now: number) => void>();
   let now = 1000,
     frameId = 0;
@@ -177,6 +180,8 @@ function harness(save = state.fresh()) {
           return partyRules;
         case "./stage-moves":
           return moves;
+        case "./stage-song":
+          return songRules;
         case "./stage-party":
           return { PartyClient: FakeParty };
         default:
@@ -203,12 +208,20 @@ function harness(save = state.fresh()) {
     ctx: {
       save: state.Save;
       sound: (name: string) => void;
+      song: {
+        hush: (on: boolean) => void;
+        play: (sound: songRules.StageSound, delay: number) => void;
+      };
       report: (event: string, value?: unknown) => Promise<void>;
     },
   ) => void;
   mount(host, {
     save,
     sound: (name) => sounds.push(name),
+    song: {
+      hush: (on) => hushes.push(on),
+      play: (sound, delay) => song.push({ sound, delay }),
+    },
     report: async (event, value) => {
       reports.push({ event, value });
       assert.equal(event, "perform");
@@ -229,6 +242,8 @@ function harness(save = state.fresh()) {
     save,
     reports,
     sounds,
+    song,
+    hushes,
     window,
     frames,
     find,
@@ -342,10 +357,10 @@ test("warmup ignores unused lanes and repeated keys without changing the two-lan
   const h = harness();
   try {
     h.start();
-    for (const key of ["f", "j", "ArrowDown", "ArrowUp"]) h.key(key);
+    for (const key of ["s", "w", "ArrowDown", "ArrowUp"]) h.key(key);
     h.frame();
+    h.key("a", true);
     h.key("d", true);
-    h.key("k", true);
     h.frame();
     assert.equal(h.show().counts.stray, 0);
     assert.equal(h.show().ended, false);
@@ -400,7 +415,8 @@ test("a missed original Show keeps zero-star rewards and suggests the available 
     h.start();
     play(h, 0);
     await nextTurn();
-    assert.equal(h.show().tick, 253);
+    // The fifth note is missed once the Good window has passed it.
+    assert.equal(h.show().tick, h.show().notes[4].tick + rules.STAGE_GOOD + 1);
     assert.equal(h.show().booed, true);
     assert.equal(h.reports.length, 1);
     assert.deepEqual(JSON.parse(JSON.stringify(h.reports[0])), {
@@ -444,6 +460,95 @@ test("closing or removing the Stage panel pauses the session and removes its key
 
 const returning = () =>
   Object.assign(state.fresh(), { stageBest: 5000 }) as state.Save;
+
+test("W A S D play the same lanes as the arrow keys", async () => {
+  const h = harness(returning());
+  try {
+    h.mode("show");
+    assert.match(h.find("#stage-goal").textContent, /A S W D/);
+    h.start();
+    // Left, down, up, right: with Caps Lock on as well.
+    const keys = ["a", "S", "w", "D"];
+    while (!h.show().ended) {
+      for (const note of h.show().notes)
+        if (note.tick === h.show().tick + 1) h.key(keys[note.lane]);
+      h.frame();
+    }
+    await nextTurn();
+    assert.equal(h.show().counts.perfect, h.show().notes.length);
+    assert.equal(h.show().counts.stray, 0);
+    // The old home-row keys no longer press a lane.
+    h.start();
+    for (const key of ["f", "j", "k"]) h.key(key);
+    h.frame();
+    assert.equal(h.show().counts.stray, 0);
+  } finally {
+    h.dispose();
+  }
+});
+
+test("a show plays its song from its own clock, calls Great, and hushes the background theme", async () => {
+  const h = harness(returning());
+  try {
+    h.mode("show");
+    h.start();
+    const arrows = ["ArrowLeft", "ArrowDown", "ArrowUp", "ArrowRight"];
+    // Every note pressed a little late: Great, not Perfect.
+    while (!h.show().ended) {
+      for (const note of h.show().notes)
+        if (note.tick + rules.STAGE_GREAT === h.show().tick + 1)
+          h.key(arrows[note.lane]);
+      h.frame();
+      if (h.show().counts.great === 1)
+        assert.equal(h.find(".stage-call").textContent, "Great!");
+    }
+    h.frame();
+    await nextTurn();
+    const show = h.show();
+    assert.equal(show.counts.great, show.notes.length);
+    assert.equal(h.find(".stage-call").dataset.judgement, "great");
+    assert.ok(h.sounds.includes("blip") && !h.sounds.includes("coin"));
+    assert.equal(
+      (h.reports[0].value as { stars: number }).stars,
+      2,
+      "a show of Greats earns two stars",
+    );
+    // Every sound of the song was cued once, in order, just before it is due.
+    assert.deepEqual(
+      h.song.map((cue) => cue.sound),
+      songRules.stageSong(7, "show", show.notes),
+    );
+    for (const cue of h.song)
+      assert.ok(cue.delay > 0.15 && cue.delay <= 0.2 + 1e-9, `${cue.delay}`);
+    // The theme waited for the show and came back after it.
+    assert.deepEqual(h.hushes, [true, false]);
+  } finally {
+    h.dispose();
+  }
+});
+
+test("closing the Stage panel mid-show stops the song and lets the theme back in", () => {
+  const h = harness(returning());
+  try {
+    h.mode("show");
+    h.start();
+    for (let i = 0; i < 30; i++) h.frame();
+    const cued = h.song.length;
+    assert.ok(cued > 0);
+    assert.deepEqual(h.hushes, [true]);
+    h.root.dialog.open = false;
+    for (let i = 0; i < 30; i++) h.frame();
+    assert.equal(h.song.length, cued);
+    assert.deepEqual(h.hushes, [true, false]);
+    h.root.dialog.open = true;
+    h.frame();
+    assert.deepEqual(h.hushes, [true, false, true]);
+    h.dispose();
+    assert.deepEqual(h.hushes, [true, false, true, false]);
+  } finally {
+    if (h.root.isConnected) h.dispose();
+  }
+});
 
 test("an Encore with Fever reports the bonus score but stars from timing alone", async () => {
   const h = harness(returning());

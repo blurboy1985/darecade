@@ -1,67 +1,60 @@
-# World chat — 10 October 2026
+# Stage song and kinder timing — 10 October 2026
 
-Branch `world-chat`, from `main`. The owner asked for chat in the shared
-world and said to ignore the guidelines, which I read as the "no free-text
-chat" rule in ACCOUNTS.md and PRIVACY-REVIEW.md. So this is typed chat.
+Branch `stage-music`, from `main`. The owner asked for the Open Stage to
+have music, with the arrows pressed to its rhythm, and for timing to be more
+lenient: Perfect, Great, Good or Miss.
 
 ## Done means
 
-- A player in a world can type a message and everyone else in that world
-  sees it with the sender's name, on both transports (HTTP polling on the
-  Node preview, WebSockets on Cloudflare).
-- Typing does not walk the avatar or trigger world shortcuts.
-- `npm test`, `npm run build` and `npm run test:cloudflare` pass, and two
-  players exchange messages against the running preview server.
+- A show plays its own song, and every arrow reaches the line on a beat or
+  half-beat of that song. The lobby theme waits while it plays.
+- A press is judged Perfect, Great or Good by how close it is, over a wider
+  window than before; a note left alone is a Miss.
+- `npm test` and `npm run build` pass, and a show is played in a browser.
 
 ## Assumptions
 
-- Typed text, up to 120 characters, one message every 1.5 seconds per player.
-- World-wide, not stored: the world keeps the last 10 seconds in memory so a
-  2-second poll cannot miss a message, then drops it.
-- Blocks already hide players from each other in a world; chat follows the
-  same check. A muted player's messages are not shown, like their emotes.
-- No word filter and no moderation queue. The owner chose to set the
-  guidelines aside; this is recorded as an open risk, not solved here.
-- Messages show in a panel, not as a bubble over the avatar.
+- The charts stay as they are (same seeds, same notes, same perfect score),
+  so stars, XP, the server's rules and Stage Party need no change. The song
+  is written from the chart instead: drums and bass on its beat grid, and a
+  lead note on every arrow, pitched by lane.
+- The song is synthesised like the rest of the game's sound, follows the
+  Music setting, and is scheduled from the show's tick clock so it cannot
+  drift from the arrows.
+- Windows: Perfect ±4 ticks (67 ms, as before), Great ±8 (133 ms), Good ±12
+  (200 ms, was 150). Points 100 / 75 / 50. "Too soon" stays for a press with
+  no note near, so mashing still costs hype.
 
 ## Steps
 
-1. `shared/world-chat.ts`: limits and the text clean-up.
-2. `server/world-core.mjs`: `say`, carried on a movement message as `say`,
-   delivered in snapshots as `c: [id, slot, text]`.
-3. `tests/world-chat.test.ts`.
-4. `src/world-connection.ts`: `say(text)` and a `heard` callback.
-5. `src/world-chat.ts` panel and its styles; mounted in `src/main.ts`.
-6. Sign-up notice in `src/account.ts`, ACCOUNTS.md and PRIVACY-REVIEW.md:
-   they say there is no chat, which stops being true.
+1. `shared/stage.ts`: `stageBeat`, the Great tier, the wider Good window.
+2. `src/stage-song.ts`: the song as a list of timed sounds, from the chart.
+3. `src/audio.ts`: a bus and voices for the song; `stage(on)` hushes the theme.
+4. `src/stage-game.ts`, `src/stage-view.ts`, `src/stage.css`, `src/main.ts`:
+   schedule the song, show Great.
+5. Tests: rules, song, panel, audio. STAGE.md.
 
 ## Risks
 
-- Typed chat between teens (13–17) and adults with no moderation. The
-  privacy review was written on the basis of no free-text chat.
-- The sign-up notice changes. Players who already consented were told there
-  is no chat.
-- The phone HUD is already crowded.
-- `tests/music-browser.test.ts` times out on this Windows machine on `main`.
+- Same-lane notes are 22 ticks apart at the fastest, so two Good windows
+  (24) now overlap by 2 ticks there. The earlier note takes the press, as
+  before; the Encore test that asserted no overlap is restated for Great.
+- Sound latency (Bluetooth especially) cannot be measured from a test.
 
 ## Outcome
 
-- All six steps done. `npm test` 503 pass, 0 fail, 49 skipped (493 before);
-  `npm run test:cloudflare` 17 of 17, with a new test that sends chat over
-  real WebSockets and over polling; `npm run build` clean.
-- Checked in desktop Chrome against the Node preview with a scripted second
-  player: messages went both ways with the right names, markup in a message
-  showed as text, a message sent too soon was dropped, and messages left the
-  world after 10 seconds. Enter opened the box and sent.
-- The browser player did not move while typing a message with w, a, s and d
-  in it, but the tab was in the background and the 3D scene was not drawing,
-  so try this once by hand.
-- Merged as #72 (`5808948`) after merging `main` in; the merged tree passed
-  `npm test` (525 pass, 0 fail, 49 skipped) and `npm run test:cloudflare`
-  (17 of 17). Deployed as Worker version
-  `58f32cb6-0d3d-4e85-8f37-6a929307fdfb`; HOSTING.md has the record.
-- Not done: chat was not exercised in production, and nothing was tried on a
-  phone, where the on-screen keyboard may cover the box.
-- The owner chose to leave `PRIVACY_VERSION` at `2026-10-03`, so existing
-  players are not asked to agree to the changed notice.
-- Not built: a bubble over the avatar, a word filter, reporting a message.
+- All five steps done. `npm test` 531 pass, 0 fail, 49 skipped (the browser
+  checks that need `DARECADE_TEST_CHROMIUM`); `npm run build` clean.
+- Played in desktop Chrome against the built preview, with the audio graph
+  instrumented. A Warm-up cued three clicks 0.75 s apart and then the full
+  beat; the lobby theme stopped being scheduled when the show began and
+  came back after it. A Show called Perfect, Miss and Too soon, and was
+  booed off as an unskilled one should be. No console errors.
+- The automation tab was in the background, so frames were pumped from a
+  worker and nobody listened. How the song sounds, and whether it feels on
+  the beat through real speakers, needs a person with the sound on.
+- Great and Good were not produced by hand in the browser; the rules and
+  panel tests cover them.
+- Not built: a latency setting for Bluetooth speakers, a tally of
+  Perfect/Great/Good on the result line, a count-in for Stage Party's
+  countdown.

@@ -783,6 +783,7 @@ function open(id: string) {
     mountStage(body, {
       save,
       sound: beep,
+      song: { hush: audio.stage, play: audio.stageSound },
       report: (event, value) => {
         progress(event, value);
         return profileQueue;
