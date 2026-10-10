@@ -979,7 +979,11 @@ const axisZ = new T.Vector3(0, 0, 1);
 const rootQ = new T.Quaternion(),
   parentQ = new T.Quaternion(),
   targetQ = new T.Quaternion();
-function poseSkin(a: Avatar, mode: string, time = 0, reduced = false) {
+/**
+ * Moves the skin to the control joints. animateDetails calls this; a caller
+ * that poses the joints itself afterwards (the Open Stage) calls it again.
+ */
+export function poseSkin(a: Avatar, mode: string, time = 0, reduced = false) {
   const breathing =
     !reduced && !a.moving && mode === "idle" ? Math.sin(time * 1.8) : 0;
   const pitch = -(a.legs[0].rotation.x + a.legs[1].rotation.x) / 2;

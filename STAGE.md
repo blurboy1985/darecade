@@ -15,6 +15,30 @@ Walk onto the stage, or choose **Open Stage** under Explore. A show lasts forty 
 
 The scene is drawn in three.js: the player's own avatar does a move for each lane, a beam lights for the lane that was hit, confetti falls on every combo of eight, and the crowd bounces with the hype and turns away when a show is booed off. Reduce motion drops the confetti, bouncing and swaying. In the 2D lobby, or without WebGL, the note highway is the whole show.
 
+## Dance styles, Fever and Encore — 10 October 2026
+
+- **Dance style** (Pop, Disco, Street, Robot) is chosen above the stage and kept on the device. Each style has its own move for each of the four lanes and its own groove between notes; choosing one runs through its four moves. The show adds moves of its own: a spin on a combo of eight, a star jump on sixteen, a body wave on twenty-four (then round again), a stumble on a miss, a finishing pose, and a slump when booed off. Arms, elbows, knees, spine and head all move. Reduce motion keeps the lane moves and the held poses and drops the rest.
+- **Fever**: every Perfect fills a twentieth of the bar under the lanes, every Good a fortieth. When it is full, tap it or press Space for five seconds of double points, with every lamp lit. The bar does not fill while Fever is lit, and Warm-up has none.
+- **Stars are judged on timing alone.** The Fever bonus counts towards the score, the best score and a party's ranking, but stars and XP come from the score without it, against the same perfect show as before. Fever therefore does not make a star easier.
+- **Encore** is a third session: quicker from the first bar, with double arrows (two lanes on one beat). It pays the same 5 XP a star under the same daily cap, judged against a perfect Encore.
+
+Warm-up and the Show's chart, scoring, stars and XP are as they were.
+
+## Stage Party
+
+Under the stage, **Host a party** gives a four-letter code; a friend types it and presses **Join**. Up to four dancers share a party. The host chooses Show or Encore and starts; everyone gets the same song and a four-second countdown to the same moment.
+
+- Every dancer is on the stage, on a ring of their own colour, doing the moves of their own style as their notes land. A scoreboard over the scene shows the scores live; the cheer buttons float an emoji on everyone's screen.
+- When the last dancer finishes (or six seconds after the song), the scores are ranked. A dancer who was booed off ranks below one who stayed. The winner steps into a spotlight, and the host can start again.
+- Joining during a round means watching it and dancing in the next. Joining a party walks off a show being played alone, and nothing is reported for it.
+- If the host leaves, the next dancer hosts. Closing the stage leaves the party: the song's clock is shared and cannot pause.
+
+A party is friendly. It writes no XP, medals or board of its own; each dancer's show is reported through the same `perform` event as a show played alone, so the daily cap and the 30-second rest apply unchanged. Scores in a party come from each browser and are not replayed, so a modified client could top a party's scoreboard, and gains nothing else by it.
+
+Rooms are held in memory beside the community records (the Neighbourhood Durable Object on Cloudflare, the Node process in preview) and polled over HTTP: about once every 0.8 seconds during a show and every 1.5 seconds otherwise. There is no new Durable Object, table or migration. A deploy or an eviction ends the parties in progress, and each browser is told the party has ended. A dancer who stops polling is shown as away after 6 seconds and loses their place after 20; a party nobody starts for 20 minutes is closed. There can be 50 parties at once.
+
+Names and looks in a party are the server's, as in a shared world. A wrong code and a party containing someone you have blocked (or who has blocked you) give the same answer; blocking a dancer takes the blocker out of a shared party; logging out or deleting a profile leaves it. Code guesses are limited to twelve a minute.
+
 ## Rewards and fairness
 
 A show earns 5 XP a star, up to 45 XP a day (Singapore time), and the best score is kept. The stage also counts as a place to discover (10 XP once).
@@ -23,4 +47,6 @@ The browser reports the score and stars; the server does not replay the show. Th
 
 ## Source
 
-`shared/stage.ts` (song and scoring), `src/stage-game.ts`, `src/stage-view.ts`, `src/stage.css`, `src/world.ts` (`buildStage`, the spot), `src/state.ts` (`performShow`), `server/community-core.mjs` (`perform` event), `tests/stage.test.ts`.
+`shared/stage.ts` (songs, scoring, Fever), `src/stage-moves.ts` (the poses), `src/stage-game.ts`, `src/stage-view.ts`, `src/stage.css`, `src/world.ts` (`buildStage`, the spot), `src/state.ts` (`performShow`), `server/community-core.mjs` (`perform` event), `tests/stage.test.ts`, `tests/stage-encore.test.ts`, `tests/stage-moves.test.ts`, `tests/stage-ui.test.ts`.
+
+Stage Party: `shared/stage-party.ts` (protocol), `server/stage-rooms.mjs` (rooms), `/api/stage/*` in `server/index.mjs` and `cloudflare/api.mjs`, `src/stage-party.ts` (polling client), `tests/stage-party.test.ts`.

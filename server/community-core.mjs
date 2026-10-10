@@ -14,6 +14,7 @@ import { day, gameIds } from "./store-core.mjs";
 import { MedalRewards } from "./medal-rewards.mjs";
 import { PlayMedals } from "./play-medals.mjs";
 import { RelayRooms } from "./relay.mjs";
+import { StageRooms } from "./stage-rooms.mjs";
 import { Seasons } from "./seasons.mjs";
 import { playIds } from "../src/catalog.ts";
 import {
@@ -191,6 +192,22 @@ export class CommunityCore {
     this.seasons = new Seasons(store, competitionSeasons, seasonView);
     this.store.competitionAfter = (at) => this.seasons.targetAfter(at);
     this.relay = new RelayRooms(this, PRIVACY_VERSION);
+    // Stage Party shows the same name and look a shared world does.
+    this.stage = new StageRooms({
+      now: this.now,
+      identity: (id) => {
+        const p = this.db
+          .prepare("SELECT name,look FROM players WHERE id=?")
+          .get(id);
+        return p ? { name: p.name, look: JSON.parse(p.look) } : null;
+      },
+      blocked: (a, b) =>
+        !!this.db
+          .prepare(
+            "SELECT 1 FROM blocks WHERE (player=? AND target=?) OR (player=? AND target=?)",
+          )
+          .get(a, b, b, a),
+    });
   }
   config() {
     return {
@@ -842,6 +859,7 @@ export class CommunityCore {
     return result;
   }
   logout(id, token) {
+    this.stage.remove(id);
     this.store.transaction(() => {
       this.relay.removeRaw(id);
       this.db.prepare("DELETE FROM sessions WHERE token=?").run(hash(token));
@@ -1277,6 +1295,7 @@ export class CommunityCore {
         )
         .run(id, target);
     if (action === "block") {
+      this.stage.separate(id, target);
       this.relay.cancelPairRaw(id, target);
       this.relay.onChange?.();
     }
@@ -1579,6 +1598,7 @@ export class CommunityCore {
     };
   }
   delete(id) {
+    this.stage.remove(id);
     const saved = this.store.transaction(() => {
       this.relay.removeRaw(id);
       this.db
