@@ -19,6 +19,7 @@ import {
   SPIN_TICKS,
   WALL,
   boostPads,
+  crateTaken,
   driftTier,
   racer,
   ITEMS,
@@ -573,6 +574,38 @@ test("computer karts collect crates and use items on each other and the player, 
   assert.equal(first.uses.size, 0);
   assert.equal(first.race.struck, 0);
   assert.ok(first.race.rivals.every((r) => r.item === null));
+});
+
+test("the crate drawn as collected is the one in the row a computer kart just crossed, on its side", () => {
+  const race = new CoastRace(3);
+  const held = race.rivals.map(() => false);
+  let collected = 0;
+  while (!race.ended) {
+    const steer = Math.sign(
+      trackCurve(race.distance) * race.speed ** 2 * 0.12 -
+        race.offset * 2 -
+        race.lateralSpeed * 0.5,
+    );
+    race.advance(steer, 1, false);
+    race.rivals.forEach((r, i) => {
+      if (r.item && !held[i]) {
+        const crate = itemCrates[crateTaken(r.distance, r.offset)];
+        const past =
+          (((r.distance - crate.distance) % TRACK_LENGTH) + TRACK_LENGTH) %
+          TRACK_LENGTH;
+        assert.ok(crate.offset * r.offset > 0, `${r.name} is on its side`);
+        assert.ok(
+          Math.min(past, TRACK_LENGTH - past) < 1,
+          `${r.name} is ${past} past the row`,
+        );
+        collected++;
+      }
+      held[i] = !!r.item;
+    });
+  }
+  assert.ok(collected > 15, `${collected} crates collected`);
+  // The middle crate of a row is never a computer kart's.
+  assert.equal(crateTaken(itemCrates[1].distance, 0), -1);
 });
 
 test("an item hit spins the player without stopping the kart; a shield blocks it", () => {

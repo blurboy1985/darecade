@@ -25,16 +25,29 @@ import {
   TRACK_LENGTH,
   WALL,
   WAVE_RANGE,
+  crateTaken,
   trackBounds,
   trackClearance,
   trackCurve,
   trackPoint,
   type CoastRace,
+  type RaceItem,
   type TurboTier,
 } from "../shared/racing";
 
 /** Who is in each of the other karts: a computer driver, or a player's avatar. */
 export type RivalKart = { name: string; color: string; look: Look | null };
+const ITEM_ICONS: Record<NonNullable<RaceItem>, string> = {
+  shield: "🛡",
+  turbo: "⚡",
+  missile: "🚀",
+  storm: "🌩",
+  coconut: "🥥",
+  wave: "🌊",
+  crab: "🦀",
+};
+/** Seconds a crate stays gone after a computer kart collects from it. */
+const CRATE_POP = 1.2;
 const TIER_SPARKS: Record<TurboTier, string> = {
   Mini: "#6cd7ff",
   Super: "#ffb347",
@@ -173,6 +186,9 @@ export class RaceView {
     /** Last offset drawn, and the turn of the nose from moving across the road. */
     side: number;
     veer: number;
+    /** The item it was last seen holding, and the nameplate that shows it. */
+    item: RaceItem;
+    plate: { held: string };
   }[] = [];
   private readonly missiles: { rocket: T.Group; crab: T.Group }[] = [];
   private readonly cloud: T.Mesh;
@@ -192,6 +208,8 @@ export class RaceView {
     kind: string;
     index: number;
   }[] = [];
+  /** When each crate a computer kart collected from comes back, by crate. */
+  private readonly crateBack: number[] = [];
   private readonly shield: T.Mesh;
   private readonly flame: T.Mesh;
   private readonly sea: T.Mesh;
@@ -205,6 +223,8 @@ export class RaceView {
     name: string;
     player: boolean;
     tag: string;
+    /** The icon of the item a computer kart holds. */
+    held: string;
   }[] = [];
   private disposed = false;
   private readonly look: Look;
@@ -545,7 +565,7 @@ export class RaceView {
         grip.position.x = x;
         wheel.add(grip);
       }
-      this.addNameplate(kart, r.name, false, !r.look);
+      const plate = this.addNameplate(kart, r.name, false, !r.look);
       const cloud = this.stormCloud(kart);
       const bubble = this.mesh(
         kart,
@@ -565,6 +585,8 @@ export class RaceView {
         slip: 0,
         side: NaN,
         veer: 0,
+        item: null,
+        plate,
       });
     });
   }
@@ -621,7 +643,9 @@ export class RaceView {
     const tag = player ? " · You" : cpu ? " · CPU" : "";
     element.textContent = name + tag;
     this.nameLayer.append(element);
-    this.nameplates.push({ kart, element, name, player, tag });
+    const plate = { kart, element, name, player, tag, held: "" };
+    this.nameplates.push(plate);
+    return plate;
   }
   private drawNameplates() {
     const width = this.nameLayer.clientWidth;
@@ -635,8 +659,9 @@ export class RaceView {
         b.kart.position.distanceToSquared(this.camera.position),
     );
     const compact = width <= 600 || height <= 300;
-    for (const { kart, element, name, player, tag } of ordered) {
-      const label = compact ? (player ? "You" : name) : name + tag;
+    for (const { kart, element, name, player, tag, held } of ordered) {
+      const label =
+        (compact ? (player ? "You" : name) : name + tag) + (held && " " + held);
       if (element.textContent !== label) element.textContent = label;
       const projected = kart.position
         .clone()
@@ -1361,6 +1386,12 @@ export class RaceView {
         at.yaw + rival.slip + rival.veer + spin,
         this.reduced ? 0 : rival.slip * 0.16,
       );
+      // A computer kart that has just collected an item pops the crate it
+      // came through, and shows what it holds until it uses it.
+      if (r.item && !rival.item)
+        this.crateBack[crateTaken(r.distance, r.offset)] = time + CRATE_POP;
+      rival.item = r.item;
+      rival.plate.held = r.item && !r.finishTick ? ITEM_ICONS[r.item] : "";
       rival.cloud.visible = r.slow > 0 && !r.finishTick;
       rival.bubble.visible = r.shield > 0 && !r.finishTick;
       wheels.forEach((w) => w.pose(-rival.slip * 2.2));
@@ -1410,7 +1441,9 @@ export class RaceView {
       mesh.position.set(at.x, 0.62, at.z);
     });
     this.trackItems.forEach(({ group, kind, index }) => {
-      group.visible = !race.collected.has(`${kind}:${race.lap - 1}:${index}`);
+      group.visible =
+        !race.collected.has(`${kind}:${race.lap - 1}:${index}`) &&
+        !(kind === "crate" && this.crateBack[index] > time);
       if (!this.reduced && kind === "pickup")
         group.children[0].rotation.y = time * 1.5;
     });

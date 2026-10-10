@@ -363,6 +363,8 @@ export class RaceRoom {
         Math.round(k.speed * 10) / 10,
         this.flags(i),
         k.finishTick,
+        // What a computer kart holds: 0 for nothing, else its place in ITEMS.
+        ITEMS.indexOf(k.item as never) + 1,
       ]),
       m: this.field.missiles.map((m) => [
         Math.round(m.distance * 10) / 10,
