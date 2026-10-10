@@ -80,5 +80,10 @@ through each other "like ghosts".
 - In installed Chrome (`DARECADE_TEST_CHROMIUM`): the built race page at
   seven viewports, 13 of 13, and Section 4, 3 of 3. Section 4 was failing on
   `main` because its fixture saved a version 3 record; it now saves version 5.
+- Merged as #76 (`b92937e`) after merging `main` in, at the owner's
+  instruction while it was still a draft. The merged tree passed `npm test`
+  (540 pass, 0 fail, 49 skipped) and `npm run test:cloudflare` (17 of 17).
+  Deployed as Worker version `5acb88de-c855-49d7-b6c6-e4313c496043`;
+  HOSTING.md has the record. Personal bests are archived from 10 October.
 - Not done: nobody has driven it. The feel of a block, a lean and a rub, and
   whether five or six hits a race is fun, need a person at the wheel.
