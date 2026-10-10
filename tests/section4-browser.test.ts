@@ -137,7 +137,7 @@ for (const viewport of viewports) {
           find('#play-section').value='outside'; find('#play-section').dispatchEvent(new Event('change',{bubbles:true})); find('[data-open="stage"]').click();
           await until(() => find('#stage-mode'), 'Stage panel');
         };
-        const setMode = value => { find('#stage-mode').value = value; find('#stage-mode').dispatchEvent(new Event('change', { bubbles: true })); };
+        const setMode = value => find('[data-mode="' + value + '"]').click();
         const performRequests = () => requests.filter(request => request.path === 'progress' && request.data?.event === 'perform');
         const savedStage = () => { const p = JSON.parse(localStorage.getItem('darecade-v1')); return [p.xp, p.stageBest, p.stageXp, p.stageDay, p.stageLast]; };
         try {
@@ -165,10 +165,14 @@ for (const viewport of viewports) {
           close();
           profile.progress.stageXp = 45; syncProfile();
           await openStage();
-          check(find('#stage-mode').value === 'warmup', 'new performer defaults to warmup');
+          check(find('#stage-mode').dataset.value === 'warmup' && find('[data-mode="warmup"]').getAttribute('aria-pressed') === 'true', 'new performer defaults to warmup');
           check(find('#stage-progress').textContent.includes('0/45 XP left today'), 'same-day Stage cap');
           check(getComputedStyle(find('.stage-hype')).display === 'none', 'warmup hype is hidden by actual CSS');
-          check(find('#stage-start').hidden,'Stage card starts immediately');
+          check(!find('#stage-start').hidden && !find('#stage-mode').disabled && getComputedStyle(find('.stage-setup')).display !== 'none','Stage card waits for a session, a style and Start');
+          find('[data-style="2"]').click();
+          check(find('[data-style="2"]').getAttribute('aria-pressed') === 'true' && localStorage.getItem('darecade-stage-style') === 'street', 'dance style is chosen with one tap and kept');
+          find('#stage-start').click();
+          check(find('#stage-start').hidden && getComputedStyle(find('.stage-setup')).display === 'none','Start begins the show and puts the choices away');
           check(find('#modal').scrollWidth <= find('#modal').clientWidth + 1, 'Stage has no modal horizontal overflow');
           const savedBefore = JSON.stringify(savedStage());
           check(find('#stage-mode').disabled, 'session selector locked during warmup');
@@ -176,7 +180,7 @@ for (const viewport of viewports) {
           playableStage('Warmup');
           advance(2400);
           check(find('.activity-stage').dataset.left === '0', 'all 40 simulation seconds completed');
-          check(find('.activity-status').textContent.includes('0 notes landed') && find('.activity-status').textContent.includes('No XP or best score changed'), 'idle warmup gives a gentle completion');
+          check(find('.activity-status').textContent === '0 landed · Aim for 5.', 'idle warmup gives a gentle completion');
           check(performRequests().length === 0 && JSON.stringify(savedStage()) === savedBefore, 'warmup sends no perform report or saved progress change');
           check(!find('#stage-start').hidden && !find('#stage-mode').disabled, 'warmup replay and Show remain available');
           check(find('#stage-progress').getBoundingClientRect().height > 0, 'completion restores the progress card');
@@ -189,7 +193,7 @@ for (const viewport of viewports) {
             }
             advance();
           }
-          check(find('.activity-status').textContent.includes('5 notes landed') && find('.activity-status').textContent.includes('Warm-up goal complete'), 'five-note goal succeeds with real Stage keyboard handlers');
+          check(find('.activity-status').textContent === '5 landed · Ready for the Show?', 'five-note goal succeeds with real Stage keyboard handlers');
           check(performRequests().length === 0 && JSON.stringify(savedStage()) === savedBefore, 'successful warmup also grants no rewards');
           setMode('show');
           check(find('#stage-score-label').textContent === 'SCORE' && find('#stage-score').textContent === '0' && !find('.activity-status').textContent, 'mode switch clears practice HUD');
@@ -203,7 +207,7 @@ for (const viewport of viewports) {
           close();
           profile.progress.stageBest = 5000; profile.progress.stageDay = ${JSON.stringify(yesterday)}; syncProfile();
           await openStage();
-          check(find('#stage-mode').value === 'show', 'returning positive best defaults to Show');
+          check(find('#stage-mode').dataset.value === 'show', 'returning positive best defaults to Show');
           check(find('#stage-progress').textContent.includes('Best show: 5000 points') && find('#stage-progress').textContent.includes('45/45 XP left today'), 'best retained and yesterday cap resets in copy');
           check(document.documentElement.scrollWidth <= innerWidth + 1, 'final Stage has no horizontal overflow');
           check(!requests.some(request => request.path === 'auth/join' || request.path.startsWith('auth/code') || request.path === 'auth/verify'), 'no account creation or email requests');

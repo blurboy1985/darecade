@@ -88,6 +88,14 @@ export function mobileLobbyFixture(
     const hit = el => { const r=el.getBoundingClientRect(); return el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)); };
     try {
       await wait(()=>!find('#loading') && find('#player-name')?.textContent===profile.name);
+      {
+        const chip=find('.profile');
+        check(chip.tagName==='BUTTON' && chip.getBoundingClientRect().height>=44 && hit(chip), 'profile chip is a 44px tap target');
+        chip.click();
+        check(find('#modal').open && find('#modal h2').textContent===profile.name, 'profile chip opens the profile panel');
+        find('#close-modal').click();
+        check(!/neighbours/.test(find('.demo-tag').textContent), 'world label does not count example residents');
+      }
       find('[data-open="phone-menu"]').click();
       find('[data-open="preferences"]').click();
       check(!find('#setting-quality'), 'graphics modes are removed');
