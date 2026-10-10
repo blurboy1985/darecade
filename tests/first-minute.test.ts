@@ -25,19 +25,10 @@ test("new characters start in third person and explicit saved camera choices sur
 });
 
 test("presence counts live people including self, deduplicates and never counts offline cards", () => {
-  assert.equal(
-    worldPresenceCopy([], "me", "joining"),
-    "Joining world · 5 neighbours",
-  );
-  assert.equal(
-    worldPresenceCopy([], "me", "connected"),
-    "1 player · 5 neighbours",
-  );
+  assert.equal(worldPresenceCopy([], "me", "joining"), "Joining world…");
+  assert.equal(worldPresenceCopy([], "me", "connected"), "1 player");
   const me = { id: "me", status: "online" } as const;
-  assert.equal(
-    worldPresenceCopy([me], "me", "connected"),
-    "1 player · 5 neighbours",
-  );
+  assert.equal(worldPresenceCopy([me], "me", "connected"), "1 player");
   const players = [
     me,
     me,
@@ -45,19 +36,27 @@ test("presence counts live people including self, deduplicates and never counts 
     { id: "away", status: "resting" },
     { id: "saved", status: "offline" },
   ] as const;
+  assert.equal(worldPresenceCopy(players, "me", "connected"), "3 players");
   assert.equal(
-    worldPresenceCopy(players, "me", "connected"),
-    "3 players · 5 neighbours",
+    worldPresenceCopy(players, "me", "reconnecting"),
+    "Reconnecting…",
   );
-  for (const state of ["offline", "reconnecting"] as const)
-    assert.equal(
-      worldPresenceCopy(players, "me", state),
-      "5 neighbours · player count unavailable",
-    );
+  assert.equal(
+    worldPresenceCopy(players, "me", "offline"),
+    "Offline · player count unavailable",
+  );
   assert.equal(
     worldPresenceCopy(players, "me", "connected", false),
-    "5 neighbours · player count unavailable",
+    "Offline · player count unavailable",
   );
+  // The fixed count of example residents is not shown as if it were players.
+  for (const state of [
+    "joining",
+    "connected",
+    "reconnecting",
+    "offline",
+  ] as const)
+    assert.doesNotMatch(worldPresenceCopy(players, "me", state), /neighbours/);
 });
 
 test("the first-race goal names the XP reward and keeps town access", () => {

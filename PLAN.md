@@ -1,53 +1,51 @@
-# Open Stage: pickers that work, a kinder crowd, shorter copy — 11 October 2026
+# Lobby UX: neighbours list, world label and profile — 11 October 2026
 
-Branch `open-stage-pickers`, from `main`. The owner reported that "Choose
-your session" and "Dance style" are not working on the Open Stage, asked for
-it to be slightly easier, said the explanations are too wordy, and asked for
-better UX.
+Branch `worktree-ux-neighbours-profile`, from `main`. The owner reported three
+problems on the main screen, on a phone:
+
+1. In Neighbours, the "Choose a neighbour" dropdown does not work.
+2. The label "W1 · 1/30 · 5 neighbours" is not understandable. What are the
+   5 neighbours?
+3. The profile at the top left is too small and cannot be tapped.
 
 ## What is wrong today
 
-- `src/main.ts` clicks Start as soon as the stage opens (`3f6f48b`). A running
-  show hides and locks both pickers, so nobody can choose before the first
-  show.
-- Both pickers are dropdowns: two taps each, options hidden.
-- Three paragraphs of rules surround the stage, and repeat the progress card.
-- Five missed notes in a row end a show.
+- The dropdown lists the other players in your world. When you are the only
+  player (the "1/30" case) it is drawn with no options at all, and "View
+  profile" then does nothing. Nothing says why.
+- "5 neighbours" is the number of computer-controlled example residents in the
+  town. It never changes and says nothing about real players. "W1" is the world
+  code and "1/30" is players in the world out of the 30 it holds.
+- The profile is a plain `div` with no action. On a phone it is 104 × 40 px
+  with 10 px text.
 
 ## Done means
 
-- The stage opens idle. Session and dance style are one-tap buttons, shown
-  before every show; choosing a style shows its moves.
-- Start sits on the stage itself, with one line of instruction and, after a
-  show, the result.
-- Slightly easier, without changing any chart, perfect score or star share:
-  a miss costs 0.08 hype (was 0.12), a stray press 0.03 (was 0.05), Perfect
-  is 5 ticks (was 4), Great is 9 (was 8). Good stays 12.
-- `npm test` and `npm run build` pass; the panel is checked in a browser.
+- Alone in a world, Neighbours says so in words and offers Worlds and Invite a
+  friend. With other players, the dropdown and its buttons work as before.
+- The label reads `W1 · 1/30 players`. The resident count is gone from every
+  state of the label.
+- The profile is a button, at least 44 px tall on a phone, with readable text.
+  It opens a profile panel: name, level, XP, medals, and links to My look,
+  Rankings and the account page.
+- `npm test`, `npm run build` and the phone-size browser tests pass, and
+  screenshots at 320 and 390 px wide show no overlap in the top row.
+
+## Assumptions
+
+- "Not working" is the empty dropdown. The owner was alone in W1.
+- Example residents stay out of the dropdown. They were removed from it on
+  purpose in early October.
+- The profile opens a new small panel rather than the account page directly,
+  because on a phone the name is hidden in the chip and the account page does
+  not show it.
 
 ## Steps
 
-1. `shared/stage.ts`: hype costs and windows.
-2. `src/stage-game.ts`, `src/stage.css`, `src/mobile-hud.css`: button
-   pickers, Start and result on the stage, shorter copy.
-3. `src/main.ts`: stop starting the show on open.
-4. Tests: `tests/stage-ui.test.ts`, `tests/stage.test.ts`,
-   `tests/section4-browser.test.ts`.
-5. `STAGE.md`.
-
-## Outcome
-
-- All five steps done.
-- `tests/stage-ui.test.ts` has a new test for the button pickers; the tests
-  that pinned five misses now pin seven; the pinned chart (106 notes) and
-  perfect score (27,800) for seed 7 pass unchanged.
-- In installed Chrome (`DARECADE_TEST_CHROMIUM`), Section 4 passes at
-  1280×900, 390×844 and 844×390 against the built app, including the new
-  checks that the panel waits for Start and that a style is one tap.
-- Not done: nobody has played it. Whether seven misses and the wider
-  Perfect feel "slightly" easier needs a person.
-
-## Risks
-
-- Undoes "start directly" for the stage only; the owner's report outranks it.
-- Party scores are slightly higher for the same play; nothing is stored.
+1. `src/lobby-presence.ts`, `src/main.ts`: new label copy. Update
+   `tests/first-minute.test.ts`.
+2. `src/main.ts`: empty state for Neighbours. Test in
+   `tests/lobby-render.test.ts`.
+3. `src/main.ts`, CSS: profile button and profile panel. Test in
+   `tests/lobby-render.test.ts` and the phone fixture.
+4. Verify: tests, build, screenshots.
