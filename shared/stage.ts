@@ -1,9 +1,9 @@
 /** Open Stage: a forty-second rhythm show. Pure rules, no rendering or clock. */
 export const STAGE_LANES = 4;
 export const STAGE_TICKS = 40 * 60;
-/** Ticks either side of a note that still count: about 67, 133 and 200 ms. */
-export const STAGE_PERFECT = 4;
-export const STAGE_GREAT = 8;
+/** Ticks either side of a note that still count: about 83, 150 and 200 ms. */
+export const STAGE_PERFECT = 5;
+export const STAGE_GREAT = 9;
 export const STAGE_GOOD = 12;
 const POINTS = { perfect: 100, great: 75, good: 50 };
 const HYPE = { perfect: 0.04, great: 0.03, good: 0.02 };
@@ -145,7 +145,7 @@ export class StageShow {
     } else {
       this.combo = 0;
       if (this.mode !== "warmup") {
-        this.hype -= judgement === "miss" ? 0.12 : 0.05;
+        this.hype -= judgement === "miss" ? 0.08 : 0.03;
         if (this.hype <= 0) {
           this.hype = 0;
           this.booed = true;
