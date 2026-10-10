@@ -45,3 +45,16 @@ races.
 - The lobby and the results card re-render their contents, so the panel must
   live outside both.
 - `tests/music-browser.test.ts` times out on this Windows machine on `main`.
+
+## Outcome
+
+- All six steps done. `npm test` 493 pass, 0 fail, 49 skipped (484 before);
+  `npm run test:cloudflare` 16 of 16; `npm run build` clean.
+- Checked in desktop Chrome against the Node preview with a scripted second
+  player: lines went both ways in the lobby, during the race and on the
+  results; a typed message was dropped; the picker and the number keys both
+  send; muting empties the log and stops sending.
+- One change from the first plan: the panel sits above the item button, not
+  under the map, which moves down during a race.
+- Not done here: nothing is merged or deployed, and nothing was tried on a
+  phone. The picker is 260px wide, so it needs a look on a small screen.
