@@ -56,8 +56,12 @@ chat" rule in ACCOUNTS.md and PRIVACY-REVIEW.md. So this is typed chat.
 - The browser player did not move while typing a message with w, a, s and d
   in it, but the tab was in the background and the 3D scene was not drawing,
   so try this once by hand.
-- Not done: nothing is committed, merged or deployed, and nothing was tried
-  on a phone, where the on-screen keyboard may cover the box.
-- For the owner to decide: `PRIVACY_VERSION` is still `2026-10-03` although
-  the notice text changed. Raising it asks every player to consent again.
+- Merged as #72 (`5808948`) after merging `main` in; the merged tree passed
+  `npm test` (525 pass, 0 fail, 49 skipped) and `npm run test:cloudflare`
+  (17 of 17). Deployed as Worker version
+  `58f32cb6-0d3d-4e85-8f37-6a929307fdfb`; HOSTING.md has the record.
+- Not done: chat was not exercised in production, and nothing was tried on a
+  phone, where the on-screen keyboard may cover the box.
+- The owner chose to leave `PRIVACY_VERSION` at `2026-10-03`, so existing
+  players are not asked to agree to the changed notice.
 - Not built: a bubble over the avatar, a word filter, reporting a message.

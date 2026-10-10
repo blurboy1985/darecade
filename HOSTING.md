@@ -1,5 +1,15 @@
 # Cloudflare hosting
 
+## Typed chat in the shared world — deployed 10 October 2026
+
+PR #72 was merged (`5808948`) and `main` was deployed as Worker version **`58f32cb6-0d3d-4e85-8f37-6a929307fdfb`**. Before merging, the merged tree passed `npm test` (525 pass, 0 fail, 49 browser checks skipped) and all 17 Cloudflare integration tests, including the build and dry run. One of the 17 is new and sends chat over real WebSockets and over polling.
+
+Players in a world can now type messages of up to 120 characters, one every 1.5 seconds, to everyone in that world. A world keeps a message in memory for 10 seconds and stores nothing. Blocks and mutes apply. The owner asked for this with the earlier no-free-text-chat rule set aside: there is no word filter, no contact-detail check and no way to report a message, and it has not been through the privacy review (see PRIVACY-REVIEW.md). The sign-up notice now says world chat exists. The owner chose to leave `PRIVACY_VERSION` at `2026-10-03`, so existing players are not asked to agree to the changed notice.
+
+After deploying: health returned `ready: true`; the live HTML named the same assets as the local build and all three matched byte-for-byte, as did `main-U5LsbUAW.js`, which carries the chat panel and the new notice text; unauthenticated state returned 401; the old address still answered. Chat itself was not exercised in production: that needs two signed-up players, and none were created there. It was not tried on a phone.
+
+No schema, migration, binding, variable or secret changed. Rollback is a redeploy of `118179b`.
+
 ## Coast Rush multiplayer and chat, bigger action prompt, Open Stage party — deployed 10 October 2026
 
 PRs #67 (`b74d211`) and #69 (`c8f3ace`) were merged and `main` was deployed as Worker version **`74aaede0-dae7-49fd-9263-26a7c79514a4`** at about **14:42 SGT**. The previous deployment was PR #65 (`4da7d3f`, version `9d12a1ea-df2c-4fad-a983-0843ab8cf65e`), so this one also carries #66 (an ignore rule), #68 (live multiplayer Coast Rush) and #70 (quick chat in race rooms) into production for the first time.
