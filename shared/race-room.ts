@@ -26,7 +26,7 @@ export const ROOM_CODE = /^[BCDFGHJKLMNPQRSTVWXZ]{4}$/;
 /** Three, two, one, with a moment first for every grid to appear. */
 export const COUNTDOWN_MS = 4500;
 export const SNAPSHOT_MS = 66;
-/** The room closes a race this long after the time limit. */
+/** The room closes a race this long after the time limit. Nothing moves in between. */
 const GRACE_TICKS = 180;
 const KART_COLOURS = [
   "#ff927b",
@@ -96,6 +96,7 @@ export class RaceRoom {
   private drivers: (Member | null)[] = [];
   private startAt = 0;
   private snapshotAt = 0;
+  private elapsed = 0;
   private out: Outgoing[] = [];
   private readonly random: () => number;
   constructor(code: string, random: () => number = Math.random) {
@@ -308,10 +309,10 @@ export class RaceRoom {
     if (this.status === "countdown" && now >= this.startAt)
       this.status = "racing";
     if (this.status !== "racing" || !this.field) return;
-    const target = Math.min(
-      RACE_TICKS + GRACE_TICKS,
-      Math.floor(((now - this.startAt) * 60) / 1000),
-    );
+    // Computer karts stop at the time limit like everyone else. The room
+    // then waits a moment for the players' own time-outs to arrive.
+    this.elapsed = Math.floor(((now - this.startAt) * 60) / 1000);
+    const target = Math.min(RACE_TICKS, this.elapsed);
     while (this.field.ticks < target) this.field.step();
     this.relay();
   }
@@ -328,7 +329,7 @@ export class RaceRoom {
     if (this.status !== "racing" || !this.field) return;
     this.relay();
     const racing = this.drivers.some((d) => d && !d.done);
-    if (!racing || this.field.ticks >= RACE_TICKS + GRACE_TICKS) {
+    if (!racing || this.elapsed >= RACE_TICKS + GRACE_TICKS) {
       this.status = "results";
       for (const member of this.members.values()) member.kart = -1;
       this.send(null, { t: "end", results: this.results() });

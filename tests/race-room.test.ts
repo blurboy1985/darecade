@@ -20,6 +20,7 @@ import {
 import {
   CoastRace,
   RACE_DISTANCE,
+  RACE_TICKS,
   RIVALS,
   trackCurve,
 } from "../shared/racing.ts";
@@ -340,6 +341,10 @@ test("a race left running ends itself after the time limit", () => {
   assert.equal(t.room.status, "results");
   assert.equal(of(out, "end").length, 1);
   assert.equal(of(out, "pong", t.ids[0]).length, 1);
+  // Computer karts get the same two minutes as the players.
+  assert.equal(t.room.field!.ticks, RACE_TICKS);
+  const results = of(out, "end")[0].data.results as { ticks: number }[];
+  assert.ok(results.every((r) => r.ticks <= RACE_TICKS));
 });
 
 test("a host delivers room messages to the right sockets and replaces a player's older window", () => {
