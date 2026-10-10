@@ -1,5 +1,17 @@
 # Cloudflare hosting
 
+## Open Stage song and timing, world chat window — deployed 10 October 2026
+
+PR #74 (`bfd0a53`) and PR #75 (`6d944aa`) were merged in that order and `main` was deployed as Worker version **`1e032892-48cd-4190-98ff-db9b248d059a`**. Before merging, the two branches merged together passed `npm test` (536 pass, 0 fail, 49 browser checks skipped) and all 17 Cloudflare integration tests, including the build and dry run. `main` after both merges is the same tree as the one tested.
+
+Every Open Stage show now plays a song written from its chart, and timing has a Great tier (±133 ms, 75 points) with Good widened from ±150 ms to ±200 ms. The keyboard lanes are the arrow keys or W A S D; D F J K no longer work. World chat opens as a window that keeps up to 100 messages heard since the page loaded and marks your own message as sending, sent or not sent. The world now takes a chat message before applying the movement limit, and the page spaces messages through an outbox, so messages are no longer dropped without notice. The world still keeps a message for 10 seconds and stores nothing.
+
+After deploying: health returned `ready: true`; the live HTML and all 18 script and style files matched the local build byte-for-byte, including `main-BZV0B-Vl.js`, which carries the chat window; unauthenticated state returned 401, auth config 200 and a private server path 404; the old address still answered. Neither feature was exercised in production: chat needs two signed-up players, and none were created there. Nobody has listened to the stage song through speakers, and nothing was tried on a phone.
+
+No schema, migration, binding, variable or secret changed. Stage Party rooms and races in progress ended with the deployment, as with every deployment. Rollback is a redeploy of `d76c049`.
+
+PR #76 (Coast Rush contact) was left open as a draft. It moves Coast Rush to rules version 5, which archives every player's personal best on deployment, and nobody has driven it.
+
 ## Typed chat in the shared world — deployed 10 October 2026
 
 PR #72 was merged (`5808948`) and `main` was deployed as Worker version **`58f32cb6-0d3d-4e85-8f37-6a929307fdfb`**. Before merging, the merged tree passed `npm test` (525 pass, 0 fail, 49 browser checks skipped) and all 17 Cloudflare integration tests, including the build and dry run. One of the 17 is new and sends chat over real WebSockets and over polling.

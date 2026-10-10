@@ -84,8 +84,18 @@ message you send should appear in a chat window.
   Cloudflare test covers the server side), a real phone and its keyboard,
   and whether typing w, a, s, d moves the avatar (same mechanism as #72,
   now on the window instead of the box).
-- Not deployed. The server change in step 2 takes effect on deployment; the
-  page changes do not depend on it.
+- Merged as #75 (`6d944aa`) after merging `main` in, which by then carried
+  the Open Stage song and timing from #74 (`bfd0a53`). Both PRs rewrote this
+  file; this plan was kept. The merged tree passed `npm test` (536 pass, 0
+  fail, 49 skipped) and `npm run test:cloudflare` (17 of 17). Deployed as
+  Worker version `1e032892-48cd-4190-98ff-db9b248d059a`; HOSTING.md has the
+  record.
+- Not done: neither the chat window nor the stage song was exercised in
+  production, nobody has listened to the song, and nothing was tried on a
+  phone.
+- Left open: #76 (Coast Rush contact) is a draft and was not merged. It
+  archives every player's Coast Rush personal best on deployment and nobody
+  has driven it.
 - Found, not fixed: after the Node preview restarts, a page that asks for
   its old world by name gets "World unavailable" until some request without
   a name creates the world again. Preview only.
