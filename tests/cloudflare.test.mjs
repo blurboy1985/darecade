@@ -531,6 +531,114 @@ test(
   },
 );
 
+test(
+  "Cloudflare race rooms seat two players by code, stream the race and close when empty",
+  { timeout: 30000 },
+  async () => {
+    const { mf, api } = runtime();
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const sockets = [];
+    const connect = async (query, cookie, extra = {}) => {
+      const response = await mf.dispatchFetch(
+        origin + "/api/race/connect?" + query,
+        {
+          headers: {
+            Upgrade: "websocket",
+            Origin: origin,
+            "CF-Connecting-IP": "192.0.2.10",
+            ...(cookie ? { Cookie: cookie } : {}),
+            ...extra,
+          },
+        },
+      );
+      if (response.status !== 101) return { status: response.status };
+      const socket = response.webSocket;
+      const inbox = [];
+      socket.addEventListener("message", (event) =>
+        inbox.push(JSON.parse(event.data)),
+      );
+      socket.accept();
+      sockets.push(socket);
+      const next = async (t) => {
+        for (let i = 0; i < 100; i++) {
+          const at = inbox.findIndex((m) => m.t === t);
+          if (at >= 0) return inbox.splice(at, 1)[0];
+          await sleep(50);
+        }
+        throw Error(`No "${t}" message; got ${JSON.stringify(inbox)}`);
+      };
+      return { status: 101, socket, inbox, next };
+    };
+    try {
+      const join = () =>
+        api("auth/join", {
+          over13: true,
+          consent: true,
+          privacyVersion: PRIVACY_VERSION,
+        });
+      const [a, b] = [await join(), await join()];
+      assert.equal((await connect("host=1", "")).status, 401);
+      assert.equal((await connect("code=12", a.cookie)).status, 400);
+      assert.equal(
+        (await connect("host=1", a.cookie, { Origin: "https://other.test" }))
+          .status,
+        403,
+      );
+      assert.equal(
+        (await (await connect("code=ZZZZ", a.cookie)).next("error")).message,
+        "No race with that code.",
+      );
+      const host = await connect("host=1", a.cookie);
+      const lobby = await host.next("room");
+      assert.match(lobby.code, /^[BCDFGHJKLMNPQRSTVWXZ]{4}$/);
+      const friend = await connect("code=" + lobby.code, b.cookie);
+      assert.equal((await friend.next("room")).players.length, 2);
+      // Lobby chat: a fixed line reaches both players; typed words go nowhere.
+      friend.socket.send(JSON.stringify({ t: "chat", line: "hi there" }));
+      friend.socket.send(JSON.stringify({ t: "chat", line: 1 }));
+      const said = { t: "chat", from: 1, line: 1 };
+      assert.deepEqual(await host.next("chat"), said);
+      assert.deepEqual(await friend.next("chat"), said);
+      host.inbox.length = 0;
+      host.socket.send(JSON.stringify({ t: "start" }));
+      const go = await host.next("go");
+      assert.equal((await friend.next("go")).seed, go.seed);
+      assert.equal(go.karts.length, 8);
+      assert.equal(go.karts.filter((k) => k.look).length, 2);
+      await sleep(go.in + 100);
+      for (let i = 1; i <= 12; i++) {
+        host.socket.send(
+          JSON.stringify({ t: "s", s: [go.karts[0].distance + i, 2.2, 15, 0] }),
+        );
+        await sleep(70);
+      }
+      const seen = friend.inbox.filter((m) => m.t === "w").at(-1);
+      assert.ok(seen.s[0][0] > go.karts[0].distance + 8, "the host moved");
+      assert.ok(seen.s[5][0] > go.karts[5].distance, "computer karts moved");
+      friend.socket.close();
+      await sleep(200);
+      host.socket.send(JSON.stringify({ t: "done" }));
+      const end = await host.next("end");
+      assert.equal(end.results.length, 7);
+      host.socket.close();
+      await sleep(200);
+      assert.equal(
+        (await (await connect("code=" + lobby.code, b.cookie)).next("error"))
+          .message,
+        "No race with that code.",
+      );
+      const me = await api("auth/session", undefined, a.cookie);
+      assert.equal(me.data.progress.xp, 0, "rooms never touch progress");
+    } finally {
+      for (const socket of sockets)
+        try {
+          socket.close();
+        } catch {}
+      await mf.dispose();
+    }
+  },
+);
+
 function runtime(ready = true, paymentOptions = {}) {
   const messages = [];
   const mf = new Miniflare(
@@ -556,6 +664,7 @@ function runtime(ready = true, paymentOptions = {}) {
           useSQLite: true,
         },
         WORLD: { className: "World", useSQLite: true },
+        RACE: { className: "Race", useSQLite: true },
       },
       bindings: {
         LAUNCH_READY: String(ready),

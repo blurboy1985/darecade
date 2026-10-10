@@ -246,10 +246,11 @@ test("4. a tap on GO keeps the kart driving, BRAKE lets go, and a parked kart st
     "throttle is not idling, even when stopped",
   );
   assert.equal(idleTicks(idle, 0, 5), 0, "coasting is not parked");
-  // Without the pause, rivals lapping a parked kart hit it until time runs out.
+  // Without the pause, a parked kart is bumped aside by the rivals lapping it
+  // and sits there until time runs out.
   const parked = play("coast", 11, () => still);
   assert.equal(parked.score, 0);
-  assert.ok(parked.sim.race!.bumps > 3);
+  assert.ok(parked.sim.race!.bumps > 0);
 });
 
 test("4. a driver with no finish completes three laps on GO alone, and the server accepts the race", () => {

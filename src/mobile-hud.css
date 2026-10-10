@@ -263,10 +263,6 @@
 .hud .nearby-prompt {
   bottom: calc(100px + env(safe-area-inset-bottom));
   right: 12px;
-  padding: 7px 10px;
-  max-width: 190px;
-  font-size: 11px;
-  min-height: 32px;
 }
 .camera-hint,
 .move-hint {

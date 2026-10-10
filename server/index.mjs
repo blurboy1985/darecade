@@ -6,6 +6,7 @@ import { resolve, extname, sep } from "node:path";
 import { Store } from "./store.mjs";
 import { Community } from "./community.mjs";
 import { LocalWorlds } from "./local-worlds.mjs";
+import { RaceRooms } from "./race-rooms.mjs";
 
 const dir = resolve(process.env.DARECADE_DATA || "data");
 mkdirSync(dir, { recursive: true });
@@ -33,6 +34,7 @@ const origins = new Set([
   ...(!production ? ["http://localhost:5173", "http://127.0.0.1:5173"] : []),
 ]);
 const worlds = new LocalWorlds(community);
+const races = new RaceRooms(community, origins);
 const limits = new Map();
 function rate(req, key, max, windowMs, player) {
   const bucket = `${player ? "player:" + player : "ip:" + req.socket.remoteAddress}:${key}`,
@@ -409,9 +411,11 @@ const handler = async (req, res) => {
 const server = createServer(handler);
 const lanServer = process.env.LAN_HOST ? createServer(handler) : null;
 for (const preview of [server, lanServer])
-  preview?.on("upgrade", (_req, socket) =>
-    socket.end("HTTP/1.1 426 Upgrade Required\r\nConnection: close\r\n\r\n"),
-  );
+  preview?.on("upgrade", (req, socket, head) => {
+    // Only multiplayer races use sockets here; worlds poll over HTTP.
+    if (!races.upgrade(req, socket, head))
+      socket.end("HTTP/1.1 426 Upgrade Required\r\nConnection: close\r\n\r\n");
+  });
 lanServer?.listen(Number(process.env.PORT || 4173), process.env.LAN_HOST, () =>
   console.log(
     `Phone playtest ready at http://${process.env.LAN_HOST}:${process.env.PORT || 4173}/?playtest=1`,

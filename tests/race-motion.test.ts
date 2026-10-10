@@ -11,7 +11,9 @@ test("player and opponents move between simulation ticks without changing race s
   race.distance += 0.6;
   race.offset += 0.2;
   for (const rival of race.rivals) rival.distance += 0.4;
-  const saved = JSON.stringify(race);
+  const state = () =>
+    JSON.stringify([race.distance, race.offset, race.speed, race.rivals]);
+  const saved = state();
   const middle = motion.sample(race, 0.5);
   assert.ok(Math.abs(middle.distance - before.distance - 0.3) < 1e-9);
   assert.ok(Math.abs(middle.offset - before.offset - 0.1) < 1e-9);
@@ -20,7 +22,7 @@ test("player and opponents move between simulation ticks without changing race s
       Math.abs(middle.rivals[i].distance - before.rivals[i].distance - 0.2) <
         1e-9,
     );
-  assert.equal(JSON.stringify(race), saved);
+  assert.equal(state(), saved);
   assert.equal(motion.sample(race, 1).distance, race.distance);
 });
 

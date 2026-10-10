@@ -56,6 +56,7 @@ function harness(input: Input) {
   vm.runInContext(compiled, context);
   const h = {
     sim,
+    race: sim.race!,
     loop() {},
     last: 1000,
     status: "racing",

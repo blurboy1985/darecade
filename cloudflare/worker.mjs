@@ -8,7 +8,9 @@ import { handleApi, json } from "./api.mjs";
 import { sessionKey, sessionToken } from "./world-auth.mjs";
 import { PRIVACY_VERSION } from "../server/community-core.mjs";
 import { queueRelayExpiryAlarm } from "./relay-alarm.mjs";
+import { ROOM_CODE, roomCode } from "../shared/race-room.ts";
 export { World } from "./world.mjs";
+export { Race } from "./race.mjs";
 
 function ready(env) {
   try {
@@ -63,6 +65,38 @@ export default {
         request.headers.get("CF-Connecting-IP") || "unknown",
       );
       headers.delete("x-darecade-world-player");
+      if (url.pathname === "/api/race/connect") {
+        // A multiplayer Coast Rush room: one Durable Object per room code.
+        if (
+          (request.headers.get("origin") &&
+            request.headers.get("origin") !== env.PUBLIC_ORIGIN) ||
+          request.headers.get("sec-fetch-site") === "cross-site"
+        )
+          return json({ error: "This request came from another site." }, 403);
+        if (request.method !== "GET")
+          return json({ error: "Method not allowed." }, 405);
+        const creating = url.searchParams.get("host") === "1";
+        const code = creating
+          ? roomCode()
+          : (url.searchParams.get("code") || "").toUpperCase();
+        if (!ROOM_CODE.test(code))
+          return json({ error: "Enter the four-letter race code." }, 400);
+        let identity;
+        try {
+          identity = await neighbourhood.worldAuthorize(
+            headers.get("cookie") || "",
+            headers.get("x-darecade-client-ip"),
+          );
+        } catch {
+          return json({ error: "Please wait before joining again." }, 429);
+        }
+        if (!identity) return json({ error: "Sign in to join." }, 401);
+        headers.set("x-darecade-world-player", JSON.stringify(identity));
+        url.searchParams.set("code", code);
+        return env.RACE.get(env.RACE.idFromName(code), {
+          locationHint: "apac-se",
+        }).fetch(new Request(url, new Request(request, { headers })));
+      }
       if (url.pathname.startsWith("/api/world/")) {
         if (
           (request.headers.get("origin") &&
