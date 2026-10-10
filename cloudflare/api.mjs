@@ -209,6 +209,8 @@ export async function handleApi(
       await worlds?.refresh(id);
       return json(profile);
     }
+    if (method === "POST" && path.startsWith("/api/stage/"))
+      return json(c.stage.request(id, path.slice(11), data));
     if (method === "POST" && path === "/api/progress")
       return json(c.progression(id, data.event, data.value));
     if (method === "POST" && path === "/api/invite") return json(c.invite(id));
