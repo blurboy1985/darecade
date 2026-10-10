@@ -1,21 +1,40 @@
 /** Open Stage: a forty-second rhythm show. Pure rules, no rendering or clock. */
 export const STAGE_LANES = 4;
 export const STAGE_TICKS = 40 * 60;
-/** Ticks either side of a note that still count. */
+/** Ticks either side of a note that still count: about 67, 133 and 200 ms. */
 export const STAGE_PERFECT = 4;
-export const STAGE_GOOD = 9;
+export const STAGE_GREAT = 8;
+export const STAGE_GOOD = 12;
+const POINTS = { perfect: 100, great: 75, good: 50 };
+const HYPE = { perfect: 0.04, great: 0.03, good: 0.02 };
 export const STAGE_WARMUP_GOAL = 5;
 /** Fever: double points for five seconds, once enough notes have landed. */
 export const STAGE_FEVER_TICKS = 5 * 60;
 export const STAGE_FEVER_PERFECT = 1 / 20;
+export const STAGE_FEVER_GREAT = 1 / 30;
 export const STAGE_FEVER_GOOD = 1 / 40;
+const FEVER = {
+  perfect: STAGE_FEVER_PERFECT,
+  great: STAGE_FEVER_GREAT,
+  good: STAGE_FEVER_GOOD,
+};
 export type StageMode = "warmup" | "show" | "encore";
-export type StageJudgement = "perfect" | "good" | "miss" | "stray";
+export type StageJudgement = "perfect" | "great" | "good" | "miss" | "stray";
 export type StageNote = {
   tick: number;
   lane: number;
   hit: StageJudgement | null;
 };
+
+/** Ticks in the beat at this point of a song. The arrows and the music share it. */
+export function stageBeat(tick: number, mode: StageMode = "show") {
+  // A warm-up arrow falls on every other beat.
+  if (mode === "warmup") return 45;
+  const progress = tick / STAGE_TICKS;
+  return Math.round(
+    mode === "encore" ? 32 - progress * 10 : 36 - progress * 14,
+  );
+}
 
 /** The seed decides the song: a beat that quickens, with more off-beats later. */
 export function stageChart(
@@ -41,7 +60,7 @@ export function stageChart(
     // Quicker from the first bar, with double arrows: two lanes on one beat.
     while (tick < STAGE_TICKS - 60) {
       const progress = tick / STAGE_TICKS;
-      const beat = Math.round(32 - progress * 10);
+      const beat = stageBeat(tick, mode);
       // The lane just used is rested, so one press can never mean two notes.
       const rested = lane;
       let next = Math.floor(random() * STAGE_LANES);
@@ -67,7 +86,7 @@ export function stageChart(
   }
   while (tick < STAGE_TICKS - 60) {
     const progress = tick / STAGE_TICKS;
-    const beat = Math.round(36 - progress * 14);
+    const beat = stageBeat(tick, mode);
     let next = Math.floor(random() * STAGE_LANES);
     if (next === lane) next = (next + 1) % STAGE_LANES;
     lane = next;
@@ -98,7 +117,7 @@ export class StageShow {
   hype = 0.5;
   ended = false;
   booed = false;
-  counts = { perfect: 0, good: 0, miss: 0, stray: 0 };
+  counts = { perfect: 0, great: 0, good: 0, miss: 0, stray: 0 };
   last: { judgement: StageJudgement; lane: number; tick: number } | null = null;
   readonly notes: StageNote[];
   readonly mode: StageMode;
@@ -114,22 +133,15 @@ export class StageShow {
   private judge(judgement: StageJudgement, lane: number) {
     this.counts[judgement]++;
     this.last = { judgement, lane, tick: this.tick };
-    if (judgement === "perfect" || judgement === "good") {
-      const points = (judgement === "perfect" ? 100 : 50) * this.multiplier;
+    if (judgement !== "miss" && judgement !== "stray") {
+      const points = POINTS[judgement] * this.multiplier;
       this.baseScore += points;
       this.score += points * (this.feverTicks > 0 ? 2 : 1);
       if (this.mode !== "warmup" && this.feverTicks <= 0)
-        this.fever = Math.min(
-          1,
-          this.fever +
-            (judgement === "perfect" ? STAGE_FEVER_PERFECT : STAGE_FEVER_GOOD),
-        );
+        this.fever = Math.min(1, this.fever + FEVER[judgement]);
       this.combo++;
       this.bestCombo = Math.max(this.bestCombo, this.combo);
-      this.hype = Math.min(
-        1,
-        this.hype + (judgement === "perfect" ? 0.04 : 0.02),
-      );
+      this.hype = Math.min(1, this.hype + HYPE[judgement]);
     } else {
       this.combo = 0;
       if (this.mode !== "warmup") {
@@ -165,8 +177,13 @@ export class StageShow {
       );
       if (!note) this.judge("stray", lane);
       else {
+        const off = Math.abs(note.tick - this.tick);
         note.hit =
-          Math.abs(note.tick - this.tick) <= STAGE_PERFECT ? "perfect" : "good";
+          off <= STAGE_PERFECT
+            ? "perfect"
+            : off <= STAGE_GREAT
+              ? "great"
+              : "good";
         this.judge(note.hit, lane);
       }
     }

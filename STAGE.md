@@ -7,7 +7,7 @@ The Open Stage fills the back of Simi Plaza, in the middle of the island, added 
 Walk onto the stage, or choose **Open Stage** under Explore. A show lasts forty seconds.
 
 - Arrows fall down four lanes. Press the matching arrow key, D F J K, or the coloured button as each reaches the line.
-- Within about 67 ms is **Perfect** (100 points); within 150 ms is **Good** (50). A note that passes the line is a **Miss**, and pressing with no note there is **Too soon**.
+- Within about 67 ms is **Perfect** (100 points), within 133 ms **Great** (75), and within 200 ms **Good** (50), early or late. A note that passes the line is a **Miss**, and pressing with no note there is **Too soon**.
 - Every eight hits in a row add half again to the points, up to three times. A miss or a stray press resets the combo.
 - The crowd's **hype** rises with hits and falls with misses and stray presses. At zero the show is booed off and ends early.
 - The beat quickens from 100 to about 165 a minute, with more off-beat notes in the second half. Every show is a new song.
@@ -18,11 +18,20 @@ The scene is drawn in three.js: the player's own avatar does a move for each lan
 ## Dance styles, Fever and Encore — 10 October 2026
 
 - **Dance style** (Pop, Disco, Street, Robot) is chosen above the stage and kept on the device. Each style has its own move for each of the four lanes and its own groove between notes; choosing one runs through its four moves. The show adds moves of its own: a spin on a combo of eight, a star jump on sixteen, a body wave on twenty-four (then round again), a stumble on a miss, a finishing pose, and a slump when booed off. Arms, elbows, knees, spine and head all move. Reduce motion keeps the lane moves and the held poses and drops the rest.
-- **Fever**: every Perfect fills a twentieth of the bar under the lanes, every Good a fortieth. When it is full, tap it or press Space for five seconds of double points, with every lamp lit. The bar does not fill while Fever is lit, and Warm-up has none.
+- **Fever**: every Perfect fills a twentieth of the bar under the lanes, every Great a thirtieth, every Good a fortieth. When it is full, tap it or press Space for five seconds of double points, with every lamp lit. The bar does not fill while Fever is lit, and Warm-up has none.
 - **Stars are judged on timing alone.** The Fever bonus counts towards the score, the best score and a party's ranking, but stars and XP come from the score without it, against the same perfect show as before. Fever therefore does not make a star easier.
 - **Encore** is a third session: quicker from the first bar, with double arrows (two lanes on one beat). It pays the same 5 XP a star under the same daily cap, judged against a perfect Encore.
 
 Warm-up and the Show's chart, scoring, stars and XP are as they were.
+
+## The song and kinder timing — 10 October 2026
+
+- **Every show plays its own song**, and the arrows are its rhythm. The drums and bass keep the chart's beat: a kick on every beat, a hi-hat on every half-beat, a snare on the second and fourth. Each arrow is a note of the tune, pitched by its lane (left is low, right is high), so an arrow reaches the line exactly when its note sounds. Three clicks count the tempo in before the first arrow, and the song quickens with the arrows.
+- The song is written from the chart (`src/stage-song.ts`), so the charts, the perfect score, stars, XP and Stage Party are unchanged. The seed picks one of four chord progressions.
+- It is synthesised like the rest of the game's sound and follows the **Music** setting. The lobby theme waits while a show is on and returns after it. With music off the show plays as before, by sight.
+- The panel cues each sound from the show's own tick clock, a fifth of a second ahead, so the song pauses with the show and cannot drift from the arrows. It starts each sound early by the output delay the browser reports (at most 100 ms). Bluetooth speakers can lag by more than that, and the browser may not report it.
+- **Timing is kinder.** Good used to end at 150 ms and now reaches 200 ms, and **Great** sits between Perfect and Good, so a near miss of Perfect pays 75 instead of 50. Great raises the hype by 0.03 (Perfect 0.04, Good 0.02). A show of Greats earns two stars; a show of Goods still earns one.
+- Notes in one lane are at least 22 ticks apart, so at the very fastest two Good windows (24 ticks) overlap by 2. The earlier note takes the press, as it always has.
 
 ## Stage Party
 
@@ -47,6 +56,6 @@ The browser reports the score and stars; the server does not replay the show. Th
 
 ## Source
 
-`shared/stage.ts` (songs, scoring, Fever), `src/stage-moves.ts` (the poses), `src/stage-game.ts`, `src/stage-view.ts`, `src/stage.css`, `src/world.ts` (`buildStage`, the spot), `src/state.ts` (`performShow`), `server/community-core.mjs` (`perform` event), `tests/stage.test.ts`, `tests/stage-encore.test.ts`, `tests/stage-moves.test.ts`, `tests/stage-ui.test.ts`.
+`shared/stage.ts` (charts, scoring, Fever), `src/stage-song.ts` (the song), `src/audio.ts` (`stageSound`), `src/stage-moves.ts` (the poses), `src/stage-game.ts`, `src/stage-view.ts`, `src/stage.css`, `src/world.ts` (`buildStage`, the spot), `src/state.ts` (`performShow`), `server/community-core.mjs` (`perform` event), `tests/stage.test.ts`, `tests/stage-encore.test.ts`, `tests/stage-moves.test.ts`, `tests/stage-song.test.ts`, `tests/stage-ui.test.ts`.
 
 Stage Party: `shared/stage-party.ts` (protocol), `server/stage-rooms.mjs` (rooms), `/api/stage/*` in `server/index.mjs` and `cloudflare/api.mjs`, `src/stage-party.ts` (polling client), `tests/stage-party.test.ts`.

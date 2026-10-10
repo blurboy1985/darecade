@@ -6,7 +6,8 @@
 // in a slower arrangement. Games use energetic anime-inspired synth pop;
 // Coast Rush has a faster companion theme that accelerates on the final lap.
 // Themes change at bar boundaries. The engine, tyre and wind loops remain
-// separate.
+// separate. The Open Stage plays a song of its own, written from its chart.
+import type { StageSound } from "./stage-song";
 
 export type Sfx =
   | "click"
@@ -70,12 +71,14 @@ export type Theme = "day" | "night" | "game" | "race";
 let ctx: BaseAudioContext | null = null;
 let master: GainNode,
   musicBus: GainNode,
+  stageBus: GainNode,
   sfxBus: GainNode,
   reverb: ConvolverNode,
   wet: GainNode;
 let noise: AudioBuffer;
 let soundOn = false,
   musicOn = true,
+  staged = false,
   theme: Theme = "day",
   nextTheme: Theme = "day";
 const midi = (n: number) => 440 * 2 ** ((n - 69) / 12);
@@ -108,6 +111,9 @@ function setup(offline?: BaseAudioContext) {
   musicBus = ctx.createGain();
   musicBus.gain.value = 0;
   musicBus.connect(master);
+  stageBus = ctx.createGain();
+  stageBus.gain.value = 1.3;
+  stageBus.connect(master);
   sfxBus = ctx.createGain();
   sfxBus.gain.value = 0.8;
   sfxBus.connect(master);
@@ -1112,6 +1118,81 @@ function stopMusic() {
   musicBus.gain.setTargetAtTime(0, ctx.currentTime, 0.15);
 }
 
+// ---------------------------------------------------------------- stage song
+/** One sound of the Open Stage's song, due `delay` seconds from now. */
+function stageSound(s: StageSound, delay: number) {
+  if (!soundOn || !musicOn || !ctx || ctx.state !== "running") return;
+  const live = ctx as AudioContext;
+  // Start early by the time the output takes, so it is heard on the beat.
+  const lag = Math.min(
+    0.1,
+    (live.baseLatency || 0) + (live.outputLatency || 0),
+  );
+  const at = ctx.currentTime + Math.max(0.005, delay - lag);
+  const out = stageBus,
+    dur = s.ticks / 60,
+    f = midi(s.note);
+  switch (s.kind) {
+    case "kick":
+      tone({ f: 145, to: 43, at, dur, vol: 0.13, out });
+      break;
+    case "snare":
+      hiss(at, dur, 0.05, "bandpass", 2200, undefined, out, 0.8);
+      tone({
+        type: "triangle",
+        f: 190,
+        to: 125,
+        at,
+        dur: 0.09,
+        vol: 0.035,
+        out,
+      });
+      break;
+    case "hat":
+      hiss(at, dur, 0.02, "highpass", 7500, undefined, out);
+      break;
+    case "bass":
+      tone({
+        type: "sawtooth",
+        f,
+        at,
+        dur,
+        vol: 0.05,
+        attack: 0.008,
+        filter: 650,
+        out,
+      });
+      break;
+    case "chord":
+      tone({
+        type: "sawtooth",
+        f,
+        at,
+        dur,
+        vol: 0.01,
+        attack: 0.03,
+        filter: 1800,
+        out,
+        send: 0.1,
+      });
+      break;
+    case "lead":
+      tone({
+        type: "square",
+        f,
+        at,
+        dur: dur * 1.6,
+        vol: 0.03,
+        attack: 0.008,
+        filter: 2800,
+        out,
+        send: 0.1,
+      });
+      tone({ type: "triangle", f: f * 2, at, dur, vol: 0.014, out });
+      break;
+  }
+}
+
 // ---------------------------------------------------------------- kart loop
 let kart: {
   low: OscillatorNode;
@@ -1187,7 +1268,13 @@ function apply() {
   if (!ctx) return;
   if (!soundOn) stopEngine();
   master.gain.setTargetAtTime(soundOn ? 0.9 : 0, ctx.currentTime, 0.02);
-  if (soundOn && musicOn && !document.hidden && ctx.state === "running")
+  if (
+    soundOn &&
+    musicOn &&
+    !staged &&
+    !document.hidden &&
+    ctx.state === "running"
+  )
     startMusic();
   else stopMusic();
 }
@@ -1221,6 +1308,12 @@ export const audio = {
   },
   engine,
   engineOff: stopEngine,
+  /** The background theme waits while an Open Stage show plays its own song. */
+  stage(on: boolean) {
+    staged = on;
+    apply();
+  },
+  stageSound,
 };
 
 if (typeof document !== "undefined")
@@ -1239,6 +1332,7 @@ export async function renderMusic(mood: Theme, seconds: number, rate = 44100) {
     ctx,
     master,
     musicBus,
+    stageBus,
     sfxBus,
     reverb,
     wet,
@@ -1256,7 +1350,17 @@ export async function renderMusic(mood: Theme, seconds: number, rate = 44100) {
   try {
     return await offline.startRendering();
   } finally {
-    ({ ctx, master, musicBus, sfxBus, reverb, wet, noise, theme, nextTheme } =
-      saved);
+    ({
+      ctx,
+      master,
+      musicBus,
+      stageBus,
+      sfxBus,
+      reverb,
+      wet,
+      noise,
+      theme,
+      nextTheme,
+    } = saved);
   }
 }
