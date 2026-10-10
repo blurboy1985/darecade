@@ -4,6 +4,7 @@ import {
   STAGE_FEVER_PERFECT,
   STAGE_FEVER_TICKS,
   STAGE_GOOD,
+  STAGE_GREAT,
   STAGE_LANES,
   STAGE_TICKS,
   StageShow,
@@ -61,11 +62,14 @@ test("an encore is seeded, faster than the show, and has double arrows that can 
       ),
       "never three at once",
     );
-    // Two notes in one lane are never close enough to share a press.
+    // Two notes in one lane keep their Great windows apart, and a press on
+    // one is never inside the other's window at all.
     for (let lane = 0; lane < STAGE_LANES; lane++) {
       const ticks = chart.filter((n) => n.lane === lane).map((n) => n.tick);
-      for (let i = 1; i < ticks.length; i++)
-        assert.ok(ticks[i] - ticks[i - 1] > 2 * STAGE_GOOD);
+      for (let i = 1; i < ticks.length; i++) {
+        assert.ok(ticks[i] - ticks[i - 1] > 2 * STAGE_GREAT);
+        assert.ok(ticks[i] - ticks[i - 1] > STAGE_GOOD);
+      }
     }
   }
   assert.notDeepEqual(stageChart(7, "encore"), stageChart(8, "encore"));

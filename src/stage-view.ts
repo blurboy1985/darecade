@@ -327,6 +327,7 @@ export class StageView {
     const playing = !!show && !show.ended;
     const total = show
       ? show.counts.perfect +
+        show.counts.great +
         show.counts.good +
         show.counts.miss +
         show.counts.stray
@@ -336,7 +337,7 @@ export class StageView {
     if (show?.last && total !== this.judged) {
       this.judged = total;
       const { judgement, lane } = show.last;
-      if (judgement === "perfect" || judgement === "good") {
+      if (judgement !== "miss" && judgement !== "stray") {
         me.move = {
           id:
             tier > this.celebrated
@@ -344,7 +345,8 @@ export class StageView {
               : laneMove(this.style, lane),
           at: time,
         };
-        this.flash[lane] = judgement === "perfect" ? 1 : 0.6;
+        this.flash[lane] =
+          judgement === "perfect" ? 1 : judgement === "great" ? 0.8 : 0.6;
       } else if (judgement === "miss") me.move = { id: "stumble", at: time };
     }
     if (tier > this.celebrated) this.burst();

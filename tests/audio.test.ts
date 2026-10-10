@@ -29,6 +29,10 @@ test("restoring enabled audio preferences waits for a player gesture", () => {
     audio.play("shell");
     audio.engine(1, true, true);
     audio.engineOff();
+    // So does the Open Stage's song.
+    audio.stage(true);
+    audio.stageSound({ tick: 0, kind: "kick", note: 0, ticks: 8 }, 0);
+    audio.stage(false);
     assert.equal(created, 0);
   } finally {
     audio.configure(false, false);
