@@ -23,7 +23,6 @@ import {
 import {
   STAGE_DAILY_XP,
   STAGE_SCORE_LIMIT,
-  STAGE_STAR_XP,
   type Save,
 } from "./state";
 import type { Sfx } from "./audio";
@@ -53,6 +52,11 @@ const AHEAD = 96;
 const CUE = 12;
 /** The dance style is a preference of this device, not of the save. */
 const STYLE_KEY = "darecade-stage-style";
+const SESSIONS: { id: StageMode; name: string; hint: string }[] = [
+  { id: "warmup", name: "Warm-up", hint: "Practice" },
+  { id: "show", name: "Show", hint: "Stars + XP" },
+  { id: "encore", name: "Encore", hint: "Faster" },
+];
 const esc = (text: string) =>
   text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 function savedStyle() {
@@ -83,7 +87,7 @@ export function mountStage(
   root.className = "activity activity-stage";
   host.replaceChildren(root);
   const live = () => root.isConnected && !!root.closest("dialog")?.open;
-  root.innerHTML = `<h2>Open Stage</h2><div id="stage-progress"></div><label class="field-label" for="stage-mode">Choose your session</label><select class="destination-select" id="stage-mode"><option value="warmup">Warm-up · learn the beat</option><option value="show">Show · stars & XP</option><option value="encore">Encore · faster, double arrows</option></select><label class="field-label" for="stage-style">Dance style</label><select class="destination-select" id="stage-style">${STAGE_STYLES.map((s, i) => `<option value="${i}">${s.name} · ${s.hint}</option>`).join("")}</select><p class="lead" id="stage-goal"></p><div class="stage-screen"><div class="stage-view"></div><div class="stage-hud"><span><span id="stage-score-label">SCORE</span><b id="stage-score">0</b></span><span>COMBO<b id="stage-combo">0</b></span><span class="stage-hype">HYPE<i><b id="stage-hype"></b></i></span></div><ol class="stage-board" id="stage-board" aria-label="Party scores" hidden></ol><div class="stage-cheers" aria-hidden="true"></div><div class="stage-call" role="status" aria-live="polite"></div><canvas class="stage-notes" width="360" height="220" aria-hidden="true"></canvas></div><div class="stage-lanes">${ARROWS.map((a, i) => `<button data-lane="${i}" style="--lane:${COLOURS[i]}" aria-label="Lane ${i + 1}" disabled>${a}</button>`).join("")}</div><button class="stage-fever" id="stage-fever" data-state="filling" disabled><i><b id="stage-fever-fill"></b></i><span id="stage-fever-label">Fever</span></button><p class="activity-status" role="status"></p><button class="primary" id="stage-start">Start the show →</button><p class="fine-print" id="stage-note"></p><section class="stage-party" aria-labelledby="stage-party-title"><h3 id="stage-party-title">Stage Party</h3><div id="party-out"><p class="fine-print">Dance the same song with up to ${PARTY_CAP - 1} friends, live.</p><div class="party-row"><button class="text-button" id="party-host">Host a party</button><input id="party-code" maxlength="4" placeholder="CODE" aria-label="Party code" autocomplete="off" autocapitalize="characters" spellcheck="false"><button class="text-button" id="party-join">Join</button></div></div><div id="party-in" hidden><p class="party-code">Party code <b id="party-code-shown"></b><button class="text-button" id="party-copy">Copy</button></p><ul id="party-list"></ul><div class="party-row" role="group" aria-label="Cheer">${PARTY_CHEERS.map((c, i) => `<button class="party-cheer" data-cheer="${i}" aria-label="Cheer ${c}">${c}</button>`).join("")}</div><button class="primary" id="party-start">Start the party show →</button><button class="text-button" id="party-leave">Leave party</button></div><p class="party-status" id="party-status" role="status"></p></section>`;
+  root.innerHTML = `<h2>Open Stage</h2><div class="stage-setup"><fieldset class="stage-pick" id="stage-mode"><legend>Session</legend>${SESSIONS.map((m) => `<button type="button" data-mode="${m.id}"><b>${m.name}</b><small>${m.hint}</small></button>`).join("")}</fieldset><fieldset class="stage-pick" id="stage-style"><legend>Dance style</legend>${STAGE_STYLES.map((s, i) => `<button type="button" data-style="${i}" title="${s.hint}">${s.name}</button>`).join("")}</fieldset></div><div class="stage-screen"><div class="stage-view"></div><div class="stage-hud"><span><span id="stage-score-label">SCORE</span><b id="stage-score">0</b></span><span>COMBO<b id="stage-combo">0</b></span><span class="stage-hype">HYPE<i><b id="stage-hype"></b></i></span></div><ol class="stage-board" id="stage-board" aria-label="Party scores" hidden></ol><div class="stage-cheers" aria-hidden="true"></div><div class="stage-call" role="status" aria-live="polite"></div><canvas class="stage-notes" width="360" height="220" aria-hidden="true"></canvas><div class="stage-intro"><p class="activity-status" role="status"></p><p id="stage-goal"></p><button class="primary" id="stage-start">Start the show →</button></div></div><div class="stage-lanes">${ARROWS.map((a, i) => `<button data-lane="${i}" style="--lane:${COLOURS[i]}" aria-label="Lane ${i + 1}" disabled>${a}</button>`).join("")}</div><button class="stage-fever" id="stage-fever" data-state="filling" disabled><i><b id="stage-fever-fill"></b></i><span id="stage-fever-label">Fever</span></button><p class="fine-print" id="stage-note"></p><div id="stage-progress"></div><section class="stage-party" aria-labelledby="stage-party-title"><h3 id="stage-party-title">Stage Party</h3><div id="party-out"><p class="fine-print">Dance the same song with up to ${PARTY_CAP - 1} friends, live.</p><div class="party-row"><button class="text-button" id="party-host">Host a party</button><input id="party-code" maxlength="4" placeholder="CODE" aria-label="Party code" autocomplete="off" autocapitalize="characters" spellcheck="false"><button class="text-button" id="party-join">Join</button></div></div><div id="party-in" hidden><p class="party-code">Party code <b id="party-code-shown"></b><button class="text-button" id="party-copy">Copy</button></p><ul id="party-list"></ul><div class="party-row" role="group" aria-label="Cheer">${PARTY_CHEERS.map((c, i) => `<button class="party-cheer" data-cheer="${i}" aria-label="Cheer ${c}">${c}</button>`).join("")}</div><button class="primary" id="party-start">Start the party show →</button><button class="text-button" id="party-leave">Leave party</button></div><p class="party-status" id="party-status" role="status"></p></section>`;
   const find = <T extends HTMLElement>(selector: string) =>
     root.querySelector<T>(selector)!;
   const canvas = find<HTMLCanvasElement>(".stage-notes");
@@ -122,19 +126,26 @@ export function mountStage(
     announced = 0,
     settling = false;
   const cheered = new Map<number, number>();
-  const mode = find<HTMLSelectElement>("#stage-mode");
-  const style = find<HTMLSelectElement>("#stage-style");
+  const modes = find<HTMLFieldSetElement>("#stage-mode");
+  const modeButtons = Array.from(
+    root.querySelectorAll<HTMLButtonElement>("[data-mode]"),
+  );
+  const styleButtons = Array.from(
+    root.querySelectorAll<HTMLButtonElement>("[data-style]"),
+  );
   const goal = find("#stage-goal");
-  mode.value = ctx.save.stageBest === 0 ? "warmup" : "show";
-  style.value = String(savedStyle());
-  const styleIndex = () =>
-    Math.max(0, Math.min(STAGE_STYLES.length - 1, Number(style.value) || 0));
-  const selected = (): StageMode =>
-    mode.value === "warmup"
-      ? "warmup"
-      : mode.value === "encore"
-        ? "encore"
-        : "show";
+  let mode: StageMode = ctx.save.stageBest === 0 ? "warmup" : "show",
+    style = savedStyle();
+  /** Marks the chosen session and style on their buttons. */
+  const mark = () => {
+    modes.dataset.value = mode;
+    modeButtons.forEach((b) =>
+      b.setAttribute("aria-pressed", String(b.dataset.mode === mode)),
+    );
+    styleButtons.forEach((b, i) =>
+      b.setAttribute("aria-pressed", String(i === style)),
+    );
+  };
   const active = () => !!show && !show.ended;
   const stars = (done: StageShow) => {
     // Stars judge timing alone; the Fever bonus only raises the score.
@@ -142,29 +153,30 @@ export function mountStage(
     return done.booed ? Math.min(1, earned) : earned;
   };
   const note = () => {
-    const warmup = mode.value === "warmup",
-      encore = mode.value === "encore";
+    const warmup = mode === "warmup",
+      encore = mode === "encore";
+    mark();
     find("#stage-score-label").textContent = warmup ? "NOTES" : "SCORE";
     find(".stage-hype").hidden = warmup;
     feverButton.hidden = warmup;
     goal.textContent = warmup
-      ? `Land ${STAGE_WARMUP_GOAL} notes. Use the two outer lanes: ← / → or A / D. No booing, no XP or saved score.`
+      ? `Hit ${STAGE_WARMUP_GOAL} arrows on the line: ← → or A D.`
       : encore
-        ? "A faster song with double arrows: press both lanes together. Aim for a star: 30% of a perfect show."
-        : "Press each arrow on the beat of the song. Aim for a star: 30% of a perfect show. Four lanes, left to right: ← ↓ ↑ → or A S W D.";
+        ? "Double arrows: press both together."
+        : "Hit each arrow on the line: ← ↓ ↑ → or A S W D.";
     start.textContent = warmup
       ? "Start warm-up →"
       : encore
         ? "Start the encore →"
         : "Start the show →";
     find("#stage-note").textContent = warmup
-      ? "A slower 40-second rehearsal. Choose Show whenever you’re ready."
-      : `+${STAGE_STAR_XP} XP a star, up to ${STAGE_DAILY_XP} XP a day. Hype runs out if too many notes are missed. Fill the Fever bar, then tap it or press Space for double points; stars still judge your timing.`;
+      ? ""
+      : "Fever full? Tap it or press Space for double points.";
     find("#stage-progress").innerHTML = stageProgress(ctx.save);
   };
   const resetHud = () => {
     find("#stage-score").textContent =
-      mode.value === "warmup" ? `0 / ${STAGE_WARMUP_GOAL}` : "0";
+      mode === "warmup" ? `0 / ${STAGE_WARMUP_GOAL}` : "0";
     find("#stage-combo").textContent = "0";
     delete root.dataset.left;
     delete root.dataset.fever;
@@ -179,7 +191,7 @@ export function mountStage(
   /** Who may press what, from the show and the party as they stand. */
   const controls = () => {
     const hosting = !!room && room.you === room.host;
-    mode.disabled = active() || (!!room && !hosting);
+    modes.disabled = active() || (!!room && !hosting);
     start.hidden = active() || settling || !!room;
     hostButton.disabled = joinButton.disabled = settling;
     root.dataset.party = String(!!room);
@@ -286,7 +298,7 @@ export function mountStage(
   };
   /** What this dancer tells the party at each poll. */
   const report = (): PartyTick => {
-    const tick: PartyTick = { style: styleIndex() };
+    const tick: PartyTick = { style };
     if (!room || !show || !startAt || round !== room.round) return tick;
     return {
       ...tick,
@@ -335,10 +347,10 @@ export function mountStage(
     const hosting = snapshot.you === snapshot.host;
     if (
       !active() &&
-      mode.value !== snapshot.mode &&
-      (!hosting || mode.value === "warmup")
+      mode !== snapshot.mode &&
+      (!hosting || mode === "warmup")
     ) {
-      mode.value = snapshot.mode;
+      mode = snapshot.mode;
       show = null;
       resetHud();
       note();
@@ -349,7 +361,7 @@ export function mountStage(
       snapshot.players.find((p) => p.slot === snapshot.you)?.playing
     ) {
       round = snapshot.round;
-      mode.value = snapshot.mode;
+      mode = snapshot.mode;
       note();
       begin(snapshot.seed, snapshot.mode, snapshot.startAt);
     }
@@ -368,7 +380,7 @@ export function mountStage(
   };
   hostButton.addEventListener("click", () => {
     partyStatus.textContent = "Opening the stage…";
-    const chosen: PartyMode = mode.value === "encore" ? "encore" : "show";
+    const chosen: PartyMode = mode === "encore" ? "encore" : "show";
     client.host(chosen).catch(partyError);
   });
   joinButton.addEventListener("click", () => {
@@ -398,24 +410,35 @@ export function mountStage(
       }),
   );
 
-  mode.addEventListener("change", () => {
-    if (room && mode.value === "warmup") {
+  modeButtons.forEach((button) =>
+    button.addEventListener("click", () => {
+      const next = button.dataset.mode as StageMode;
+      if (modes.disabled) return;
       // Warm-up is a rehearsal for one; a party plays Show or Encore.
-      mode.value = room.mode;
-      partyStatus.textContent = "Warm-up is for practising alone.";
-    } else if (room) client.setMode(selected() as PartyMode).catch(partyError);
-    show = null;
-    resetHud();
-    note();
-  });
-  style.addEventListener("change", () => {
-    try {
-      localStorage.setItem(STYLE_KEY, STAGE_STYLES[styleIndex()].id);
-    } catch {
-      // Private browsing: the style lasts for this visit.
-    }
-    view?.setStyle(STAGE_STYLES[styleIndex()].id, !active());
-  });
+      if (room && next === "warmup")
+        partyStatus.textContent = "Warm-up is for practising alone.";
+      else {
+        mode = next;
+        if (room) client.setMode(next as PartyMode).catch(partyError);
+      }
+      show = null;
+      resetHud();
+      note();
+    }),
+  );
+  styleButtons.forEach((button, index) =>
+    button.addEventListener("click", () => {
+      style = index;
+      try {
+        localStorage.setItem(STYLE_KEY, STAGE_STYLES[style].id);
+      } catch {
+        // Private browsing: the style lasts for this visit.
+      }
+      mark();
+      // Choosing a style shows its four moves.
+      view?.setStyle(STAGE_STYLES[style].id, !active());
+    }),
+  );
   resetHud();
   note();
   controls();
@@ -427,7 +450,7 @@ export function mountStage(
           ctx.save,
           reduced,
         );
-        view.setStyle(STAGE_STYLES[styleIndex()].id);
+        view.setStyle(STAGE_STYLES[style].id);
       }
     })
     // The note highway is the whole game; the scene is decoration.
@@ -486,7 +509,7 @@ export function mountStage(
     if (done.mode === "warmup") {
       lanes.forEach((b) => (b.disabled = true));
       const hits = done.counts.perfect + done.counts.great + done.counts.good;
-      status.textContent = `${hits} notes landed · ${hits >= STAGE_WARMUP_GOAL ? "Warm-up goal complete! Ready for the show?" : `Try for ${STAGE_WARMUP_GOAL} next time. You can take your time here.`} No XP or best score changed.`;
+      status.textContent = `${hits} landed · ${hits >= STAGE_WARMUP_GOAL ? "Ready for the Show?" : `Aim for ${STAGE_WARMUP_GOAL}.`}`;
       ctx.sound(hits >= STAGE_WARMUP_GOAL ? "win" : "finish");
       note();
       status.scrollIntoView({ block: "nearest" });
@@ -507,14 +530,14 @@ export function mountStage(
     if (!live()) return;
     const gain = ctx.save.xp - before;
     status.textContent =
-      `${done.booed ? "The crowd needs a breather. Try Warm-up to find the beat. " : ""}${"★".repeat(earned)}${"☆".repeat(3 - earned)} · ${score} points · best combo ${done.bestCombo}` +
+      `${done.booed ? "Booed off. Try Warm-up. " : ""}${"★".repeat(earned)}${"☆".repeat(3 - earned)} · ${score} points · best combo ${done.bestCombo}` +
       (done.fevers
         ? ` · ${done.fevers} Fever${done.fevers > 1 ? "s" : ""}`
         : "") +
       (gain > 0
         ? ` · +${gain} XP`
         : earned && ctx.save.stageXp >= STAGE_DAILY_XP
-          ? " · today's stage XP is all earned"
+          ? " · daily XP earned"
           : "");
     controls();
     note();
@@ -522,7 +545,7 @@ export function mountStage(
   };
   start.addEventListener("click", () => {
     const seed = Math.floor(Math.random() * 2 ** 31);
-    begin(seed, selected());
+    begin(seed, mode);
   });
   const draw = (tick: number) => {
     c.clearRect(0, 0, 360, 220);

@@ -24,6 +24,10 @@ const compiled = ts.transpileModule(
 
 class Element extends EventTarget {
   scrollIntoView() {}
+  attributes: Record<string, string> = {};
+  setAttribute(name: string, value: string) {
+    this.attributes[name] = value;
+  }
   append() {}
   remove() {}
   innerHTML = "";
@@ -51,8 +55,20 @@ class Element extends EventTarget {
     return this.elements.get(selector)!;
   }
   private cheers = Array.from({ length: 4 }, () => new EventTarget());
+  private picks?: Record<string, Element[]>;
   querySelectorAll(selector: string) {
     if (selector === "[data-cheer]") return this.cheers;
+    if (selector === "[data-mode]" || selector === "[data-style]") {
+      this.picks ??= {
+        "[data-mode]": ["warmup", "show", "encore"].map((mode) =>
+          Object.assign(new Element(), { dataset: { mode } }),
+        ),
+        "[data-style]": [0, 1, 2, 3].map((style) =>
+          Object.assign(new Element(), { dataset: { style: String(style) } }),
+        ),
+      };
+      return this.picks[selector];
+    }
     assert.equal(selector, "[data-lane]");
     return this.lanes;
   }
@@ -254,9 +270,15 @@ function harness(save = state.fresh()) {
     emit,
     show: () => shows.at(-1)!,
     start: () => emit(find("#stage-start"), "click"),
+    modes: root.querySelectorAll("[data-mode]") as Element[],
+    styles: root.querySelectorAll("[data-style]") as Element[],
     mode(value: rules.StageMode) {
-      find("#stage-mode").value = value;
-      emit(find("#stage-mode"), "change");
+      emit(
+        (root.querySelectorAll("[data-mode]") as Element[]).find(
+          (button) => button.dataset.mode === value,
+        )!,
+        "click",
+      );
     },
     key(key: string, repeat = false) {
       emit(window, "keydown", { key, repeat });
@@ -293,8 +315,13 @@ function play(h: ReturnType<typeof harness>, hitLimit = Infinity) {
 test("a new performer defaults to two-lane warmup and can choose the existing Show", () => {
   const h = harness();
   try {
-    assert.equal(h.find("#stage-mode").value, "warmup");
-    assert.match(h.find("#stage-goal").textContent, /No booing, no XP/);
+    assert.equal(h.find("#stage-mode").dataset.value, "warmup");
+    assert.match(h.find("#stage-goal").textContent, /← → or A D/);
+    assert.equal(h.find("#stage-note").textContent, "");
+    assert.deepEqual(
+      h.modes.map((button) => button.attributes["aria-pressed"]),
+      ["true", "false", "false"],
+    );
     assert.equal(h.find(".stage-hype").hidden, true);
     h.start();
     assert.equal(h.find("#stage-mode").disabled, true);
@@ -320,6 +347,34 @@ test("a new performer defaults to two-lane warmup and can choose the existing Sh
   }
 });
 
+test("session and dance style are one tap each before a show and locked during it", () => {
+  const h = harness();
+  try {
+    // The panel opens idle, so both choices can be made first.
+    assert.equal(h.find("#stage-start").hidden, false);
+    assert.equal(h.find("#stage-mode").disabled, false);
+    h.mode("encore");
+    assert.equal(h.find("#stage-mode").dataset.value, "encore");
+    assert.deepEqual(
+      h.modes.map((button) => button.attributes["aria-pressed"]),
+      ["false", "false", "true"],
+    );
+    h.emit(h.styles[2], "click");
+    assert.deepEqual(
+      h.styles.map((button) => button.attributes["aria-pressed"]),
+      ["false", "false", "true", "false"],
+    );
+    h.start();
+    assert.equal(h.show().mode, "encore");
+    assert.equal(h.find("#stage-mode").disabled, true);
+    h.mode("warmup");
+    assert.equal(h.find("#stage-mode").dataset.value, "encore");
+    assert.equal(h.show().mode, "encore");
+  } finally {
+    h.dispose();
+  }
+});
+
 test("meeting the five-note warmup goal leaves saved progress and rewards untouched", () => {
   const h = harness();
   const before = structuredClone(h.save);
@@ -327,13 +382,9 @@ test("meeting the five-note warmup goal leaves saved progress and rewards untouc
     h.start();
     play(h, rules.STAGE_WARMUP_GOAL);
     assert.equal(h.show().counts.perfect, rules.STAGE_WARMUP_GOAL);
-    assert.match(
+    assert.equal(
       h.find(".activity-status").textContent,
-      /Warm-up goal complete/,
-    );
-    assert.match(
-      h.find(".activity-status").textContent,
-      /No XP or best score changed/,
+      `${rules.STAGE_WARMUP_GOAL} landed · Ready for the Show?`,
     );
     assert.ok(h.sounds.includes("win"));
     assert.deepEqual(h.save, before);
@@ -384,7 +435,7 @@ test("a returning performer's Show reports once and preserves the existing daily
   });
   const h = harness(save);
   try {
-    assert.equal(h.find("#stage-mode").value, "show");
+    assert.equal(h.find("#stage-mode").dataset.value, "show");
     assert.match(h.find("#stage-progress").innerHTML, /Best show: 5000 points/);
     h.start();
     play(h);
@@ -415,8 +466,8 @@ test("a missed original Show keeps zero-star rewards and suggests the available 
     h.start();
     play(h, 0);
     await nextTurn();
-    // The fifth note is missed once the Good window has passed it.
-    assert.equal(h.show().tick, h.show().notes[4].tick + rules.STAGE_GOOD + 1);
+    // The seventh note is missed once the Good window has passed it.
+    assert.equal(h.show().tick, h.show().notes[6].tick + rules.STAGE_GOOD + 1);
     assert.equal(h.show().booed, true);
     assert.equal(h.reports.length, 1);
     assert.deepEqual(JSON.parse(JSON.stringify(h.reports[0])), {
@@ -555,7 +606,7 @@ test("an Encore with Fever reports the bonus score but stars from timing alone",
   try {
     h.mode("encore");
     assert.match(h.find("#stage-start").textContent, /encore/);
-    assert.match(h.find("#stage-goal").textContent, /double arrows/);
+    assert.match(h.find("#stage-goal").textContent, /Double arrows/);
     assert.equal(h.find("#stage-fever").hidden, false);
     h.start();
     assert.equal(h.show().mode, "encore");
@@ -718,7 +769,7 @@ test("a party show starts on the shared clock, reports this dancer's show and cr
     );
     // Warm-up is not a party session; Encore is, and the host chooses.
     h.mode("warmup");
-    assert.equal(h.find("#stage-mode").value, "show");
+    assert.equal(h.find("#stage-mode").dataset.value, "show");
     h.mode("encore");
     h.click("#party-start");
     h.emit(h.cheers[2], "click");
@@ -732,7 +783,7 @@ test("a party show starts on the shared clock, reports this dancer's show and cr
     party.clock = 1000;
     party.push(snapshot("running"));
     assert.equal(h.show().mode, "show");
-    assert.equal(h.find("#stage-mode").value, "show");
+    assert.equal(h.find("#stage-mode").dataset.value, "show");
     assert.equal(h.find("#stage-mode").disabled, true);
     assert.equal(h.find("#party-start").hidden, true);
     assert.equal(h.find("#stage-board").hidden, false);
@@ -806,7 +857,7 @@ test("a guest follows the host's session, watches a round in progress, and a los
   try {
     party.clock = 9000;
     party.push(snapshot("waiting", { you: 1, mode: "encore" }));
-    assert.equal(h.find("#stage-mode").value, "encore");
+    assert.equal(h.find("#stage-mode").dataset.value, "encore");
     assert.equal(h.find("#stage-mode").disabled, true);
     assert.equal(h.find("#party-start").hidden, true);
     assert.match(h.find("#party-status").textContent, /Waiting for the host/);

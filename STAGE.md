@@ -33,6 +33,14 @@ Warm-up and the Show's chart, scoring, stars and XP are as they were.
 - **Timing is kinder.** Good used to end at 150 ms and now reaches 200 ms, and **Great** sits between Perfect and Good, so a near miss of Perfect pays 75 instead of 50. Great raises the hype by 0.03 (Perfect 0.04, Good 0.02). A show of Greats earns two stars; a show of Goods still earns one.
 - Notes in one lane are at least 22 ticks apart, so at the very fastest two Good windows (24 ticks) overlap by 2. The earlier note takes the press, as it always has.
 
+## One-tap choices and a kinder crowd — 11 October 2026
+
+- **The stage opens idle.** It used to start a show the moment it opened, which hid and locked the session and dance style before anyone could choose them. Now nothing starts until **Start** is pressed.
+- **Session** (Warm-up, Show, Encore) and **Dance style** (Pop, Disco, Street, Robot) are rows of buttons above the stage, one tap each, in place of two dropdowns. They are put away during a show and locked for a party guest.
+- **Start, one line of instruction and the last result sit on the stage itself.** The longer rules were removed from the panel; the progress card moved below the lanes.
+- **Slightly easier.** A miss costs 0.08 hype (was 0.12) and a stray press 0.03 (was 0.05), so a show is booed off after seven misses in a row, not five. Perfect is within 5 ticks, about 83 ms (was 4, 67 ms), and Great within 9, about 150 ms (was 8, 133 ms). Good is still 12 ticks, 200 ms.
+- The charts, the songs, the points, the perfect score, the star shares, XP and the daily cap are unchanged. The earlier sections of this file give the old figures.
+
 ## Stage Party
 
 Under the stage, **Host a party** gives a four-letter code; a friend types it and presses **Join**. Up to four dancers share a party. The host chooses Show or Encore and starts; everyone gets the same song and a four-second countdown to the same moment.

@@ -789,7 +789,6 @@ function open(id: string) {
         return profileQueue;
       },
     });
-    body.querySelector<HTMLButtonElement>("#stage-start")?.click();
     return;
   }
   if (id === "invite") {
