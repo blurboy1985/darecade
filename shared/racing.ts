@@ -143,7 +143,20 @@ const CRAB_SPEED = 95;
 export const WAVE_RANGE = 14;
 export const SPIN_TICKS = 75;
 const STORM_TICKS = 180;
-const CPU_CRATE_PERCENT = 22;
+const CPU_CRATE_PERCENT = 40;
+/** Two karts touch inside this box: nose to tail, and door to door. */
+export const KART_LENGTH = 1.8;
+export const KART_WIDTH = 1.35;
+/** The most a touching kart is pushed across the road in one tick. */
+const PUSH = 0.12;
+const SLIDE_OFF = 5 / 60;
+/** Pace of a kart rubbing against another, and how long the rub lingers. */
+const RUB = 0.8;
+const RUB_TICKS = 6;
+/** How fast a computer kart moves across the road, and how far back it looks. */
+const CPU_STEER = 3.5;
+const BLOCK_RANGE = 9;
+const CPU_AGGRESSION_PERCENT = 65;
 export type TurboTier = "Mini" | "Super" | "Ultra";
 export const RIVALS = [
   { name: "Marina", pace: 24.2, color: "#ab94ed" },
@@ -202,6 +215,10 @@ export type Racer = {
   item: RaceItem;
   /** Ticks until a computer kart uses the item it holds. */
   itemDelay: number;
+  /** Ticks left rubbing against another kart. */
+  rub: number;
+  /** The line a computer kart returns to when the road is clear. */
+  lane?: number;
   /** Another player sliding: 1 left, -1 right. */
   drift?: number;
 };
@@ -226,6 +243,8 @@ export function racer(
     boost: 0,
     item: null,
     itemDelay: 0,
+    rub: 0,
+    lane: offset,
   };
 }
 export type Hit = {
@@ -241,6 +260,36 @@ function mix(h: number) {
 }
 const lapGap = (from: number, to: number) =>
   (((to - from) % TRACK_LENGTH) + TRACK_LENGTH) % TRACK_LENGTH;
+/** How far `to` is ahead of `from` around the lap. Negative when it is behind. */
+function ahead(from: Racer, to: Racer) {
+  const gap = to.distance - from.distance;
+  // Most karts are within half a lap of each other, which needs no wrapping.
+  return Math.abs(gap) < TRACK_LENGTH / 2
+    ? gap
+    : lapGap(-TRACK_LENGTH / 2, gap) - TRACK_LENGTH / 2;
+}
+const onRoad = (k: Racer) => !k.finishTick && k.distance >= 0;
+/**
+ * Where kart `o` touches kart `k`, or nothing when they are apart. `tail` is
+ * nose to tail rather than door to door, and `away` is the side `k` gives way to.
+ */
+function contact(k: Racer, o: Racer) {
+  if (!onRoad(o)) return null;
+  const gap = ahead(k, o),
+    side = o.offset - k.offset;
+  const across = KART_WIDTH - Math.abs(side);
+  if (Math.abs(gap) >= KART_LENGTH || across <= 0) return null;
+  // On the same line, the kart behind pulls out towards the middle of the road.
+  const away = side
+    ? -Math.sign(side)
+    : (gap > 0 ? -1 : 1) * (Math.sign(k.offset) || 1);
+  return {
+    gap,
+    across,
+    away,
+    tail: across / KART_WIDTH > (KART_LENGTH - Math.abs(gap)) / KART_LENGTH,
+  };
+}
 
 /**
  * Everything on the road that is not a driver's own steering: computer karts,
@@ -268,7 +317,7 @@ export class RaceField {
   private readonly before: number[];
   private readonly seed: number;
   private readonly cpuItems: boolean;
-  /** cpuItems: whether computer karts collect and use items. */
+  /** cpuItems: whether computer karts collect and use items, and block and lean on other karts. */
   constructor(karts: Racer[], seed: number, cpuItems: boolean) {
     this.karts = karts;
     this.seed = seed;
@@ -382,7 +431,12 @@ export class RaceField {
         r.shield = Math.max(0, r.shield - dt);
         r.boost = Math.max(0, r.boost - dt);
         const pace =
-          r.pace * (r.spin ? 0.3 : (r.slow ? 0.55 : 1) * (r.boost ? 1.3 : 1));
+          r.pace *
+          (r.spin
+            ? 0.3
+            : (r.slow ? 0.55 : 1) * (r.boost ? 1.3 : 1) * (r.rub ? RUB : 1));
+        if (r.rub) r.rub--;
+        if (!r.spin) this.steer(r, index, dt);
         const top = this.limit ? this.limit(r, index, pace) : pace;
         r.speed =
           r.speed > top
@@ -407,6 +461,9 @@ export class RaceField {
         this.knock(index, coconut.owner, "coconut");
       }
     });
+    this.karts.forEach((r, index) => {
+      if (r.pace && onRoad(r)) this.touch(r, index, dt);
+    });
     for (let i = this.missiles.length - 1; i >= 0; i--) {
       const m = this.missiles[i],
         r = this.karts[m.target];
@@ -417,6 +474,98 @@ export class RaceField {
         this.knock(m.target, m.owner, m.crab ? "crab" : "missile");
         this.missiles.splice(i, 1);
       } else if (r ? r.finishTick : m.ticks > 90) this.missiles.splice(i, 1);
+    }
+  }
+  /**
+   * A computer kart picks its line: round a slower kart ahead and, when it is
+   * in the mood, across the road to block a kart catching it or lean on one
+   * alongside. Otherwise it returns to its own lane.
+   */
+  private steer(r: Racer, index: number, dt: number) {
+    // Only karts close enough to block, pass or lean on matter here.
+    const near: { o: Racer; gap: number }[] = [];
+    for (const o of this.karts) {
+      if (o === r || !onRoad(o)) continue;
+      const gap = ahead(r, o);
+      if (Math.abs(gap) < BLOCK_RANGE) near.push({ o, gap });
+    }
+    let aim = r.lane ?? r.offset,
+      target: Racer | null = null;
+    // The mood changes every second and a half, so no kart fights all race.
+    const mood = mix(
+      this.seed ^
+        Math.imul(index, 0x27d4eb2f) ^
+        Math.imul(Math.floor(this.ticks / 90), 0x165667b1),
+    );
+    if (this.cpuItems && mood % 100 < CPU_AGGRESSION_PERCENT) {
+      let nearest = BLOCK_RANGE;
+      for (const { o, gap } of near) {
+        if (
+          o.shield > 0 ||
+          o.spin ||
+          gap >= KART_LENGTH ||
+          Math.abs(gap) >= nearest ||
+          (gap <= -KART_LENGTH && o.speed <= r.speed + 0.5)
+        )
+          continue;
+        nearest = Math.abs(gap);
+        target = o;
+      }
+      if (target) aim = target.offset;
+    }
+    const clear = KART_WIDTH + 0.3;
+    for (const { o, gap } of near) {
+      if (
+        o === target ||
+        gap <= -KART_LENGTH - 0.3 ||
+        gap >= 7 ||
+        (gap >= KART_LENGTH + 0.3 && o.speed >= r.speed) ||
+        Math.abs(aim - o.offset) >= clear
+      )
+        continue;
+      const side = r.offset - o.offset;
+      aim =
+        o.offset +
+        (Math.abs(side) > 0.3 ? Math.sign(side) : o.offset > 0 ? -1 : 1) *
+          clear;
+    }
+    const edge = ROAD_HALF_WIDTH - 0.7;
+    const turn = Math.max(
+      -CPU_STEER * dt,
+      Math.min(CPU_STEER * dt, aim - r.offset),
+    );
+    r.offset = Math.max(-edge, Math.min(edge, r.offset + turn));
+  }
+  /**
+   * Karts are solid. A computer kart that runs into the back of another is
+   * held behind it and slides off to one side; door to door they push each
+   * other apart. Either way it rubs speed off. A driver's kart does the same
+   * for itself in `CoastRace`, so each kart gives way for its own half.
+   */
+  private touch(r: Racer, index: number, dt: number) {
+    for (const o of this.karts) {
+      const c = o === r ? null : contact(r, o);
+      // A shielded kart keeps its line and its speed.
+      if (!c || r.shield > 0) continue;
+      const behind = c.tail && c.gap > 0;
+      if (behind) {
+        r.distance = Math.max(
+          r.distance - r.speed * dt,
+          r.distance - (KART_LENGTH - c.gap),
+        );
+        this.before[index] = Math.min(this.before[index], r.distance);
+      }
+      const push = c.tail
+        ? Math.min(c.across, SLIDE_OFF)
+        : Math.min(c.across / 2, PUSH);
+      r.offset = Math.max(-WALL, Math.min(WALL, r.offset + c.away * push));
+      if (c.tail && !behind) {
+        // Hit from behind: shoved forwards a little, and not slowed.
+        if (!r.spin) r.speed += Math.max(0, o.speed - r.speed) * 0.02;
+        continue;
+      }
+      if (!r.rub) r.speed *= 0.9;
+      r.rub = RUB_TICKS;
     }
   }
   /** A computer kart collects a crate it drives through and uses it a moment later. */
@@ -430,8 +579,7 @@ export class RaceField {
           r.distance >= c.distance + lap * TRACK_LENGTH,
       );
       if (crate < 0) return;
-      // Computer karts take about one crate row in three, so items stay an
-      // event rather than a barrage.
+      // Computer karts take most of the crate rows they drive through.
       const roll = mix(
         this.seed ^
           Math.imul(this.ticks, 0x9e3779b1) ^
@@ -439,20 +587,36 @@ export class RaceField {
       );
       if (roll % 100 >= CPU_CRATE_PERCENT) return;
       r.item = this.draw(index, lap, crate);
-      r.itemDelay = 50 + ((roll >>> 8) % 170);
+      r.itemDelay = 20 + ((roll >>> 8) % 70);
       return;
     }
     if (--r.itemDelay > 0 || r.spin) return;
-    const others = this.karts.filter((k) => k !== r && !k.finishTick);
+    const others = this.karts.filter((k) => k !== r && onRoad(k));
+    // Every item waits for someone to use it on: a kart ahead to fire at, one
+    // close behind to drop a coconut in front of, a missile to shield against.
     const useful =
       r.item === "wave"
         ? others.some((k) => Math.abs(k.distance - r.distance) < WAVE_RANGE)
         : r.item === "missile" || r.item === "storm" || r.item === "crab"
           ? others.some((k) => k.distance > r.distance)
-          : true;
-    // Holds an item with no target for up to ten seconds, then lets it go.
-    if (useful) this.use(index, r.item);
-    else if (r.itemDelay > -600) return;
+          : r.item === "coconut"
+            ? others.some(
+                (k) => k.distance < r.distance && k.distance > r.distance - 25,
+              )
+            : r.item === "shield"
+              ? this.missiles.some(
+                  (m) =>
+                    this.karts[m.target] === r && m.distance > r.distance - 30,
+                )
+              : true;
+    // With no target for four seconds, a shield or coconut is used anyway and
+    // anything else is let go.
+    if (
+      useful ||
+      (r.itemDelay <= -240 && (r.item === "shield" || r.item === "coconut"))
+    )
+      this.use(index, r.item);
+    else if (r.itemDelay > -240) return;
     r.item = null;
   }
 }
@@ -485,6 +649,7 @@ export class CoastRace implements Racer {
   finishTick = 0;
   item: RaceItem = null;
   itemDelay = 0;
+  rub = 0;
   pickupCount = 0;
   lastTurbo: TurboTier | null = null;
   /** Rivals spun out by this kart's items, and times this kart was spun or slowed. */
@@ -657,6 +822,7 @@ export class CoastRace implements Racer {
             : CRUISE;
     if (this.slow) target *= 0.6;
     if (this.scraping && this.shield <= 0) target *= 0.72;
+    else if (this.rub) target *= RUB;
     const acceleration =
       throttle < 0 || this.spin ? 30 : this.speed > target ? 18 : 12;
     this.speed += Math.max(
@@ -680,26 +846,37 @@ export class CoastRace implements Racer {
       if (this.bump(0.82)) this.charge = 0;
     }
     this.distance = Math.min(RACE_DISTANCE, this.distance + this.speed * dt);
+    if (this.rub) this.rub--;
     for (const r of this.rivals) {
-      const gap =
-        ((((r.distance - this.distance) % TRACK_LENGTH) + TRACK_LENGTH * 1.5) %
-          TRACK_LENGTH) -
-        TRACK_LENGTH / 2;
-      if (
-        r.finishTick ||
-        Math.abs(gap) >= 1.8 ||
-        Math.abs(r.offset - this.offset) >= 1.35
-      )
-        continue;
-      // Karts shove each other apart and both lose a little speed. A shielded
-      // kart keeps its line and its speed.
-      if (this.bumpCooldown > 0) continue;
-      if (this.shield > 0) this.bumpCooldown = 0.7;
-      else {
-        this.bump(0.86);
-        this.lateralSpeed += Math.sign(this.offset - r.offset || 1) * 5;
+      const c = contact(this, r);
+      // Karts are solid: this one is held behind a kart it runs into and
+      // slides off to one side, and door to door the two push each other
+      // apart. The first touch knocks speed off and the rub holds it down.
+      // A shielded kart keeps its line and its speed.
+      if (!c || this.shield > 0) continue;
+      const behind = c.tail && c.gap > 0;
+      if (behind)
+        this.distance = Math.max(
+          previous,
+          this.distance - (KART_LENGTH - c.gap),
+        );
+      const push = c.tail
+        ? Math.min(c.across, SLIDE_OFF)
+        : Math.min(c.across / 2, PUSH);
+      this.offset = Math.max(
+        -WALL,
+        Math.min(WALL, this.offset + c.away * push),
+      );
+      if (this.lateralSpeed * c.away < 0) this.lateralSpeed = 0;
+      if (c.tail && !behind) {
+        // Hit from behind: shoved forwards a little, and not slowed.
+        this.speed += Math.max(0, r.speed - this.speed) * 0.02;
+        if (this.bump(1)) this.lateralSpeed += c.away * 2;
+      } else {
+        // One knock as they meet. Staying in contact is a rub, not more knocks.
+        if (!this.rub && this.bump(0.86)) this.lateralSpeed += c.away * 3;
+        this.rub = RUB_TICKS;
       }
-      if (r.pace && !this.versus) r.speed *= 0.92;
     }
     if (this.spin) this.spin--;
     if (this.slow) this.slow--;

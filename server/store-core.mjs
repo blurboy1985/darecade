@@ -80,6 +80,13 @@ export class StoreCore {
     this.driftFrom = this.db
       .prepare("SELECT value FROM rules WHERE key='coast_drift_from'")
       .get().value;
+    // First day of solid karts. Earlier days settle on the rules before them.
+    this.db
+      .prepare("INSERT OR IGNORE INTO rules VALUES('coast_contact_from',?)")
+      .run(day(this.now()));
+    this.contactFrom = this.db
+      .prepare("SELECT value FROM rules WHERE key='coast_contact_from'")
+      .get().value;
     this.rulesFrom = this.db
       .prepare("SELECT value FROM rules WHERE key='daily_rules_from'")
       .get().value;
@@ -253,7 +260,9 @@ export class StoreCore {
             ? 2
             : before <= boundary(this.driftFrom)
               ? 3
-              : COAST_RULES_VERSION,
+              : before <= boundary(this.contactFrom)
+                ? 4
+                : COAST_RULES_VERSION,
         after,
         before,
       );

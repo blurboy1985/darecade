@@ -171,7 +171,13 @@ test("the room moves computer karts on the clock, relays positions, and keeps a 
   assert.equal(snapshot.data.k, 60);
   assert.deepEqual(s[0], [12, 1.5, 9, FLAG.boost, 0]);
   assert.ok(s[2][0] > gridPlace(2).distance, "computer karts have set off");
-  assert.equal(s[2][2], 6, "at six units a second after one second");
+  // Six units a second after one second, less what it rubbed off on the
+  // player still parked on the grid in front of it.
+  assert.ok(s[2][2] > 4 && s[2][2] <= 6, String(s[2][2]));
+  assert.ok(
+    s[2][0] <= gridPlace(0).distance - 1.8 || Math.abs(s[2][1] - 2.2) > 1.05,
+    "and it is squeezing round that kart, not driving through it",
+  );
   // Snapshots are paced, not sent for every message.
   room.receive(ids[1], { t: "s", s: [11, -2, 9, 0] }, t.wait(10));
   assert.equal(of(room.drain(), "w").length, 0);
@@ -224,20 +230,24 @@ test("items used by one player reach the others as hits, and a shield reported b
   });
   assert.equal(room.field!.missiles[0].target, 0);
   // Items cannot be spammed, and only real items count.
+  const usedByPlayer = () =>
+    of(room.drain(), "used").filter((m) => m.data.kart === 1).length;
   room.receive(ids[1], { t: "use", item: "wave" }, t.wait(100));
-  assert.equal(of(room.drain(), "used").length, 0);
+  assert.equal(usedByPlayer(), 0);
   room.receive(ids[1], { t: "s", s: [31, 0, 23, 0] }, t.wait(500));
   out = room.drain();
-  assert.deepEqual(of(out, "hit")[0].data, {
+  // Computer karts are firing too, so pick out player 1's missile.
+  const struck = of(out, "hit").find((m) => m.data.by === 1)!;
+  assert.deepEqual(struck.data, {
     t: "hit",
     kind: "spin",
     kart: 0,
     by: 1,
     item: "missile",
   });
-  assert.equal(of(out, "hit")[0].to, null, "every player sees the hit");
+  assert.equal(struck.to, null, "every player sees the hit");
   room.receive(ids[1], { t: "use", item: "nuke" }, t.wait(500));
-  assert.equal(of(room.drain(), "used").length, 0);
+  assert.equal(usedByPlayer(), 0);
   // A wave from player 0 reaches player 1 ten units back, unless shielded.
   room.receive(ids[1], { t: "s", s: [32, 0, 23, FLAG.shield] }, t.wait(10));
   room.receive(ids[0], { t: "use", item: "wave" }, t.wait(10));

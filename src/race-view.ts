@@ -170,6 +170,9 @@ export class RaceView {
     cloud: T.Mesh;
     bubble: T.Mesh;
     slip: number;
+    /** Last offset drawn, and the turn of the nose from moving across the road. */
+    side: number;
+    veer: number;
   }[] = [];
   private readonly missiles: { rocket: T.Group; crab: T.Group }[] = [];
   private readonly cloud: T.Mesh;
@@ -553,7 +556,16 @@ export class RaceView {
         0,
       );
       bubble.visible = false;
-      this.rivals.push({ kart, avatar, wheels, cloud, bubble, slip: 0 });
+      this.rivals.push({
+        kart,
+        avatar,
+        wheels,
+        cloud,
+        bubble,
+        slip: 0,
+        side: NaN,
+        veer: 0,
+      });
     });
   }
   /** A storm cloud sits over a kart while it is slowed. */
@@ -1329,6 +1341,16 @@ export class RaceView {
         : (r.drift ??
           (Math.abs(curve) > 1 / 30 && r.speed > 12 ? Math.sign(curve) : 0));
       rival.slip += (drift * SLIP - rival.slip) * ease(7);
+      // A kart moving across the road, to block or to get round another,
+      // points the way it is going.
+      const offset = motion?.rivals[i].offset ?? r.offset;
+      const across =
+        dt > 0 && Number.isFinite(rival.side) && !r.finishTick
+          ? (offset - rival.side) / dt / Math.max(r.speed, 8)
+          : 0;
+      rival.side = offset;
+      rival.veer +=
+        (Math.max(-0.3, Math.min(0.3, across)) - rival.veer) * ease(8);
       const spin =
         r.spin && !r.finishTick && !this.reduced
           ? (1 - r.spin / SPIN_TICKS) * Math.PI * 4
@@ -1336,7 +1358,7 @@ export class RaceView {
       kart.position.set(at.x, 0.15, at.z);
       kart.rotation.set(
         0,
-        at.yaw + rival.slip + spin,
+        at.yaw + rival.slip + rival.veer + spin,
         this.reduced ? 0 : rival.slip * 0.16,
       );
       rival.cloud.visible = r.slow > 0 && !r.finishTick;
