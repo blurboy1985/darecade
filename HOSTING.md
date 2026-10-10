@@ -1,5 +1,17 @@
 # Cloudflare hosting
 
+## Coast Rush solid karts and fighting rivals — deployed 10 October 2026
+
+PR #76 was merged (`b92937e`) and `main` was deployed as Worker version **`5acb88de-c855-49d7-b6c6-e4313c496043`**. The PR was a draft because nobody had driven it; the owner said to merge and deploy it anyway. Before merging, the branch with `main` merged in passed `npm test` (540 pass, 0 fail, 49 browser checks skipped) and all 17 Cloudflare integration tests, including the build and dry run. `main` after the merge is the same tree as the one tested.
+
+Karts in Coast Rush are now solid, for drivers and computer karts alike, and computer karts take about twice as many items and block or lean on other karts. A first race has no rival items and no blocking.
+
+**Rules version 5.** The replayed simulation changed, so Coast Rush moves to rules version 5. On its first start the server writes `coast_contact_from` into the `rules` table with that day's date, and races from before that day settle under version 4. A saved `coastRecord` of version 4 is moved to `coastLegacyBest`, so every player's next race is a first finish again. This is the same path as versions 2, 3 and 4. No schema, migration, binding, variable or secret changed.
+
+After deploying: health returned `ready: true`; the live HTML and all 18 script and style files matched the local build byte-for-byte, including `race-view-C2lUQuo9.js`; unauthenticated state returned 401, auth config 200 and a private server path 404; the old address still answered. No race was run in production and nothing was tried on a phone. The cost of replaying a race on Cloudflare was not measured; locally it is 14.6 ms against 8.3 ms before.
+
+Rollback: redeploy `675a630`. That does not undo the rules change for players: `coast_contact_from` stays in the database, and a browser that has loaded this version holds a version 5 record, which the older code sets aside as a legacy best. Races in progress ended with the deployment.
+
 ## Open Stage song and timing, world chat window — deployed 10 October 2026
 
 PR #74 (`bfd0a53`) and PR #75 (`6d944aa`) were merged in that order and `main` was deployed as Worker version **`1e032892-48cd-4190-98ff-db9b248d059a`**. Before merging, the two branches merged together passed `npm test` (536 pass, 0 fail, 49 browser checks skipped) and all 17 Cloudflare integration tests, including the build and dry run. `main` after both merges is the same tree as the one tested.
