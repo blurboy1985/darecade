@@ -261,6 +261,10 @@ const handler = async (req, res) => {
         respond(community.patch(player, data));
         return;
       }
+      if (req.method === "POST" && url.pathname.startsWith("/api/stage/")) {
+        respond(community.stage.request(player, url.pathname.slice(11), data));
+        return;
+      }
       if (req.method === "POST" && url.pathname === "/api/progress") {
         respond(community.progression(player, data.event, data.value));
         return;

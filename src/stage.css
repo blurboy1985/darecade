@@ -163,3 +163,227 @@
   font-size: 14px;
   margin: 4px 0;
 }
+.activity-stage #stage-style {
+  max-width: 420px;
+}
+.activity-stage[data-playing="true"] #stage-style,
+.activity-stage[data-playing="true"] .kit-select:has(#stage-style),
+.activity-stage[data-playing="true"][data-party="true"] .stage-party {
+  display: none;
+}
+/* Fever: a bar that fills under the lanes, then a button to spend it. */
+.stage-fever {
+  position: relative;
+  width: min(100%, 420px);
+  min-height: 40px;
+  border: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #2f3558;
+  color: #fff7d7;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  touch-action: none;
+  user-select: none;
+}
+.stage-fever[hidden] {
+  display: none;
+}
+.stage-fever i {
+  position: absolute;
+  inset: 0;
+}
+.stage-fever i b {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #ff8fb8, #ffe27a);
+  opacity: 0.55;
+}
+.stage-fever span {
+  position: relative;
+}
+.stage-fever:disabled {
+  opacity: 1;
+  color: #dfe3ffb3;
+}
+.stage-fever[data-state="ready"] {
+  color: #1b1d38;
+  box-shadow: 0 0 0 3px #ffe27a;
+  animation: stage-fever-ready 0.7s ease-in-out infinite alternate;
+}
+.stage-fever[data-state="ready"] i b,
+.stage-fever[data-state="lit"] i b {
+  opacity: 1;
+}
+.stage-fever[data-state="lit"] {
+  color: #1b1d38;
+}
+@keyframes stage-fever-ready {
+  to {
+    transform: scale(1.03);
+  }
+}
+.activity-stage[data-fever="true"] .stage-screen {
+  box-shadow:
+    0 0 0 3px #ffe27a,
+    0 0 26px #ff8fb8;
+}
+/* Stage Party: the scoreboard and cheers sit over the scene. */
+.stage-board {
+  position: absolute;
+  inset: 40px 8px auto auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 3px;
+  width: min(46%, 170px);
+  pointer-events: none;
+}
+.stage-board[hidden] {
+  display: none;
+}
+.stage-board li {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 3px 7px;
+  border-radius: 8px;
+  border-left: 5px solid var(--slot);
+  background: #0b0c1acc;
+  color: #dfe3ff;
+  font-size: 12px;
+  font-weight: 700;
+}
+.stage-board li span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.stage-board li b {
+  color: #fff7d7;
+}
+.stage-board li[data-you="true"] {
+  background: #2f3558f2;
+  box-shadow: 0 0 0 1px #fff7d7;
+}
+.stage-board li[data-fever="true"] b {
+  color: #ffe27a;
+}
+.stage-board li[data-out="true"] {
+  opacity: 0.55;
+}
+.stage-cheers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.stage-cheers span {
+  position: absolute;
+  bottom: 30%;
+  font-size: 30px;
+  animation: stage-cheer 1.6s ease-out forwards;
+}
+@keyframes stage-cheer {
+  from {
+    transform: translateY(0) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(-20px) scale(1.15);
+  }
+  to {
+    transform: translateY(-150px) scale(1);
+    opacity: 0;
+  }
+}
+.stage-party {
+  width: min(100%, 420px);
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  background: #2f355814;
+  box-shadow: inset 0 0 0 2px #2f355833;
+}
+.stage-party h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.stage-party p {
+  margin: 0;
+}
+.stage-party #party-out,
+.stage-party #party-in {
+  display: grid;
+  gap: 8px;
+}
+.stage-party #party-out[hidden],
+.stage-party #party-in[hidden],
+.stage-party #party-start[hidden] {
+  display: none;
+}
+.party-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+#party-code {
+  width: 5.5em;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 2px solid #2f3558;
+  border-radius: 10px;
+  font:
+    700 18px "Space Grotesk",
+    sans-serif;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  text-align: center;
+}
+.party-code b {
+  margin: 0 8px;
+  font:
+    700 22px "Space Grotesk",
+    sans-serif;
+  letter-spacing: 4px;
+}
+#party-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+}
+#party-list li {
+  padding: 4px 8px;
+  border-left: 6px solid var(--slot);
+  border-radius: 6px;
+  background: #ffffff8c;
+  font-weight: 700;
+}
+#party-list li[data-away="true"] {
+  opacity: 0.55;
+}
+.party-cheer {
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 12px;
+  background: #ffffffb3;
+  font-size: 22px;
+}
+.party-status {
+  font-weight: 700;
+}
+.party-status:empty {
+  display: none;
+}
+html.reduced .stage-fever[data-state="ready"],
+html.reduced .stage-cheers span {
+  animation: none;
+}

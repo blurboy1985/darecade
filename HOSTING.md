@@ -1,5 +1,19 @@
 # Cloudflare hosting
 
+## Coast Rush multiplayer and chat, bigger action prompt, Open Stage party — deployed 10 October 2026
+
+PRs #67 (`b74d211`) and #69 (`c8f3ace`) were merged and `main` was deployed as Worker version **`74aaede0-dae7-49fd-9263-26a7c79514a4`** at about **14:42 SGT**. The previous deployment was PR #65 (`4da7d3f`, version `9d12a1ea-df2c-4fad-a983-0843ab8cf65e`), so this one also carries #66 (an ignore rule), #68 (live multiplayer Coast Rush) and #70 (quick chat in race rooms) into production for the first time.
+
+Both open branches conflicted with `main` in `PLAN.md` only. `main` was merged into each and the branch's plan kept; nothing was force-pushed. Before #69 was merged, its branch held exactly the tree that became `main` (`384a589`), and on it 564 Node tests ran (515 passed, 49 browser checks skipped) and all 16 Cloudflare integration tests passed, including the build and dry run.
+
+After deploying: health returned `ready: true`; the live `index.html` matched the local build byte-for-byte and referenced `index-GHqD6uxl.js`; that file, `main-fdpy-6Oj.js`, `main-Ct0OjJvm.css`, `stage-view-BqhesCLM.js`, `stage-moves-kntQLZvl.js`, `race-view-D0cjuDXK.js`, `state-DbckJvOK.js` and `character-jUuAnb2i.js` also matched; the previous `index-C7o4rCJX.js` returned 404; unauthenticated state and `POST /api/stage/host` returned 401 and a private server path 404; `/api/race/connect` refused a bad code with 400 and another site with 403; the old address still answered. In headless Chromium the live page reached the welcome check with no page or console errors.
+
+**New binding and migration:** `RACE` points at the new SQLite Durable Object class `Race`, added by migration `v3`. `Neighbourhood`, `World` and their data are untouched. No variable or secret changed. Stage Party rooms are held in memory, so every later deployment ends the parties in progress, as it ends races in progress.
+
+Not verified in production: anything behind the welcome check. No production profile was created, so the `Race` object has not been reached live (it sits behind sign-in), and no multiplayer race, chat line, Stage Party, Fever or Encore show was played. The bigger action prompt was not seen on the live site. Phones were not tried.
+
+Rollback: redeploy `4da7d3f` with the `RACE` binding and the `v3` migration left in `wrangler.jsonc`; a deployed migration cannot be dropped by removing it from the file.
+
 ## Lobby music in the intro film's style — deployed 8 October 2026
 
 PR #60 was merged (`cd20115`) and `main` was deployed as Worker version **`75e90f4a-e292-4d42-beae-60ae2d096854`** about twelve minutes after the intro film below. Before merging, 519 Node tests ran (470 passed, 49 browser checks skipped) and all 15 Cloudflare integration tests passed, including the build and dry run.
