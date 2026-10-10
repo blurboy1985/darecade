@@ -5,11 +5,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   STAGE_GOOD,
+  STAGE_GREAT,
   STAGE_LANES,
   STAGE_PERFECT,
   STAGE_TICKS,
   STAGE_WARMUP_GOAL,
   StageShow,
+  stageBeat,
   stageChart,
   stageMaxScore,
   stageStars,
@@ -80,6 +82,68 @@ test("timing decides the score: perfect beats good, and combos multiply", () => 
   assert.equal(perfect.tick, STAGE_TICKS);
 });
 
+test("a press is Perfect, Great or Good by how close it is, early or late", () => {
+  const max = stageMaxScore(7);
+  for (const late of [STAGE_PERFECT + 1, STAGE_GREAT, -STAGE_GREAT]) {
+    const great = play(7, late);
+    assert.equal(great.counts.great, great.notes.length, `${late} ticks`);
+    assert.equal(great.score, max * 0.75);
+    assert.equal(great.booed, false);
+    assert.equal(stageStars(great.score, max), 2);
+  }
+  for (const late of [STAGE_GREAT + 1, STAGE_GOOD, -STAGE_GOOD]) {
+    const good = play(7, late);
+    assert.equal(good.counts.good, good.notes.length, `${late} ticks`);
+    assert.equal(good.score, max * 0.5);
+  }
+  // A fifth of a second either side still lands: kinder than the old 150 ms.
+  assert.ok(STAGE_GOOD / 60 >= 0.2);
+  assert.ok(STAGE_PERFECT < STAGE_GREAT && STAGE_GREAT < STAGE_GOOD);
+  const early = play(7, -STAGE_GOOD - 1);
+  assert.equal(
+    early.counts.perfect + early.counts.great + early.counts.good,
+    0,
+  );
+  assert.ok(early.counts.stray > 0, "too soon is a stray press");
+  // Great fills the Fever bar and the hype between Perfect and Good.
+  const one = (late: number) => {
+    const show = new StageShow(7);
+    while (show.tick < show.notes[0].tick + late - 1)
+      show.advance([false, false, false, false]);
+    const pressed = [false, false, false, false];
+    pressed[show.notes[0].lane] = true;
+    show.advance(pressed);
+    return show;
+  };
+  const [perfect, great, good] = [0, STAGE_GREAT, STAGE_GOOD].map(one);
+  assert.deepEqual(
+    [perfect, great, good].map((s) => s.last?.judgement),
+    ["perfect", "great", "good"],
+  );
+  assert.ok(perfect.fever > great.fever && great.fever > good.fever);
+  assert.ok(perfect.hype > great.hype && great.hype > good.hype);
+  assert.ok(good.hype > 0.5);
+});
+
+test("every arrow of every session falls on a beat or half-beat of its song", () => {
+  for (const mode of ["warmup", "show", "encore"] as const)
+    for (const seed of [1, 7, 42]) {
+      const first = mode === "warmup" ? 150 : 120,
+        beats = new Set<number>();
+      for (let tick = first; tick < STAGE_TICKS; ) {
+        const beat = stageBeat(tick, mode);
+        beats.add(tick).add(tick + Math.round(beat / 2));
+        tick += beat;
+      }
+      for (const note of stageChart(seed, mode))
+        assert.ok(beats.has(note.tick), `${mode} ${seed} tick ${note.tick}`);
+    }
+  // The beat quickens from 100 to about 165 a minute.
+  assert.equal(stageBeat(0), 36);
+  assert.equal(stageBeat(STAGE_TICKS - 61), 22);
+  assert.equal(stageBeat(0, "encore"), 32);
+});
+
 test("misses and stray presses drain the hype until the show is booed off", () => {
   const idle = play(7, 99999);
   assert.equal(idle.booed, true);
@@ -96,7 +160,7 @@ test("misses and stray presses drain the hype until the show is booed off", () =
   assert.equal(mash.score, after);
   // Just outside the window is a miss, not a late hit.
   const late = play(7, STAGE_GOOD + 1);
-  assert.equal(late.counts.perfect + late.counts.good, 0);
+  assert.equal(late.counts.perfect + late.counts.great + late.counts.good, 0);
 });
 
 test("the default and explicit Show retain the original seeded chart and rewards score", () => {
@@ -111,7 +175,8 @@ test("the default and explicit Show retain the original seeded chart and rewards
     explicit.advance([false, false, false, false]);
   }
   assert.deepEqual(original, explicit);
-  assert.equal(original.tick, 253);
+  // The fifth note is missed once the Good window has passed it.
+  assert.equal(original.tick, original.notes[4].tick + STAGE_GOOD + 1);
   assert.equal(original.counts.miss, 5);
   assert.equal(original.booed, true);
 });

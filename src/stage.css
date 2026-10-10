@@ -91,6 +91,9 @@
 .stage-call[data-judgement="perfect"] {
   color: #ffe27a;
 }
+.stage-call[data-judgement="great"] {
+  color: #7fe3e0;
+}
 .stage-call[data-judgement="miss"],
 .stage-call[data-judgement="stray"] {
   color: #ff9a8a;

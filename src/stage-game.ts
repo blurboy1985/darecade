@@ -30,6 +30,7 @@ import type { Sfx } from "./audio";
 import { loadCharacter } from "./character";
 import type { StageParty, StageView } from "./stage-view";
 import { STAGE_STYLES } from "./stage-moves";
+import { stageSong, type StageSound } from "./stage-song";
 import { PartyClient } from "./stage-party";
 import { stageProgress } from "./progression-guide";
 import "./stage.css";
@@ -41,13 +42,15 @@ const KEYS: Record<string, number> = {
   arrowdown: 1,
   arrowup: 2,
   arrowright: 3,
-  d: 0,
-  f: 1,
-  j: 2,
-  k: 3,
+  a: 0,
+  s: 1,
+  w: 2,
+  d: 3,
 };
 /** Notes are drawn this many ticks before they reach the line. */
 const AHEAD = 96;
+/** The song is handed to the sound clock this many ticks before it is heard. */
+const CUE = 12;
 /** The dance style is a preference of this device, not of the save. */
 const STYLE_KEY = "darecade-stage-style";
 const esc = (text: string) =>
@@ -68,6 +71,11 @@ export function mountStage(
   ctx: {
     save: Save;
     sound: (name: Sfx) => void;
+    /** The show's song: hush quiets the background theme while it plays. */
+    song: {
+      hush: (on: boolean) => void;
+      play: (sound: StageSound, delay: number) => void;
+    };
     report: (event: string, value?: unknown) => Promise<void>;
   },
 ) {
@@ -100,7 +108,10 @@ export function mountStage(
     judged = 0,
     last = performance.now(),
     accumulator = 0,
-    lastLane = 0;
+    lastLane = 0,
+    song: StageSound[] = [],
+    cued = 0,
+    hushed = false;
   // Stage Party: the room as the server last described it, the round this
   // browser's show belongs to, and the server time that show begins.
   let room: PartySnapshot | null = null,
@@ -137,10 +148,10 @@ export function mountStage(
     find(".stage-hype").hidden = warmup;
     feverButton.hidden = warmup;
     goal.textContent = warmup
-      ? `Land ${STAGE_WARMUP_GOAL} notes. Use the two outer lanes: ← / → or D / K. No booing, no XP or saved score.`
+      ? `Land ${STAGE_WARMUP_GOAL} notes. Use the two outer lanes: ← / → or A / D. No booing, no XP or saved score.`
       : encore
         ? "A faster song with double arrows: press both lanes together. Aim for a star: 30% of a perfect show."
-        : "Aim for a star: 30% of a perfect show. Four lanes, left to right: ← ↓ ↑ → or D F J K.";
+        : "Press each arrow on the beat of the song. Aim for a star: 30% of a perfect show. Four lanes, left to right: ← ↓ ↑ → or A S W D.";
     start.textContent = warmup
       ? "Start warm-up →"
       : encore
@@ -252,6 +263,8 @@ export function mountStage(
 
   const begin = (seed: number, chosen: StageMode, at = 0) => {
     show = new StageShow(seed, chosen);
+    song = stageSong(seed, chosen, show.notes);
+    cued = 0;
     max = chosen === "warmup" ? 1 : stageMaxScore(seed, chosen);
     startAt = at;
     counting = at > 0;
@@ -282,7 +295,7 @@ export function mountStage(
       combo: Math.min(999, show.combo),
       hype: Math.max(0, Math.min(1, show.hype)),
       fever: show.feverTicks > 0,
-      hits: show.counts.perfect + show.counts.good,
+      hits: show.counts.perfect + show.counts.great + show.counts.good,
       lane: lastLane,
       done: show.ended,
       booed: show.booed,
@@ -472,7 +485,7 @@ export function mountStage(
     controls();
     if (done.mode === "warmup") {
       lanes.forEach((b) => (b.disabled = true));
-      const hits = done.counts.perfect + done.counts.good;
+      const hits = done.counts.perfect + done.counts.great + done.counts.good;
       status.textContent = `${hits} notes landed · ${hits >= STAGE_WARMUP_GOAL ? "Warm-up goal complete! Ready for the show?" : `Try for ${STAGE_WARMUP_GOAL} next time. You can take your time here.`} No XP or best score changed.`;
       ctx.sound(hits >= STAGE_WARMUP_GOAL ? "win" : "finish");
       note();
@@ -544,6 +557,7 @@ export function mountStage(
     if (!root.isConnected) {
       window.removeEventListener("keydown", keyDown);
       window.removeEventListener("pagehide", pageHide);
+      if (hushed) ctx.song.hush(false);
       client.leave();
       view?.dispose();
       return;
@@ -561,6 +575,8 @@ export function mountStage(
       call.textContent = "Dance!";
     }
     const playing = active() && live() && wait <= 0;
+    // The show has a song of its own, so the background theme waits for it.
+    if (hushed !== (active() && live())) ctx.song.hush((hushed = !hushed));
     if (playing) {
       accumulator += dt;
       while (accumulator >= 1 / 60 && !show!.ended) {
@@ -569,30 +585,46 @@ export function mountStage(
         accumulator -= 1 / 60;
       }
       const s = show!;
-      const total =
-        s.counts.perfect + s.counts.good + s.counts.miss + s.counts.stray;
+      // Cued from the show's own clock, so the song cannot drift from the arrows.
+      const heard = s.tick + accumulator * 60;
+      while (!s.ended && cued < song.length && song[cued].tick <= heard + CUE) {
+        const sound = song[cued++];
+        ctx.song.play(sound, (sound.tick - heard) / 60);
+      }
+      const hits = s.counts.perfect + s.counts.great + s.counts.good,
+        total = hits + s.counts.miss + s.counts.stray;
       if (total !== judged && s.last) {
         judged = total;
         const j = s.last.judgement;
-        if (j === "perfect" || j === "good") lastLane = s.last.lane;
-        ctx.sound(j === "perfect" ? "coin" : j === "good" ? "blip" : "paddle");
+        if (j !== "miss" && j !== "stray") lastLane = s.last.lane;
+        ctx.sound(
+          j === "perfect"
+            ? "coin"
+            : j === "great"
+              ? "blip"
+              : j === "good"
+                ? "eat"
+                : "paddle",
+        );
         call.textContent =
           j === "perfect"
             ? "PERFECT!"
-            : j === "good"
-              ? "Good"
-              : j === "miss"
-                ? s.mode === "warmup"
-                  ? "Next one!"
-                  : "Miss"
-                : "Too soon";
+            : j === "great"
+              ? "Great!"
+              : j === "good"
+                ? "Good"
+                : j === "miss"
+                  ? s.mode === "warmup"
+                    ? "Next one!"
+                    : "Miss"
+                  : "Too soon";
         call.dataset.judgement = j;
         if (j === "miss" && !reduced) navigator.vibrate?.(30);
         if (room) renderBoard();
       }
       find("#stage-score").textContent =
         s.mode === "warmup"
-          ? `${s.counts.perfect + s.counts.good} / ${STAGE_WARMUP_GOAL}`
+          ? `${hits} / ${STAGE_WARMUP_GOAL}`
           : String(Math.round(s.score));
       find("#stage-combo").textContent =
         s.combo + (s.multiplier > 1 ? ` ×${s.multiplier}` : "");
