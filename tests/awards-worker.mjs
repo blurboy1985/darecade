@@ -1,9 +1,10 @@
 // Test-only clock control. This module is never deployed.
 import worker, {
   Neighbourhood,
+  Race,
   World,
 } from "../.browser/cloudflare-bundle/worker.js";
-export { World };
+export { Race, World };
 export class AwardsNeighbourhood extends Neighbourhood {
   async runAwardAlarm(time) {
     this.store.now = () => time;

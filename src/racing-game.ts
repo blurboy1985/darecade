@@ -18,8 +18,12 @@ import {
   raceScoreTime,
   trackBounds,
   trackPoint,
+  type CoastRace,
   type RaceItem,
+  type Racer,
 } from "../shared/racing";
+import { ROOM_CODE } from "../shared/race-room";
+import { RaceNet, type Go, type ResultRow, type RoomState } from "./race-net";
 import { loadCharacter, type Look } from "./character";
 import { audio, type Sfx, type Theme } from "./audio";
 import type { FxEvent } from "./arcade-fx";
@@ -38,7 +42,17 @@ const ITEM_NAMES: Record<NonNullable<RaceItem>, string> = {
   missile: "🚀 Missile",
   storm: "🌩 Storm",
   coconut: "🥥 Coconut",
+  wave: "🌊 Wave",
+  crab: "🦀 Crab",
 };
+const safe = (text: string) =>
+  text.replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ]!,
+  );
 // The minimap fits whatever route the simulation defines.
 const MAP_SCALE = Math.min(
   160 / (trackBounds.maxX - trackBounds.minX),
@@ -52,6 +66,15 @@ export class RacingGame {
   onPause: ((paused: boolean) => void) | null = null;
   private lastPop = 0;
   private readonly sim: Simulation;
+  /** The solo race the server will replay, or the kart this player drives in a room. */
+  private race: CoastRace;
+  private net: RaceNet | null = null;
+  private room: RoomState | null = null;
+  private grid: Go["karts"] = [];
+  private you = 0;
+  private results: ResultRow[] | null = null;
+  private card = "";
+  private readonly lobby: HTMLElement;
   private view: RaceView | null = null;
   private readonly motion = new RaceMotion();
   private readonly events: Replay["events"] = [];
@@ -119,8 +142,9 @@ export class RacingGame {
     },
   ) {
     this.sim = new Simulation("coast", seed);
+    this.race = this.sim.race!;
     this.reduced = options.reduced;
-    this.assist = !!options.assist || this.sim.race!.novice;
+    this.assist = !!options.assist || this.race.novice;
     this.targetTicks =
       options.target > 0
         ? RACE_TICKS + 1 - options.target
@@ -133,32 +157,33 @@ export class RacingGame {
       matchMedia("(any-pointer: coarse)").matches);
     const use = touch ? "Tap ITEM" : "Press E";
     container.innerHTML = `<section class="coast-game" tabindex="-1" aria-label="Coast Rush street race">
-      <div class="race-head"><span>PALM BAY <b>3 LAPS · 8 KARTS</b></span><span>7 GAME CHARACTERS</span></div>
+      <div class="race-head"><span>PALM BAY <b>3 LAPS · 8 KARTS</b></span><span id="race-field">7 GAME CHARACTERS</span></div>
       <div class="race-screen">
         <div class="race-view"></div>
-        <div class="race-hud"><span class="stat-pill place-pill"><small>PLACE</small><b id="race-place">8th / 8</b></span><span class="stat-pill score-pill"><small>TIME</small><b id="run-score">0:00.00</b></span><span id="run-state">LAP <b id="race-lap">1 / 3</b></span><span class="stat-pill time-pill"><small>TIME LEFT</small><b id="run-time">${this.sim.race!.limitTicks / 60}s</b></span></div>
+        <div class="race-hud"><span class="stat-pill place-pill"><small>PLACE</small><b id="race-place">8th / 8</b></span><span class="stat-pill score-pill"><small>TIME</small><b id="run-score">0:00.00</b></span><span id="run-state">LAP <b id="race-lap">1 / 3</b></span><span class="stat-pill time-pill"><small>TIME LEFT</small><b id="run-time">${this.race.limitTicks / 60}s</b></span></div>
         <div class="game-pops" aria-hidden="true"></div>
-        <canvas class="race-map" width="180" height="130" aria-label="All eight karts. You are coral with a white ring. Seven coloured dots are game characters. Red squares are missiles and brown squares are coconuts."></canvas>
+        <canvas class="race-map" width="180" height="130" aria-label="All eight karts. You are coral with a white ring. The other coloured dots are rival karts. Red squares are missiles, orange squares are crabs and brown squares are coconuts."></canvas>
         <div class="race-speed"><b id="race-speed">0</b><span>KM/H</span></div>
         <button class="race-item" data-race-control="item" aria-label="Use held item"><span id="race-item-label">ITEM</span><b id="race-item">Empty</b><small id="race-pickups">🐚 0 / ${SHELLS}</small></button><div class="race-notice" role="status" aria-live="polite">Loading your driver…</div>
         <div class="race-finish" role="status" hidden></div>
-        <div class="race-pause" hidden><h3>Taking a breather</h3><button class="primary" data-resume-race>Resume</button><button class="secondary" data-quit-race>Quit race</button></div><div class="race-cover"><span class="eyebrow">PLAY SIMI / ISLAND CIRCUIT</span><h3>COAST<br><em>RUSH</em></h3>${options.progress ? coastProgress(options.progress) : "<p>Your avatar. Seven rivals. Three laps.</p>"}<progress class="race-loading" max="3" value="0" aria-label="Loading race"></progress><button class="primary" id="start-game" disabled>Getting your kart ready…</button><button class="race-sound" data-race-sound></button><details class="race-guide"><summary>Controls & items</summary><div class="race-instructions">${touch ? "<span>STEER<br><b>Joystick</b></span><span>DRIVE<br><b>Tap GO</b></span><span>DRIFT<br><b>Hold, then release</b></span>" : "<span>DRIVE<br><b>W A S D</b></span><span>DRIFT<br><b>Hold SPACE</b></span><span>ITEM<br><b>Tap E</b></span>"}</div><ul class="race-legend"><li><b>🎁 Crates</b>Each gives one of five items at random. <span class="race-use">${use}</span> to use it.</li><li class="race-items"><span><b>🛡 Shield</b>blocks hits for 3s</span><span><b>⚡ Turbo</b>2s speed burst</span><span><b>🚀 Missile</b>spins the kart in front</span><span><b>🌩 Storm</b>slows every kart ahead</span><span><b>🥥 Coconut</b>dropped behind you; spins a chaser</span></li><li><b>🐚 Shells</b>Bonus pickups, 12 a lap. They never change your time or medals.</li></ul><p class="race-tip"><span class="race-tip-input">${touch ? "Tap GO once and the kart keeps driving; pull the joystick down to brake. Hold DRIFT through a bend, then let go for a Mini, Super or Ultra turbo." : "Hold W to go. A/D steer, S brakes. Hold Space through a bend, then release for a Mini, Super or Ultra turbo."}</span> At turbo speed the tight bends push you wide unless you drift. A hit costs a 0.75s stop.${options.assist ? " Until your first finish, the kart steers itself back from the road edge when you are not steering." : ""}</p><small>Same kart for everyone · ${this.sim.race!.novice ? "3 minute first-finish" : "2 minute"} limit · Pause or P stops the clock<br>7 rivals are game characters, not real players.</small></details></div>
+        <div class="race-pause" hidden><h3>Taking a breather</h3><button class="primary" data-resume-race>Resume</button><button class="secondary" data-quit-race>Quit race</button></div><div class="race-cover"><span class="eyebrow">PLAY SIMI / ISLAND CIRCUIT</span><h3>COAST<br><em>RUSH</em></h3>${options.progress ? coastProgress(options.progress) : "<p>Your avatar. Seven rivals. Three laps.</p>"}<progress class="race-loading" max="3" value="0" aria-label="Loading race"></progress><button class="primary" id="start-game" disabled>Getting your kart ready…</button><button class="secondary race-versus" id="versus-open" disabled>👥 Race friends live</button><div class="race-lobby" hidden></div><button class="race-sound" data-race-sound></button><details class="race-guide"><summary>Controls & items</summary><div class="race-instructions">${touch ? "<span>STEER<br><b>Joystick</b></span><span>DRIVE<br><b>Tap GO</b></span><span>DRIFT<br><b>Hold, then release</b></span>" : "<span>DRIVE<br><b>W A S D</b></span><span>DRIFT<br><b>Hold SPACE</b></span><span>ITEM<br><b>Tap E</b></span>"}</div><ul class="race-legend"><li><b>🎁 Crates</b>Each gives one of seven items at random. <span class="race-use">${use}</span> to use it.</li><li class="race-items"><span><b>🛡 Shield</b>blocks bumps and items for 3s</span><span><b>⚡ Turbo</b>2s speed burst</span><span><b>🚀 Missile</b>spins the kart in front</span><span><b>🌩 Storm</b>slows every kart ahead</span><span><b>🥥 Coconut</b>dropped behind you; spins a chaser</span><span><b>🌊 Wave</b>spins every kart close to you</span><span><b>🦀 Crab</b>chases down the leader</span></li><li><b>🐚 Shells</b>Bonus pickups, 12 a lap. They never change your time or medals.</li></ul><p class="race-tip"><span class="race-tip-input">${touch ? "Tap GO once and the kart keeps driving; pull the joystick down to brake. Hold DRIFT through a bend, then let go for a Mini, Super or Ultra turbo." : "Hold W to go. A/D steer, S brakes. Hold Space through a bend, then release for a Mini, Super or Ultra turbo."}</span> The hairpins push you wide unless you drift or brake. Walls and bumps only rub off speed; rivals use items too.${options.assist ? " Until your first finish, the kart steers itself back from the road edge when you are not steering." : ""}</p><small>Same kart for everyone · ${this.race.novice ? "3 minute first-finish" : "2 minute"} limit · Pause or P stops the clock<br>In a solo race the 7 rivals are game characters, not real players.</small></details></div>
       </div>
       <div class="race-charge"><label for="drift-charge">DRIFT TURBO <span id="drift-label">Hold ${touch ? "DRIFT" : "Space"} while moving</span></label><meter id="drift-charge" min="0" max="1" low=".333" optimum="1" value="0">0</meter></div>
       <div class="race-touch" aria-label="Driving controls"><div class="race-steer">${joystickMarkup("Steer")}</div><div class="race-pedals"><button data-race-control="drift">DRIFT</button><button data-race-control="gas" aria-pressed="false">GO</button></div></div>
-      <div class="race-footer"><span class="race-footer-guidance">${touch ? "Tap GO to drive · pull the joystick down to brake" : "Hold W or tap GO to drive · Hits cost a 0.75s stop"}</span><span><button class="text-button" data-race-sound></button><button class="text-button" id="pause-game" disabled>Pause</button></span></div>
+      <div class="race-footer"><span class="race-footer-guidance">${touch ? "Tap GO to drive · pull the joystick down to brake" : "Hold W or tap GO to drive · Space to drift"}</span><span><button class="text-button" data-race-sound></button><button class="text-button" id="pause-game" disabled>Pause</button></span></div>
     </section>`;
     this.pausePanel = container.querySelector(".race-pause")!;
     this.pausePanel
       .querySelector("[data-resume-race]")!
       .addEventListener("click", () => {
-        if (this.paused) this.togglePause();
+        if (this.paused || this.race.versus) this.togglePause();
       });
     this.pausePanel
       .querySelector("[data-quit-race]")!
       .addEventListener("click", () => this.quit());
     this.host = container.querySelector(".race-view")!;
     this.cover = container.querySelector(".race-cover")!;
+    this.lobby = container.querySelector(".race-lobby")!;
     this.map = container.querySelector(".race-map")!;
     this.stats = container.querySelector(".coast-game")!;
     this.timer = container.querySelector("#run-score")!;
@@ -212,7 +237,53 @@ export class RacingGame {
     this.finishCard.addEventListener(
       "click",
       (e) => {
-        if ((e.target as Element).closest("button")) this.endOutro();
+        const button = (e.target as Element).closest("button");
+        if (button?.dataset.versus === "start") this.net?.start();
+        else if (button?.dataset.versus === "leave")
+          this.leaveRoom("You left the race.");
+        else if (button) this.endOutro();
+      },
+      listener,
+    );
+    container.querySelector("#versus-open")!.addEventListener(
+      "click",
+      () => {
+        this.cover.classList.add("in-lobby");
+        this.lobby.hidden = false;
+        this.showLobby();
+      },
+      listener,
+    );
+    this.lobby.addEventListener(
+      "click",
+      (e) => {
+        const action = (e.target as Element).closest<HTMLElement>(
+          "[data-versus]",
+        )?.dataset.versus;
+        if (action === "host") this.connect(null);
+        else if (action === "start") this.net?.start();
+        else if (action === "leave" || action === "back") {
+          this.net?.close();
+          this.room = null;
+          if (action === "leave") this.showLobby();
+          else {
+            this.cover.classList.remove("in-lobby");
+            this.lobby.hidden = true;
+          }
+        }
+      },
+      listener,
+    );
+    this.lobby.addEventListener(
+      "submit",
+      (e) => {
+        e.preventDefault();
+        const code = this.lobby
+          .querySelector<HTMLInputElement>("#race-code")!
+          .value.trim()
+          .toUpperCase();
+        if (ROOM_CODE.test(code)) this.connect(code);
+        else this.showLobby("Enter the four-letter code your friend shared.");
       },
       listener,
     );
@@ -351,6 +422,8 @@ export class RacingGame {
       this.container.querySelector<HTMLButtonElement>("#start-game")!;
     button.disabled = false;
     button.textContent = "Race! →";
+    this.container.querySelector<HTMLButtonElement>("#versus-open")!.disabled =
+      false;
     this.frame = requestAnimationFrame(this.loop);
   }
   private contextLost = (e: Event) => {
@@ -360,6 +433,153 @@ export class RacingGame {
     cancelAnimationFrame(this.frame);
     this.graphicsFailure(true);
   };
+  /** The multiplayer panel on the cover: host or join, then wait for the start. */
+  private showLobby(note = "") {
+    const room = this.room;
+    if (!room) {
+      this.lobby.innerHTML = `<h4>Race friends live</h4><p>2 to 8 players race the same three laps at once. Computer karts fill the rest of the grid. These are friendly races: no XP, medals or records.</p><button class="primary" data-versus="host">Host a race</button><form class="race-join"><label for="race-code">Have a code?</label><input id="race-code" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="CODE" aria-label="Four-letter race code"><button class="secondary">Join</button></form><p class="race-lobby-note" role="status">${safe(note)}</p><button class="text-button" data-versus="back">← Solo race</button>`;
+      return;
+    }
+    const hosting = room.host === room.you;
+    const waiting = room.players.length < room.min;
+    this.lobby.innerHTML = `<span class="eyebrow">RACE CODE</span><strong class="race-code">${room.code}</strong><p>Friends open Coast Rush, choose Race friends live and enter this code.</p><ol class="race-roster">${room.players.map((p, i) => `<li class="${i === room.you ? "is-you" : ""}"><span>${safe(p.name)}</span><b>${[i === room.host ? "Host" : "", i === room.you ? "You" : ""].filter(Boolean).join(" · ")}</b></li>`).join("")}</ol><p class="race-lobby-note" role="status">${safe(note) || (waiting ? "Waiting for another player to join…" : hosting ? `${room.players.length} players · ${room.cap - room.players.length} computer karts fill the grid.` : `Waiting for ${safe(room.players[room.host]?.name ?? "the host")} to start.`)}</p>${hosting ? `<button class="primary" data-versus="start"${waiting ? " disabled" : ""}>Start race →</button>` : ""}<button class="text-button" data-versus="leave">Leave</button>`;
+  }
+  private connect(code: string | null) {
+    this.net ??= new RaceNet({
+      room: (state) => {
+        this.room = state;
+        if (this.status === "ready") this.showLobby();
+      },
+      go: (go) => this.beginVersus(go),
+      hit: (hit) => {
+        // This kart's own hits are cued from its simulation.
+        if (hit.kart !== this.you || hit.kind !== "block") return;
+        this.sound("shield");
+        this.pop("🛡 BLOCKED!", performance.now());
+      },
+      used: (kart, item) => {
+        const rival =
+          kart === this.you
+            ? null
+            : this.race.rivals[kart < this.you ? kart : kart - 1];
+        if (rival) this.rivalUsed(rival, item);
+      },
+      end: (results) => {
+        this.results = results;
+      },
+      error: (message) => {
+        this.room = null;
+        if (this.status === "ready") this.showLobby(message);
+        else if (this.race.versus) this.leaveRoom(message);
+      },
+    });
+    this.showLobby(code ? "Joining…" : "Setting up your race…");
+    this.net.connect(code);
+  }
+  /** The room dropped the flag: line up on its grid and count down with everyone else. */
+  private beginVersus(go: Go) {
+    if (!this.view || !this.net) return;
+    this.race = this.net.begin(go);
+    this.grid = go.karts;
+    this.you = go.you;
+    this.results = null;
+    this.card = "";
+    this.view.setRivals(
+      go.karts
+        .filter((_, i) => i !== go.you)
+        .map((k) => ({ name: k.name, color: k.color, look: k.look })),
+    );
+    this.events.length = 0;
+    this.previous = "";
+    this.accumulator = 0;
+    this.visibleTicks = 0;
+    this.driveStarted = true;
+    this.cruise = false;
+    this.paused = false;
+    this.outroTime = 0;
+    this.outroDone = false;
+    this.clearInput();
+    this.motion.capture(this.race);
+    this.countdown = go.in / 1000;
+    this.status = "countdown";
+    this.cover.hidden = true;
+    this.finishCard.hidden = true;
+    this.pausePanel.hidden = true;
+    this.notice.textContent = "Get ready…";
+    this.previousTheme ??= audio.theme;
+    audio.setTheme("race");
+    audio.setTempo(1);
+    const players = go.karts.filter((k) => k.look).length;
+    this.container.querySelector("#race-field")!.textContent =
+      `LIVE · ${players} PLAYERS`;
+    const leave =
+      this.container.querySelector<HTMLButtonElement>("#pause-game")!;
+    leave.disabled = false;
+    leave.textContent = "Leave";
+    this.stats.focus();
+    this.last = performance.now();
+  }
+  /** Leaves the room, or reports that it was lost. A solo race is one tap away. */
+  private leaveRoom(message: string) {
+    this.net?.close();
+    this.room = null;
+    this.status = "finished";
+    this.outroDone = true;
+    this.pausePanel.hidden = true;
+    this.clearInput();
+    this.container.querySelector<HTMLButtonElement>("#pause-game")!.disabled =
+      true;
+    this.notice.textContent = "";
+    this.card = "";
+    this.finishCard.innerHTML = `<h3>Race over</h3><p>${safe(message)}</p><button data-replay="coast" class="primary">Back to Coast Rush</button><button data-action="close" class="secondary">Back to world</button>`;
+    this.finishCard.hidden = false;
+  }
+  /** Standings for a multiplayer race: live while karts are still out, final once the room says so. */
+  private versusCard() {
+    const race = this.race;
+    const rows = this.results
+      ? this.results.map((r) => ({
+          name: r.name,
+          cpu: r.cpu,
+          ticks: r.ticks,
+          you: r.kart === this.you,
+          racing: false,
+        }))
+      : [
+          {
+            name: this.grid[this.you]?.name ?? "You",
+            cpu: false,
+            ticks: race.finishTick,
+            distance: race.distance,
+            you: true,
+            racing: false,
+          },
+          ...race.rivals
+            .filter((r) => r.distance > -500)
+            .map((r) => ({
+              name: r.name,
+              cpu: r.pace > 0,
+              ticks: r.finishTick,
+              distance: r.distance,
+              you: false,
+              racing: !r.finishTick,
+            })),
+        ].sort(
+          (a, b) =>
+            (a.ticks || Infinity) - (b.ticks || Infinity) ||
+            b.distance - a.distance,
+        );
+    const place = rows.findIndex((r) => r.you) + 1;
+    const room = this.room;
+    const hosting = !!room && room.host === room.you;
+    return `<span class="eyebrow">PALM BAY · LIVE RACE</span><h3>${race.score ? (place === 1 ? "WINNER!" : "FINISH!") : "Out of time"}</h3><p class="finish-place">${ordinal(place)}<small> / ${rows.length}</small></p><ol class="street-ladder versus-ladder">${rows.map((r) => `<li class="${r.you ? "is-you" : ""}"><span>${safe(r.name)}${r.you ? " · You" : r.cpu ? " · CPU" : ""}</span><b>${r.ticks ? raceTime(r.ticks) : r.racing ? "Racing" : "No finish"}</b></li>`).join("")}</ol><p class="race-lobby-note" role="status">${this.results ? (hosting ? "" : `Waiting for ${safe(room?.players[room.host]?.name ?? "the host")} to start the next race.`) : "Waiting for the other racers…"}</p>${this.results && hosting ? `<button class="primary" data-versus="start"${room!.players.length < room!.min ? " disabled" : ""}>Race again →</button>` : ""}<button class="secondary" data-versus="leave">Leave race</button>`;
+  }
+  /** Another kart used an item: show the ones a driver should see coming. */
+  private rivalUsed(rival: Racer, item: NonNullable<RaceItem>) {
+    if (item !== "wave") return;
+    this.view?.wave(rival.distance, rival.offset);
+    if (Math.abs(rival.distance - this.race.distance) < 40) this.sound("boom");
+  }
   private start() {
     if (this.status !== "ready") return;
     this.status = "countdown";
@@ -390,6 +610,8 @@ export class RacingGame {
       : "Hold W / ↑ to drive · A/D to steer · E for item";
   }
   private keyDown = (e: KeyboardEvent) => {
+    // Typing a room code is not driving.
+    if (e.target instanceof HTMLInputElement) return;
     const key = /^Key[WASDE]$/.test(e.code)
       ? e.code.slice(3).toLowerCase()
       : e.key.toLowerCase();
@@ -462,7 +684,11 @@ export class RacingGame {
     });
   }
   private onBlur = () => {
-    if (!this.paused && ["racing", "countdown"].includes(this.status))
+    if (
+      !this.paused &&
+      !this.race.versus &&
+      ["racing", "countdown"].includes(this.status)
+    )
       this.togglePause();
     this.clearInput();
   };
@@ -470,16 +696,24 @@ export class RacingGame {
     if (document.hidden) this.onBlur();
   };
   pause() {
-    if (!this.paused) this.togglePause();
+    if (!this.paused && !this.race.versus) this.togglePause();
   }
   requestQuit() {
     if (!["racing", "countdown"].includes(this.status)) return false;
+    if (this.race.versus) {
+      if (this.pausePanel.hidden) this.togglePause();
+      return true;
+    }
     this.pause();
     this.pausePanel.querySelector("h3")!.textContent = "Leave this race?";
     return true;
   }
   private quit() {
     if (!["racing", "countdown"].includes(this.status)) return;
+    if (this.race.versus) {
+      this.leaveRoom("You left the race.");
+      return;
+    }
     // A quit is a local incomplete result, never a fabricated replay finish.
     this.paused = false;
     this.pausePanel.hidden = true;
@@ -489,11 +723,18 @@ export class RacingGame {
     this.container.classList.remove("is-paused");
     this.notice.textContent = "";
     this.clearInput();
-    this.finishCard.innerHTML = `<h3>Race result</h3><p>${raceTime(this.sim.ticks)} · ${ordinal(this.sim.race!.place)} place · Race left early</p><button data-replay="coast" class="primary">Race again</button><button data-action="close" class="secondary">Back to world</button>`;
+    this.finishCard.innerHTML = `<h3>Race result</h3><p>${raceTime(this.race.ticks)} · ${ordinal(this.race.place)} place · Race left early</p><button data-replay="coast" class="primary">Race again</button><button data-action="close" class="secondary">Back to world</button>`;
     this.finishCard.hidden = false;
   }
   private togglePause() {
     if (!["racing", "countdown"].includes(this.status)) return;
+    if (this.race.versus) {
+      // Everyone shares the clock, so it cannot stop. This only offers the way out.
+      this.pausePanel.hidden = !this.pausePanel.hidden;
+      this.pausePanel.querySelector("h3")!.textContent =
+        "Leave this race? It carries on without you.";
+      return;
+    }
     this.paused = !this.paused;
     this.pausePanel.hidden = !this.paused;
     this.clearInput();
@@ -520,12 +761,8 @@ export class RacingGame {
         keys.has("arrowright") ||
         keys.has("d"),
     );
-    if (this.assist && this.status === "racing") {
-      this.assistSteer = edgeAssist(
-        this.sim.race!.offset,
-        steer,
-        this.assistSteer,
-      );
+    if (this.assist && !this.race.versus && this.status === "racing") {
+      this.assistSteer = edgeAssist(this.race.offset, steer, this.assistSteer);
       steer ||= this.assistSteer;
     }
     return [
@@ -557,14 +794,15 @@ export class RacingGame {
     const dt = this.last ? Math.max(0, (now - this.last) / 1000) : 0;
     let activeDt = dt;
     this.last = Math.max(this.last, now);
-    const race = this.sim.race!;
+    const race = this.race;
     const input = this.controls(dt);
     if (!this.paused && this.status === "countdown") {
       const prev = Math.ceil(this.countdown);
       this.countdown -= dt;
       const next = Math.ceil(this.countdown);
-      if (next !== prev && next > 0) this.sound("count");
-      this.notice.textContent = String(Math.max(1, next));
+      if (next !== prev && next > 0 && next <= 3) this.sound("count");
+      this.notice.textContent =
+        next > 3 ? "Get ready…" : String(Math.max(1, next));
       if (this.countdown <= 0) {
         activeDt = -this.countdown;
         this.status = "racing";
@@ -584,10 +822,10 @@ export class RacingGame {
     if (!this.paused && this.status === "racing") {
       this.driveStarted ||= input[1] > 0;
       if (this.driveStarted) this.accumulator += activeDt;
-      while (this.accumulator >= 1 / 60 && !this.sim.ended) {
+      while (this.accumulator >= 1 / 60 && !race.ended) {
         const stamp = JSON.stringify(input);
         if (stamp !== this.previous) {
-          this.events.push([this.sim.ticks, ...input]);
+          this.events.push([race.ticks, ...input]);
           this.previous = stamp;
         }
         const before = {
@@ -600,32 +838,48 @@ export class RacingGame {
           place: race.place,
           tier: race.tier,
           knocks: race.knocks,
+          struck: race.struck,
+          blocks: race.blocks,
         };
         this.motion.capture(race);
-        this.sim.advance(input);
+        // A solo race goes through the replayable simulation. In a room the
+        // kart is driven directly: there is no replay to check.
+        if (race.versus)
+          race.advance(input[0], input[1], input[3] > 0, input[2] === 1);
+        else this.sim.advance(input);
         this.cue(before, now);
         this.accumulator -= 1 / 60;
       }
-      const message = this.sim.ended
+      const message = race.ended
         ? ""
-        : race.stunTicks
-          ? "HIT! +0.75s stop"
-          : race.shield > 0
-            ? `🛡 Shield on · hits blocked for ${Math.ceil(race.shield)}s`
-            : race.boost > 0
-              ? `${race.lastTurbo || "Speed"} turbo!`
-              : race.tier
-                ? `${race.tier} ready · release Drift!`
-                : race.speed < 1
-                  ? `${this.touch ? "Tap GO" : "Hold W"} to accelerate`
-                  : "";
+        : race.spin
+          ? "Spun out!"
+          : race.slow
+            ? "🌩 Storm · slowed"
+            : race.scraping
+              ? "Off the wall!"
+              : race.shield > 0
+                ? `🛡 Shield on · hits blocked for ${Math.ceil(race.shield)}s`
+                : race.boost > 0
+                  ? `${race.lastTurbo || "Speed"} turbo!`
+                  : race.tier
+                    ? `${race.tier} ready · release Drift!`
+                    : race.speed < 1
+                      ? `${this.touch ? "Tap GO" : "Hold W"} to accelerate`
+                      : "";
       if (!this.paused && this.notice.textContent !== message)
         this.notice.textContent = message;
-      if (this.sim.ended) this.end();
+      if (race.ended) this.end();
     } else if (this.status === "finished") {
       this.outroTime += dt;
       if (this.outroTime > OUTRO_SECONDS) this.endOutro();
+      if (race.versus && this.net?.open) {
+        // Standings fill in as the other karts come home.
+        const card = this.versusCard();
+        if (card !== this.card) this.finishCard.innerHTML = this.card = card;
+      }
     }
+    if (race.versus) this.net?.frame(Math.min(dt, 0.25));
     if (this.paused || !["racing", "countdown"].includes(this.status))
       audio.engineOff();
     else audio.engine(race.speed / 23, race.drifting, race.boost > 0);
@@ -676,6 +930,10 @@ export class RacingGame {
     this.stats.dataset.item = race.item || "empty";
     this.stats.dataset.knocks = String(race.knocks);
     this.stats.dataset.speed = race.speed.toFixed(2);
+    this.stats.dataset.mode = race.versus ? "versus" : "solo";
+    this.stats.dataset.room = this.room?.code ?? "";
+    this.stats.dataset.drift = String(race.drifting ? race.driftDir : 0);
+    this.stats.dataset.bumps = String(race.bumps);
     this.stats.dataset.charge = race.charge.toFixed(3);
     const finished = this.status === "finished";
     this.view?.draw(
@@ -694,7 +952,7 @@ export class RacingGame {
   };
   /** The flag falls: hand over the result, then let the moment land. */
   private end() {
-    const race = this.sim.race!;
+    const race = this.race;
     const result = race.result();
     this.status = "finished";
     this.cruise = false;
@@ -703,7 +961,12 @@ export class RacingGame {
     this.container.querySelector<HTMLButtonElement>("#pause-game")!.disabled =
       true;
     this.sound(result.finished ? "checkered" : "timeup");
-    this.finishCard.innerHTML = `<span class="eyebrow">PALM BAY · THREE LAPS</span><h3>${result.finished ? (result.place === 1 ? "WINNER!" : "FINISH!") : `So close! Lap ${this.sim.race!.lap} of 3 — try again?`}</h3>${result.finished ? `<p class="finish-place">${ordinal(result.place)}<small> / 8</small></p>` : ""}<div class="finish-stats"><span>TIME<b>${raceTime(result.timeTicks)}</b></span><span>BEST LAP<b>${result.bestLap ? raceTime(result.bestLap) : "—"}</b></span><span>SHELLS<b>${result.pickups} / ${SHELLS}</b></span></div><button class="primary">See results →</button>`;
+    if (race.versus) {
+      this.finishCard.innerHTML = this.card = this.versusCard();
+      this.finishCard.hidden = false;
+      return;
+    }
+    this.finishCard.innerHTML = `<span class="eyebrow">PALM BAY · THREE LAPS</span><h3>${result.finished ? (result.place === 1 ? "WINNER!" : "FINISH!") : `So close! Lap ${race.lap} of 3 — try again?`}</h3>${result.finished ? `<p class="finish-place">${ordinal(result.place)}<small> / 8</small></p>` : ""}<div class="finish-stats"><span>TIME<b>${raceTime(result.timeTicks)}</b></span><span>BEST LAP<b>${result.bestLap ? raceTime(result.bestLap) : "—"}</b></span><span>SHELLS<b>${result.pickups} / ${SHELLS}</b></span></div><button class="primary">See results →</button>`;
     this.finishCard.hidden = false;
     this.finish(this.sim.score, {
       version: rulesVersion("coast"),
@@ -735,10 +998,31 @@ export class RacingGame {
       place: number;
       tier: string | null;
       knocks: number;
+      struck: number;
+      blocks: number;
     },
     now: number,
   ) {
-    const race = this.sim.race!;
+    const race = this.race;
+    if (!race.versus) {
+      for (const use of race.field.uses)
+        if (use.kart) this.rivalUsed(race.rivals[use.kart - 1], use.item);
+      if (race.blocks > before.blocks) {
+        this.sound("shield");
+        this.pop("🛡 BLOCKED!", now);
+      }
+    }
+    if (race.struck > before.struck && race.lastStruck) {
+      // Say who did it: a rival's item is part of the race now.
+      const { by, item } = race.lastStruck;
+      this.sound(item === "storm" ? "bigboom" : "boom");
+      this.pop(
+        `${ITEM_NAMES[item].split(" ")[0]} ${by.toUpperCase()}’S ${ITEM_NAMES[item].split(" ")[1].toUpperCase()}!`,
+        now,
+      );
+      this.onFx?.("hurt", 0);
+      if (this.touch && !this.reduced) navigator.vibrate?.(80);
+    }
     if (race.pickupCount > before.pickups) {
       this.sound("shell");
       this.flash(this.shells);
@@ -755,6 +1039,12 @@ export class RacingGame {
         this.sound("bigboom");
         this.pop("🌩 STORM!", now);
       } else if (before.item === "coconut") this.sound("blip");
+      else if (before.item === "crab") this.sound("shoot");
+      else if (before.item === "wave") {
+        this.sound("bigboom");
+        this.pop("🌊 WAVE!", now);
+        this.view?.wave(race.distance, race.offset);
+      }
     }
     if (race.knocks > before.knocks) {
       this.sound("boom");
@@ -767,10 +1057,10 @@ export class RacingGame {
       this.sound("turbo");
       this.onFx?.("power", 0);
     }
+    // A bump only rubs off speed, so it gets a knock and no red flash.
     if (race.bumps > before.bumps) {
       this.sound("crash");
-      this.onFx?.("hurt", 0);
-      if (this.touch && !this.reduced) navigator.vibrate?.(80);
+      if (this.touch && !this.reduced) navigator.vibrate?.(25);
     }
     // The grid shuffles for the first seconds; call out passes after that.
     if (race.ticks > 180 && race.place !== before.place && !race.score)
@@ -802,7 +1092,7 @@ export class RacingGame {
   }
   private drawMap() {
     const ctx = this.map.getContext("2d")!;
-    const race = this.sim.race!;
+    const race = this.race;
     ctx.clearRect(0, 0, 180, 130);
     const plot = (distance: number, offset = 0) => {
       const p = trackPoint(distance, offset);
@@ -838,21 +1128,28 @@ export class RacingGame {
         ctx.fillRect(point.x - 1.5, point.y - 1.5, 3, 3);
       });
     // Coconuts and missiles stay visible on the shared minimap.
-    for (const [objects, colour] of [
-      [race.coconuts, "#c98a4b"],
-      [race.missiles, "#ff5a4a"],
-    ] as const)
-      for (const object of objects) {
-        const point = plot(object.distance, object.offset);
-        ctx.fillStyle = colour;
-        ctx.fillRect(point.x - 2, point.y - 2, 4, 4);
-      }
+    for (const object of [...race.coconuts, ...race.missiles]) {
+      const point = plot(object.distance, object.offset);
+      ctx.fillStyle = !("crab" in object)
+        ? "#c98a4b"
+        : object.crab
+          ? "#ff9a3d"
+          : "#ff5a4a";
+      ctx.fillRect(point.x - 2, point.y - 2, 4, 4);
+    }
     for (const rival of race.rivals) {
+      if (rival.distance < -500) continue;
       const point = plot(rival.distance, rival.offset);
       ctx.fillStyle = rival.color;
       ctx.beginPath();
-      ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+      ctx.arc(point.x, point.y, rival.pace ? 3 : 3.6, 0, Math.PI * 2);
       ctx.fill();
+      // Other players get a dark ring; computer karts are plain dots.
+      if (!rival.pace) {
+        ctx.strokeStyle = "#16313b";
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+      }
     }
     const p = plot(race.distance, race.offset);
     ctx.fillStyle = "#ff927b";
@@ -864,7 +1161,7 @@ export class RacingGame {
     ctx.stroke();
   }
   summary() {
-    const race = this.sim.race!;
+    const race = this.race;
     const result = race.result();
     const ladder = [
       ...race.rivals.map((r) => ({
@@ -885,7 +1182,7 @@ export class RacingGame {
         b.distance - a.distance ||
         Number(a.you) - Number(b.you),
     );
-    return `<div class="race-result-detail"><h3>${ordinal(result.place)} / 8${result.finished ? " · Finish!" : " · Time limit"}</h3><div><span>TOTAL TIME<b>${raceTime(result.timeTicks)}</b></span><span>BEST LAP<b>${result.bestLap ? raceTime(result.bestLap) : "—"}</b></span><span>SHELLS<b>${result.pickups} / ${SHELLS}</b></span><span>HIT STOPS<b>${raceTime(result.penaltyTicks)}</b></span></div><p>${result.finished ? "Three laps complete. Try a cleaner line or a longer drift." : `${this.touch ? "Tap GO" : "Hold W or tap GO"} to drive, and steer through the bends. Finish three laps to set a best time.`}</p><details><summary>Street ladder · seven game characters</summary><ol class="street-ladder">${ladder.map((r) => `<li class="${r.you ? "is-you" : ""}"><span>${r.name}</span><b>${Number.isFinite(r.time) ? raceTime(r.time) : "Racing"}</b></li>`).join("")}</ol></details><small>Game characters never enter medal boards. Verified players rank by fastest three-lap time.${this.targetTicks < 7200 ? ` Your time target: ${raceScoreTime(7201 - this.targetTicks)}.` : ""}</small></div>`;
+    return `<div class="race-result-detail"><h3>${ordinal(result.place)} / 8${result.finished ? " · Finish!" : " · Time limit"}</h3><div><span>TOTAL TIME<b>${raceTime(result.timeTicks)}</b></span><span>BEST LAP<b>${result.bestLap ? raceTime(result.bestLap) : "—"}</b></span><span>SHELLS<b>${result.pickups} / ${SHELLS}</b></span><span>BUMPS<b>${result.bumps}</b></span></div><p>${result.finished ? "Three laps complete. Drift the hairpins and keep off the walls to go faster." : `${this.touch ? "Tap GO" : "Hold W or tap GO"} to drive, and steer through the bends. Finish three laps to set a best time.`}</p><details><summary>Street ladder · seven game characters</summary><ol class="street-ladder">${ladder.map((r) => `<li class="${r.you ? "is-you" : ""}"><span>${r.name}</span><b>${Number.isFinite(r.time) ? raceTime(r.time) : "Racing"}</b></li>`).join("")}</ol></details><small>Game characters never enter medal boards. Verified players rank by fastest three-lap time.${this.targetTicks < 7200 ? ` Your time target: ${raceScoreTime(7201 - this.targetTicks)}.` : ""}</small></div>`;
   }
 
   dispose() {
@@ -893,6 +1190,7 @@ export class RacingGame {
     this.disposed = true;
     cancelAnimationFrame(this.frame);
     this.abort.abort();
+    this.net?.close();
     this.stick.dispose();
     this.clearInput();
     this.endOutro();

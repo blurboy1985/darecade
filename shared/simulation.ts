@@ -5,8 +5,11 @@ export type { EndReason } from "../src/action-games.ts";
 import { FishingRound, HoopsRound } from "./outdoor.ts";
 import { qualifiesForPlayMedal } from "./play-medals.ts";
 export const RULES_VERSION = 1;
-/** 3: winding route and five seeded items. 2: three laps on the old loop. */
-export const COAST_RULES_VERSION = 3;
+/**
+ * 4: drift route, bumps that only slow, rivals with items, seven items.
+ * 3: winding route and five seeded items. 2: three laps on the old loop.
+ */
+export const COAST_RULES_VERSION = 4;
 export const rulesVersion = (game: string) =>
   game === "coast" ? COAST_RULES_VERSION : game === "swarm" ? 3 : RULES_VERSION;
 export const TICK_RATE = 60;

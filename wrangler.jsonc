@@ -18,11 +18,13 @@
     "bindings": [
       { "name": "NEIGHBOURHOOD", "class_name": "Neighbourhood" },
       { "name": "WORLD", "class_name": "World" },
+      { "name": "RACE", "class_name": "Race" },
     ],
   },
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["Neighbourhood"] },
     { "tag": "v2", "new_sqlite_classes": ["World"] },
+    { "tag": "v3", "new_sqlite_classes": ["Race"] },
   ],
   "observability": { "enabled": false },
   "vars": {
