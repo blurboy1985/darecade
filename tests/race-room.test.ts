@@ -19,6 +19,7 @@ import {
 } from "../shared/race-room.ts";
 import {
   CoastRace,
+  ITEMS,
   RACE_DISTANCE,
   RACE_TICKS,
   RIVALS,
@@ -169,7 +170,7 @@ test("the room moves computer karts on the clock, relays positions, and keeps a 
   const s = snapshot.data.s as number[][];
   assert.equal(snapshot.to, null, "everyone gets the same picture");
   assert.equal(snapshot.data.k, 60);
-  assert.deepEqual(s[0], [12, 1.5, 9, FLAG.boost, 0]);
+  assert.deepEqual(s[0], [12, 1.5, 9, FLAG.boost, 0, 0]);
   assert.ok(s[2][0] > gridPlace(2).distance, "computer karts have set off");
   // Six units a second after one second, less what it rubbed off on the
   // player still parked on the grid in front of it.
@@ -212,6 +213,25 @@ test("the room moves computer karts on the clock, relays positions, and keeps a 
     "the 60th message was the last applied",
   );
   assert.notEqual(before, 1);
+});
+
+test("a snapshot says which item a computer kart is holding", () => {
+  const t = started(2);
+  const { room, ids } = t;
+  let seen = 0;
+  for (let i = 0; i < 600 && !seen; i++) {
+    room.receive(ids[0], { t: "s", s: [12 + i * 2, 2.2, 20, 0] }, t.wait(100));
+    const [snapshot] = of(room.drain(), "w");
+    if (!snapshot) continue;
+    const s = snapshot.data.s as number[][];
+    s.forEach((row, kart) => {
+      const item = room.karts[kart].item;
+      assert.equal(row[5], item ? ITEMS.indexOf(item) + 1 : 0);
+      if (item) seen++;
+    });
+    assert.equal(s[0][5], 0, "the room does not know what a player holds");
+  }
+  assert.ok(seen, "a computer kart collected an item");
 });
 
 test("items used by one player reach the others as hits, and a shield reported by a kart blocks them", () => {

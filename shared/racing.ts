@@ -261,12 +261,28 @@ function mix(h: number) {
 const lapGap = (from: number, to: number) =>
   (((to - from) % TRACK_LENGTH) + TRACK_LENGTH) % TRACK_LENGTH;
 /** How far `to` is ahead of `from` around the lap. Negative when it is behind. */
-function ahead(from: Racer, to: Racer) {
+function ahead(from: Pick<Racer, "distance">, to: Pick<Racer, "distance">) {
   const gap = to.distance - from.distance;
   // Most karts are within half a lap of each other, which needs no wrapping.
   return Math.abs(gap) < TRACK_LENGTH / 2
     ? gap
     : lapGap(-TRACK_LENGTH / 2, gap) - TRACK_LENGTH / 2;
+}
+/**
+ * The crate a computer kart here has just collected from: the nearest row, on
+ * its side of the road. For drawing only; -1 on the centre line.
+ */
+export function crateTaken(distance: number, offset: number) {
+  let crate = -1,
+    nearest = Infinity;
+  itemCrates.forEach((c, i) => {
+    const gap = Math.abs(ahead(c, { distance }));
+    if (c.offset * offset > 0 && gap < nearest) {
+      crate = i;
+      nearest = gap;
+    }
+  });
+  return crate;
 }
 const onRoad = (k: Racer) => !k.finishTick && k.distance >= 0;
 /**

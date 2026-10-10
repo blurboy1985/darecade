@@ -1,6 +1,7 @@
 import { FLAG } from "../shared/race-room";
 import {
   CoastRace,
+  ITEMS,
   SPIN_TICKS,
   racer,
   type Hit,
@@ -176,7 +177,7 @@ export class RaceNet {
   private snapshot(packet: Record<string, any>) {
     const race = this.race!;
     const now = performance.now();
-    (packet.s as number[][]).forEach(([d, o, v, flags, finish], kart) => {
+    (packet.s as number[][]).forEach(([d, o, v, flags, finish, held], kart) => {
       const rival = this.rival(kart);
       if (!rival) return;
       const index = kart < this.you ? kart : kart - 1;
@@ -189,6 +190,7 @@ export class RaceNet {
       }
       this.targets[index] = { d, o, v, at: now };
       rival.finishTick = finish;
+      rival.item = ITEMS[held - 1] ?? null;
       rival.boost = flags & FLAG.boost ? 1 : 0;
       rival.shield = flags & FLAG.shield ? 1 : 0;
       rival.slow = flags & FLAG.slow ? 1 : 0;
