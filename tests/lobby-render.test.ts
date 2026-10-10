@@ -223,6 +223,8 @@ function harness() {
     questPage: 0,
     challengeGameByPlayer: new Map(),
     neighbourRosterSignature: "",
+    currentWorld: "world-1",
+    worldCode: (name: string) => `W${name.slice(6)}`,
     dareView: "home",
     boardTab: "week",
     boardPeriodChosen: false,
@@ -312,6 +314,7 @@ test("menu pages stay compact; quests also expose the three rooftop routes", () 
     "album",
     "settings",
     "neighbours",
+    "profile",
     "dares",
     "dares-find",
     "dares-neighbour",
@@ -403,6 +406,42 @@ test("movement-only updates preserve the existing neighbour selector", () => {
   const next = h.body.querySelector("#neighbour-choice")!;
   assert.equal(next.value, "player:p4");
   assert.equal(h.context.document.activeElement, next);
+});
+
+test("an empty world explains itself instead of showing an empty neighbour picker", () => {
+  const h = harness();
+  h.context.shared.players = [];
+  h.run("renderSharedNeighbours()");
+  const html = h.body.innerHTML;
+  assert.equal(h.body.querySelector("#neighbour-choice"), null);
+  assert.match(html, /only player in W1 right now/);
+  assert.match(html, /data-open="worlds"/);
+  assert.match(html, /data-open="invite"/);
+  assert.doesNotMatch(html, /visit-neighbour|report-neighbour/);
+  // World polls must not redraw the panel under the player's finger.
+  const before = h.replacements();
+  h.run("renderSharedNeighbours()");
+  assert.equal(h.replacements(), before);
+  h.context.shared.players = [{ id: "p9", name: "Player 9", status: "online" }];
+  h.run("renderSharedNeighbours()");
+  assert.equal(h.body.querySelector("#neighbour-choice")!.value, "player:p9");
+});
+
+test("the profile panel names the player and links to look, rankings and account", () => {
+  const h = harness();
+  h.context.currentProfile = { name: "Sunny <Otter>", account: null };
+  h.context.escapeText = (value: string) => value.replace(/</g, "&lt;");
+  h.context.save.xp = 235;
+  h.run('open("profile")');
+  const html = h.body.innerHTML;
+  assert.match(html, /<h2 class="profile-name">Sunny &lt;Otter><\/h2>/);
+  assert.match(html, /Level 3 · 235 XP · 65 XP to level 4/);
+  for (const action of [
+    'data-open="wardrobe"',
+    'data-open="board"',
+    "data-account",
+  ])
+    assert.ok(html.includes(action), action);
 });
 
 test("live redraw retains the selected dare game for the same defender", () => {

@@ -372,7 +372,7 @@ app.innerHTML = `
   <div id="joystick" class="joystick touch-stick" role="group" aria-label="Drag to walk"><span></span></div>
   </main>
   <div id="graphics-message" hidden></div>
-  <footer class="bottom-bar"><div class="profile"><span class="avatar-icon" id="avatar-icon"><i></i></span><span><strong id="player-name">New neighbour</strong><span id="player-account" hidden>Guest mode</span><small id="medal-points">0 MEDALS</small><span id="level-label">LEVEL 1</span><span class="xp-track"><i id="xp-fill"></i></span></span></div><nav class="dock lobby-dock" aria-label="Main actions"><button class="selected" data-open="arcade" data-main-action>${icon("game")}<span>Play</span></button><button data-open="wardrobe" data-main-action>${icon("shirt")}<span>My look</span></button><button class="phone-more" data-open="phone-menu" data-main-action>${icon("settings")}<span>Menu</span></button></nav><span class="footer-note" id="quality-note">3D WORLD</span></footer>
+  <footer class="bottom-bar"><button class="profile" data-open="profile" aria-label="Your profile"><span class="avatar-icon" id="avatar-icon"><i></i></span><span><strong id="player-name">New neighbour</strong><span id="player-account" hidden>Guest mode</span><small id="medal-points">0 MEDALS</small><span id="level-label">LEVEL 1</span><span class="xp-track"><i id="xp-fill"></i></span></span></button><nav class="dock lobby-dock" aria-label="Main actions"><button class="selected" data-open="arcade" data-main-action>${icon("game")}<span>Play</span></button><button data-open="wardrobe" data-main-action>${icon("shirt")}<span>My look</span></button><button class="phone-more" data-open="phone-menu" data-main-action>${icon("settings")}<span>Menu</span></button></nav><span class="footer-note" id="quality-note">3D WORLD</span></footer>
   <div class="world-actions"><button id="lobby-jump" class="round-action" data-emote="jump" aria-label="Jump" aria-keyshortcuts="Space">Jump</button></div>
   <div class="emote-control"><button class="round-action" id="quick-emotes-toggle" aria-label="Emotes" aria-controls="quick-emotes" aria-expanded="false">${icon("smile")}</button>
   <div id="quick-emotes" role="group" aria-label="Favourite emotes" hidden><button data-emote="wave" aria-label="Wave">👋</button><button data-emote="dance" aria-label="Dance">♫</button><button data-open="emotes">More</button></div></div>
@@ -999,6 +999,9 @@ function open(id: string) {
   } else if (id === "neighbours") {
     socialPanel = "neighbours";
     renderSharedNeighbours();
+  } else if (id === "profile") {
+    const level = 1 + Math.floor(save.xp / 100);
+    body.innerHTML = `<span class="eyebrow">${currentProfile?.account ? "SAVED ACCOUNT" : "GUEST"}</span><h2 class="profile-name">${escapeText(currentProfile?.name || "Your profile")}</h2><p class="lead">Level ${level} · ${save.xp} XP · ${100 - (save.xp % 100)} XP to level ${level + 1}</p><p>${currentProfile?.playMedals?.total ?? 0} Play medals · ${shared?.self?.points ?? 0} ranked medal points</p><div class="simple-menu"><button class="menu-choice" data-open="wardrobe">My look</button><button class="menu-choice" data-open="board">Rankings</button><button class="menu-choice" data-account>${currentProfile?.account ? "Account & privacy" : "Save progress & account"}</button></div>`;
   } else if (id === "away") {
     body.innerHTML = `<h2>Step away</h2><label class="field-label" for="away-activity">While you’re gone</label><select class="destination-select" id="away-activity">${Object.entries(
       activities,
@@ -2737,16 +2740,23 @@ function renderSharedNeighbours() {
     shared?.players.filter((player) => player.id !== shared?.me) || [];
   const signature = JSON.stringify([
     connected,
+    currentWorld,
     players.map((player) => [player.id, player.name, player.status]),
   ]);
   if (
-    body.querySelector("#neighbour-choice") &&
+    (body.querySelector("#neighbour-choice") ||
+      body.querySelector("#neighbours-empty")) &&
     signature === neighbourRosterSignature
   )
     return;
   const keepFocus = document.activeElement?.id === "neighbour-choice";
   neighbourRosterSignature = signature;
-  body.innerHTML = `<h2>Neighbours</h2>${serverNote()}<label class="field-label" for="neighbour-choice">Choose a neighbour</label><select class="destination-select" id="neighbour-choice">${players.length ? `<optgroup label="Players">${players.map((player) => `<option value="player:${player.id}">${escapeText(player.name)} · ${player.status}</option>`).join("")}</optgroup>` : ""}</select><div class="simple-menu"><button class="menu-choice" data-action="visit-neighbour">View profile</button><button class="menu-choice" data-open="worlds">Worlds</button><button class="menu-choice" data-action="report-neighbour">Report or hide</button></div><details class="menu-details"><summary>Bring a friend</summary><button class="secondary" data-open="invite">Invite a friend</button></details>`;
+  // An empty picker looks broken, so say that nobody else is here instead.
+  if (!players.length) {
+    body.innerHTML = `<h2>Neighbours</h2>${serverNote()}<p class="lead" id="neighbours-empty">You’re the only player ${currentWorld ? `in ${escapeText(worldCode(currentWorld))}` : "here"} right now.</p><p>Up to 30 players share a world. Other players appear here when they join. Switch worlds to find more, or invite a friend.</p><div class="simple-menu"><button class="menu-choice" data-open="worlds">Worlds</button><button class="menu-choice" data-open="invite">Invite a friend</button></div>`;
+    return;
+  }
+  body.innerHTML = `<h2>Neighbours</h2>${serverNote()}<label class="field-label" for="neighbour-choice">Choose a neighbour</label><select class="destination-select" id="neighbour-choice"><optgroup label="Players">${players.map((player) => `<option value="player:${player.id}">${escapeText(player.name)} · ${player.status}</option>`).join("")}</optgroup></select><div class="simple-menu"><button class="menu-choice" data-action="visit-neighbour">View profile</button><button class="menu-choice" data-open="worlds">Worlds</button><button class="menu-choice" data-action="report-neighbour">Report or hide</button></div><details class="menu-details"><summary>Bring a friend</summary><button class="secondary" data-open="invite">Invite a friend</button></details>`;
   const picker = body.querySelector<HTMLSelectElement>("#neighbour-choice")!;
   if (
     selected &&
@@ -2993,13 +3003,21 @@ function renderWorldPresence() {
     currentProfile?.id,
     worldStatus,
     navigator.onLine,
-    world?.neighbours.length || residents.length,
   );
-  const display =
-    currentWorld && worldStatus === "connected"
-      ? `${worldCode(currentWorld)} · ${new Set([currentProfile?.id, ...liveNeighbours.map((p) => p.id)].filter(Boolean)).size}/30 · ${world?.neighbours.length || residents.length} neighbours`
-      : text;
+  const count = new Set(
+    [currentProfile?.id, ...liveNeighbours.map((p) => p.id)].filter(Boolean),
+  ).size;
+  const here = currentWorld && worldStatus === "connected";
+  const display = here
+    ? `${worldCode(currentWorld)} · ${count}/30 players`
+    : text;
   if (label.textContent !== display) label.textContent = display;
+  label.setAttribute(
+    "aria-label",
+    here
+      ? `World ${currentWorld.slice(6)}, ${count} of 30 players. Open neighbours`
+      : `${text}. Open neighbours`,
+  );
 }
 const worldConnection = new WorldConnection(
   presenceData,

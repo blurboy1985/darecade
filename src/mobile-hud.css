@@ -808,12 +808,24 @@ img {
 }
 .topbar > .demo-tag {
   right: 64px;
-  max-width: calc(100vw - 186px);
+  max-width: calc(100vw - 222px);
   pointer-events: auto;
   font-size: 11px;
 }
+/* A tappable chip: 44px tall, and wide enough for level and XP on one line. */
 .bottom-bar > .profile {
-  width: 104px;
+  width: 136px;
+  height: auto;
+  min-height: 44px;
+  pointer-events: auto;
+}
+.bottom-bar > .profile .avatar-icon {
+  width: 34px;
+  height: 34px;
+}
+.bottom-bar > .profile #level-label {
+  font-size: 11px;
+  white-space: nowrap;
 }
 #away-banner {
   z-index: 60;
