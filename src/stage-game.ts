@@ -1,6 +1,7 @@
 // The Open Stage panel: a rhythm show played in the neighbourhood window.
 // It reports the result; the server decides the XP.
 import {
+  STAGE_FEVER_TICKS,
   STAGE_GOOD,
   STAGE_LANES,
   STAGE_TICKS,
@@ -10,10 +11,26 @@ import {
   stageStars,
   type StageMode,
 } from "../shared/stage";
-import { STAGE_DAILY_XP, STAGE_STAR_XP, type Save } from "./state";
+import {
+  PARTY_CAP,
+  PARTY_CHEERS,
+  partyCode,
+  partyRanking,
+  type PartyMode,
+  type PartySnapshot,
+  type PartyTick,
+} from "../shared/stage-party";
+import {
+  STAGE_DAILY_XP,
+  STAGE_SCORE_LIMIT,
+  STAGE_STAR_XP,
+  type Save,
+} from "./state";
 import type { Sfx } from "./audio";
 import { loadCharacter } from "./character";
-import type { StageView } from "./stage-view";
+import type { StageParty, StageView } from "./stage-view";
+import { STAGE_STYLES } from "./stage-moves";
+import { PartyClient } from "./stage-party";
 import { stageProgress } from "./progression-guide";
 import "./stage.css";
 
@@ -31,6 +48,20 @@ const KEYS: Record<string, number> = {
 };
 /** Notes are drawn this many ticks before they reach the line. */
 const AHEAD = 96;
+/** The dance style is a preference of this device, not of the save. */
+const STYLE_KEY = "darecade-stage-style";
+const esc = (text: string) =>
+  text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+function savedStyle() {
+  try {
+    const index = STAGE_STYLES.findIndex(
+      (s) => s.id === localStorage.getItem(STYLE_KEY),
+    );
+    return Math.max(0, index);
+  } catch {
+    return 0;
+  }
+}
 
 export function mountStage(
   host: HTMLElement,
@@ -44,15 +75,23 @@ export function mountStage(
   root.className = "activity activity-stage";
   host.replaceChildren(root);
   const live = () => root.isConnected && !!root.closest("dialog")?.open;
-  root.innerHTML = `<h2>Open Stage</h2><div id="stage-progress"></div><label class="field-label" for="stage-mode">Choose your session</label><select class="destination-select" id="stage-mode"><option value="warmup">Warm-up · learn the beat</option><option value="show">Show · stars & XP</option></select><p class="lead" id="stage-goal"></p><div class="stage-screen"><div class="stage-view"></div><div class="stage-hud"><span><span id="stage-score-label">SCORE</span><b id="stage-score">0</b></span><span>COMBO<b id="stage-combo">0</b></span><span class="stage-hype">HYPE<i><b id="stage-hype"></b></i></span></div><div class="stage-call" role="status" aria-live="polite"></div><canvas class="stage-notes" width="360" height="220" aria-hidden="true"></canvas></div><div class="stage-lanes">${ARROWS.map((a, i) => `<button data-lane="${i}" style="--lane:${COLOURS[i]}" aria-label="Lane ${i + 1}" disabled>${a}</button>`).join("")}</div><p class="activity-status" role="status"></p><button class="primary" id="stage-start">Start the show →</button><p class="fine-print" id="stage-note"></p>`;
-  const canvas = root.querySelector<HTMLCanvasElement>(".stage-notes")!;
+  root.innerHTML = `<h2>Open Stage</h2><div id="stage-progress"></div><label class="field-label" for="stage-mode">Choose your session</label><select class="destination-select" id="stage-mode"><option value="warmup">Warm-up · learn the beat</option><option value="show">Show · stars & XP</option><option value="encore">Encore · faster, double arrows</option></select><label class="field-label" for="stage-style">Dance style</label><select class="destination-select" id="stage-style">${STAGE_STYLES.map((s, i) => `<option value="${i}">${s.name} · ${s.hint}</option>`).join("")}</select><p class="lead" id="stage-goal"></p><div class="stage-screen"><div class="stage-view"></div><div class="stage-hud"><span><span id="stage-score-label">SCORE</span><b id="stage-score">0</b></span><span>COMBO<b id="stage-combo">0</b></span><span class="stage-hype">HYPE<i><b id="stage-hype"></b></i></span></div><ol class="stage-board" id="stage-board" aria-label="Party scores" hidden></ol><div class="stage-cheers" aria-hidden="true"></div><div class="stage-call" role="status" aria-live="polite"></div><canvas class="stage-notes" width="360" height="220" aria-hidden="true"></canvas></div><div class="stage-lanes">${ARROWS.map((a, i) => `<button data-lane="${i}" style="--lane:${COLOURS[i]}" aria-label="Lane ${i + 1}" disabled>${a}</button>`).join("")}</div><button class="stage-fever" id="stage-fever" data-state="filling" disabled><i><b id="stage-fever-fill"></b></i><span id="stage-fever-label">Fever</span></button><p class="activity-status" role="status"></p><button class="primary" id="stage-start">Start the show →</button><p class="fine-print" id="stage-note"></p><section class="stage-party" aria-labelledby="stage-party-title"><h3 id="stage-party-title">Stage Party</h3><div id="party-out"><p class="fine-print">Dance the same song with up to ${PARTY_CAP - 1} friends, live.</p><div class="party-row"><button class="text-button" id="party-host">Host a party</button><input id="party-code" maxlength="4" placeholder="CODE" aria-label="Party code" autocomplete="off" autocapitalize="characters" spellcheck="false"><button class="text-button" id="party-join">Join</button></div></div><div id="party-in" hidden><p class="party-code">Party code <b id="party-code-shown"></b><button class="text-button" id="party-copy">Copy</button></p><ul id="party-list"></ul><div class="party-row" role="group" aria-label="Cheer">${PARTY_CHEERS.map((c, i) => `<button class="party-cheer" data-cheer="${i}" aria-label="Cheer ${c}">${c}</button>`).join("")}</div><button class="primary" id="party-start">Start the party show →</button><button class="text-button" id="party-leave">Leave party</button></div><p class="party-status" id="party-status" role="status"></p></section>`;
+  const find = <T extends HTMLElement>(selector: string) =>
+    root.querySelector<T>(selector)!;
+  const canvas = find<HTMLCanvasElement>(".stage-notes");
   const c = canvas.getContext("2d")!;
-  const call = root.querySelector<HTMLElement>(".stage-call")!;
-  const status = root.querySelector<HTMLElement>(".activity-status")!;
-  const start = root.querySelector<HTMLButtonElement>("#stage-start")!;
+  const call = find(".stage-call");
+  const status = find(".activity-status");
+  const start = find<HTMLButtonElement>("#stage-start");
+  const feverButton = find<HTMLButtonElement>("#stage-fever");
   const lanes = Array.from(
     root.querySelectorAll<HTMLButtonElement>("[data-lane]"),
   );
+  const board = find("#stage-board");
+  const partyStatus = find("#party-status");
+  const partyStart = find<HTMLButtonElement>("#party-start");
+  const hostButton = find<HTMLButtonElement>("#party-host");
+  const joinButton = find<HTMLButtonElement>("#party-join");
   const reduced = document.documentElement.classList.contains("reduced");
   let view: StageView | null = null,
     show: StageShow | null = null,
@@ -60,49 +99,323 @@ export function mountStage(
     pressed = [false, false, false, false],
     judged = 0,
     last = performance.now(),
-    accumulator = 0;
-  const mode = root.querySelector<HTMLSelectElement>("#stage-mode")!;
-  const goal = root.querySelector<HTMLElement>("#stage-goal")!;
+    accumulator = 0,
+    lastLane = 0;
+  // Stage Party: the room as the server last described it, the round this
+  // browser's show belongs to, and the server time that show begins.
+  let room: PartySnapshot | null = null,
+    party: StageParty | null = null,
+    round = 0,
+    startAt = 0,
+    counting = false,
+    announced = 0,
+    settling = false;
+  const cheered = new Map<number, number>();
+  const mode = find<HTMLSelectElement>("#stage-mode");
+  const style = find<HTMLSelectElement>("#stage-style");
+  const goal = find("#stage-goal");
   mode.value = ctx.save.stageBest === 0 ? "warmup" : "show";
+  style.value = String(savedStyle());
+  const styleIndex = () =>
+    Math.max(0, Math.min(STAGE_STYLES.length - 1, Number(style.value) || 0));
+  const selected = (): StageMode =>
+    mode.value === "warmup"
+      ? "warmup"
+      : mode.value === "encore"
+        ? "encore"
+        : "show";
+  const active = () => !!show && !show.ended;
+  const stars = (done: StageShow) => {
+    // Stars judge timing alone; the Fever bonus only raises the score.
+    const earned = stageStars(Math.round(done.baseScore), max);
+    return done.booed ? Math.min(1, earned) : earned;
+  };
   const note = () => {
-    const warmup = mode.value === "warmup";
-    root.querySelector("#stage-score-label")!.textContent = warmup
-      ? "NOTES"
-      : "SCORE";
-    root.querySelector<HTMLElement>(".stage-hype")!.hidden = warmup;
+    const warmup = mode.value === "warmup",
+      encore = mode.value === "encore";
+    find("#stage-score-label").textContent = warmup ? "NOTES" : "SCORE";
+    find(".stage-hype").hidden = warmup;
+    feverButton.hidden = warmup;
     goal.textContent = warmup
       ? `Land ${STAGE_WARMUP_GOAL} notes. Use the two outer lanes: ← / → or D / K. No booing, no XP or saved score.`
-      : "Aim for a star: 30% of a perfect show. Four lanes, left to right: ← ↓ ↑ → or D F J K.";
-    start.textContent = warmup ? "Start warm-up →" : "Start the show →";
-    root.querySelector("#stage-note")!.textContent = warmup
+      : encore
+        ? "A faster song with double arrows: press both lanes together. Aim for a star: 30% of a perfect show."
+        : "Aim for a star: 30% of a perfect show. Four lanes, left to right: ← ↓ ↑ → or D F J K.";
+    start.textContent = warmup
+      ? "Start warm-up →"
+      : encore
+        ? "Start the encore →"
+        : "Start the show →";
+    find("#stage-note").textContent = warmup
       ? "A slower 40-second rehearsal. Choose Show whenever you’re ready."
-      : `+${STAGE_STAR_XP} XP a star, up to ${STAGE_DAILY_XP} XP a day. Hype runs out if too many notes are missed.`;
-    root.querySelector("#stage-progress")!.innerHTML = stageProgress(ctx.save);
+      : `+${STAGE_STAR_XP} XP a star, up to ${STAGE_DAILY_XP} XP a day. Hype runs out if too many notes are missed. Fill the Fever bar, then tap it or press Space for double points; stars still judge your timing.`;
+    find("#stage-progress").innerHTML = stageProgress(ctx.save);
   };
   const resetHud = () => {
-    root.querySelector("#stage-score")!.textContent =
+    find("#stage-score").textContent =
       mode.value === "warmup" ? `0 / ${STAGE_WARMUP_GOAL}` : "0";
-    root.querySelector("#stage-combo")!.textContent = "0";
+    find("#stage-combo").textContent = "0";
     delete root.dataset.left;
+    delete root.dataset.fever;
+    find("#stage-fever-fill").style.width = "0%";
+    find("#stage-fever-label").textContent = "Fever";
+    feverButton.dataset.state = "filling";
+    feverButton.disabled = true;
     call.textContent = "";
     delete call.dataset.judgement;
     status.textContent = "";
   };
+  /** Who may press what, from the show and the party as they stand. */
+  const controls = () => {
+    const hosting = !!room && room.you === room.host;
+    mode.disabled = active() || (!!room && !hosting);
+    start.hidden = active() || settling || !!room;
+    hostButton.disabled = joinButton.disabled = settling;
+    root.dataset.party = String(!!room);
+    find("#party-out").hidden = !!room;
+    find("#party-in").hidden = !room;
+    if (!room) return;
+    const here = room.players.filter((p) => p.online).length;
+    partyStart.hidden = !hosting || room.status === "running";
+    partyStart.disabled = here < 2;
+    partyStart.textContent = room.round
+      ? "Dance again →"
+      : "Start the party show →";
+  };
+
+  const renderBoard = () => {
+    board.hidden = !room || room.status === "waiting";
+    if (!room || board.hidden) return;
+    const mine = show && startAt && round === room.round ? show : null;
+    const rows = partyRanking(
+      room.players.map((p) =>
+        p.slot === room!.you && mine
+          ? { ...p, score: Math.round(mine.score), booed: mine.booed }
+          : p,
+      ),
+    );
+    const medals = ["🥇", "🥈", "🥉", ""];
+    board.innerHTML = rows
+      .map(
+        (p, i) =>
+          `<li style="--slot:${COLOURS[p.slot % 4]}" data-you="${p.slot === room!.you}" data-fever="${!!p.fever}" data-out="${!!p.booed || !p.online}"><span>${room!.status === "results" ? medals[i] : ""}${esc(p.name)}</span><b>${Math.round(Number(p.score)) || 0}</b></li>`,
+      )
+      .join("");
+  };
+  const renderParty = () => {
+    if (!room) return;
+    find("#party-code-shown").textContent = room.code;
+    find("#party-list").innerHTML = room.players
+      .map(
+        (p) =>
+          `<li style="--slot:${COLOURS[p.slot % 4]}" data-away="${!p.online}">${esc(p.name)}${p.slot === room!.you ? " (you)" : ""}${p.slot === room!.host ? " · host" : ""}${p.online ? "" : " · away"}</li>`,
+      )
+      .join("");
+    const hosting = room.you === room.host,
+      me = room.players.find((p) => p.slot === room!.you),
+      here = room.players.filter((p) => p.online).length;
+    if (room.status === "results" && room.round !== announced) {
+      announced = room.round;
+      const winner = partyRanking(room.players)[0];
+      if (winner && !winner.score)
+        partyStatus.textContent = "Nobody scored this time. Dance again?";
+      else if (winner) {
+        const won = winner.slot === room.you;
+        partyStatus.textContent = won
+          ? "🏆 You win the party show!"
+          : `🏆 ${winner.name} wins the party show!`;
+        if (won) {
+          ctx.sound("win");
+          view?.celebrate();
+        }
+      }
+    } else if (room.status === "running")
+      partyStatus.textContent = me?.playing
+        ? ""
+        : "A show is on. Watch this one; you’re in the next.";
+    else if (room.status === "waiting")
+      partyStatus.textContent =
+        here < 2
+          ? "Share the code. A party show needs two dancers."
+          : hosting
+            ? "Everyone’s here. Start when you’re ready."
+            : "Waiting for the host to start…";
+    renderBoard();
+  };
+  const float = (slot: number, kind: number) => {
+    const bubble = document.createElement("span");
+    bubble.textContent = PARTY_CHEERS[kind] ?? "";
+    bubble.style.left = `${14 + ((slot * 23 + cheered.size * 7) % 70)}%`;
+    find(".stage-cheers").append(bubble);
+    setTimeout(() => bubble.remove(), 1600);
+  };
+
+  const begin = (seed: number, chosen: StageMode, at = 0) => {
+    show = new StageShow(seed, chosen);
+    max = chosen === "warmup" ? 1 : stageMaxScore(seed, chosen);
+    startAt = at;
+    counting = at > 0;
+    root.dataset.playing = "true";
+    pressed.fill(false);
+    judged = 0;
+    accumulator = 0;
+    last = performance.now();
+    resetHud();
+    controls();
+    call.textContent = "Get ready…";
+    lanes.forEach(
+      (b, lane) =>
+        (b.disabled = chosen === "warmup" && lane !== 0 && lane !== 3),
+    );
+    ctx.sound("go");
+    find(".stage-screen").scrollIntoView({ block: "nearest" });
+    find(".stage-lanes").scrollIntoView({ block: "nearest" });
+  };
+  /** What this dancer tells the party at each poll. */
+  const report = (): PartyTick => {
+    const tick: PartyTick = { style: styleIndex() };
+    if (!room || !show || !startAt || round !== room.round) return tick;
+    return {
+      ...tick,
+      round,
+      score: Math.min(STAGE_SCORE_LIMIT, Math.round(show.score)),
+      combo: Math.min(999, show.combo),
+      hype: Math.max(0, Math.min(1, show.hype)),
+      fever: show.feverTicks > 0,
+      hits: show.counts.perfect + show.counts.good,
+      lane: lastLane,
+      done: show.ended,
+      booed: show.booed,
+      stars: show.ended ? stars(show) : 0,
+    };
+  };
+  const client = new PartyClient(report, (snapshot, reason) => {
+    room = snapshot;
+    if (!snapshot) {
+      party = null;
+      cheered.clear();
+      // A party show cannot go on without its party.
+      if (active() && startAt) {
+        show = null;
+        root.dataset.playing = "false";
+        resetHud();
+        lanes.forEach((b) => (b.disabled = true));
+      }
+      partyStatus.textContent = reason || "";
+      board.hidden = true;
+      controls();
+      return;
+    }
+    party = {
+      you: snapshot.you,
+      running: snapshot.status === "running",
+      results: snapshot.status === "results",
+      players: snapshot.players,
+    };
+    // Joining a party walks off a show being played alone; nothing is reported.
+    if (active() && !startAt) {
+      show = null;
+      root.dataset.playing = "false";
+      resetHud();
+      lanes.forEach((b) => (b.disabled = true));
+    }
+    const hosting = snapshot.you === snapshot.host;
+    if (
+      !active() &&
+      mode.value !== snapshot.mode &&
+      (!hosting || mode.value === "warmup")
+    ) {
+      mode.value = snapshot.mode;
+      show = null;
+      resetHud();
+      note();
+    }
+    if (
+      snapshot.status === "running" &&
+      snapshot.round !== round &&
+      snapshot.players.find((p) => p.slot === snapshot.you)?.playing
+    ) {
+      round = snapshot.round;
+      mode.value = snapshot.mode;
+      note();
+      begin(snapshot.seed, snapshot.mode, snapshot.startAt);
+    }
+    for (const p of snapshot.players) {
+      const before = cheered.get(p.slot);
+      cheered.set(p.slot, p.cheer);
+      if (before !== undefined && p.cheer > before && p.slot !== snapshot.you)
+        float(p.slot, p.cheerKind);
+    }
+    renderParty();
+    controls();
+  });
+  const partyError = (error: unknown) => {
+    partyStatus.textContent =
+      error instanceof Error ? error.message : "The party is unavailable.";
+  };
+  hostButton.addEventListener("click", () => {
+    partyStatus.textContent = "Opening the stage…";
+    const chosen: PartyMode = mode.value === "encore" ? "encore" : "show";
+    client.host(chosen).catch(partyError);
+  });
+  joinButton.addEventListener("click", () => {
+    const code = partyCode(find<HTMLInputElement>("#party-code").value);
+    if (!code) {
+      partyStatus.textContent = "A party code is four letters.";
+      return;
+    }
+    partyStatus.textContent = "Finding the party…";
+    client.join(code).catch(partyError);
+  });
+  partyStart.addEventListener("click", () => client.start().catch(partyError));
+  find("#party-leave").addEventListener("click", () => client.leave());
+  find("#party-copy").addEventListener("click", () => {
+    if (!room) return;
+    void navigator.clipboard?.writeText(room.code).then(
+      () => (partyStatus.textContent = "Code copied. Send it to your friends."),
+      () => {},
+    );
+  });
+  Array.from(root.querySelectorAll<HTMLButtonElement>("[data-cheer]")).forEach(
+    (button, kind) =>
+      button.addEventListener("click", () => {
+        if (!room) return;
+        client.cheer(kind);
+        float(room.you, kind);
+      }),
+  );
+
   mode.addEventListener("change", () => {
+    if (room && mode.value === "warmup") {
+      // Warm-up is a rehearsal for one; a party plays Show or Encore.
+      mode.value = room.mode;
+      partyStatus.textContent = "Warm-up is for practising alone.";
+    } else if (room) client.setMode(selected() as PartyMode).catch(partyError);
     show = null;
     resetHud();
     note();
   });
+  style.addEventListener("change", () => {
+    try {
+      localStorage.setItem(STYLE_KEY, STAGE_STYLES[styleIndex()].id);
+    } catch {
+      // Private browsing: the style lasts for this visit.
+    }
+    view?.setStyle(STAGE_STYLES[styleIndex()].id, !active());
+  });
   resetHud();
   note();
+  controls();
   void Promise.all([import("./stage-view"), loadCharacter()])
     .then(([module]) => {
-      if (live())
+      if (live()) {
         view = new module.StageView(
           root.querySelector(".stage-view")!,
           ctx.save,
           reduced,
         );
+        view.setStyle(STAGE_STYLES[styleIndex()].id);
+      }
     })
     // The note highway is the whole game; the scene is decoration.
     .catch(() => {});
@@ -113,75 +426,90 @@ export function mountStage(
     lanes[lane].classList.add("hit");
     setTimeout(() => lanes[lane].classList.remove("hit"), 120);
   };
+  const ignite = () => {
+    if (!show?.ignite()) return;
+    ctx.sound("sparkle");
+    view?.celebrate();
+    call.textContent = "FEVER ×2!";
+    call.dataset.judgement = "perfect";
+  };
   const keyDown = (e: KeyboardEvent) => {
+    if (!show || show.ended) return;
+    if (e.key === " ") {
+      e.preventDefault();
+      if (!e.repeat) ignite();
+      return;
+    }
     const lane = KEYS[e.key.toLowerCase()];
-    if (lane === undefined || !show || show.ended) return;
+    if (lane === undefined) return;
     e.preventDefault();
     if (!e.repeat) press(lane);
   };
+  // Closing the page leaves the party at once instead of timing out.
+  const pageHide = () => {
+    if (room)
+      navigator.sendBeacon?.(
+        "/api/stage/leave",
+        new Blob(["{}"], { type: "application/json" }),
+      );
+  };
   window.addEventListener("keydown", keyDown);
+  window.addEventListener("pagehide", pageHide);
   lanes.forEach((b, i) =>
     b.addEventListener("pointerdown", (e) => {
       e.preventDefault();
       press(i);
     }),
   );
+  feverButton.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    ignite();
+  });
   const finish = async (done: StageShow) => {
     root.dataset.playing = "false";
-    mode.disabled = false;
+    delete root.dataset.fever;
+    feverButton.disabled = true;
+    controls();
     if (done.mode === "warmup") {
       lanes.forEach((b) => (b.disabled = true));
       const hits = done.counts.perfect + done.counts.good;
       status.textContent = `${hits} notes landed · ${hits >= STAGE_WARMUP_GOAL ? "Warm-up goal complete! Ready for the show?" : `Try for ${STAGE_WARMUP_GOAL} next time. You can take your time here.`} No XP or best score changed.`;
       ctx.sound(hits >= STAGE_WARMUP_GOAL ? "win" : "finish");
-      start.hidden = false;
       note();
       status.scrollIntoView({ block: "nearest" });
       return;
     }
-    const score = Math.round(done.score),
-      stars = done.booed
-        ? Math.min(1, stageStars(score, max))
-        : stageStars(score, max);
+    const score = Math.min(STAGE_SCORE_LIMIT, Math.round(done.score)),
+      earned = stars(done);
     lanes.forEach((b) => (b.disabled = true));
-    ctx.sound(done.booed ? "error" : stars ? "win" : "finish");
+    ctx.sound(done.booed ? "error" : earned ? "win" : "finish");
     status.textContent = "Counting the applause…";
+    client.flush();
     const before = ctx.save.xp;
-    await ctx.report("perform", { score, stars });
+    // No new show until this one has been counted.
+    settling = true;
+    controls();
+    await ctx.report("perform", { score, stars: earned });
+    settling = false;
     if (!live()) return;
     const gain = ctx.save.xp - before;
     status.textContent =
-      `${done.booed ? "The crowd needs a breather. Try Warm-up to find the beat. " : ""}${"★".repeat(stars)}${"☆".repeat(3 - stars)} · ${score} points · best combo ${done.bestCombo}` +
+      `${done.booed ? "The crowd needs a breather. Try Warm-up to find the beat. " : ""}${"★".repeat(earned)}${"☆".repeat(3 - earned)} · ${score} points · best combo ${done.bestCombo}` +
+      (done.fevers
+        ? ` · ${done.fevers} Fever${done.fevers > 1 ? "s" : ""}`
+        : "") +
       (gain > 0
         ? ` · +${gain} XP`
-        : stars && ctx.save.stageXp >= STAGE_DAILY_XP
+        : earned && ctx.save.stageXp >= STAGE_DAILY_XP
           ? " · today's stage XP is all earned"
           : "");
-    start.hidden = false;
+    controls();
     note();
     status.scrollIntoView({ block: "nearest" });
   };
   start.addEventListener("click", () => {
     const seed = Math.floor(Math.random() * 2 ** 31);
-    const selected: StageMode = mode.value === "warmup" ? "warmup" : "show";
-    show = new StageShow(seed, selected);
-    max = selected === "show" ? stageMaxScore(seed) : 1;
-    mode.disabled = true;
-    root.dataset.playing = "true";
-    pressed.fill(false);
-    judged = 0;
-    accumulator = 0;
-    last = performance.now();
-    start.hidden = true;
-    resetHud();
-    call.textContent = "Get ready…";
-    lanes.forEach(
-      (b, lane) =>
-        (b.disabled = selected === "warmup" && lane !== 0 && lane !== 3),
-    );
-    ctx.sound("go");
-    root.querySelector(".stage-screen")!.scrollIntoView({ block: "nearest" });
-    root.querySelector(".stage-lanes")!.scrollIntoView({ block: "nearest" });
+    begin(seed, selected());
   });
   const draw = (tick: number) => {
     c.clearRect(0, 0, 360, 220);
@@ -215,13 +543,24 @@ export function mountStage(
   const loop = (now: number) => {
     if (!root.isConnected) {
       window.removeEventListener("keydown", keyDown);
+      window.removeEventListener("pagehide", pageHide);
+      client.leave();
       view?.dispose();
       return;
     }
     requestAnimationFrame(loop);
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
-    const playing = show && !show.ended && live();
+    // A party shares one clock, so it cannot wait for a closed window.
+    if (room && !live()) client.leave();
+    // A party show starts for everyone at the same moment.
+    const wait = show && startAt ? startAt - client.now() : 0;
+    if (active() && wait > 0) call.textContent = String(Math.ceil(wait / 1000));
+    else if (counting && active()) {
+      counting = false;
+      call.textContent = "Dance!";
+    }
+    const playing = active() && live() && wait <= 0;
     if (playing) {
       accumulator += dt;
       while (accumulator >= 1 / 60 && !show!.ended) {
@@ -235,6 +574,7 @@ export function mountStage(
       if (total !== judged && s.last) {
         judged = total;
         const j = s.last.judgement;
+        if (j === "perfect" || j === "good") lastLane = s.last.lane;
         ctx.sound(j === "perfect" ? "coin" : j === "good" ? "blip" : "paddle");
         call.textContent =
           j === "perfect"
@@ -248,21 +588,34 @@ export function mountStage(
                 : "Too soon";
         call.dataset.judgement = j;
         if (j === "miss" && !reduced) navigator.vibrate?.(30);
+        if (room) renderBoard();
       }
-      root.querySelector("#stage-score")!.textContent =
+      find("#stage-score").textContent =
         s.mode === "warmup"
           ? `${s.counts.perfect + s.counts.good} / ${STAGE_WARMUP_GOAL}`
           : String(Math.round(s.score));
-      root.querySelector("#stage-combo")!.textContent =
+      find("#stage-combo").textContent =
         s.combo + (s.multiplier > 1 ? ` ×${s.multiplier}` : "");
-      const hype = root.querySelector<HTMLElement>("#stage-hype")!;
+      const hype = find("#stage-hype");
       hype.style.width = `${s.hype * 100}%`;
       hype.dataset.low = String(s.hype < 0.25);
+      const lit = s.feverTicks > 0,
+        ready = !lit && s.fever >= 1;
+      find("#stage-fever-fill").style.width =
+        `${(lit ? s.feverTicks / STAGE_FEVER_TICKS : s.fever) * 100}%`;
+      find("#stage-fever-label").textContent = lit
+        ? "FEVER ×2"
+        : ready
+          ? "Fever ready · tap or press Space"
+          : "Fever";
+      feverButton.dataset.state = lit ? "lit" : ready ? "ready" : "filling";
+      feverButton.disabled = !ready;
+      root.dataset.fever = String(lit);
       root.dataset.left = String(Math.ceil((STAGE_TICKS - s.tick) / 60));
       if (s.ended) void finish(s);
     }
     draw(show ? show.tick + (playing ? accumulator * 60 : 0) : 0);
-    view?.draw(show, now / 1000, dt);
+    view?.draw(show, now / 1000, dt, party);
   };
   requestAnimationFrame(loop);
 }

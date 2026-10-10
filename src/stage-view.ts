@@ -4,14 +4,45 @@ import {
   animateDetails,
   createAvatar,
   disposeAvatar,
+  poseSkin,
   type Avatar,
   type Look,
 } from "./character";
 import { outfits, skins } from "./state";
 import type { StageShow } from "../shared/stage";
+import { partyRanking, type PartyPlayer } from "../shared/stage-party";
+import {
+  STAGE_STYLES,
+  comboMove,
+  laneMove,
+  stagePose,
+  type StageMoveId,
+  type StagePose,
+  type StageStyle,
+} from "./stage-moves";
 
 export const LANE_COLOURS = ["#ff8fb8", "#7fe3e0", "#ffe27a", "#b9a4ff"];
 type Bit = { mesh: T.Mesh; velocity: T.Vector3; life: number };
+/** One avatar on the stage: the player, or another dancer in a party. */
+type Dancer = {
+  avatar: Avatar;
+  key: string;
+  ring: T.Mesh;
+  x: number;
+  z: number;
+  move: { id: StageMoveId; at: number } | null;
+  hits: number;
+  tier: number;
+};
+/** The party as the view needs it: who is on stage and how they are doing. */
+export type StageParty = {
+  you: number;
+  running: boolean;
+  results: boolean;
+  players: PartyPlayer[];
+};
+/** Where each dancer stands, left to right, for one to four on stage. */
+const SPOTS = [[0], [-1, 1], [-1.6, 0, 1.6], [-1.8, -0.6, 0.6, 1.8]];
 
 /** The Open Stage in three.js: the avatar dancing, lamps, beams and a crowd. */
 export class StageView {
@@ -20,16 +51,25 @@ export class StageView {
   private readonly camera = new T.PerspectiveCamera(46, 1, 0.1, 80);
   private readonly geometries: T.BufferGeometry[] = [];
   private readonly materials: T.Material[] = [];
-  private readonly avatar: Avatar;
+  private readonly me: Dancer;
+  private readonly others = new Map<number, Dancer>();
+  private readonly ringGeometry: T.BufferGeometry;
+  private readonly spot: T.Mesh;
   private readonly beams: T.Mesh[] = [];
   private readonly crowd: T.Group[] = [];
   private readonly confetti: Bit[] = [];
   private readonly observer: ResizeObserver;
-  private move = { lane: -1, at: -9 };
+  private readonly background = new T.Color("#1b1d38");
+  private style: StageStyle = "pop";
+  /** Moves waiting to be shown off when a style is chosen. */
+  private demo: { id: StageMoveId; at: number }[] = [];
+  private clock = 0;
   private flash = [0, 0, 0, 0];
   private judged = 0;
   private celebrated = 0;
   private disposed = false;
+  private seen: StageShow | null = null;
+  private synced: PartyPlayer[] | undefined;
   constructor(
     host: HTMLElement,
     look: Look,
@@ -39,7 +79,7 @@ export class StageView {
     this.renderer.outputColorSpace = T.SRGBColorSpace;
     this.renderer.domElement.setAttribute("aria-hidden", "true");
     host.append(this.renderer.domElement);
-    this.scene.background = new T.Color("#1b1d38");
+    this.scene.background = this.background;
     this.scene.fog = new T.Fog("#1b1d38", 9, 24);
     this.scene.add(new T.HemisphereLight("#cfd6ff", "#3a2f55", 1.5));
     const key = new T.DirectionalLight("#fff0d6", 2.4);
@@ -149,16 +189,12 @@ export class StageView {
       m.visible = false;
       this.confetti.push({ mesh: m, velocity: new T.Vector3(), life: 0 });
     }
-    this.avatar = createAvatar(
-      this.scene,
-      0,
-      0,
-      outfits[look.outfit],
-      skins[look.skin],
-      look.hat,
-      look,
-    );
-    this.avatar.root.position.y = 0.14;
+    // A ring under each dancer in a party, and a spotlight for the winner.
+    this.ringGeometry = geo(new T.RingGeometry(0.42, 0.52, 28));
+    this.spot = mesh(cone, mat("#fff7d7", 1, 0.16), 0, 2.2, 0);
+    (this.spot.material as T.MeshStandardMaterial).side = T.DoubleSide;
+    this.spot.visible = false;
+    this.me = this.dancer(look);
     this.observer = new ResizeObserver(() => {
       const width = host.clientWidth,
         height = host.clientHeight;
@@ -186,65 +222,245 @@ export class StageView {
       bit.mesh.visible = true;
     }
   }
-  /** show is null before the first show and between shows. */
-  draw(show: StageShow | null, time: number, dt: number) {
-    if (this.disposed) return;
-    const a = this.avatar;
-    animateDetails(a, time, "idle", this.reduced);
-    if (
-      show?.last &&
-      show.counts.perfect +
-        show.counts.good +
-        show.counts.miss +
-        show.counts.stray !==
-        this.judged
-    ) {
-      this.judged =
-        show.counts.perfect +
-        show.counts.good +
-        show.counts.miss +
-        show.counts.stray;
-      if (show.last.judgement === "perfect" || show.last.judgement === "good") {
-        this.move = { lane: show.last.lane, at: time };
-        this.flash[show.last.lane] =
-          show.last.judgement === "perfect" ? 1 : 0.6;
+  /** A new avatar, standing centre stage until draw places it. */
+  private dancer(look: Look): Dancer {
+    const avatar = createAvatar(
+      this.scene,
+      0,
+      0,
+      outfits[look.outfit] ?? outfits[0],
+      skins[look.skin] ?? skins[0],
+      look.hat,
+      look,
+    );
+    const material = new T.MeshBasicMaterial({ side: T.DoubleSide });
+    const ring = new T.Mesh(this.ringGeometry, material);
+    ring.rotation.x = -Math.PI / 2;
+    ring.visible = false;
+    this.scene.add(ring);
+    return {
+      avatar,
+      key: JSON.stringify(look),
+      ring,
+      x: 0,
+      z: 0,
+      move: null,
+      hits: 0,
+      tier: 0,
+    };
+  }
+  private retire(d: Dancer) {
+    disposeAvatar(d.avatar);
+    d.ring.removeFromParent();
+    (d.ring.material as T.Material).dispose();
+  }
+  /** Chooses the dance style; with show, runs through its four lane moves. */
+  setStyle(style: StageStyle, show = false) {
+    this.style = style;
+    this.demo = show
+      ? [0, 1, 2, 3].map((lane, i) => ({
+          id: laneMove(style, lane),
+          at: this.clock + 0.15 + i * 0.62,
+        }))
+      : [];
+  }
+  /** Other dancers come and go with the party; a changed look is a new avatar. */
+  private sync(party: StageParty | null) {
+    const guests = party
+      ? party.players.filter((p) => p.slot !== party.you)
+      : [];
+    for (const [slot, d] of this.others)
+      if (
+        !guests.some((p) => p.slot === slot && JSON.stringify(p.look) === d.key)
+      ) {
+        this.retire(d);
+        this.others.delete(slot);
       }
+    for (const p of guests)
+      if (!this.others.has(p.slot))
+        try {
+          this.others.set(p.slot, this.dancer(p.look));
+        } catch {
+          // A look this build cannot draw leaves that dancer off the stage.
+        }
+  }
+  private pose(
+    d: Dancer,
+    pose: StagePose,
+    scale: number,
+    time: number,
+    mode: string,
+  ) {
+    const a = d.avatar;
+    a.root.position.set(d.x + pose.x * scale, 0.14 + pose.y * scale, d.z);
+    a.root.rotation.set(pose.pitch, pose.yaw, pose.roll);
+    a.root.scale.set(scale, scale * (1 + pose.squash), scale);
+    // The face, costume and pet first; then every joint, then the skin again.
+    animateDetails(a, time, mode, this.reduced);
+    a.left.rotation.set(pose.armL, 0, -pose.outL);
+    a.right.rotation.set(pose.armR, 0, pose.outR);
+    a.elbows[0].rotation.x = -0.12 - pose.elbowL;
+    a.elbows[1].rotation.x = -0.12 - pose.elbowR;
+    a.legs[0].rotation.set(pose.legL, 0, -pose.splay);
+    a.legs[1].rotation.set(pose.legR, 0, pose.splay);
+    a.knees[0].rotation.x = 0.04 + pose.kneeL;
+    a.knees[1].rotation.x = 0.04 + pose.kneeR;
+    a.spine.rotation.set(pose.spine, 0, pose.lean);
+    a.head.rotation.set(pose.nod, pose.turn, pose.tilt);
+    poseSkin(a, mode, time, this.reduced);
+  }
+  /** show is null before the first show and between shows. */
+  draw(
+    show: StageShow | null,
+    time: number,
+    dt: number,
+    party: StageParty | null = null,
+  ) {
+    if (this.disposed) return;
+    this.clock = time;
+    const me = this.me;
+    if (show !== this.seen) {
+      this.seen = show;
+      this.judged = this.celebrated = 0;
+      me.move = null;
     }
-    if (!show) this.judged = this.celebrated = 0;
-    // Every combo of eight brings confetti down.
+    const playing = !!show && !show.ended;
+    const total = show
+      ? show.counts.perfect +
+        show.counts.good +
+        show.counts.miss +
+        show.counts.stray
+      : 0;
+    // Every combo of eight brings confetti down and a move of its own.
     const tier = show ? Math.floor(show.combo / 8) : 0;
+    if (show?.last && total !== this.judged) {
+      this.judged = total;
+      const { judgement, lane } = show.last;
+      if (judgement === "perfect" || judgement === "good") {
+        me.move = {
+          id:
+            tier > this.celebrated
+              ? comboMove(tier)
+              : laneMove(this.style, lane),
+          at: time,
+        };
+        this.flash[lane] = judgement === "perfect" ? 1 : 0.6;
+      } else if (judgement === "miss") me.move = { id: "stumble", at: time };
+    }
     if (tier > this.celebrated) this.burst();
     this.celebrated = tier;
-    // Each lane is its own dance move, held for a third of a second.
-    const t = Math.min(1, (time - this.move.at) / 0.34);
-    const swing = this.move.lane < 0 || t >= 1 ? 0 : Math.sin(t * Math.PI);
-    const lane = this.move.lane;
-    const groove =
-      show && !show.ended && !this.reduced ? Math.sin(time * 7) : 0;
-    a.root.position.set(
-      (lane === 0 ? -0.5 : lane === 3 ? 0.5 : 0) * swing,
-      0.14 + (lane === 2 ? 0.55 * swing : 0) + Math.abs(groove) * 0.04,
-      0,
+    if (playing) this.demo = [];
+    else if (this.demo.length && time >= this.demo[0].at)
+      me.move = { id: this.demo.shift()!.id, at: time };
+    const fever = !!show && show.feverTicks > 0;
+
+    if (party?.players !== this.synced) {
+      this.synced = party?.players;
+      this.sync(party);
+    }
+    const cast = party
+      ? [...party.players].sort((a, b) => a.slot - b.slot)
+      : [];
+    const onStage = cast.filter(
+      (p) => p.slot === party!.you || this.others.has(p.slot),
     );
-    a.root.rotation.set(
-      lane === 1 ? 0.35 * swing : 0,
-      (lane === 0 ? -0.7 : lane === 3 ? 0.7 : 0) * swing + groove * 0.12,
-      (lane === 0 ? 0.25 : lane === 3 ? -0.25 : 0) * swing,
+    const spots = SPOTS[Math.max(0, Math.min(3, onStage.length - 1))];
+    const scale = onStage.length > 2 ? 1 : onStage.length === 2 ? 1.2 : 1.35;
+    const winner = party?.results ? partyRanking(cast)[0]?.slot : undefined;
+    const glide = Math.min(1, dt * 6);
+    const place = (d: Dancer, slot: number) => {
+      const i = Math.max(
+        0,
+        onStage.findIndex((p) => p.slot === slot),
+      );
+      const x = party ? spots[i] : 0;
+      d.x += (x - d.x) * glide;
+      d.z += (-Math.abs(x) * 0.18 + (slot === winner ? 0.8 : 0) - d.z) * glide;
+      d.ring.visible = !!party;
+      d.ring.position.set(d.x, 0.15, d.z);
+      d.ring.scale.setScalar(scale);
+      (d.ring.material as T.MeshBasicMaterial).color.set(
+        LANE_COLOURS[Math.max(0, slot) % 4],
+      );
+    };
+    place(me, party ? party.you : -1);
+    const hold =
+      show?.ended && show.mode !== "warmup"
+        ? show.booed
+          ? "slump"
+          : "finish"
+        : null;
+    this.pose(
+      me,
+      stagePose(
+        {
+          style: this.style,
+          playing: playing || this.demo.length > 0,
+          fever,
+          move: me.move && { id: me.move.id, age: time - me.move.at },
+          hold,
+          reduced: this.reduced,
+        },
+        time,
+      ),
+      scale,
+      time,
+      hold === "slump" ? "think" : hold || fever ? "cheer" : "idle",
     );
-    a.root.scale.setScalar(1.35);
-    a.root.scale.y = 1.35 * (lane === 1 ? 1 - 0.22 * swing : 1);
-    const up = lane === 2 ? -2.7 * swing : 0;
-    a.left.rotation.x = up + (lane === 0 ? -1.9 * swing : 0) - groove * 0.5;
-    a.right.rotation.x = up + (lane === 3 ? -1.9 * swing : 0) + groove * 0.5;
-    a.legs[0].rotation.x = groove * 0.25;
-    a.legs[1].rotation.x = -groove * 0.25;
+    for (const p of cast) {
+      const d = this.others.get(p.slot);
+      if (!d) continue;
+      place(d, p.slot);
+      const style = STAGE_STYLES[p.style]?.id ?? "pop",
+        combo = Math.floor(p.combo / 8);
+      if (p.hits > d.hits)
+        d.move = {
+          id: combo > d.tier ? comboMove(combo) : laneMove(style, p.lane),
+          at: time,
+        };
+      d.hits = p.hits;
+      d.tier = combo;
+      const finished = p.playing && (p.done || !!party?.results);
+      const theirs = finished ? (p.booed ? "slump" : "finish") : null;
+      this.pose(
+        d,
+        stagePose(
+          {
+            style,
+            playing: !!party?.running && p.playing && !p.done,
+            fever: p.fever,
+            move: d.move && { id: d.move.id, age: time - d.move.at },
+            hold: theirs,
+            reduced: this.reduced,
+          },
+          // Offset the beat a little so a line of dancers is not a mirror.
+          time + p.slot * 0.11,
+        ),
+        scale,
+        time,
+        theirs === "slump" ? "think" : theirs || p.fever ? "cheer" : "idle",
+      );
+    }
+    this.spot.visible = winner !== undefined;
+    if (winner !== undefined) {
+      const d = winner === party!.you ? me : this.others.get(winner);
+      if (d) this.spot.position.set(d.x, 2.2, d.z);
+    }
+
+    // Fever turns every lamp on and warms the hall.
+    const pulse = fever && !this.reduced ? 0.5 + Math.sin(time * 12) * 0.5 : 0;
+    this.background.set("#1b1d38");
+    if (fever) this.background.lerp(FEVER, 0.6 + pulse * 0.3);
     this.beams.forEach((beam, i) => {
       this.flash[i] = Math.max(0, this.flash[i] - dt * 2.6);
       const material = beam.material as T.MeshStandardMaterial;
-      material.opacity = 0.08 + this.flash[i] * 0.5;
-      beam.rotation.x = this.reduced ? 0 : Math.sin(time * 1.3 + i) * 0.12;
+      material.opacity =
+        0.08 + Math.max(this.flash[i], fever ? 0.45 + pulse * 0.25 : 0) * 0.5;
+      beam.rotation.x = this.reduced
+        ? 0
+        : Math.sin(time * (fever ? 4 : 1.3) + i) * (fever ? 0.3 : 0.12);
     });
-    const hype = show ? show.hype : 0.5;
+    const hype = fever ? 1 : show ? show.hype : 0.5;
     this.crowd.forEach((fan, i) => {
       fan.position.y =
         -0.2 +
@@ -269,11 +485,17 @@ export class StageView {
     }
     this.renderer.render(this.scene, this.camera);
   }
+  /** Confetti on demand: a Fever lit, or a party won. */
+  celebrate() {
+    this.burst();
+  }
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
     this.observer.disconnect();
-    disposeAvatar(this.avatar);
+    this.retire(this.me);
+    for (const d of this.others.values()) this.retire(d);
+    this.others.clear();
     this.geometries.forEach((g) => g.dispose());
     this.materials.forEach((m) => m.dispose());
     this.renderer.dispose();
@@ -281,3 +503,4 @@ export class StageView {
     this.renderer.domElement.remove();
   }
 }
+const FEVER = new T.Color("#5a1f6e");

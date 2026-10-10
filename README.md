@@ -44,6 +44,8 @@ Coast Rush now introduces the next personal time goal and existing level/Style t
 
 Simi Plaza, in the middle of the island, now has a stage. A forty-second rhythm show with the player's avatar dancing under the lights earns up to 45 XP a day. See [STAGE.md](STAGE.md).
 
+**10 October 2026:** four dance styles with their own moves, a Fever meter for double points, a faster Encore session with double arrows, and Stage Party: up to four dancers play the same song live by sharing a four-letter code. Warm-up and the original Show's chart, stars and XP are unchanged.
+
 ## East Side — 4 October 2026
 
 A second district east of the island adds three facilities with non-arcade activities: a Fishing Jetty, a Hoops Court and Community Plots. Fishing and hoops are server-replayed rounds with three.js scenes that can be played as challenges; they have no daily boards or medals. See [EAST-SIDE.md](EAST-SIDE.md).
