@@ -17,6 +17,7 @@ import {
   type RaceItem,
   type Racer,
 } from "./racing.ts";
+import { CHAT_GAP_MS, chatLine } from "./race-chat.ts";
 
 export const ROOM_CAP = 8;
 export const ROOM_MIN = 2;
@@ -63,6 +64,7 @@ type Member = RoomIdentity & {
   done: boolean;
   stateAt: number;
   usedAt: number;
+  saidAt: number;
   recent: number[];
 };
 export type Outgoing = { to: string | null; data: Record<string, unknown> };
@@ -137,6 +139,7 @@ export class RaceRoom {
         done: false,
         stateAt: 0,
         usedAt: 0,
+        saidAt: 0,
         recent: [],
       });
     } else
@@ -195,12 +198,25 @@ export class RaceRoom {
     this.advance(now);
     if (message.t === "ping") this.send(id, { t: "pong" });
     else if (message.t === "start") this.start(id, now);
+    else if (message.t === "chat") this.say(member, message.line, now);
     else if (this.status !== "racing" || member.kart < 0 || member.done) return;
     else if (message.t === "s") this.report(member, message.s, now);
     else if (message.t === "use") this.use(member, message.item, now);
     else if (message.t === "finish" || message.t === "done")
       this.finish(member, message.t === "finish" ? message.ticks : 0);
     this.settle(now);
+  }
+  /** Passes on one of the fixed lines. `from` is the sender's place in the player list. */
+  private say(member: Member, value: unknown, now: number) {
+    const line = chatLine(value);
+    if (line < 0 || (member.saidAt && now - member.saidAt < CHAT_GAP_MS))
+      return;
+    member.saidAt = now;
+    this.send(null, {
+      t: "chat",
+      from: [...this.members.keys()].indexOf(member.id),
+      line,
+    });
   }
   private start(id: string, now: number) {
     if (
