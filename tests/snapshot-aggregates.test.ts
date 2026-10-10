@@ -55,8 +55,8 @@ function baselineCards(store: Store) {
   for (const row of db
     .prepare(
       `SELECT player,game,
-      MAX(CASE WHEN eligible=1 AND (game!='coast' OR COALESCE(version,1)=4) THEN score ELSE 0 END) best,
-      MAX(CASE WHEN version=CASE WHEN game='coast' THEN 4 ELSE 1 END THEN score ELSE 0 END) guestBest
+      MAX(CASE WHEN eligible=1 AND (game!='coast' OR COALESCE(version,1)=5) THEN score ELSE 0 END) best,
+      MAX(CASE WHEN version=CASE WHEN game='coast' THEN 5 ELSE 1 END THEN score ELSE 0 END) guestBest
       FROM runs WHERE status='finished' AND verified=1 GROUP BY player,game`,
     )
     .all()) {
@@ -293,7 +293,7 @@ test("aggregate cards refresh after moderation, retries, suspension and account 
       "UPDATE runs SET verified=0 WHERE id='ranked'",
       "UPDATE runs SET verified=1,eligible=0 WHERE id='ranked'",
       "UPDATE runs SET eligible=1,version=1 WHERE id='ranked'",
-      "UPDATE runs SET version=4,targetScore=30 WHERE id='ranked'",
+      "UPDATE runs SET version=5,targetScore=30 WHERE id='ranked'",
       "UPDATE runs SET target=NULL WHERE id='ranked'",
       "UPDATE runs SET status='abandoned' WHERE id='ranked'",
       "DELETE FROM runs WHERE id='ranked'",

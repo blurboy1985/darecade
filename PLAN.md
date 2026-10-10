@@ -1,67 +1,84 @@
-# World chat — 10 October 2026
+# Coast Rush: solid karts and rivals that fight — 10 October 2026
 
-Branch `world-chat`, from `main`. The owner asked for chat in the shared
-world and said to ignore the guidelines, which I read as the "no free-text
-chat" rule in ACCOUNTS.md and PRIVACY-REVIEW.md. So this is typed chat.
+Branch `coast-rush-contact`, from `main`. The owner asked for one more Coast
+Rush PR: computer karts should be more aggressive and use items on each other
+and the player, and karts that touch should rub and slow instead of passing
+through each other "like ghosts".
+
+## What is wrong today
+
+- A kart that touches another loses a seventh of its speed once, then has a
+  0.7-second cooldown in which it drives straight through the other kart.
+- Computer karts never touch each other at all, and never leave their lane.
+- Computer karts take about one crate row in five and hold the item for one
+  to four seconds, so an item from a rival is rare.
 
 ## Done means
 
-- A player in a world can type a message and everyone else in that world
-  sees it with the sender's name, on both transports (HTTP polling on the
-  Node preview, WebSockets on Cloudflare).
-- Typing does not walk the avatar or trigger world shortcuts.
-- `npm test`, `npm run build` and `npm run test:cloudflare` pass, and two
-  players exchange messages against the running preview server.
+- Two karts cannot occupy the same piece of road: a kart that runs into the
+  back of another is held behind it and slides off to one side; karts side by
+  side push each other apart. Both lose pace for as long as they touch.
+- Computer karts collide with each other and with drivers under the same rule.
+- Computer karts take most crates, use items sooner and with a target in
+  mind, and move across the road to block and lean on other karts.
+- A first race stays gentle: no rival items, no blocking.
+- The same rules hold in a multiplayer room.
+- `npm test`, `npm run build` and `npm run test:cloudflare` pass.
 
 ## Assumptions
 
-- Typed text, up to 120 characters, one message every 1.5 seconds per player.
-- World-wide, not stored: the world keeps the last 10 seconds in memory so a
-  2-second poll cannot miss a message, then drops it.
-- Blocks already hide players from each other in a world; chat follows the
-  same check. A muted player's messages are not shown, like their emotes.
-- No word filter and no moderation queue. The owner chose to set the
-  guidelines aside; this is recorded as an open risk, not solved here.
-- Messages show in a panel, not as a bubble over the avatar.
+- This changes the replayed simulation, so Coast Rush moves to rules version
+  5 and version 4 times are archived the way every earlier version's were
+  (`coast_contact_from` on the server, `coastRecord.version` in the save).
+  A consequence, as before: every player's next race is a first-finish race.
+- Rival paces stay as they are. "Aggressive" is items and contact, not speed.
+- No new art. A blocking kart is seen moving across the road.
 
 ## Steps
 
-1. `shared/world-chat.ts`: limits and the text clean-up.
-2. `server/world-core.mjs`: `say`, carried on a movement message as `say`,
-   delivered in snapshots as `c: [id, slot, text]`.
-3. `tests/world-chat.test.ts`.
-4. `src/world-connection.ts`: `say(text)` and a `heard` callback.
-5. `src/world-chat.ts` panel and its styles; mounted in `src/main.ts`.
-6. Sign-up notice in `src/account.ts`, ACCOUNTS.md and PRIVACY-REVIEW.md:
-   they say there is no chat, which stops being true.
+1. `shared/racing.ts`: contact between karts (`RaceField` for computer karts,
+   `CoastRace` for the driver), computer karts' steering, and their item use.
+2. `shared/simulation.ts`, `server/store-core.mjs`, `src/state.ts`: version 5.
+3. `shared/race-room.ts` / `src/race-net.ts`: only if the room needs it.
+4. Tests in `tests/racing.test.ts` and `tests/race-room.test.ts`; fix the
+   tests that pin version 4 or the old bump.
+5. Tune against scripted drivers so a drifting driver can still win and a
+   first race still ends in the top four.
+6. `COAST-RUSH.md`, cover text if it describes bumps.
 
 ## Risks
 
-- Typed chat between teens (13–17) and adults with no moderation. The
-  privacy review was written on the basis of no free-text chat.
-- The sign-up notice changes. Players who already consented were told there
-  is no chat.
-- The phone HUD is already crowded.
-- `tests/music-browser.test.ts` times out on this Windows machine on `main`.
+- Balance: rivals that rub each other get slower, rivals with more items make
+  the race harder. Measured with scripted drivers, not with people.
+- Personal bests are archived on deploy.
+- Multiplayer contact uses positions that are a few frames old.
 
 ## Outcome
 
-- All six steps done. `npm test` 503 pass, 0 fail, 49 skipped (493 before);
-  `npm run test:cloudflare` 17 of 17, with a new test that sends chat over
-  real WebSockets and over polling; `npm run build` clean.
-- Checked in desktop Chrome against the Node preview with a scripted second
-  player: messages went both ways with the right names, markup in a message
-  showed as text, a message sent too soon was dropped, and messages left the
-  world after 10 seconds. Enter opened the box and sent.
-- The browser player did not move while typing a message with w, a, s and d
-  in it, but the tab was in the background and the 3D scene was not drawing,
-  so try this once by hand.
-- Merged as #72 (`5808948`) after merging `main` in; the merged tree passed
-  `npm test` (525 pass, 0 fail, 49 skipped) and `npm run test:cloudflare`
-  (17 of 17). Deployed as Worker version
-  `58f32cb6-0d3d-4e85-8f37-6a929307fdfb`; HOSTING.md has the record.
-- Not done: chat was not exercised in production, and nothing was tried on a
-  phone, where the on-screen keyboard may cover the box.
-- The owner chose to leave `PRIVACY_VERSION` at `2026-10-03`, so existing
-  players are not asked to agree to the changed notice.
-- Not built: a bubble over the avatar, a word filter, reporting a message.
+- Steps 1, 2, 4, 5 and 6 done. Step 3 needed no change: the room already
+  runs the shared field, and each browser already resolves its own kart.
+- Scripted drivers over 12 seeds, before and after:
+
+  | Driver               | Time before | Time after | Struck before | Struck after | Place after |
+  | -------------------- | ----------- | ---------- | ------------- | ------------ | ----------- |
+  | Drifts, uses items   | 79.1 s      | 85.2 s     | 3.3           | 6.8          | 1st, all 12 |
+  | Never drifts         | 93.6 s      | 96.4 s     | 3.3           | 3.6          | 2nd or 3rd  |
+
+  Rivals used 10 to 14 items a race before and 23 to 25 after. A driver who
+  never avoids other karts spends 6 to 8 seconds a race in contact. Nobody
+  ran out of time. A first race is unchanged at 89.8 s.
+- Computer karts were first set to take 70% of crate rows. That struck the
+  leader about 12 times a race, so it is 40%.
+- Leaning on a kart first gave a knock every 0.7 seconds. It is now one knock
+  and then a rub.
+- One seed in 30 puts a driver who coasts ahead of one who does not, because
+  of where rival items land. The skill test now totals four seeds.
+- A full-length replay costs 14.6 ms on this machine against 8.3 ms on
+  `main`. Not measured on Cloudflare.
+- `npm test`: 578 tests, 529 pass, 0 fail, 49 skipped (525 pass on `main`).
+  `npm run test:cloudflare`: build clean, 17 of 17.
+- In installed Chrome (`DARECADE_TEST_CHROMIUM`): the built race page at
+  seven viewports, 13 of 13, and Section 4, 3 of 3. Section 4 was failing on
+  `main` because its fixture saved a version 3 record; it now saves version 5.
+- Not done: nobody has driven it. The feel of a block, a lean and a rub, and
+  whether five or six hits a race is fun, need a person at the wheel.

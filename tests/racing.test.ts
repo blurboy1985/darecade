@@ -13,6 +13,8 @@ import {
 } from "../shared/simulation.ts";
 import {
   CoastRace,
+  KART_LENGTH,
+  KART_WIDTH,
   RaceField,
   SPIN_TICKS,
   WALL,
@@ -111,13 +113,18 @@ test("Coast Rush shares deterministic three-lap physics with server replay; a se
 });
 
 test("steering and drift reward skill; coasting costs time; incomplete runs score zero", () => {
-  const clean = drive(1),
-    drift = drive(1, "drift"),
-    idle = drive(1, "idle"),
+  const drift = drive(1, "drift"),
     brake = drive(1, "brake");
-  assert.ok(drift.score > clean.score && clean.score > idle.score);
+  // Rival items land differently on every seed, so skill is measured over a
+  // few races rather than one.
+  const total = (style: Driving) =>
+    [1, 2, 3, 4].reduce((sum, seed) => sum + drive(seed, style).race.ticks, 0);
+  const clean = total("clean"),
+    idle = total("idle");
+  assert.ok(total("drift") < clean - 1200, "drifting saves seconds a race");
+  assert.ok(idle > clean + 240, "coasting costs a second a race or more");
+  assert.ok(drift.score > 0);
   assert.ok(drift.race.boosts > 0);
-  assert.ok(idle.race.ticks > clean.race.ticks);
   assert.equal(brake.replay.ticks, RACE_TICKS);
   assert.equal(brake.score, 0);
   assert.ok(brake.race.distance < RACE_DISTANCE);
@@ -203,7 +210,7 @@ test("verified race times drive daily medals, weekly totals and three distinct-n
         .prepare("INSERT INTO accounts VALUES(?,?,?)")
         .run(p, `racer${i}@example.test`, time - 172800000);
       const progress = community.privateProfile(p).progress;
-      progress.coastRecord = { version: 4, timeTicks: 7000, place: 8 };
+      progress.coastRecord = { version: 5, timeTicks: 7000, place: 8 };
       community.save(p, progress);
       return p;
     });
@@ -361,6 +368,8 @@ test("drift release awards the displayed Mini, Super and Ultra tiers", () => {
 
 test("crates draw one of seven seeded items; E consumes once per press; shells are lap pickups", () => {
   const race = new CoastRace();
+  // Karts are solid, so the grid is moved clear of the crates being crossed.
+  for (const r of race.rivals) r.distance += 300;
   const cross = (point: { distance: number; offset: number }) => {
     race.distance = point.distance - 0.1;
     race.offset = point.offset;
@@ -388,6 +397,7 @@ test("crates draw one of seven seeded items; E consumes once per press; shells a
   // The draw depends on the seed, covers all seven, and repeats for one seed.
   const draw = (seed: number, leading = false) => {
     const r = new CoastRace(seed);
+    for (const rival of r.rivals) rival.distance += 300;
     if (leading) r.distance = TRACK_LENGTH;
     r.distance += itemCrates[0].distance - 0.1;
     r.offset = itemCrates[0].offset;
@@ -555,9 +565,10 @@ test("computer karts collect crates and use items on each other and the player, 
     assert.ok(race.speed > 0, "whatever hit it, the kart is still moving");
   }
   assert.deepEqual([...all].sort(), [...ITEMS].sort());
-  // Enough to matter, not a barrage: roughly ten to thirty rival items a race.
-  assert.ok(total > 60 && total < 200, `${total} rival items in six races`);
-  assert.ok(struck > 2 && struck < 40, `player struck ${struck} times`);
+  // A fight, not a barrage: roughly twenty to thirty rival items a race, and
+  // the player hit by about one in five of them.
+  assert.ok(total > 100 && total < 220, `${total} rival items in six races`);
+  assert.ok(struck > 10 && struck < 50, `player struck ${struck} times`);
   const first = used(-1);
   assert.equal(first.uses.size, 0);
   assert.equal(first.race.struck, 0);
@@ -565,7 +576,8 @@ test("computer karts collect crates and use items on each other and the player, 
 });
 
 test("an item hit spins the player without stopping the kart; a shield blocks it", () => {
-  const race = new CoastRace();
+  // A first race, so no rival item lands on top of the one being tested.
+  const race = new CoastRace(-1);
   race.speed = 23;
   race.distance = 300;
   assert.equal(race.strike("spin", "Marina", "missile"), true);
@@ -705,6 +717,169 @@ test("walls and other karts only rub off speed; an active shield prevents both",
   shoved.offset = shoved.rivals[6].offset + 0.4;
   shoved.advance(0, 1, false);
   assert.ok(shoved.lateralSpeed > 0, "pushed away from the other kart");
+});
+
+/** Two karts sharing a piece of road, which solid karts never do. */
+const overlapping = (
+  a: { distance: number; offset: number },
+  b: { distance: number; offset: number },
+) =>
+  Math.abs(a.distance - b.distance) < KART_LENGTH - 0.2 &&
+  Math.abs(a.offset - b.offset) < KART_WIDTH - 0.3;
+
+test("karts are solid: a driver is held behind a kart it runs into, slides off it and loses pace", () => {
+  const meet = (blocked: boolean) => {
+    const race = new CoastRace(-1);
+    const slow = race.rivals[6];
+    for (const r of race.rivals) if (r !== slow || !blocked) r.distance += 300;
+    race.distance = 240;
+    race.offset = slow.offset;
+    race.speed = 23;
+    if (blocked) slow.distance = 243;
+    let slowest = 23,
+      held = 0;
+    for (let tick = 0; tick < 150; tick++) {
+      const before = race.distance;
+      // Holding the slow kart's line, so the driver keeps steering back at it.
+      const steer = Math.sign(
+        trackCurve(race.distance) * race.speed ** 2 * 0.1 -
+          (race.offset - slow.offset) * 2 -
+          race.lateralSpeed * 0.5,
+      );
+      race.advance(steer, 1, false);
+      assert.ok(!overlapping(race, slow), `inside the other kart at ${tick}`);
+      slowest = Math.min(slowest, race.speed);
+      if (race.distance - before < (race.speed / 60) * 0.9) held++;
+    }
+    return { race, slow, slowest, held };
+  };
+  const free = meet(false),
+    hit = meet(true);
+  assert.equal(free.race.bumps, 0);
+  assert.equal(free.held, 0);
+  assert.ok(hit.race.bumps >= 1);
+  assert.ok(hit.held > 3, `held behind for ${hit.held} ticks`);
+  assert.ok(hit.slowest < 23 * 0.9, String(hit.slowest));
+  assert.ok(hit.slowest > 12, "a knock and a rub, not a stop");
+  assert.ok(
+    Math.abs(hit.race.offset - hit.slow.offset) >= KART_WIDTH - 0.3 ||
+      hit.race.distance > hit.slow.distance + KART_LENGTH - 0.2,
+    "it went round",
+  );
+  assert.ok(hit.race.distance > hit.slow.distance, "and got past");
+  assert.ok(
+    free.race.distance - hit.race.distance > 2,
+    "the contact cost ground",
+  );
+});
+
+test("door to door, karts push each other apart and rub for as long as one leans on the other", () => {
+  const race = new CoastRace(-1);
+  const rival = race.rivals[0];
+  for (const r of race.rivals) if (r !== rival) r.distance += 300;
+  race.distance = rival.distance = 240;
+  race.speed = rival.speed = 20.5;
+  race.offset = rival.offset - 1.6;
+  const line = rival.offset;
+  // Steering into the other kart the whole time. It gives way until it runs
+  // out of road, and from there the two rub.
+  const lean = (ticks: number) => {
+    let rubbed = 0;
+    for (let tick = 0; tick < ticks; tick++) {
+      race.advance(1, 1, false);
+      assert.ok(!overlapping(race, rival), `inside the other kart at ${tick}`);
+      if (race.rub && rival.rub) rubbed++;
+    }
+    return rubbed;
+  };
+  lean(30);
+  assert.ok(rival.offset > line + 1, "the other kart was pushed off its line");
+  assert.equal(race.bumps, 1, "they met with a knock");
+  assert.ok(lean(30) > 20, "pinned at the edge, both rub every tick");
+  assert.ok(race.speed < 23 * 0.85, "leaning on a kart holds the pace down");
+  assert.ok(rival.speed < 19, "and holds the other kart's pace down too");
+  assert.equal(race.bumps, 1, "one knock, then a rub");
+  // Steering away ends it.
+  for (let tick = 0; tick < 40; tick++) race.advance(-1, 1, false);
+  assert.equal(race.rub, 0);
+  // A shielded kart keeps its line and its speed, and the other one gives way.
+  const shielded = new CoastRace(-1);
+  const other = shielded.rivals[0];
+  for (const r of shielded.rivals) if (r !== other) r.distance += 300;
+  shielded.distance = other.distance = 240;
+  shielded.speed = other.speed = 20.5;
+  shielded.offset = other.offset - 1;
+  shielded.shield = 3;
+  shielded.advance(0, 1, false);
+  assert.equal(shielded.bumps, 0);
+  assert.equal(shielded.rub, 0);
+  assert.ok(other.offset > 2.8 && other.rub > 0);
+});
+
+test("computer karts are solid to each other, and go round a slower kart instead of through it", () => {
+  // Already on its tail: the faster kart is held, rubs and slides off.
+  const karts = [
+    racer("Fast", "#fff", 24, 100, 2.8),
+    racer("Slow", "#fff", 12, 102.2, 2.8),
+  ];
+  const [fast, slow] = karts;
+  fast.speed = 24;
+  slow.speed = 12;
+  const close = new RaceField(karts, 1, false);
+  let rubbed = false,
+    slowest = 24;
+  for (let tick = 0; tick < 300; tick++) {
+    close.step();
+    assert.ok(!overlapping(fast, slow), `inside the other kart at ${tick}`);
+    rubbed ||= fast.rub > 0;
+    slowest = Math.min(slowest, fast.speed);
+  }
+  assert.ok(rubbed);
+  assert.ok(slowest < 24 * 0.92, String(slowest));
+  assert.ok(fast.distance > slow.distance + KART_LENGTH, "it got past");
+  assert.ok(Math.abs(fast.offset - 2.8) < 0.1, "and went back to its lane");
+  // With room to see it coming, it pulls out early and never touches.
+  const far = [
+    racer("Fast", "#fff", 24, 100, 2.8),
+    racer("Slow", "#fff", 12, 112, 2.8),
+  ];
+  far[0].speed = 24;
+  far[1].speed = 12;
+  const open = new RaceField(far, 1, false);
+  let widest = 0;
+  for (let tick = 0; tick < 300; tick++) {
+    open.step();
+    assert.equal(far[0].rub, 0);
+    widest = Math.max(widest, Math.abs(far[0].offset - 2.8));
+  }
+  assert.ok(widest > KART_WIDTH, "pulled out to pass");
+  assert.ok(far[0].distance > far[1].distance + KART_LENGTH);
+});
+
+test("computer karts move across to block a kart catching them, but not in a first race", () => {
+  const blocks = (seed: number, fighting: boolean) => {
+    const karts = [
+      racer("Driver", "#fff", 0, 114, -1.5),
+      racer("Rival", "#fff", 20, 120, 2.8),
+    ];
+    const [driver, rival] = karts;
+    driver.speed = 26;
+    rival.speed = 20;
+    const f = new RaceField(karts, seed, fighting);
+    let nearest = Infinity;
+    for (let tick = 0; tick < 60; tick++) {
+      // The driver closes on the rival along its own line.
+      driver.distance += driver.speed / 60;
+      f.step();
+      nearest = Math.min(nearest, Math.abs(rival.offset - driver.offset));
+    }
+    return nearest < 2.5;
+  };
+  const seeds = Array.from({ length: 40 }, (_, i) => i * 7919 + 1);
+  const fought = seeds.filter((seed) => blocks(seed, true)).length;
+  // In the mood about two times in three.
+  assert.ok(fought > 15 && fought < 36, `${fought} of 40 blocked`);
+  assert.equal(seeds.filter((seed) => blocks(seed, false)).length, 0);
 });
 
 test("new bests and race records come from replay, retry safely, and never put rivals on real boards", () => {
@@ -896,7 +1071,7 @@ test("old-loop times are archived when the route changes; earlier days still set
   const store = new Store(":memory:", () => now),
     community = new Community(store, { directory });
   try {
-    assert.equal(rulesVersion("coast"), 4);
+    assert.equal(rulesVersion("coast"), 5);
     const id = community.join({
       year: 2000,
       month: 1,
@@ -926,7 +1101,7 @@ test("old-loop times are archived when the route changes; earlier days still set
     assert.equal(migrated.best.hop, 40);
     assert.equal(migrated.coastLegacyBest, 4200);
     assert.deepEqual(migrated.coastRecord, {
-      version: 4,
+      version: 5,
       timeTicks: 0,
       place: 0,
     });
@@ -959,6 +1134,30 @@ test("old-loop times are archived when the route changes; earlier days still set
     const drifted = community.privateProfile(id).progress;
     assert.equal(drifted.coastLegacyBest, 4301);
     assert.equal(drifted.coastRecord.timeTicks, 0);
+    // And for the drift route before karts became solid: its last day settles
+    // on version 4, and a version 4 best is archived.
+    store.driftFrom = "2026-10-05";
+    store.db.prepare("UPDATE runs SET version=4 WHERE id=?").run(old.id);
+    assert.equal(store.contactFrom, "2026-10-06");
+    assert.equal(store.board("coast", midnight, midnight - 86400000).length, 1);
+    assert.equal(store.board("coast", now + 1, midnight - 86400000).length, 0);
+    const ghostly = community.privateProfile(id).progress;
+    Object.assign(ghostly, {
+      coastRecord: { version: 4, timeTicks: 2800, place: 1 },
+      coastLegacyBest: 0,
+    });
+    ghostly.best.coast = 4401;
+    store.db
+      .prepare("UPDATE profiles SET progress=? WHERE player=?")
+      .run(JSON.stringify(ghostly), id);
+    const solid = community.privateProfile(id).progress;
+    assert.equal(solid.coastLegacyBest, 4401);
+    assert.equal(solid.best.coast, 0);
+    assert.deepEqual(solid.coastRecord, {
+      version: 5,
+      timeTicks: 0,
+      place: 0,
+    });
   } finally {
     store.close();
     rmSync(directory, { recursive: true, force: true });

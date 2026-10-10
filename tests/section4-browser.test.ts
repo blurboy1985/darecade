@@ -92,7 +92,7 @@ for (const viewport of viewports) {
         else if (path === 'auth/session' || path === 'auth/me' || path === 'profile' || path === 'progress') result = profile;
         else if (path === 'state') result = { profile, competitionReady: false, me: profile.id, self: { id: profile.id, name: profile.name, look: {}, activity: 'lobby', status: 'online', best: profile.progress.best, points: 0 }, day: ${JSON.stringify(today)}, nextReset: Date.now() + 86400000, week: '', weekly: [], lastWeek: [], dares: [], recentRuns: [], players: [], friends: [], challenged: [], boards: { noodle: [], hop: [], brick: [], swarm: [], coast: [], hoops: [], fishing: [] }, history: [] };
         else if (path === 'world/poll') result = { t: 'sync', at: Date.now(), world: 'fixture', p: [], d: [], gone: [] };
-        else if (path === 'run') result = { id: 'synthetic-coast-run', game: data.game, seed: 7, version: 3, ranked: false, dailySeed: false, target: null, targetScore: 0 };
+        else if (path === 'run') result = { id: 'synthetic-coast-run', game: data.game, seed: 7, version: 5, ranked: false, dailySeed: false, target: null, targetScore: 0 };
         else if (path === 'style-rewards') result = { tokens: 0 };
         return new Response(JSON.stringify(result), { headers: { 'Content-Type': 'application/json' } });
       };
@@ -156,7 +156,7 @@ for (const viewport of viewports) {
           check(find('#modal').scrollWidth <= find('#modal').clientWidth + 1, 'Coast has no modal horizontal overflow');
           close();
           profile.progress.xp = 100;
-          profile.progress.coastRecord = { version: 3, timeTicks: 3600, place: 2 };
+          profile.progress.coastRecord = { version: 5, timeTicks: 3600, place: 2 };
           syncProfile();
           await openCoast();
           check(find('.game-progress').textContent.includes('Next goal: beat ${raceTime(3600)}'), 'Coast saved fastest-time goal');
