@@ -149,7 +149,7 @@ test("misses and stray presses drain the hype until the show is booed off", () =
   assert.equal(idle.booed, true);
   assert.equal(idle.score, 0);
   assert.ok(idle.tick < STAGE_TICKS / 2, "an idle show ends early");
-  assert.equal(idle.counts.miss, 5);
+  assert.equal(idle.counts.miss, 7);
   // Mashing every lane costs hype too, so it cannot stand in for timing.
   const mash = new StageShow(7);
   while (!mash.ended) mash.advance([true, true, true, true]);
@@ -175,9 +175,9 @@ test("the default and explicit Show retain the original seeded chart and rewards
     explicit.advance([false, false, false, false]);
   }
   assert.deepEqual(original, explicit);
-  // The fifth note is missed once the Good window has passed it.
-  assert.equal(original.tick, original.notes[4].tick + STAGE_GOOD + 1);
-  assert.equal(original.counts.miss, 5);
+  // The seventh note is missed once the Good window has passed it.
+  assert.equal(original.tick, original.notes[6].tick + STAGE_GOOD + 1);
+  assert.equal(original.counts.miss, 7);
   assert.equal(original.booed, true);
 });
 

@@ -137,11 +137,11 @@
   display: none;
 }
 .activity-stage[data-playing="true"] #stage-progress,
-.activity-stage[data-playing="true"] .field-label,
-.activity-stage[data-playing="true"] #stage-mode,
-.activity-stage[data-playing="true"] #stage-goal,
+.activity-stage[data-playing="true"] .stage-setup,
+.activity-stage[data-playing="true"] .stage-intro,
 .activity-stage[data-playing="true"] #stage-note,
-.activity-stage[data-playing="true"] .activity-status:empty {
+.activity-stage #stage-note:empty,
+.stage-intro .activity-status:empty {
   display: none;
 }
 .activity-stage[data-playing="true"] h2 {
@@ -158,21 +158,94 @@
 #stage-progress {
   width: min(100%, 420px);
 }
-.activity-stage #stage-mode {
-  max-width: 420px;
+.activity-stage #stage-note {
+  margin: 0;
 }
-.activity-stage #stage-goal {
-  max-width: 420px;
-  font-size: 14px;
-  margin: 4px 0;
-}
-.activity-stage #stage-style {
-  max-width: 420px;
-}
-.activity-stage[data-playing="true"] #stage-style,
-.activity-stage[data-playing="true"] .kit-select:has(#stage-style),
 .activity-stage[data-playing="true"][data-party="true"] .stage-party {
   display: none;
+}
+/* Session and dance style: every choice on show, one tap each. */
+.stage-setup {
+  display: grid;
+  gap: 8px;
+  width: min(100%, 420px);
+}
+.stage-pick {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.stage-pick legend {
+  padding: 0 0 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #5f6f72;
+}
+.stage-pick button {
+  display: grid;
+  gap: 1px;
+  align-content: center;
+  min-width: 0;
+  min-height: 44px;
+  padding: 6px 4px;
+  border: 2px solid #adc3b7;
+  border-radius: 12px;
+  background: #fff9ed;
+  color: #294d63;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+}
+.stage-pick button small {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.75;
+}
+.stage-pick button[aria-pressed="true"] {
+  border-color: #294d63;
+  background: #294d63;
+  color: #fff9ed;
+}
+.stage-pick:disabled button {
+  opacity: 0.55;
+}
+/* Start, the one-line goal and the last result sit on the stage itself. */
+.stage-intro {
+  position: absolute;
+  inset: auto 0 0;
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  padding: 36px 14px 14px;
+  background: linear-gradient(#0b0c1a00, #0b0c1ae6 45%);
+  color: #fff7d7;
+  text-align: center;
+}
+.stage-intro p {
+  text-wrap: balance;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+.stage-intro .activity-status {
+  min-height: 0;
+  font-size: 15px;
+  color: #ffe27a;
+}
+.stage-intro .primary {
+  justify-content: center;
+  min-height: 48px;
+  background: #ffe27a;
+  color: #1b1d38;
+  font-size: 15px;
+  font-weight: 800;
 }
 /* Fever: a bar that fills under the lanes, then a button to spend it. */
 .stage-fever {
