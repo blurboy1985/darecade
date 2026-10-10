@@ -3013,6 +3013,7 @@ const worldConnection = new WorldConnection(
   },
   (name) => {
     currentWorld = name;
+    worldChat.world(`World ${name.slice(6)}`);
     document.querySelector("#current-world")!.textContent =
       `World ${name.slice(6)} · ${worldCode(name)}`;
   },

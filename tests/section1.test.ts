@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
+import { WorldChatOutbox } from "../shared/world-chat.ts";
 import {
   Simulation,
   replayRun,
@@ -202,6 +203,7 @@ test("HTTP assigns a world while sockets hang; stale bootstrap cannot replace a 
     setInterval: () => 1,
     clearInterval() {},
     activityIds: [],
+    WorldChatOutbox,
   });
   vm.runInContext(connectionCompiled, context);
   const c = new context.Connection(
@@ -255,6 +257,7 @@ for (const outcome of ["success", "failure"]) {
       setInterval: () => 1,
       clearInterval() {},
       activityIds: [],
+      WorldChatOutbox,
     });
     vm.runInContext(connectionCompiled, context);
     const c = new context.Connection(
@@ -319,6 +322,7 @@ test("stop/start with the same session ignores an older bootstrap and opens only
     setInterval: () => 1,
     clearInterval() {},
     activityIds: [],
+    WorldChatOutbox,
   });
   vm.runInContext(connectionCompiled, context);
   const c = new context.Connection(

@@ -1,5 +1,6 @@
 import { api, type SharedPlayer } from "./social";
 import { activityIds, type ActivityId } from "./catalog";
+import { WorldChatOutbox } from "../shared/world-chat";
 
 type Movement = {
   x?: number;
@@ -37,7 +38,7 @@ export class WorldConnection {
   private generation = 0;
   private lastReceived = 0;
   private lastSent = 0;
-  private saying = "";
+  private outbox = new WorldChatOutbox();
   private lastHeard = 0;
   constructor(
     private position: () => Movement,
@@ -48,13 +49,15 @@ export class WorldConnection {
     ) => void = () => {},
     private heard: (from: SharedPlayer, text: string) => void = () => {},
   ) {}
-  /** Says a message to the world with the next update. */
+  /**
+   * Says a message to the world with an update soon. False when too many
+   * are already waiting to go.
+   */
   say(text: string) {
-    this.saying = text;
+    return this.outbox.add(text);
   }
   private outgoing() {
-    const say = this.saying;
-    this.saying = "";
+    const say = this.outbox.next(Date.now());
     return say ? { ...this.position(), say } : this.position();
   }
   async join(world: string) {
@@ -243,7 +246,7 @@ export class WorldConnection {
       this.receive(packet);
     } catch {
       // A message that did not get through goes with the next update.
-      if ("say" in data && !this.saying) this.saying = data.say;
+      if ("say" in data) this.outbox.putBack(data.say);
       if (
         !this.stopped &&
         this.polling &&

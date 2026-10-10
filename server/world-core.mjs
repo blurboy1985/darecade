@@ -80,12 +80,13 @@ export class WorldState {
   move(id, data) {
     const p = this.players.get(id);
     if (!p) return false;
+    // A message rides on a movement update, so both transports carry it. It
+    // has its own limit, so it is taken even when the movement is refused.
+    const said = data.say !== undefined && this.say(id, data.say);
     p.moveTimes = p.moveTimes.filter((at) => at > this.now() - 1000);
-    if (p.moveTimes.length >= 5) return false;
+    if (p.moveTimes.length >= 5) return said;
     p.moveTimes.push(this.now());
     p.seen = this.now();
-    // A message rides on a movement update, so both transports carry it.
-    const said = data.say !== undefined && this.say(id, data.say);
     const next = clampMovement(data, p);
     if (Object.keys(next).every((key) => next[key] === p[key])) return said;
     Object.assign(p, next, { revision: ++this.revision });

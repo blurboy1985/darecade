@@ -1,60 +1,94 @@
-# Stage song and kinder timing — 10 October 2026
+# World chat window — 10 October 2026
 
-Branch `stage-music`, from `main`. The owner asked for the Open Stage to
-have music, with the arrows pressed to its rhythm, and for timing to be more
-lenient: Perfect, Great, Good or Miss.
+Branch `world-chat-window`, from `main` (`d76c049`). The owner tried the
+world chat from #72 and reported that there is no chat history, and that a
+message you send should appear in a chat window.
+
+## What was wrong
+
+- There was no window. A message was a floating pill that removed itself
+  after 12 seconds, and only six were kept, so there was nothing to read back.
+- Your own message only showed once the world sent it back. On polling that
+  is up to two seconds; when the world dropped it, nothing showed at all.
+- The world dropped messages without telling anyone:
+  - The page and the world both enforce a 1.5 second gap, but the page timed
+    it from the keypress and the world from arrival. Updates leave every
+    210 ms, so two messages typed 1.5 s apart could arrive 1.47 s apart.
+  - A message rides on a movement update, and the world refused the whole
+    update when a player had sent five in a second.
+  - On polling, a second message typed before the next poll replaced the
+    first.
+- On a phone the on-screen keyboard can cover the box (noted in #72).
 
 ## Done means
 
-- A show plays its own song, and every arrow reaches the line on a beat or
-  half-beat of that song. The lobby theme waits while it plays.
-- A press is judged Perfect, Great or Good by how close it is, over a wider
-  window than before; a note left alone is a Miss.
-- `npm test` and `npm run build` pass, and a show is played in a browser.
+- Chat opens as a window with a scrolling history of what was said while you
+  were in the world, and stays open until you close it.
+- A message you send shows in the window at once, marked as sending, then as
+  sent when the world passes it on, or as not sent if it never does.
+- Messages are not dropped by the three causes above.
+- `npm test`, `npm run build` and `npm run test:cloudflare` pass, and two
+  players exchange messages in a browser against the preview server.
 
 ## Assumptions
 
-- The charts stay as they are (same seeds, same notes, same perfect score),
-  so stars, XP, the server's rules and Stage Party need no change. The song
-  is written from the chart instead: drums and bass on its beat grid, and a
-  lead note on every arrow, pitched by lane.
-- The song is synthesised like the rest of the game's sound, follows the
-  Music setting, and is scheduled from the show's tick clock so it cannot
-  drift from the arrows.
-- Windows: Perfect ±4 ticks (67 ms, as before), Great ±8 (133 ms), Good ±12
-  (200 ms, was 150). Points 100 / 75 / 50. "Too soon" stays for a press with
-  no note near, so mashing still costs hype.
+- "History" is what this page heard since it loaded, up to 100 messages. It
+  is kept in the page only. The world still keeps a message for 10 seconds
+  and stores nothing, so a player who arrives later does not see earlier
+  talk, and a reload starts empty. Changing that changes what ACCOUNTS.md and
+  PRIVACY-REVIEW.md say, so it is left for the owner to decide.
+- History survives a change of world, with a line marking the new world.
+- With the window closed, new messages still float for 12 seconds as before,
+  and the Chat button counts the unread ones.
 
 ## Steps
 
-1. `shared/stage.ts`: `stageBeat`, the Great tier, the wider Good window.
-2. `src/stage-song.ts`: the song as a list of timed sounds, from the chart.
-3. `src/audio.ts`: a bus and voices for the song; `stage(on)` hushes the theme.
-4. `src/stage-game.ts`, `src/stage-view.ts`, `src/stage.css`, `src/main.ts`:
-   schedule the song, show Great.
-5. Tests: rules, song, panel, audio. STAGE.md.
+1. `shared/world-chat.ts`: an outbox that releases one message per gap, with
+   a margin, and takes back one that did not get through.
+2. `server/world-core.mjs`: a message is taken before the movement limit.
+3. `src/world-connection.ts`: use the outbox; `say` reports whether it took
+   the message.
+4. `src/world-chat.ts` and `src/mobile-hud.css`: the window, history, the
+   sending / not sent states, unread count, and lifting above the keyboard.
+5. `src/main.ts`: tell the chat which world it is in.
+6. Tests in `tests/world-chat.test.ts`.
 
 ## Risks
 
-- Same-lane notes are 22 ticks apart at the fastest, so two Good windows
-  (24) now overlap by 2 ticks there. The earlier note takes the press, as
-  before; the Encore test that asserted no overlap is restated for Great.
-- Sound latency (Bluetooth especially) cannot be measured from a test.
+- The window covers more of a small screen than the pills did.
+- Lifting above the keyboard relies on `visualViewport` and cannot be tried
+  on a real phone from here.
+- The server change needs a deployment to take effect; this branch does not
+  deploy.
 
 ## Outcome
 
-- All five steps done. `npm test` 531 pass, 0 fail, 49 skipped (the browser
-  checks that need `DARECADE_TEST_CHROMIUM`); `npm run build` clean.
-- Played in desktop Chrome against the built preview, with the audio graph
-  instrumented. A Warm-up cued three clicks 0.75 s apart and then the full
-  beat; the lobby theme stopped being scheduled when the show began and
-  came back after it. A Show called Perfect, Miss and Too soon, and was
-  booed off as an unskilled one should be. No console errors.
-- The automation tab was in the background, so frames were pumped from a
-  worker and nobody listened. How the song sounds, and whether it feels on
-  the beat through real speakers, needs a person with the sound on.
-- Great and Good were not produced by hand in the browser; the rules and
-  panel tests cover them.
-- Not built: a latency setting for Bluetooth speakers, a tally of
-  Perfect/Great/Good on the result line, a count-in for Stage Party's
-  countdown.
+- All six steps done. `npm test` 529 pass, 0 fail, 49 skipped (525 before);
+  `npm run test:cloudflare` 17 of 17, which includes the build and dry run.
+- `tests/section1.test.ts` loads `world-connection.ts` in a sandbox with its
+  imports supplied by hand, so it now supplies the outbox too.
+- Checked in headless Chrome against the Node preview (polling) with a
+  scripted second player, at 1264×569 and 390×844:
+  - With the window closed, two messages floated and the button counted 2.
+    Markup in a message showed as text.
+  - Opening the window showed all five messages heard so far. A message
+    sent from the box showed at once as sending, then as sent, and the other
+    player heard it.
+  - Four messages sent 1.5 seconds apart all arrived.
+  - Escape closed the window; Enter opened it with the history still there.
+  - With twelve messages the history scrolled and stayed on the newest.
+  - With the server stopped, a message was marked "Not sent" after 10
+    seconds; once the world answered again it went out and the mark cleared,
+    with no second copy.
+- Not checked: WebSockets in a browser (the preview only polls; the
+  Cloudflare test covers the server side), a real phone and its keyboard,
+  and whether typing w, a, s, d moves the avatar (same mechanism as #72,
+  now on the window instead of the box).
+- Not deployed. The server change in step 2 takes effect on deployment; the
+  page changes do not depend on it.
+- Found, not fixed: after the Node preview restarts, a page that asks for
+  its old world by name gets "World unavailable" until some request without
+  a name creates the world again. Preview only.
+- For the owner to decide: whether a world should keep recent messages for
+  players who arrive later, and whether history should survive a reload.
+  Both mean keeping what players typed for longer than 10 seconds.
