@@ -49,6 +49,26 @@ test("world keeps three stable routes and a separate nearby action", () => {
   }
 });
 
+test("nearby action prompt stays large at every screen size", () => {
+  const css = (name: string) =>
+    readFileSync(new URL(`../src/${name}`, import.meta.url), "utf8");
+  const rule = (sheet: string, selector: string) =>
+    sheet.match(
+      new RegExp(`(?:^|\\n)${selector.replace(/[.#]/g, "\\$&")} \\{([^}]*)\\}`),
+    )?.[1] || "";
+  const prompt = rule(css("lobby-ui.css"), ".nearby-prompt");
+  assert.ok(Number(prompt.match(/min-height: (\d+)px/)?.[1]) >= 64);
+  assert.ok(Number(prompt.match(/700 (\d+)px/)?.[1]) >= 18);
+  const key = rule(css("lobby-ui.css"), ".nearby-prompt kbd");
+  assert.ok(Number(key.match(/height: (\d+)px/)?.[1]) >= 36);
+  // The HUD sheet loads last; it may place the prompt but must not shrink it.
+  assert.doesNotMatch(
+    rule(css("mobile-hud.css"), ".hud .nearby-prompt"),
+    /font-size|min-height|max-width|padding/,
+  );
+  assert.match(css("lobby-ui.css"), /\.reduced \.nearby-prompt::after/);
+});
+
 test("first visit retains privacy and player reporting routes", () => {
   assert.match(source, /data-open="phone-menu"/);
   assert.match(source, /data-open="neighbours">Nearby players/);
