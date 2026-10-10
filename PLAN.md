@@ -45,3 +45,19 @@ prompt) and #69 (Open Stage: dance styles, Fever, Encore and Stage Party).
   progress at that moment is cut off.
 - Rollback is a redeploy of `f0ce6e2`. Neither pull request changes a schema,
   migration, binding, variable or secret.
+
+## Outcome
+
+- #67 merged as `b74d211` and #69 as `c8f3ace`. No pull request was open
+  afterwards.
+- The tree that became `main` passed `npm test` (515 pass, 0 fail, 49
+  skipped), `npm run test:cloudflare` (16 of 16) and `npm run build`.
+- Deployed as Worker version `74aaede0-dae7-49fd-9263-26a7c79514a4` at about
+  14:42 SGT. Health is ready, and the live page and eight of its assets match
+  the build byte-for-byte.
+- One thing the plan did not expect: the last deployment was #65, so this one
+  also put #66, #68 and #70 live, with the new `Race` Durable Object and
+  migration `v3`. The rollback above is therefore a redeploy of `4da7d3f`
+  that keeps the `RACE` binding and the `v3` migration.
+- Not done: nothing behind the welcome check was tried in production, and
+  nothing was tried on a phone. HOSTING.md has the full record.
