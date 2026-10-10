@@ -54,6 +54,7 @@ sets, live Stripe configuration, and S$2/S$5/S$10/S$50 one-time donations.
   feature checks below are separate evidence, not a claim about this run.
 - Earlier Stripe sandbox purchase and refund checks and the live unpaid
   checkout/webhook check are recorded in PAYMENTS.md. No real payment was made.
+- (Superseded on 10 October 2026: Coast Rush now uses rules version 4; see COAST-RUSH.md.)
 - Coast Rush uses route/rules version 3 and archives old bests while retaining
   medals. Pages open before deployment should reload before starting a round,
   because Hop Hop and Brick Bash simulation changes retain their version.

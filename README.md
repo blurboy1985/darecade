@@ -96,7 +96,7 @@ The production site is emitted to `dist/`. `npm run preview` serves it at http:/
 
 - Original isometric neighbourhood: void-deck Arcade Row, Simi Plaza, Mama Shop, wardrobe booth, shared daily board, Pocket Garden, Kopi the cat, and dragon playground.
 - Click-to-walk routes around buildings, WASD/arrows, touch joystick, proximity interactions, orbit controls, zoom, and a clear player marker. Space jumps; E interacts with the nearby location. Explore provides accessible navigation to each destination.
-- Five games with keyboard and touch controls, pause/resume, saved bests and shared challenges. Noodle Run, Brick Bash, Hop Hop and Star Swarm have rounds up to 60 seconds. [Coast Rush](COAST-RUSH.md) is an original eight-kart street race: three laps of a winding route, seven labelled game characters, your saved avatar driving, drift tiers, five random crate items (shield, turbo, missile, storm, coconut), shells and fastest-time rankings.
+- Five games with keyboard and touch controls, pause/resume, saved bests and shared challenges. Noodle Run, Brick Bash, Hop Hop and Star Swarm have rounds up to 60 seconds. [Coast Rush](COAST-RUSH.md) is an original eight-kart street race: three laps of a drift route with three hairpins, seven labelled game characters who use items too, your saved avatar driving, drift tiers, seven random crate items (shield, turbo, missile, storm, coconut, wave, crab), shells and fastest-time rankings. Two to eight players can also race each other live by sharing a four-letter code; those races are friendly and save nothing.
 - New characters start in third person, with a larger YOU marker and ground ring. Existing camera choices are preserved. Camera-relative walking, drag-to-orbit, wheel/pinch zoom and building collision checks remain available; switch to the original bird’s-eye view at any time. Inspect a resident to follow their action and examine their outfit.
 - Five animated example residents jog, climb and slide, dance, sit on a bench and play a cabinet. Accessories, garden paths, flowers, bunting and moving pigeons add neighbourhood activity. The Blender playground has a stair flight, handrails and a slide landing matched to the animation route.
 - Choose an away activity, save the preference or step away immediately. Closing the page and browser disconnect events save the selected activity and its start time; reopening reconstructs its current phase. No away XP, coins, visits or game scores are awarded.
@@ -164,6 +164,7 @@ The plan was used as design context. Its dates, legal statements, commercial ass
 - `src/games.ts` and `shared/simulation.ts`: fixed-step game input recording, deterministic rules and server replay.
 - `src/action-games.ts`: Hop Hop and Star Swarm simulation and Canvas rendering.
 - `shared/racing.ts`: deterministic Coast Rush physics and race-time encoding.
+- `shared/race-room.ts`: a multiplayer Coast Rush room (lobby, grid, items, results). `server/race-host.mjs` connects it to sockets for both the Node preview (`server/race-rooms.mjs`) and Cloudflare (`cloudflare/race.mjs`).
 - `src/racing-game.ts`, `src/race-view.ts`: racing controls/replays and the separately loaded Three.js track/driver view.
 - `src/catalog.ts`: game and away-activity definitions.
 - `src/neighbourhood.ts`: resident presets and timestamp-based activity routes and poses.
