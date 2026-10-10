@@ -1,5 +1,15 @@
 # Cloudflare hosting
 
+## Open Stage pickers, lobby profile and world label, rival crates — deployed 11 October 2026
+
+PR #79 (`99aa106`), PR #80 (`c3302d3`) and PR #81 (`7d58876`) were merged in that order and `main` was deployed as Worker version **`148ca2a9-8e08-49d4-b6dc-cc1c938af2c6`**. The three branches conflicted in `PLAN.md` only; `main` was merged into #80 and #81 and each branch's plan kept, and nothing was force-pushed. #81 was a draft; the owner said to merge the PRs and deploy. Before merging, the three branches merged together passed `npm test` (594 tests: 545 pass, 0 fail, 49 browser checks skipped), all 17 Cloudflare integration tests, including the build and dry run, and, in installed Chrome, the 37 tests in the Section 4, lobby render, first minute and stage UI files. `main` after the three merges is the same tree as the one tested (`49c4f01`).
+
+The Open Stage now opens idle and waits for Start, with session and dance style as one-tap buttons, shorter copy and a slightly kinder show (a miss costs 0.08 hype, seven misses in a row end a show, Perfect is 83 ms and Great 150 ms). The lobby profile at the top left is a button that opens a profile panel, the world label reads `W1 · 1/30 players`, and Neighbours explains an empty world instead of showing an empty dropdown. In Coast Rush a crate hides for 1.2 seconds when a computer kart collects from it and the kart's nameplate shows the item it holds; race room snapshots carry that item as a sixth value per row.
+
+After deploying: health returned `ready: true`; the live HTML and all 18 script and style files matched the local build byte-for-byte, including `main-CqKI_s-n.js`, `stage-view-CSO0gBRK.js` and `race-view-B6JK6DdA.js`; unauthenticated state returned 401, auth config 200 and a private server path 404; the old address still answered. None of the three changes was exercised in production: no show was played, no profile panel opened and no race run there, and nothing was tried on a phone. Nobody has played the easier Open Stage, and a race room showing a computer kart's item has not been watched in a browser.
+
+No schema, migration, binding, variable or secret changed, and Coast Rush stays on rules version 5, so no personal best is archived. Stage Party rooms and races in progress ended with the deployment. Rollback is a redeploy of `09581e3`.
+
 ## Coast Rush solid karts and fighting rivals — deployed 10 October 2026
 
 PR #76 was merged (`b92937e`) and `main` was deployed as Worker version **`5acb88de-c855-49d7-b6c6-e4313c496043`**. The PR was a draft because nobody had driven it; the owner said to merge and deploy it anyway. Before merging, the branch with `main` merged in passed `npm test` (540 pass, 0 fail, 49 browser checks skipped) and all 17 Cloudflare integration tests, including the build and dry run. `main` after the merge is the same tree as the one tested.
