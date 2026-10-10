@@ -60,3 +60,9 @@ computer karts "are unable to pick up the items" and so cannot use them.
   cleared when the item was used. No nameplate showed an icon without an item.
 - Not done: `npm run test:cloudflare`, and a room has not been watched in a
   browser. The room's side is covered by the snapshot test only.
+- Merged as #81 (`7d58876`) on 11 October 2026, after #79 (`99aa106`) and
+  #80 (`c3302d3`), at the owner's instruction while #81 was still a draft.
+  `main` was merged into #80 and #81 for `PLAN.md` conflicts. The merged tree
+  passed `npm test` (545 pass, 0 fail, 49 skipped), `npm run test:cloudflare`
+  (17 of 17) and 37 browser tests in installed Chrome. Deployed as Worker
+  version `148ca2a9-8e08-49d4-b6dc-cc1c938af2c6`; HOSTING.md has the record.
