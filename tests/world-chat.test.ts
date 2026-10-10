@@ -5,6 +5,7 @@ import {
   WORLD_CHAT_GAP_MS,
   WORLD_CHAT_KEEP_MS,
   WORLD_CHAT_MAX,
+  WorldChatOutbox,
   worldChatText,
 } from "../shared/world-chat.ts";
 
@@ -140,4 +141,58 @@ test("a message sent with a movement update moves the player too", () => {
   assert.equal(packet.d.find((d) => d[0] === 0)[1], 300);
   // A message is not part of a player's state.
   assert.doesNotMatch(JSON.stringify(packet.d), /on my way/);
+});
+
+test("a message is heard even when the movement with it is refused", () => {
+  const { state } = world("a", "b");
+  // Five updates in a second is the limit; the sixth is refused.
+  for (let x = 1; x <= 5; x++) assert.equal(state.move("a", { x }), true);
+  assert.equal(state.move("a", { x: 9 }), false);
+  assert.equal(state.move("a", { x: 9, say: "still here" }), true);
+  const packet = state.snapshot("b", new Map(), true);
+  assert.deepEqual(
+    packet.c.map((m) => m[2]),
+    ["still here"],
+  );
+  assert.equal(packet.d.find((d) => d[0] === 0)[1], 500);
+});
+
+test("messages leave one at a time, far enough apart for the world", () => {
+  const { state, clock } = world("a", "b");
+  const outbox = new WorldChatOutbox();
+  assert.equal(outbox.next(clock.now), "");
+  assert.equal(outbox.add("one"), true);
+  assert.equal(outbox.add("two"), true);
+  assert.equal(outbox.add(""), false);
+  // An update leaves every 210 ms and takes the next message when it may.
+  const heard = [];
+  for (let i = 0; i < 20; i++, clock.now += 210) {
+    const say = outbox.next(clock.now);
+    if (say) heard.push(state.say("a", say));
+  }
+  assert.deepEqual(heard, [true, true]);
+  assert.deepEqual(
+    state.chat.map((m) => m.text),
+    ["one", "two"],
+  );
+  assert.ok(state.chat[1].at - state.chat[0].at >= WORLD_CHAT_GAP_MS);
+});
+
+test("a message that did not get through goes first, and at once", () => {
+  const outbox = new WorldChatOutbox();
+  outbox.add("one");
+  outbox.add("two");
+  assert.equal(outbox.next(1000), "one");
+  outbox.putBack("one");
+  assert.equal(outbox.next(1001), "one");
+  assert.equal(outbox.next(1002), "");
+  assert.equal(outbox.next(1001 + WORLD_CHAT_GAP_MS + 1000), "two");
+});
+
+test("only a few messages can wait to go", () => {
+  const outbox = new WorldChatOutbox();
+  const taken = ["1", "2", "3", "4", "5"].map((text) => outbox.add(text));
+  assert.deepEqual(taken, [true, true, true, false, false]);
+  assert.equal(outbox.next(0), "1");
+  assert.equal(outbox.add("6"), true);
 });
