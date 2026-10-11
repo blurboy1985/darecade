@@ -1,3 +1,5 @@
+import { firstSessionGuide } from "./first-session";
+import "./first-session.css";
 import { rewardReceipt, type RewardReceipt } from "./reward-receipt";
 import { supports3D, mountGraphicsMessage } from "./graphics-support";
 import { levelReward } from "./progression-guide";
@@ -680,7 +682,7 @@ function cards() {
       '<span class="jetty-deck"></span><span class="jetty-rod"></span><span class="jetty-fish">◀</span><b>CAST & CHILL</b>',
   };
   const choices = pageChoices(playIds, gamePage);
-  return `<div class="game-grid compact-games">${choices.items.map((id) => `<button class="game-card ${id}" data-game="${id}"><div class="game-art ${id}-art">${art[id]}</div><span class="eyebrow">${games[id].genre}</span><h3>${games[id].name}</h3><div><span>${id === "coast" ? "3 laps" : id === "hoops" ? "10 shots" : id === "swarm" ? "120s" : "60s"} · BEST ${id === "coast" && save.coastRecord.timeTicks ? raceTime(save.coastRecord.timeTicks) : formatScore(id, shared?.self.best[id] ?? 0)}</span>${icon("arrow")}</div></button>`).join("")}</div>${pager(choices.page, choices.total, "games")}`;
+  return `<div class="game-grid compact-games">${choices.items.map((id) => `<button class="game-card ${id}" data-game="${id}"><div class="game-art ${id}-art">${art[id]}</div><span class="eyebrow">${games[id].genre}</span><h3>${games[id].name}</h3><p>${games[id].description}</p><small>${games[id].controls}</small><div><span>${id === "coast" ? "3 laps" : id === "hoops" ? "10 shots" : id === "swarm" ? "120s" : "60s"} · BEST ${id === "coast" && save.coastRecord.timeTicks ? raceTime(save.coastRecord.timeTicks) : formatScore(id, shared?.self.best[id] ?? 0)}</span>${icon("arrow")}</div></button>`).join("")}</div>${pager(choices.page, choices.total, "games")}`;
 }
 function questTabs(active: string) {
   return `<nav class="quest-tabs" aria-label="Quests & rankings">${[
@@ -838,7 +840,7 @@ function open(id: string) {
       ],
       outdoorPage,
     );
-    body.innerHTML = `<h2>Play</h2><label class="field-label" for="play-section">Choose activities</label><select id="play-section" class="destination-select"><option value="arcade" ${playSection === "arcade" ? "selected" : ""}>Arcade games</option><option value="outside" ${playSection === "outside" ? "selected" : ""}>Play outside</option></select>${playSection === "arcade" ? cards() : `<h3>Play outside</h3><div class="outside-cards">${outside.items.map((item) => `<button class="menu-choice" data-${item.kind}="${item.id}"><span>${item.icon}</span><strong>${item.name}</strong></button>`).join("")}</div>${pager(outside.page, outside.total, "play-outside")}`}<p class="fine-print">Play medals reward qualifying finishes. Ranked arcade medals land at midnight.</p>`;
+    body.innerHTML = `<h2>Play</h2><p class="lead">${save.rounds === 0 ? "Pick a game to try. Hop Hop uses one button; every game explains its controls before you start." : "Play again to practise, or try something new."}</p>${firstSessionGuide(save.rounds)}<label class="field-label" for="play-section">Choose activities</label><select id="play-section" class="destination-select"><option value="arcade" ${playSection === "arcade" ? "selected" : ""}>Arcade games</option><option value="outside" ${playSection === "outside" ? "selected" : ""}>Play outside</option></select>${playSection === "arcade" ? cards() : `<h3>Play outside</h3><div class="outside-cards">${outside.items.map((item) => `<button class="menu-choice" data-${item.kind}="${item.id}"><span>${item.icon}</span><strong>${item.name}</strong></button>`).join("")}</div>${pager(outside.page, outside.total, "play-outside")}`}<p class="fine-print">Play medals reward qualifying finishes. Ranked arcade medals land at midnight.</p>`;
   } else if (id === "shop") {
     const taken = save.giftDay === singaporeDay();
     body.innerHTML = `<h2>${taken ? "Good choice!" : "Pick a free hat"}</h2><p class="lead">${taken ? "It’s in your collection. Choose any complete outfit in My look to change your style." : "Yours to keep."}</p><div class="gift-grid">${[
