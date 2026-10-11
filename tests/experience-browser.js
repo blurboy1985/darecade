@@ -70,6 +70,10 @@ function close() {
 }
 async function openGame(id) {
   click('.lobby-dock [data-open="arcade"]');
+  const section = find("#play-section");
+  check(section, "play section selector");
+  section.value = "arcade";
+  section.dispatchEvent(new Event("change", { bubbles: true }));
   for (let page = 0; page < 4 && !find('[data-game="' + id + '"]'); page++) {
     const next = [...document.querySelectorAll('[data-page="games"]')].find(
       (b) => !b.disabled && b.textContent.includes("Next"),
