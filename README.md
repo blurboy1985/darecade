@@ -15,8 +15,9 @@ The film is drawn on a canvas and its music is synthesised live; there are no vi
 ## Integrated release — 4 October 2026
 
 The current menu has three main actions: Games, Neighbourhood and Menu. Find grouped,
-preview-first cosmetics under Menu → My stuff → My look. Outfits can be
-earned through play or bought for S$4.99 each; pets and magic are earned. Support & purchases
+preview-first cosmetics under Menu → My stuff → My look. An outfit (clothes,
+headwear, pet and magic) is S$4.99 and a single item S$1.99; Legendary looks
+can be earned with Style tokens instead. Support & purchases
 also offers one-time S$2, S$5, S$10 and S$50 donations in SGD. Donations grant
 no gameplay advantage. See [WARDROBE.md](WARDROBE.md), [PAYMENTS.md](PAYMENTS.md)
 and [QA.md](QA.md). PRs #11–16 are integrated; the combined build passes all

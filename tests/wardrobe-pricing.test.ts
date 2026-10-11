@@ -60,11 +60,10 @@ test("piece unlocks debit once, authorize only the piece and credit a complete-s
     const upgraded = c.progression(id, "redeem-style", "solar").progress;
     assert.equal(upgraded.wardrobeSpent, 8);
     assert.equal(styleTokens(upgraded), 0);
-    // The outfit no longer brings the pet along: it is its own 4-token piece.
-    assert.equal(canWear("pet", setItemIndex("pet", 0), upgraded, 0), false);
-    assert.throws(
-      () => c.progression(id, "redeem-style", pieceId("pet", "solar")),
-      /Earn enough/,
+    assert.equal(
+      c.progression(id, "redeem-style", pieceId("pet", "solar")).progress
+        .wardrobeSpent,
+      8,
     );
     c.patch(id, { sound: false }); // Old clients preserve ownership and ledger.
     const reloaded = normalise(c.privateProfile(id).progress, fresh());
@@ -72,7 +71,7 @@ test("piece unlocks debit once, authorize only the piece and credit a complete-s
     assert.ok(canWear("hair", setItemIndex("hair", 0), reloaded, 0));
     assert.throws(
       () => c.progression(id, "redeem-style", pieceId("hair", "aegis-prime")),
-      /Unknown/,
+      /require payment/,
     );
   } finally {
     store.db.close();

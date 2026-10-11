@@ -78,5 +78,21 @@
   "dino": {
     "priceId": "price_1UPMKhA6Maf1zlslOLW1fmeX",
     "amount": 499
+  },
+  "piece-clothing": {
+    "priceId": "price_1UPNKWA6Maf1zlslwLorHJ4A",
+    "amount": 199
+  },
+  "piece-hair": {
+    "priceId": "price_1UPNKWA6Maf1zlslOGh8BMUf",
+    "amount": 199
+  },
+  "piece-pet": {
+    "priceId": "price_1UPNKXA6Maf1zlsljsPj7PTU",
+    "amount": 199
+  },
+  "piece-accessory": {
+    "priceId": "price_1UPNKXA6Maf1zlslmS8ZCpb9",
+    "amount": 199
   }
 }

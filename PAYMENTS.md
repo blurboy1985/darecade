@@ -239,3 +239,33 @@ S$1.99 or "all four pieces" describes the earlier offer.
   200), `outfit:solar` granted, clothes wearable, pet and magic refused.
 - A live Checkout Session on the new Solar price reported SGD 499 and was
   expired unpaid. A completed live charge has not been made.
+
+## Outfits and single items — 11 October 2026, later the same day
+
+The owner replaced the outfit-only offer above. This section is the current
+offer; where it differs from anything earlier in this file, this is right.
+
+| What                                                  | Price  | Tokens instead?                     |
+| ----------------------------------------------------- | ------ | ----------------------------------- |
+| Outfit: girl and boy clothes, headwear, pet and magic | S$4.99 | Legendary: 8. Premium: no.          |
+| One item: the clothes, the headwear, the pet or magic | S$1.99 | Legendary: 5, 4, 4, 4. Premium: no. |
+
+- An outfit order has kind `set` and grants the bare set ID, as it did before
+  11 October. A single item has kind `piece`, product `piece:<set>:<slot>`,
+  and grants that ID. Orders of kind `outfit` (the few hours of outfit-only
+  sales) and `outfit:<set>` entitlements count as the whole set.
+- A refund takes back what it paid for and unequips any set piece the player
+  can no longer wear.
+- Stripe products, made by `scripts/stripe-add-sets.mjs`:
+  - sixteen outfit products, "Play Simi — <set> Outfit", SGD 499, tagged
+    `kind=outfit`, `set`, `tier`, `includes=clothes,headwear,pet,magic`;
+  - four single-item products, "Play Simi — Single item: Clothes / Headwear /
+    Pet / Magic", SGD 199, tagged `kind=piece`, `slot`, `includes`. One price
+    serves that kind of item from every set; Checkout shows "You are buying
+    <item> (<set>)" above the Pay button.
+  - Catalogue keys for the item prices are `piece-clothing`, `piece-hair`,
+    `piece-pet` and `piece-accessory`.
+- Every Checkout Session and PaymentIntent carries `order`, `kind` and
+  `product` metadata.
+- Sets without a Stripe product, and item prices missing from
+  `STRIPE_CATALOG`, use the server's inline price at the same amounts.

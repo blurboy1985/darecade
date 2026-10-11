@@ -2,7 +2,6 @@ import { savedLookAllowed } from "../src/saved-looks.ts";
 import { nicknameError } from "../shared/nickname.ts";
 import {
   alreadyOwns,
-  outfitId,
   redemptionCost,
   styleTokens,
   canWear,
@@ -541,13 +540,13 @@ export class CommunityCore {
       if (event === "redeem-style") {
         let set = tokenLooks.find((s) => s.id === value);
         if (!set) throw Error("Unknown style set.");
-        // Tokens buy the outfit; a whole-set ID from an older client means the same.
-        if ("design" in set)
-          set = tokenLooks.find((s) => s.id === outfitId(set.id)) ?? set;
+        // The outfit-only ID of 11 October 2026 now redeems the whole set.
+        if ("setId" in set && !("slot" in set))
+          set = tokenLooks.find((s) => s.id === set.setId) ?? set;
         if (alreadyOwns(set, p)) return this.privateProfile(id);
         if (!("tier" in set) || set.tier === "Free")
           throw Error("These basic items are now free.");
-        if (set.tier === "Premium" && !("slot" in set))
+        if (set.tier === "Premium")
           throw Error("Premium looks require payment.");
         const cost = redemptionCost(set, p);
         if (styleTokens(p) < cost)

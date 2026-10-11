@@ -1217,10 +1217,20 @@ export function createCharacterPreview(
   let capturing = false;
   function frameLook() {
     const face = view === "face";
-    const x = !face && look.pet ? 0.3 : 0;
+    // A pet beside magic needs the widest frame, or the pet is cut off.
+    const both = !!look.pet && !!look.accessory;
+    const x = !face && look.pet ? (both ? 0.45 : 0.3) : 0;
     const distance = Math.max(
       face ? 2.2 : 4.6,
-      (face ? 0.48 : look.accessory ? 1.45 : look.pet ? 1.3 : 0.85) /
+      (face
+        ? 0.48
+        : both
+          ? 1.95
+          : look.accessory
+            ? 1.45
+            : look.pet
+              ? 1.3
+              : 0.85) /
         (camera.aspect * Math.tan((Math.PI * 35) / 360)),
     );
     camera.position.set(x, face ? 1.82 : 1.45, distance);
@@ -1297,7 +1307,7 @@ export function createCharacterPreview(
             : slot === "pet"
               ? [0.85, 0.65, 2.6, 0.45]
               : slot === "outfits"
-                ? [0, 1.35, 4.1, 1.1]
+                ? [0.42, 1.4, 4.9, 1.12] // wide enough for the pet and magic
                 : slot === "clothing"
                   ? [0, 1.35, 4, 1.02]
                   : [0.25, 1.5, 5.2, 1.15];
