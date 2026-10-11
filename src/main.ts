@@ -1,3 +1,5 @@
+import { discoveryCards, discoveryPage, nextDiscovery } from "./discover";
+import "./discover.css";
 import { rewardReceipt, type RewardReceipt } from "./reward-receipt";
 import { supports3D, mountGraphicsMessage } from "./graphics-support";
 import { levelReward } from "./progression-guide";
@@ -161,7 +163,8 @@ let tryingLook: TryOn = null;
 let fittingView: "body" | "face" = "body";
 let fittingExpanded = false;
 let gamePage = 0;
-let playSection: "arcade" | "outside" = "arcade";
+let playSection: "discover" | "arcade" | "outside" = save.rounds < 5 ? "discover" : "arcade";
+let discoveryIndex = 0;
 let outdoorPage = 0;
 let questPage = 0;
 let emotePage = 0;
@@ -697,6 +700,10 @@ function questTabs(active: string) {
 function open(id: string) {
   if (graphicsBlocked) return;
   setEmotesOpen(false);
+  if (id === "discover") {
+    playSection = "discover";
+    id = "arcade";
+  }
   if (["surroundings", "soon"].includes(id)) {
     playSection = "outside";
     id = "arcade";
@@ -838,7 +845,7 @@ function open(id: string) {
       ],
       outdoorPage,
     );
-    body.innerHTML = `<h2>Play</h2><label class="field-label" for="play-section">Choose activities</label><select id="play-section" class="destination-select"><option value="arcade" ${playSection === "arcade" ? "selected" : ""}>Arcade games</option><option value="outside" ${playSection === "outside" ? "selected" : ""}>Play outside</option></select>${playSection === "arcade" ? cards() : `<h3>Play outside</h3><div class="outside-cards">${outside.items.map((item) => `<button class="menu-choice" data-${item.kind}="${item.id}"><span>${item.icon}</span><strong>${item.name}</strong></button>`).join("")}</div>${pager(outside.page, outside.total, "play-outside")}`}<p class="fine-print">Play medals reward qualifying finishes. Ranked arcade medals land at midnight.</p>`;
+    body.innerHTML = `<h2>Play</h2><label class="field-label" for="play-section">Choose activities</label><select id="play-section" class="destination-select"><option value="discover" ${playSection === "discover" ? "selected" : ""}>Discover something fun</option><option value="arcade" ${playSection === "arcade" ? "selected" : ""}>Arcade games</option><option value="outside" ${playSection === "outside" ? "selected" : ""}>Play outside</option></select>${playSection === "discover" ? discoveryCards(discoveryIndex) + pager(discoveryPage(discoveryIndex).page, discoveryPage(discoveryIndex).total, "discover") : playSection === "arcade" ? cards() : `<h3>Play outside</h3><div class="outside-cards">${outside.items.map((item) => `<button class="menu-choice" data-${item.kind}="${item.id}"><span>${item.icon}</span><strong>${item.name}</strong></button>`).join("")}</div>${pager(outside.page, outside.total, "play-outside")}`}${playSection === "discover" ? "" : '<p class="fine-print">Play medals reward qualifying finishes. Ranked arcade medals land at midnight.</p>'}`;
   } else if (id === "shop") {
     const taken = save.giftDay === singaporeDay();
     body.innerHTML = `<h2>${taken ? "Good choice!" : "Pick a free hat"}</h2><p class="lead">${taken ? "It’s in your collection. Choose any complete outfit in My look to change your style." : "Yours to keep."}</p><div class="gift-grid">${[
@@ -1181,7 +1188,7 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
           (reward || !save.nameChosen || save.welcome !== "complete");
         body.innerHTML =
           id === "coast"
-            ? `<h2 class="result-score">${result?.race ? raceTime(result.race.timeTicks) : formatScore(id, score)}<small>${result?.race?.finished ? "YOUR THREE-LAP TIME" : "TIME · RACE INCOMPLETE"}</small></h2>${result?.race?.newBest ? '<p class="new-best">New personal best!</p>' : ""}<div class="round-breakdown"><span>Place<strong>${result?.race?.place ?? "—"} / 8</strong></span></div><div class="button-row"><button class="primary" data-replay="coast">Play again</button><button class="secondary" data-action="setup-look">${setup ? "Create my name & look" : "Edit my name & look"}</button></div><details class="race-extra-details"><summary>Race details & leaderboard</summary>${raceSummary}${raceComparison(score, today, !!result?.ranked)}<p class="fine-print">Races allow 180 seconds until your first finish; standard races then allow 120 seconds.</p><p>${result ? `Verified round · +${result.earnedXp ?? 0} XP${reward ? " · First finish · +35 bonus XP" : ""}` : "Offline · this round was not saved."}</p>${!currentProfile?.account ? '<button class="secondary" data-account>Save with email</button>' : ""}</details>`
+            ? `<h2 class="result-score">${result?.race ? raceTime(result.race.timeTicks) : formatScore(id, score)}<small>${result?.race?.finished ? "YOUR THREE-LAP TIME" : "TIME · RACE INCOMPLETE"}</small></h2>${result?.race?.newBest ? '<p class="new-best">New personal best!</p>' : ""}<div class="round-breakdown"><span>Place<strong>${result?.race?.place ?? "—"} / 8</strong></span></div><div class="button-row"><button class="primary" data-replay="coast">Play again</button><button class="secondary" data-action="setup-look">${setup ? "Create my name & look" : "Edit my name & look"}</button>${nextDiscovery(id)}</div><details class="race-extra-details"><summary>Race details & leaderboard</summary>${raceSummary}${raceComparison(score, today, !!result?.ranked)}<p class="fine-print">Races allow 180 seconds until your first finish; standard races then allow 120 seconds.</p><p>${result ? `Verified round · +${result.earnedXp ?? 0} XP${reward ? " · First finish · +35 bonus XP" : ""}` : "Offline · this round was not saved."}</p>${!currentProfile?.account ? '<button class="secondary" data-account>Save with email</button>' : ""}</details>`
             : '<div class="result-star">' +
               icon(target ? "trophy" : "game") +
               '</div><h2 class="result-score">' +
@@ -1223,7 +1230,7 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
                   : '<button class="primary" data-replay="' +
                     id +
                     '">Play again</button>') +
-              '<button class="secondary" data-action="close">Neighbourhood</button></div>' +
+              nextDiscovery(id) + "</div>" +
               '<div class="note">' +
               (result
                 ? (result.ranked ? "✓ Verified · " : "") +
@@ -1570,6 +1577,11 @@ document.addEventListener("click", (e) => {
     renderSharedBoard();
     return;
   }
+  if (b.dataset.page === "discover") {
+    discoveryIndex = discoveryPage(Number(b.dataset.pageIndex)).page;
+    open("discover");
+    return;
+  }
   if (b.dataset.page === "play-outside") {
     outdoorPage = Number(b.dataset.pageIndex);
     open("arcade");
@@ -1641,7 +1653,6 @@ document.addEventListener("click", (e) => {
   if (b.dataset.open) {
     if (b.dataset.open === "arcade") {
       gamePage = 0;
-      playSection = "arcade";
     }
     open(b.dataset.open);
     return;
@@ -2010,7 +2021,7 @@ modal.addEventListener("click", (e) => {
 });
 document.addEventListener("change", (e) => {
   if (e.target instanceof HTMLSelectElement && e.target.id === "play-section") {
-    playSection = e.target.value === "outside" ? "outside" : "arcade";
+    playSection = e.target.value === "discover" ? "discover" : e.target.value === "outside" ? "outside" : "arcade";
     open("arcade");
     return;
   }
