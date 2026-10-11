@@ -91,3 +91,21 @@ never had a Stripe product still use the inline price.
 - Until deployment the live site still sells the whole set for S$1.99, now
   under Stripe products named "Outfit" whose description says pet and magic
   are not included.
+
+## Merge, deployment and the rest — 11 October 2026
+
+The owner asked for the mismatch to be fixed and the open items done, bar a phone.
+
+- All 66 magics looked at moving: `scripts/magic-review.html` puts each on a
+  mannequin; viewed at two frozen times, every prop had moved and none left
+  the avatar. Dust looks oversized on that page only (it scales to the whole
+  canvas, not the cell).
+- Sandbox purchase of Solar at S$4.99 with Stripe's test card: webhook 200,
+  `outfit:solar`, clothes wearable, pet and magic refused with 400.
+- PR #88 merged as `af98775`; 607 tests, 0 fail; Cloudflare 17 of 17.
+- `npm run cf:deploy`: Worker version `07316aa4-a191-405d-af17-ad7d2461a699`.
+  Live health ready, bundle and a magic thumbnail match the local build.
+- Live Checkout Session on the new Solar price: SGD 499, expired unpaid.
+- The sixteen S$1.99 prices are archived in sandbox and live.
+- Not done: a completed live charge (needs the owner's card), opening the
+  live site in a browser (that needs an account on the live site), a phone.

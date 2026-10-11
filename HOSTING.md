@@ -1,3 +1,13 @@
+## Outfit-only pricing and accessory magic — deployed 11 October 2026
+
+PR #88 (`d824baa`, merged as `af98775`) was deployed as Worker version **`07316aa4-a191-405d-af17-ad7d2461a699`**. The owner asked for outfits to be sold without pets and magic at S$4.99, for more interesting magic, for Stripe to carry the new price, and then for the work to be shipped. On the merged tree `npm test` passed (607 tests: 558 pass, 0 fail, 49 browser checks skipped) with all 17 Cloudflare integration tests, the build and the dry run.
+
+A purchase or an 8-token unlock now gives a set's clothes and headwear. Pets and magic cost 4 Style tokens each in Legendary and Premium sets. Whole sets bought for S$1.99 or unlocked earlier keep all four pieces. The 66 set magics are built from accessories. See PAYMENTS.md and WARDROBE.md.
+
+After deploying: health returned `ready: true`; the live `index-CMyCwX9j.js` and the Solar magic thumbnail matched the local build byte-for-byte; unauthenticated payment config returned 401. In Stripe, the sixteen catalogued sets have an active SGD 499 price as their product default, in sandbox and live, and the sixteen S$1.99 prices are archived in both. A live Checkout Session on the new Solar price reported SGD 499 on `checkout.stripe.com` and was expired unpaid. A sandbox purchase of Solar at S$4.99 before the merge delivered a signed webhook (HTTP 200), granted `outfit:solar`, let the clothes be worn and refused the pet and magic.
+
+`STRIPE_CATALOG` changed to the new live price IDs. No schema, migration, binding or secret changed. Stage Party rooms and races in progress ended with the deployment. Not done: a completed live charge, opening the live site in a browser, and a phone. Do not roll back to a build before `d824baa` once anyone holds an `outfit:<set>` entitlement: the older normaliser drops it, and the S$1.99 prices that build charges are archived.
+
 # Cloudflare hosting
 
 ## Rankings, leaderboard rows and XP progress — deployed 11 October 2026

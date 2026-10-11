@@ -232,8 +232,10 @@ S$1.99 or "all four pieces" describes the earlier offer.
   as active, one-time, SGD 499 and the product default. The new IDs are in the
   two catalogue files and, for live, in `STRIPE_CATALOG` in `wrangler.jsonc`.
 - The other paid sets use the server's inline Checkout price, now 499.
-- The sixteen S$1.99 prices are still active in Stripe, because the deployed
-  Worker charges them until this change is deployed. Archive them afterwards.
-- Not done: deploying this change, a sandbox or live checkout at the new
-  price, and archiving the old prices. Until the deployment, the live site
-  still sells the whole set for S$1.99 under the renamed "Outfit" product.
+- Deployed on 11 October 2026 as Worker version
+  `07316aa4-a191-405d-af17-ad7d2461a699`. The sixteen S$1.99 prices were then
+  archived in sandbox and live.
+- A sandbox purchase of Solar Sentinel at S$4.99 passed: signed webhook (HTTP
+  200), `outfit:solar` granted, clothes wearable, pet and magic refused.
+- A live Checkout Session on the new Solar price reported SGD 499 and was
+  expired unpaid. A completed live charge has not been made.
