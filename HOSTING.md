@@ -1,5 +1,15 @@
 # Cloudflare hosting
 
+## Play now on a first visit, activity discovery — deployed 11 October 2026
+
+PR #83 (`f0e35fb`) and PR #84 (`585efa9`) had been merged on GitHub; local `main` was fast-forwarded to `585efa9` and deployed as Worker version **`3b1989e7-29a6-40e0-83d1-eb17e2d29a40`**. Both PRs were written as drafts with no browser playthrough. Before deploying, `main` passed `npm test` (601 tests: 552 pass, 0 fail, 49 browser checks skipped) and all 17 Cloudflare integration tests, including the build and dry run. In installed Chrome, the experience, mobile lobby, onboarding and Section 4 files ran 27 tests: 25 passed and 2 in `tests/experience-browser.test.ts` failed because the test helper looked for Fishing in the Arcade pager while Play now opens on Discover for a player with fewer than five rounds. With the helper choosing Arcade games first, all 13 tests in that file pass; the game was not changed.
+
+The first-visit card now puts **Play now** first, which goes straight to the age and privacy check, and offers the 40-second film as **Watch intro**. For a player with fewer than five saved rounds, Play opens on **Discover something fun**: three playable tiles a page across all 13 activities, Race, Dance and Hoops first. Arcade games and Play outside are still in the same selector. A round's result offers one different activity to try next, in place of the Neighbourhood button on arcade results.
+
+After deploying: health returned `ready: true`; the live HTML and all 18 script and style files matched the local build byte-for-byte, including `index-BPl5NQ67.js`, `main-BKqXMLw8.js` and `intro-B2AijzWR.js`; unauthenticated state returned 401, auth config 200 and private server paths 404; the old address still answered. Neither change was exercised in production: the first-visit card and the Discover pages were not opened there in a browser, no round was played to see the next-activity button, and nothing was tried on a phone.
+
+No schema, migration, binding, variable or secret changed. Stage Party rooms and races in progress ended with the deployment. Rollback is a redeploy of `622fe3a`.
+
 ## Open Stage pickers, lobby profile and world label, rival crates — deployed 11 October 2026
 
 PR #79 (`99aa106`), PR #80 (`c3302d3`) and PR #81 (`7d58876`) were merged in that order and `main` was deployed as Worker version **`148ca2a9-8e08-49d4-b6dc-cc1c938af2c6`**. The three branches conflicted in `PLAN.md` only; `main` was merged into #80 and #81 and each branch's plan kept, and nothing was force-pushed. #81 was a draft; the owner said to merge the PRs and deploy. Before merging, the three branches merged together passed `npm test` (594 tests: 545 pass, 0 fail, 49 browser checks skipped), all 17 Cloudflare integration tests, including the build and dry run, and, in installed Chrome, the 37 tests in the Section 4, lobby render, first minute and stage UI files. `main` after the three merges is the same tree as the one tested (`49c4f01`).
