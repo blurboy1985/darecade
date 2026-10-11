@@ -601,6 +601,13 @@
   gap: 12px;
   padding: 14px;
 }
+/* The Coast Rush board narrows its rows in racing.css; keep them under the header. */
+dialog.race-board .leaderboard > header,
+dialog.race-board .leaderboard > div {
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  gap: 8px;
+  padding-inline: 10px;
+}
 .leaderboard > div > b {
   display: flex;
   align-items: center;

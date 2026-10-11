@@ -65,10 +65,12 @@ Server, scoring rules, the HUD chip, the Coast Rush result board, challenges.
 - Looked at in headless Chrome at 390x844 and 1280x800 with the mocked state:
   season, weekly, daily, empty weekly and the profile panel. No horizontal
   scroll (dialog scrollWidth equals clientWidth) with a 25-character nickname.
+- The Coast Rush daily board was opened after the PR: `racing.css` narrowed
+  its rows to a 28px rank column under the new 52px header. Fixed in
+  `lobby-ui.css` and looked at again.
 - Also changed: `reward-receipt.ts` imports `./progression-guide.ts` with its
   extension, so the receipt can be unit tested like the other modules.
 - Not done: the round receipt's "Level up!" line and the level bar on the
   game covers were not seen in a browser (covered by unit and Section 4 tests
-  only); the Coast Rush `race-board` variant of the daily board was not opened;
-  nothing was tried on a real phone or in Firefox/Safari, where the restyled
+  only); nothing was tried on a real phone or in Firefox/Safari, where the restyled
   `<progress>` bars rely on `::-moz-progress-bar` and `appearance: none`.
