@@ -32,9 +32,10 @@ export function playIntro(): Promise<{ close(): void }> {
     <div class="intro-start">
       <img src="/favicon.svg" alt="" width="84" height="84" />
       <h1>Play Simi</h1>
-      <p>Meet you downstairs.</p>
-      <button class="intro-play" type="button">Tap to start</button>
-      <small>40-second intro with sound</small>
+      <p>Quick games. Your own look. A neighbourhood to explore.</p>
+      <button class="intro-enter" type="button">Play now</button>
+      <button class="intro-play" type="button">Watch intro · 40 seconds</button>
+      <small>Play as a guest after a short age and privacy check. No email needed.</small>
     </div>
     <button class="intro-skip" type="button">Skip intro</button>
     <p class="intro-loading" hidden>Opening the neighbourhood…</p>
@@ -44,8 +45,10 @@ export function playIntro(): Promise<{ close(): void }> {
   const ctx = canvas.getContext("2d")!;
   const lines = root.querySelector(".intro-lines")!;
   const play = root.querySelector<HTMLButtonElement>(".intro-play")!;
+  const enter = root.querySelector<HTMLButtonElement>(".intro-enter")!;
 
   let startedAt = 0;
+  let finished = false;
   let frame = 0;
   let score: Score | null = null;
   let spoken = "";
@@ -63,6 +66,8 @@ export function playIntro(): Promise<{ close(): void }> {
 
   return new Promise((resolve) => {
     function finish() {
+      if (finished) return;
+      finished = true;
       cancelAnimationFrame(frame);
       score?.stop();
       window.removeEventListener("resize", draw);
@@ -94,6 +99,7 @@ export function playIntro(): Promise<{ close(): void }> {
       if (event.key === "Escape") finish();
     }
     play.addEventListener("click", () => {
+      if (finished || startedAt) return;
       root.classList.add("intro-playing");
       if (soundWanted()) score = startScore();
       // The score is scheduled a moment ahead; the picture waits for it.
@@ -101,11 +107,12 @@ export function playIntro(): Promise<{ close(): void }> {
       root.querySelector<HTMLButtonElement>(".intro-skip")!.focus();
       tick();
     });
+    enter.addEventListener("click", finish);
     root.querySelector(".intro-skip")!.addEventListener("click", finish);
     window.addEventListener("keydown", onKey);
     window.addEventListener("resize", draw);
     draw();
-    play.focus();
+    enter.focus();
     // The start card sits on the film's first frame; redraw once the
     // display type has arrived so no frame is painted in a fallback face.
     void document.fonts?.load("700 40px Fredoka").then(() => {
@@ -113,3 +120,4 @@ export function playIntro(): Promise<{ close(): void }> {
     });
   });
 }
+
