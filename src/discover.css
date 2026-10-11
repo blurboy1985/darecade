@@ -1,0 +1,22 @@
+.discovery-cards .menu-choice {
+  min-height: 88px;
+  gap: 16px;
+  text-align: left;
+}
+.discovery-cards .discovery-icon {
+  flex: 0 0 48px;
+  font-size: 36px;
+  text-align: center;
+}
+.discovery-cards strong,
+.discovery-cards small {
+  display: block;
+}
+.discovery-cards strong {
+  font-size: 18px;
+}
+.discovery-cards small {
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 400;
+}
