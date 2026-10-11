@@ -49,6 +49,9 @@
   text-align: center;
   background: #202c3fd9;
   transition: opacity 0.25s;
+  overflow-y: auto;
+  box-sizing: border-box;
+  touch-action: pan-y;
 }
 .intro-playing .intro-start {
   display: none;
@@ -67,12 +70,14 @@
   margin: 0 0 18px;
   font-size: 20px;
   color: #c9d2e3;
+  max-width: 28ch;
 }
 .intro-start small {
   font-size: 15px;
   color: #c9d2e3;
+  max-width: 42ch;
 }
-.intro-play {
+.intro-enter {
   min-height: 64px;
   padding: 0 40px;
   border: 4px solid #263447;
@@ -85,12 +90,28 @@
     sans-serif;
   box-shadow: 0 6px 0 #141c2b;
   cursor: pointer;
-  animation: intro-nudge 1s ease-in-out infinite;
 }
-.intro-play:active {
+.intro-enter:active {
   transform: translateY(4px);
   box-shadow: 0 2px 0 #141c2b;
   animation: none;
+}
+.intro-play {
+  min-height: 48px;
+  padding: 8px 20px;
+  border: 2px solid #c9d2e3;
+  border-radius: 999px;
+  background: transparent;
+  color: #f8f5e9;
+  font: 500 18px "Fredoka", sans-serif;
+  cursor: pointer;
+}
+.intro:not(.intro-playing) .intro-skip {
+  display: none;
+}
+@media (max-height: 560px) {
+  .intro-start { justify-content: flex-start; }
+  .intro-start img { width: 48px; height: 48px; }
 }
 @keyframes intro-nudge {
   50% {
@@ -117,6 +138,7 @@
   background: #263447;
 }
 .intro-play:focus-visible,
+.intro-enter:focus-visible,
 .intro-skip:focus-visible {
   outline: 3px solid #fff;
   outline-offset: 4px;
@@ -143,3 +165,4 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
