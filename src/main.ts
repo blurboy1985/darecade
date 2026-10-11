@@ -1563,7 +1563,7 @@ document.addEventListener("click", (e) => {
     }).then(() => {
       if (save.wardrobeUnlocked.includes(set.id))
         toast(
-          `${set.name} unlocked.${"slot" in set ? "" : " All four pieces are yours!"}`,
+          `${set.name} unlocked.${"slot" in set ? "" : " Clothes and headwear are yours!"}`,
         );
       if (modal.open && body.querySelector(".wardrobe-layout"))
         open("wardrobe");

@@ -109,3 +109,27 @@ pieces. Premium items cannot be redeemed as token pieces. Concurrent retries
 and upgrades debit only once. Old clients cannot patch ownership or the debit
 ledger. After new pieces are granted, retain these IDs and ledger handling in
 any rollback rather than restoring an older catalogue normaliser.
+
+## Outfits, pieces and accessory magic, 11 October 2026
+
+An outfit is the clothes and headwear of a set. It costs 8 Style tokens
+(Legendary) or S$4.99 (Legendary and Premium). Pets and magic are separate
+pieces at 4 tokens each in both paid tiers; they are never sold for money.
+Earlier sections that say a set includes its pet and magic, or cost S$1.99,
+describe the previous offer. Entitlements: `outfit:<set-id>` for an outfit,
+`piece:<set-id>:<slot>` for a piece. A bare `<set-id>` is a whole set from
+before this change and still covers all four pieces.
+
+The 66 set magics are built from accessories in `src/magic-props.ts`: a
+library of 58 props (lanterns, blades, umbrellas, teacups, kites,
+talismans, gears) and nine motions. Each set has one recipe naming its props,
+how they move and its sparkle. A prop is baked once into at most three shared
+batches and cloned per avatar; no effect exceeds 20 draws or 2,000 triangles.
+Item indices and names are unchanged. The 32 older effects that are not on
+the Magic tab are untouched. Re-render the cards with:
+
+```powershell
+$env:DARECADE_TEST_CHROMIUM = 'C:\Program Files\Google\Chrome\Application\chrome.exe'
+$env:CATALOG_ONLY = 'accessory'
+node --experimental-strip-types scripts/render-complete-catalog.mjs
+```

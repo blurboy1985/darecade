@@ -81,7 +81,17 @@ test("each character sees 22 complete outfits, pets and spells in each tier", ()
         }
         if (tier === "Free")
           assert.doesNotMatch(html, /data-redeem-set|data-buy-set/);
-        if (tier === "Premium") assert.doesNotMatch(html, /data-redeem-set/);
+        if (section === "Outfits") {
+          if (tier === "Premium") assert.doesNotMatch(html, /data-redeem-set/);
+        } else {
+          // Pets and magic are never sold for money, in any tier.
+          assert.doesNotMatch(html, /data-buy-set/);
+          if (tier !== "Free")
+            assert.equal(
+              (html.match(/data-redeem-set="piece:/g) || []).length,
+              22,
+            );
+        }
       }
     assert.equal(seen.size, 198);
   }
@@ -120,18 +130,22 @@ test("complete outfits preserve identity and companions and reject the other bod
 });
 
 test("Legendary offers tokens, with a cash fallback when tokens are short", () => {
-  const poor = wardrobeBrowser("Pets", "Legendary", fresh(), 0, null);
-  assert.match(poor, /data-redeem-set="piece:solar:pet" disabled/);
+  const poor = wardrobeBrowser("Outfits", "Legendary", fresh(), 0, null);
+  assert.match(poor, /data-redeem-set="outfit:solar" disabled/);
   assert.match(poor, /data-buy-set="solar"/);
+  assert.match(poor, /Buy outfit · S\$4\.99/);
   const rich = wardrobeBrowser(
-    "Pets",
+    "Outfits",
     "Legendary",
     { ...fresh(), xp: 10000 },
     0,
     null,
   );
-  assert.match(rich, /data-redeem-set="piece:solar:pet" >/);
+  assert.match(rich, /data-redeem-set="outfit:solar" >/);
   assert.doesNotMatch(rich, /data-buy-set/);
+  const pets = wardrobeBrowser("Pets", "Legendary", fresh(), 0, null);
+  assert.match(pets, /data-redeem-set="piece:solar:pet" disabled/);
+  assert.doesNotMatch(pets, /data-buy-set/);
 });
 
 test("owned and purchased sets keep an indicator even while equipped and have no purchase actions", () => {
@@ -150,12 +164,42 @@ test("owned and purchased sets keep an indicator even while equipped and have no
   }
 });
 
-test("Premium is money-only at S$1.99 even with enough Style tokens", () => {
+test("Premium outfits are money-only at S$4.99; their pets and magic take tokens", () => {
   const p = { ...fresh(), xp: 10000 };
-  const html = wardrobeBrowser("Pets", "Premium", p, 0, null);
-  assert.match(html, /data-buy-set="aegis-prime"/);
-  assert.match(html, /S\$1\.99/);
-  assert.doesNotMatch(html, /data-redeem-set/);
+  for (const section of ["Outfits", "Clothes", "Headwear"] as const) {
+    const html = wardrobeBrowser(section, "Premium", p, 0, null);
+    assert.match(html, /data-buy-set="aegis-prime"/);
+    assert.match(html, /Buy outfit · S\$4\.99/);
+    assert.doesNotMatch(html, /data-redeem-set|pet &amp; magic|S\$1\.99/);
+  }
+  for (const [section, slot] of [
+    ["Pets", "pet"],
+    ["Magic", "accessory"],
+  ] as const) {
+    const html = wardrobeBrowser(section, "Premium", p, 0, null);
+    assert.match(
+      html,
+      new RegExp(`data-redeem-set="piece:aegis-prime:${slot}" >`),
+    );
+    assert.match(html, /Unlock piece · 4 Style tokens/);
+    assert.doesNotMatch(html, /data-buy-set|S\$/);
+  }
+  // Buying the outfit covers clothes and headwear only.
+  const bought = { ...fresh(), wardrobePurchased: ["outfit:aegis-prime"] };
+  const index = legendarySets.findIndex((s) => s.id === "aegis-prime");
+  for (const slot of ["clothing", "hair", "pet", "accessory"] as const)
+    assert.equal(
+      canWear(slot, setItemIndex(slot, index), bought, 0),
+      slot === "clothing" || slot === "hair",
+    );
+  assert.equal(
+    wardrobeItemState("outfits", index * 2, bought, 0, null).state,
+    "Purchased",
+  );
+  assert.equal(
+    wardrobeItemState("pet", setItemIndex("pet", index), bought, 0, null).state,
+    "Premium",
+  );
   for (const set of legendarySets.filter((s) => s.tier === "Premium"))
     assert.equal(canRedeem(set, p, 0), false);
 });

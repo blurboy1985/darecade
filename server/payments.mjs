@@ -1,9 +1,10 @@
 import { createHmac, timingSafeEqual, randomUUID } from "node:crypto";
 import {
   legendarySets,
-  historicalSetCount,
   setPriceSGD,
-  ownsSet,
+  ownsOutfit,
+  outfitId,
+  canWear,
   setItemIndex,
   setStarts,
 } from "../src/collections.ts";
@@ -97,21 +98,21 @@ export class Payments {
       products.push({
         id,
         name: set?.name || "Support Play Simi",
-        kind: set ? "set" : "donation",
+        kind: set ? "outfit" : "donation",
         amount: value.amount,
         currency: "sgd",
         priceId: value.priceId,
       });
     }
-    // New sets use server-owned inline Checkout prices, so new catalog art
-    // does not depend on manually provisioning a Stripe Product and Price.
-    for (const set of legendarySets.slice(historicalSetCount)) {
+    // Outfits use server-owned inline Checkout prices, so the catalogue does
+    // not depend on manually provisioning a Stripe Product and Price.
+    for (const set of legendarySets) {
       if (set.tier === "Free" || products.some((p) => p.id === set.id))
         continue;
       products.push({
         id: set.id,
         name: set.name,
-        kind: "set",
+        kind: "outfit",
         amount: setPriceSGD,
         currency: "sgd",
         priceId: `inline:${set.id}:${setPriceSGD}`,
@@ -169,8 +170,8 @@ export class Payments {
     if (!product) fail("This item is not available for purchase.");
     if (product.kind === "donation" && !profile.purchasesConfirmed)
       fail("Donations are available to adults only.", 403);
-    if (product.kind === "set" && ownsSet(profile.progress, product.id))
-      fail("You already own this set.");
+    if (product.kind === "outfit" && ownsOutfit(profile.progress, product.id))
+      fail("You already own this outfit.");
     const inline = product.priceId.startsWith("inline:");
     if (!inline) {
       const price = await this.stripe(`prices/${product.priceId}`);
@@ -229,11 +230,11 @@ export class Payments {
       form.set("line_items[0][price_data][unit_amount]", String(order.amount));
       form.set(
         "line_items[0][price_data][product_data][name]",
-        `Play Simi · ${product.name} set`,
+        `Play Simi · ${product.name} outfit`,
       );
       form.set(
         "line_items[0][price_data][product_data][description]",
-        "Complete boy and girl outfits, pet and magic. Cosmetic only. One-time purchase.",
+        "Boy and girl outfits with headwear. Pet and magic not included. Cosmetic only. One-time purchase.",
       );
       form.set(
         "line_items[0][price_data][product_data][metadata][set]",
@@ -315,12 +316,15 @@ export class Payments {
         .run(status, s.id, s.payment_intent?.id || null, order.id);
       if (order.player) {
         const progress = this.c.privateProfile(order.player).progress;
+        // A paid 'set' order predates outfit-only sales and keeps all four pieces.
         progress.wardrobePurchased = this.db
           .prepare(
-            "SELECT DISTINCT product FROM payment_orders WHERE player=? AND kind='set' AND status='paid'",
+            "SELECT DISTINCT product,kind FROM payment_orders WHERE player=? AND kind IN ('set','outfit') AND status='paid' ORDER BY kind DESC,product",
           )
           .all(order.player)
-          .map((row) => row.product);
+          .map((row) =>
+            row.kind === "set" ? row.product : outfitId(row.product),
+          );
         this.c.save(order.player, progress);
       }
       if (order.player && ["refunded", "disputed"].includes(status))
@@ -330,13 +334,16 @@ export class Payments {
   }
   clearRevokedLook(player, product) {
     const p = this.c.privateProfile(player).progress;
-    if (ownsSet(p, product)) return;
     const index = legendarySets.findIndex((s) => s.id === product);
     if (index < 0) return;
     const patch = {};
     for (const slot of Object.keys(setStarts))
-      if (p[slot] === setItemIndex(slot, index)) patch[slot] = 0;
-    this.c.patch(player, patch);
+      if (
+        p[slot] === setItemIndex(slot, index) &&
+        !canWear(slot, p[slot], p, 0)
+      )
+        patch[slot] = 0;
+    if (Object.keys(patch).length) this.c.patch(player, patch);
   }
   async webhook(raw, signature) {
     const event = verifyStripeEvent(

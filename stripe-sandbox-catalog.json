@@ -1,66 +1,66 @@
 {
   "solar": {
-    "priceId": "price_1UMktMPB58tsspFGwRBPKgf2",
-    "amount": 199
+    "priceId": "price_1UPMI4PB58tsspFGiaUcvZSc",
+    "amount": 499
   },
   "moon": {
-    "priceId": "price_1UMktqPB58tsspFGCJ9dWo7a",
-    "amount": 199
+    "priceId": "price_1UPMI5PB58tsspFGT87KfxFm",
+    "amount": 499
   },
   "storm": {
-    "priceId": "price_1UMkuAPB58tsspFGDIq9NnVw",
-    "amount": 199
+    "priceId": "price_1UPMI5PB58tsspFGX592yVwF",
+    "amount": 499
   },
   "sakura": {
-    "priceId": "price_1UMkuHPB58tsspFGPfJJYRbM",
-    "amount": 199
+    "priceId": "price_1UPMI6PB58tsspFG07CrgAG0",
+    "amount": 499
   },
   "nova": {
-    "priceId": "price_1UMkuMPB58tsspFG1WZmzYFu",
-    "amount": 199
+    "priceId": "price_1UPMI7PB58tsspFGkQTXGWNM",
+    "amount": 499
   },
   "abyss": {
-    "priceId": "price_1UMkuRPB58tsspFGIQIM5BLM",
-    "amount": 199
+    "priceId": "price_1UPMI7PB58tsspFG4G2E66Oy",
+    "amount": 499
   },
   "tide": {
-    "priceId": "price_1UMkukPB58tsspFG8fIHhyKD",
-    "amount": 199
+    "priceId": "price_1UPMI8PB58tsspFGqG6o1iQb",
+    "amount": 499
   },
   "phoenix": {
-    "priceId": "price_1UMkupPB58tsspFGDPLACnub",
-    "amount": 199
+    "priceId": "price_1UPMI9PB58tsspFGd0zakJy7",
+    "amount": 499
   },
   "frost": {
-    "priceId": "price_1UMkuuPB58tsspFGDCGLoEXV",
-    "amount": 199
+    "priceId": "price_1UPMIAPB58tsspFGDKyr0zEj",
+    "amount": 499
   },
   "galaxy": {
-    "priceId": "price_1UMkv0PB58tsspFGwfD7PjON",
-    "amount": 199
+    "priceId": "price_1UPMIAPB58tsspFGb1WXkmJ6",
+    "amount": 499
   },
   "candy": {
-    "priceId": "price_1UNCtzPB58tsspFGWzYUHfyj",
-    "amount": 199
+    "priceId": "price_1UPMIBPB58tsspFGSAUYM7L7",
+    "amount": 499
   },
   "boba": {
-    "priceId": "price_1UNCtzPB58tsspFGNWgWs4Du",
-    "amount": 199
+    "priceId": "price_1UPMICPB58tsspFGM2LinVYs",
+    "amount": 499
   },
   "pixel": {
-    "priceId": "price_1UNCu0PB58tsspFGULzzI8va",
-    "amount": 199
+    "priceId": "price_1UPMIDPB58tsspFGhx66S189",
+    "amount": 499
   },
   "witch": {
-    "priceId": "price_1UNCu0PB58tsspFGSRh9nYHG",
-    "amount": 199
+    "priceId": "price_1UPMIDPB58tsspFGE4w6Svt5",
+    "amount": 499
   },
   "garden": {
-    "priceId": "price_1UNCu0PB58tsspFG72Mhmh7f",
-    "amount": 199
+    "priceId": "price_1UPMIEPB58tsspFGTlr56m15",
+    "amount": 499
   },
   "dino": {
-    "priceId": "price_1UNCu1PB58tsspFGhMa55fRM",
-    "amount": 199
+    "priceId": "price_1UPMIFPB58tsspFGFPjYVqhB",
+    "amount": 499
   }
 }

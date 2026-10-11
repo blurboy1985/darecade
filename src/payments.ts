@@ -6,12 +6,12 @@ import {
   openAccount,
   type Profile,
 } from "./account";
-import { legendarySets, ownsSet } from "./collections";
+import { legendarySets, ownsOutfit } from "./collections";
 
 type Product = {
   id: string;
   name: string;
-  kind: "set" | "donation";
+  kind: "outfit" | "donation";
   amount: number;
   currency: "sgd";
 };
@@ -66,10 +66,12 @@ export async function mountPayments(
       acceptProfile(await api<Profile>("auth/me"));
       message =
         result.status === "paid"
-          ? result.kind === "set"
-            ? `${productName(result.product)} is yours. Find your complete outfit, pet and magic in My look.`
-            : "Thank you for supporting Play Simi! Your donation is confirmed."
-          : `Payment status: ${result.status}. Refresh to check again. Sets unlock only after payment is confirmed.`;
+          ? result.kind === "outfit"
+            ? `The ${productName(result.product)} outfit is yours. Find it in My look.`
+            : result.kind === "set"
+              ? `${productName(result.product)} is yours. Find it in My look.`
+              : "Thank you for supporting Play Simi! Your donation is confirmed."
+          : `Payment status: ${result.status}. Refresh to check again. Outfits unlock only after payment is confirmed.`;
     }
     const [config, orders] = await Promise.all([
       api<PaymentConfig>("payments/config"),
@@ -79,21 +81,21 @@ export async function mountPayments(
     const selected = legendarySets.find((s) => s.id === selectedSet);
     const donations = config.products.filter((p) => p.kind === "donation");
     const purchase = (p: Product | undefined, id: string) => {
-      const owned = currentProfile && ownsSet(currentProfile.progress, id);
+      const owned = currentProfile && ownsOutfit(currentProfile.progress, id);
       if (owned) return '<span class="item-state">Already owned</span>';
       if (!currentProfile?.purchasesConfirmed)
         return '<button class="secondary premium-age-lock" disabled>🔒 18+ only</button>';
       if (!config.enabled || !p)
         return '<button class="secondary" disabled>Payments coming soon</button>';
-      return `<button class="primary" data-checkout="${text(p.id)}" ${currentProfile?.purchasesConfirmed ? "" : "disabled"}>${p.kind === "donation" ? "Donate" : "Buy set"} · ${money(p.amount)}</button>`;
+      return `<button class="primary" data-checkout="${text(p.id)}" ${currentProfile?.purchasesConfirmed ? "" : "disabled"}>${p.kind === "donation" ? "Donate" : "Buy outfit"} · ${money(p.amount)}</button>`;
     };
-    panel.innerHTML = `<button class="text-button" data-open="wardrobe">← My look</button><span class="eyebrow">OPTIONAL PURCHASES · 18+</span><h2>${selected ? text(selected.name) : "Buy looks"}</h2>${selected ? "" : '<p class="lead">Choose a look to make your own.</p>'}<p class="payment-status" role="status">${text(message)}</p>${!config.enabled ? '<div class="note">Payments are not open yet. Prices will appear when checkout is ready. You can still earn Style Tokens and unlock token looks by playing.</div>' : config.testMode ? '<div class="note">Test checkout. No real payments.</div>' : ""}${!currentProfile?.account ? '<p class="device-save-note">No account needed. Saved to this browser on this device. Clearing browser data can lose access.</p><details><summary>Optional email backup</summary><p>Recover purchases and progress on another device.</p><button class="secondary" data-payment-account>Add email backup</button></details>' : ""}${!currentProfile?.purchasesConfirmed ? `<section class="adult-confirm"><strong>🔒 18+ only</strong><p>Purchases are locked. Confirm your age before buying.</p><button class="secondary" data-confirm-adult>I'm 18 or older</button></section>` : ""}<section>${selected ? "" : "<h3>Look sets</h3>"}<p>One-time purchase. Includes both outfits, pet and magic. Cosmetic only. No tokens spent.</p><div class="payment-products">${(selected
+    panel.innerHTML = `<button class="text-button" data-open="wardrobe">← My look</button><span class="eyebrow">OPTIONAL PURCHASES · 18+</span><h2>${selected ? text(selected.name) : "Buy looks"}</h2>${selected ? "" : '<p class="lead">Choose a look to make your own.</p>'}<p class="payment-status" role="status">${text(message)}</p>${!config.enabled ? '<div class="note">Payments are not open yet. Prices will appear when checkout is ready. You can still earn Style Tokens and unlock token looks by playing.</div>' : config.testMode ? '<div class="note">Test checkout. No real payments.</div>' : ""}${!currentProfile?.account ? '<p class="device-save-note">No account needed. Saved to this browser on this device. Clearing browser data can lose access.</p><details><summary>Optional email backup</summary><p>Recover purchases and progress on another device.</p><button class="secondary" data-payment-account>Add email backup</button></details>' : ""}${!currentProfile?.purchasesConfirmed ? `<section class="adult-confirm"><strong>🔒 18+ only</strong><p>Purchases are locked. Confirm your age before buying.</p><button class="secondary" data-confirm-adult>I'm 18 or older</button></section>` : ""}<section>${selected ? "" : "<h3>Outfits</h3>"}<p>One-time purchase. Includes the girl and boy outfits with headwear. Pets and magic are separate: unlock them with Style tokens. Cosmetic only. No tokens spent.</p><div class="payment-products">${(selected
       ? [selected]
       : legendarySets.filter((s) => s.tier !== "Free")
     )
       .map(
         (s) =>
-          `<article class="payment-product"><img class="avatar-thumbnail is-ready" src="/wardrobe/outfits-${legendarySets.indexOf(s) * 2 + (currentProfile?.progress.body ?? 0)}.png" data-thumbnail="outfits:${legendarySets.indexOf(s) * 2 + (currentProfile?.progress.body ?? 0)}" alt="${text(s.name)}" width="100" height="92" loading="lazy"><div><strong>${text(s.name)}</strong><small>Complete outfit · pet · magic</small>${purchase(
+          `<article class="payment-product"><img class="avatar-thumbnail is-ready" src="/wardrobe/outfits-${legendarySets.indexOf(s) * 2 + (currentProfile?.progress.body ?? 0)}.png" data-thumbnail="outfits:${legendarySets.indexOf(s) * 2 + (currentProfile?.progress.body ?? 0)}" alt="${text(s.name)}" width="100" height="92" loading="lazy"><div><strong>${text(s.name)}</strong><small>Girl and boy outfit · headwear</small>${purchase(
             config.products.find((p) => p.id === s.id),
             s.id,
           )}</div></article>`,

@@ -7,7 +7,12 @@ import { join } from "node:path";
 import { Store } from "../server/store.mjs";
 import { Community, PRIVACY_VERSION } from "../server/community.mjs";
 import { Payments, verifyStripeEvent } from "../server/payments.mjs";
-import { setLook, styleTokens } from "../src/collections.ts";
+import {
+  canWear,
+  outfitLook,
+  setItemIndex,
+  styleTokens,
+} from "../src/collections.ts";
 
 type Session = Record<string, unknown> & {
   id: string;
@@ -72,7 +77,7 @@ function setup(secretKey = "sk_test_fixture", livemode = false) {
       );
       if (inlineAmount) {
         assert.equal(price, null);
-        assert.equal(inlineAmount, "199");
+        assert.equal(inlineAmount, "499");
         assert.equal(form.get("line_items[0][price_data][currency]"), "sgd");
         assert.ok(form.get("line_items[0][price_data][product_data][name]"));
       }
@@ -187,9 +192,9 @@ test("guest purchases survive a new device session, retry safely and still revok
     const device = s.c.issue(s.player);
     const restored = s.c.privateProfile(s.c.lookup(device));
     assert.equal(restored.account, null);
-    assert.deepEqual(restored.progress.wardrobePurchased, ["solar"]);
+    assert.deepEqual(restored.progress.wardrobePurchased, ["outfit:solar"]);
     assert.equal(s.payments.history(restored.id).length, 1);
-    s.c.patch(restored.id, setLook(0));
+    s.c.patch(restored.id, outfitLook(0, 0));
     session.payment_intent.latest_charge.refunded = true;
     await s.payments.reconcile(session.id, restored.id);
     assert.deepEqual(
@@ -257,7 +262,7 @@ for (const live of [false, true]) {
       await s.event(session);
       assert.deepEqual(
         s.c.privateProfile(s.player).progress.wardrobePurchased,
-        ["solar"],
+        ["outfit:solar"],
       );
     } finally {
       s.close();
@@ -265,7 +270,7 @@ for (const live of [false, true]) {
   });
 }
 
-test("concurrent checkout retries reuse one session; only verified paid orders unlock all four parts", async () => {
+test("concurrent checkout retries reuse one session; only verified paid orders unlock the outfit, without pet or magic", async () => {
   const s = setup();
   try {
     s.account();
@@ -292,12 +297,19 @@ test("concurrent checkout retries reuse one session; only verified paid orders u
       s.payments.reconcile(session.id, s.player),
     ]);
     const p = s.c.privateProfile(s.player).progress;
-    assert.deepEqual(p.wardrobePurchased, ["solar"]);
+    assert.deepEqual(p.wardrobePurchased, ["outfit:solar"]);
     assert.deepEqual(p.wardrobeUnlocked, []);
     assert.equal(p.xp, 0);
     assert.equal(styleTokens(p), 0);
-    s.c.patch(s.player, setLook(0));
-    assert.equal(s.c.privateProfile(s.player).progress.clothing, 24);
+    s.c.patch(s.player, outfitLook(0, 0));
+    const worn = s.c.privateProfile(s.player).progress;
+    assert.equal(worn.clothing, 24);
+    assert.equal(worn.hair, setItemIndex("hair", 0));
+    for (const slot of ["pet", "accessory"] as const)
+      assert.throws(
+        () => s.c.patch(s.player, { [slot]: setItemIndex(slot, 0) }),
+        /Unlock/,
+      );
     assert.equal(s.payments.history(s.player).length, 1);
     await assert.rejects(
       () => s.payments.checkout(s.player, "solar"),
@@ -305,7 +317,7 @@ test("concurrent checkout retries reuse one session; only verified paid orders u
     );
     s.c.patch(s.player, { wardrobePurchased: ["moon"], wardrobeSpent: -1000 });
     assert.deepEqual(s.c.privateProfile(s.player).progress.wardrobePurchased, [
-      "solar",
+      "outfit:solar",
     ]);
   } finally {
     s.close();
@@ -354,7 +366,7 @@ test("refund removes bought entitlement and equipped pieces, but preserves an ea
     session.status = "complete";
     session.payment_status = "paid";
     await s.event(session);
-    s.c.patch(s.player, setLook(0));
+    s.c.patch(s.player, outfitLook(0, 0));
     session.payment_intent.latest_charge.refunded = true;
     await s.event(
       { payment_intent: session.payment_intent.id },
@@ -372,7 +384,7 @@ test("refund removes bought entitlement and equipped pieces, but preserves an ea
     p.rounds = 30;
     s.c.save(s.player, p);
     s.c.progression(s.player, "redeem-style", "solar");
-    s.c.patch(s.player, setLook(0));
+    s.c.patch(s.player, outfitLook(0, 0));
     await s.event(session);
     assert.equal(s.c.privateProfile(s.player).progress.clothing, 24);
   } finally {
@@ -469,7 +481,7 @@ for (const product of [
   "rainshield-guardian",
   "moonbell-society",
 ]) {
-  test(`${product} has a server-priced S$1.99 checkout with verified, idempotent ownership and refunds`, async () => {
+  test(`${product} has a server-priced S$4.99 outfit checkout with verified, idempotent ownership and refunds`, async () => {
     const s = setup();
     try {
       s.account();
@@ -480,7 +492,7 @@ for (const product of [
       assert.equal(urls[0].url, urls[1].url);
       assert.equal(s.sessions.size, 1);
       const session = [...s.sessions.values()][0];
-      assert.equal(session.amount_total, 199);
+      assert.equal(session.amount_total, 499);
       session.status = "complete";
       session.payment_status = "paid";
       const original = session.line_items;
@@ -496,7 +508,7 @@ for (const product of [
               quantity: 1,
               price: {
                 id: "price_generated",
-                unit_amount: 199,
+                unit_amount: 499,
                 currency: "sgd",
                 type: "one_time",
                 product: { metadata: { set: product } },
@@ -521,7 +533,7 @@ for (const product of [
       ]);
       assert.deepEqual(
         s.c.privateProfile(s.player).progress.wardrobePurchased,
-        [product],
+        [`outfit:${product}`],
       );
       await assert.rejects(
         () => s.payments.checkout(s.player, product),
@@ -541,6 +553,38 @@ for (const product of [
     }
   });
 }
+
+test("a whole set paid for before outfit-only sales keeps all four pieces", async () => {
+  const s = setup();
+  try {
+    s.account();
+    s.store.db
+      .prepare(
+        "INSERT INTO payment_orders(id,player,product,kind,price_id,amount,currency,status,created) VALUES('old',?,'moon','set','price_moon',199,'sgd','paid',1)",
+      )
+      .run(s.player);
+    await s.payments.checkout(s.player, "solar");
+    const session = [...s.sessions.values()][0];
+    session.status = "complete";
+    session.payment_status = "paid";
+    await s.event(session);
+    const p = s.c.privateProfile(s.player).progress;
+    assert.deepEqual(p.wardrobePurchased, ["moon", "outfit:solar"]);
+    for (const slot of ["clothing", "hair", "pet", "accessory"] as const) {
+      assert.equal(canWear(slot, setItemIndex(slot, 1), p, 0), true);
+      assert.equal(
+        canWear(slot, setItemIndex(slot, 0), p, 0),
+        slot === "clothing" || slot === "hair",
+      );
+    }
+    await assert.rejects(
+      () => s.payments.checkout(s.player, "moon"),
+      /already own/,
+    );
+  } finally {
+    s.close();
+  }
+});
 
 test("free sets cannot be charged or consume Style tokens", async () => {
   const s = setup();

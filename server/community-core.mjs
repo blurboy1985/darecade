@@ -1,7 +1,8 @@
 import { savedLookAllowed } from "../src/saved-looks.ts";
 import { nicknameError } from "../shared/nickname.ts";
 import {
-  ownsSet,
+  alreadyOwns,
+  outfitId,
   redemptionCost,
   styleTokens,
   canWear,
@@ -538,15 +539,16 @@ export class CommunityCore {
       const p = this.privateProfile(id).progress;
       const xpBefore = p.xp;
       if (event === "redeem-style") {
-        const set = tokenLooks.find((s) => s.id === value);
+        let set = tokenLooks.find((s) => s.id === value);
         if (!set) throw Error("Unknown style set.");
-        if (ownsSet(p, set.id)) return this.privateProfile(id);
+        // Tokens buy the outfit; a whole-set ID from an older client means the same.
+        if ("design" in set)
+          set = tokenLooks.find((s) => s.id === outfitId(set.id)) ?? set;
+        if (alreadyOwns(set, p)) return this.privateProfile(id);
         if (!("tier" in set) || set.tier === "Free")
           throw Error("These basic items are now free.");
-        if (set.tier === "Premium")
+        if (set.tier === "Premium" && !("slot" in set))
           throw Error("Premium looks require payment.");
-        if ("setId" in set && ownsSet(p, set.setId))
-          return this.privateProfile(id);
         const cost = redemptionCost(set, p);
         if (styleTokens(p) < cost)
           throw Error("Earn enough Style tokens first.");
