@@ -81,3 +81,59 @@ export function pageChoices<T>(items: readonly T[], requested: number) {
   );
   return { page, total, items: items.slice(page * 3, page * 3 + 3) };
 }
+
+type BoardRow = {
+  id: string;
+  name: string;
+  rank: number;
+  value: string | number;
+};
+
+/**
+ * Leaderboard rows. The unit is named once in the header instead of on every
+ * row, and the top three carry their medal. Names are escaped by the caller's
+ * function so a nickname can never become markup.
+ */
+export function boardRows(
+  rows: readonly BoardRow[],
+  me: string | undefined,
+  unit: string,
+  escape: (value: string) => string,
+) {
+  if (!rows.length) return "";
+  return `<div class="leaderboard"><header><span>Rank</span><span>Player</span><span>${unit}</span></header>${rows
+    .map((p) => {
+      const own = p.id === me;
+      const medal = ["🥇", "🥈", "🥉"][p.rank - 1];
+      return `<div class="${own ? "you-row" : ""}"${own ? ' aria-current="true"' : ""}><b>${medal ? `<i aria-hidden="true">${medal}</i>` : ""}#${p.rank}</b><span>${escape(p.name)}${own ? " <em>You</em>" : ""}</span><strong>${p.value}</strong></div>`;
+    })
+    .join("")}</div>`;
+}
+
+/** The line under the player's rank: who is directly ahead, and with what. */
+export function nextRankNote(
+  rows: readonly BoardRow[],
+  me: string | undefined,
+  escape: (value: string) => string,
+) {
+  const own = rows.find((p) => p.id === me);
+  if (!own) return "";
+  const ahead = rows.filter((p) => p.rank < own.rank).at(-1);
+  if (!ahead)
+    return rows.some((p) => p.id !== me && p.rank === own.rank)
+      ? "Tied for the lead"
+      : "You’re in the lead";
+  return `Next: #${ahead.rank} ${escape(ahead.name)} · ${ahead.value}`;
+}
+
+/** "2026-10-05" → "5 Oct". Anything else is shown as it came. */
+export function weekLabel(week: string | undefined) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(week || "");
+  const month =
+    match &&
+    "JanFebMarAprMayJunJulAugSepOctNovDec".slice(
+      +match[2] * 3 - 3,
+      +match[2] * 3,
+    );
+  return match && month ? `${+match[3]} ${month}` : week || "Monday";
+}

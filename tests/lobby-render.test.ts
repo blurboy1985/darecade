@@ -59,6 +59,7 @@ const compiled = ts.transpileModule(
       "serverNote",
       "renderSharedNeighbours",
       "rankingPeriodPicker",
+      "boardProgress",
       "renderSeasonBoard",
       "renderSharedBoard",
       "personalBestCards",

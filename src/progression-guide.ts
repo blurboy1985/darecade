@@ -3,7 +3,7 @@ import { singaporeDay, STAGE_DAILY_XP, type Save } from "./state.ts";
 
 export function levelReward(xp: number) {
   const level = 1 + Math.floor(xp / 100);
-  return `<div class="level-reward"><strong>Level ${level} → ${level + 1}</strong><span>${100 - (xp % 100)} XP to your next Style token</span><progress aria-label="Progress to next level" value="${xp % 100}" max="100"></progress><small>Every 100 XP: +1 level and +1 Style token for looks.</small></div>`;
+  return `<div class="level-reward"><strong>Level ${level} → ${level + 1}</strong><b>${xp % 100} / 100 XP</b><span>${100 - (xp % 100)} XP to your next Style token</span><progress aria-label="Progress to next level" value="${xp % 100}" max="100"></progress><small>Every 100 XP: +1 level and +1 Style token for looks.</small></div>`;
 }
 
 export function coastProgress(save: Pick<Save, "xp" | "coastRecord">) {
