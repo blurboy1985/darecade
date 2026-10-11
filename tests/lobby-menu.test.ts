@@ -6,6 +6,9 @@ import {
   isMenuPage,
   firstVisitCopy,
   pageChoices,
+  boardRows,
+  nextRankNote,
+  weekLabel,
 } from "../src/lobby-menu.ts";
 
 const source = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
@@ -113,4 +116,41 @@ test("choice pages never expose more than three and never lose an item", () => {
 
 test("manual challenge posting is absent from the interface", () => {
   assert.doesNotMatch(source, /data-post-dare|Post a challenge|dares-post/);
+});
+
+const escape = (value: string) => value.replace(/</g, "&lt;");
+const rows = [
+  { id: "a", name: "Kopi <b>", rank: 1, value: 30 },
+  { id: "b", name: "Mei", rank: 2, value: 28 },
+  { id: "c", name: "Bao", rank: 3, value: 26 },
+  { id: "me", name: "Sunny", rank: 4, value: 20 },
+];
+
+test("board rows name the unit once, mark the player and escape names", () => {
+  const html = boardRows(rows, "me", "Medal pts", escape);
+  assert.equal([...html.matchAll(/Medal pts/g)].length, 1);
+  assert.match(html, /class="you-row" aria-current="true"><b>#4<\/b>/);
+  assert.match(html, /Sunny <em>You<\/em>/);
+  assert.match(html, /🥇<\/i>#1<\/b><span>Kopi &lt;b>/);
+  assert.doesNotMatch(html, /Kopi <b>/);
+  assert.equal([...html.matchAll(/aria-hidden/g)].length, 3);
+  assert.equal(boardRows([], "me", "Medal pts", escape), "");
+});
+
+test("the rank card names the player directly ahead, or the lead", () => {
+  assert.equal(nextRankNote(rows, "me", escape), "Next: #3 Bao · 26");
+  assert.equal(nextRankNote(rows, "b", escape), "Next: #1 Kopi &lt;b> · 30");
+  assert.equal(nextRankNote(rows, "a", escape), "You’re in the lead");
+  assert.equal(nextRankNote(rows, "nobody", escape), "");
+  const tied = [rows[0], { ...rows[1], rank: 1 }, { ...rows[3], rank: 3 }];
+  assert.equal(nextRankNote(tied, "b", escape), "Tied for the lead");
+  assert.equal(nextRankNote(tied, "me", escape), "Next: #1 Mei · 28");
+});
+
+test("the week is shown as a date a player reads, not an ISO string", () => {
+  assert.equal(weekLabel("2026-10-05"), "5 Oct");
+  assert.equal(weekLabel("2026-01-26"), "26 Jan");
+  assert.equal(weekLabel(undefined), "Monday");
+  assert.equal(weekLabel("this week"), "this week");
+  assert.equal(weekLabel("2026-13-01"), "2026-13-01");
 });

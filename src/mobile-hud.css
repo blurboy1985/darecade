@@ -17,9 +17,17 @@
   gap: 6px;
   position: sticky;
   top: 0;
-  background: #faf7ee;
+  background: #fdf9ef;
   z-index: 2;
   padding: 6px 0;
+}
+/* Cover the dialog's top padding, where scrolled content showed above the tabs. */
+.quest-tabs::before {
+  content: "";
+  position: absolute;
+  inset: auto 0 100%;
+  height: 22px;
+  background: inherit;
 }
 .quest-tabs button {
   flex: 1;

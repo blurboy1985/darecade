@@ -547,3 +547,212 @@
 .profile-name {
   overflow-wrap: anywhere;
 }
+
+/* Rankings: the player's rank and the board come first, progress after. */
+.board-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0 0;
+}
+.board-filters > div {
+  min-width: 0;
+}
+.board-filters .field-label {
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #5d6858;
+  margin: 0 0 6px;
+}
+.board-filters .kit-select,
+.board-filters select {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+}
+.board-filters .kit-select-trigger {
+  padding-inline: 8px;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.board-filters + .your-standing {
+  margin-top: 14px;
+}
+.your-standing > div > small {
+  overflow-wrap: anywhere;
+}
+.leaderboard > header {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 8px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: #5d6858;
+  border-bottom: 2px solid #dde1d0;
+}
+.leaderboard > div {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 14px;
+}
+.leaderboard > div > b {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-size: 13px;
+  color: #5d6858;
+  font-variant-numeric: tabular-nums;
+}
+.leaderboard > div > b > i {
+  font-style: normal;
+  font-size: 18px;
+}
+.leaderboard > div > span {
+  min-width: 0;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.leaderboard strong {
+  white-space: nowrap;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.leaderboard .you-row {
+  background: #e3ecc4;
+  box-shadow: inset 4px 0 #5a793c;
+  border-bottom-color: transparent;
+}
+.leaderboard .you-row > b {
+  color: #2c4536;
+}
+.leaderboard .you-row > span {
+  font-weight: 700;
+}
+.leaderboard em {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #f7f4de;
+  background: #2c4536;
+  border-radius: 999px;
+  padding: 2px 7px;
+  margin-left: 4px;
+  vertical-align: 1px;
+}
+.podium-card h3 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+.board-empty button {
+  margin-top: 14px;
+}
+.score-target label {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+.score-target b {
+  float: none;
+}
+.board-progress {
+  border-top: 1px solid #d9dfcf;
+  margin-top: 26px;
+  padding-top: 18px;
+}
+.board-progress > h3 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+.board-progress > .fine-print {
+  margin-top: 10px;
+}
+.board-progress > .level-reward,
+.profile-name ~ .level-reward {
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid #d8ddcb;
+  border-radius: 14px;
+  background: #f4f7e9;
+}
+.profile-name ~ .level-reward {
+  margin: 12px 0;
+}
+/* Level progress: level and XP on one line, then a bar thick enough to read. */
+.level-reward {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+}
+.level-reward > * {
+  grid-column: 1 / -1;
+}
+.level-reward > strong {
+  grid-column: 1;
+  font-size: 15px;
+}
+.level-reward > b {
+  grid-column: 2;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.level-reward small {
+  font-size: 11px;
+  line-height: 1.4;
+}
+.level-reward progress,
+.play-medal-goal progress,
+.score-target progress {
+  appearance: none;
+  height: 10px;
+  border: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #dbe2cb;
+}
+.level-reward progress::-webkit-progress-bar,
+.play-medal-goal progress::-webkit-progress-bar,
+.score-target progress::-webkit-progress-bar {
+  background: #dbe2cb;
+}
+.level-reward progress::-webkit-progress-value,
+.play-medal-goal progress::-webkit-progress-value,
+.score-target progress::-webkit-progress-value {
+  background: #6a8a45;
+  border-radius: 999px;
+}
+.level-reward progress::-moz-progress-bar,
+.play-medal-goal progress::-moz-progress-bar,
+.score-target progress::-moz-progress-bar {
+  background: #6a8a45;
+  border-radius: 999px;
+}
+.reward-receipt .level-up {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #2c4536;
+  color: #d5f392;
+  font-size: 14px;
+  font-weight: 700;
+}
+@media (max-width: 600px) {
+  .leaderboard > header,
+  .leaderboard > div {
+    grid-template-columns: 52px minmax(0, 1fr) auto;
+    gap: 8px;
+    padding-inline: 10px;
+  }
+}
