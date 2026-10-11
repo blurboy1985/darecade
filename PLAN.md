@@ -134,3 +134,15 @@ Done on branch `outfit-and-item-pricing`:
   $1.99; Miso the moon rabbit bought for S$1.99 with Stripe's test card,
   webhook paid, the pet wearable, Moon's clothes and magic refused; the Solar
   order from the outfit-only hours now covers Solar's magic.
+
+Then, the same day:
+
+- Live Stripe retagged and the four item prices created (20 changed); both
+  catalogues read back correct: 16 outfit prices at 499, 4 item prices at 199.
+- PR #89 merged as `d140909` and deployed as Worker version
+  `a7d68460-d891-4d3a-ba77-2106ca848353`. Live health ready; bundle and an
+  outfit card match the local build.
+- Live Checkout Sessions on the Solar outfit and the pet item: SGD 499 and
+  SGD 199, both expired unpaid.
+- Not done: a completed live charge, the live site in a browser, a sandbox
+  refund of a single item, a phone.

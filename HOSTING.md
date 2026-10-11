@@ -1,3 +1,11 @@
+## Outfits with pet and magic, and single items — deployed 11 October 2026
+
+PR #89 (merged as `d140909`) was deployed as Worker version **`a7d68460-d891-4d3a-ba77-2106ca848353`**, replacing the outfit-only offer deployed earlier the same day. The owner set the offer: an outfit is clothes, headwear, pet and magic for S$4.99; any one of those is S$1.99; Legendary looks also take Style tokens and Premium takes money only; outfit cards show the pet and magic. Before merging, `npm test` passed (607 tests: 558 pass, 0 fail, 49 browser checks skipped) with all 17 Cloudflare integration tests, the build and the dry run.
+
+After deploying: health returned `ready: true`; the live `index-CCTlyjb8.js` and the first outfit card matched the local build byte-for-byte; unauthenticated payment config returned 401. Both Stripe catalogues were read back: sixteen outfit prices at SGD 499 tagged `kind=outfit`, four single-item prices at SGD 199 tagged `kind=piece`, each active and its product's default. Live Checkout Sessions on the Solar outfit price and the pet item price reported SGD 499 and SGD 199 and were expired unpaid. In the sandbox before the merge, a pet bought for S$1.99 with Stripe's test card unlocked that pet only, and an order from the outfit-only hours covered its set's magic.
+
+`STRIPE_CATALOG` gained the four `piece-*` prices (24 entries). No schema, migration, binding or secret changed. Stage Party rooms and races in progress ended with the deployment. Not done: a completed live charge, opening the live site in a browser, a sandbox refund of a single item (unit test only), and a phone. Do not roll back past `d824baa`: older builds drop `piece:` purchases and `outfit:` grants.
+
 ## Outfit-only pricing and accessory magic — deployed 11 October 2026
 
 PR #88 (`d824baa`, merged as `af98775`) was deployed as Worker version **`07316aa4-a191-405d-af17-ad7d2461a699`**. The owner asked for outfits to be sold without pets and magic at S$4.99, for more interesting magic, for Stripe to carry the new price, and then for the work to be shipped. On the merged tree `npm test` passed (607 tests: 558 pass, 0 fail, 49 browser checks skipped) with all 17 Cloudflare integration tests, the build and the dry run.

@@ -269,3 +269,8 @@ offer; where it differs from anything earlier in this file, this is right.
   `product` metadata.
 - Sets without a Stripe product, and item prices missing from
   `STRIPE_CATALOG`, use the server's inline price at the same amounts.
+- Deployed on 11 October 2026 as Worker version
+  `a7d68460-d891-4d3a-ba77-2106ca848353`. Both catalogues were read back from
+  Stripe as described. A sandbox pet purchase at S$1.99 passed. Live sessions
+  at SGD 499 and SGD 199 were opened and expired unpaid; no live charge has
+  been completed.
