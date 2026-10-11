@@ -1,88 +1,93 @@
-# Rankings, leaderboard and XP: player UI/UX pass — 11 October 2026
+# Outfit-only pricing and accessory magic — 11 October 2026
 
-The owner asked for a PR that improves what a player sees on the ranking,
-leaderboard and experience (XP/level) screens. Reviewed in a browser at
-390x844 and 1280x800 against the local server, with a mocked `/api/state`
-(12 players, a season, the player at rank 7) so the boards had rows.
+The owner asked for two things: the money purchase should cover outfits only
+(no pet, no magic) at S$4.99, and the magic items should be more interesting,
+built around different accessories; the current ones may be revised.
 
-## Found in review
+## Decisions from the owner
 
-1. Rankings opens on an XP bar, fine print, a bests disclosure and the daily
-   goal card. The player's rank and the board start below the fold on a phone.
-2. The season board (the default when a season runs) drops the
-   Quests / Challenges / Rankings tabs, so there is no way sideways.
-3. A long nickname pushes the row wider than the dialog: horizontal scrollbar
-   and the unit label wraps.
-4. Row unit ("MEDAL PTS") repeats on every row at 7px; rank number is low
-   contrast; the top three look like everyone else in the list.
-5. The podium and the list both show ranks 1 to 3.
-6. The rank card says "Nice!" at any rank and gives no next target.
-7. "Show" / "Game" labels are 8px; the two pickers stack and push the board down.
-8. Sticky tabs leave a see-through band above them while scrolling.
-9. Empty-state button overlaps its paragraph; the "score / leader" label
-   overlaps its progress bar.
-10. Week shown as `2026-10-05`.
-11. Level progress is a 12px text block with a default `<progress>`; the round
-    receipt does not say when a round crossed a level.
+- Premium pets and magic unlock with 4 Style tokens each, like Legendary pieces.
+- The 8-token unlock becomes outfit only too. Pet and magic are 4 tokens each.
+- Players who already bought or unlocked a whole set keep all four pieces.
+
+## Assumptions (mine)
+
+- "Outfit" means the girl and boy clothes with their headwear, as the Outfits
+  tab already applies them.
+- Every set is charged through the server-owned inline Checkout price at 499
+  cents, so no new Stripe products are needed. The sixteen S$1.99 Stripe prices
+  stay in Stripe unused; their entries leave `STRIPE_CATALOG`.
+- "Magic items" means the 66 set magics on the Magic tab. The 32 older effects
+  are not listed there and keep their look.
+- Item indices, set IDs and magic names that tests or saves rely on do not move.
 
 ## Done means
 
-- Rank card and board are the first things on Rankings; progress (level, daily
-  goal, bests) follows the board. No copy or rule is removed.
-- Items 2 to 11 fixed, at 390px and 1280px, no horizontal scroll.
-- `npm test` and `npm run build` pass; new pure helpers have unit tests.
-- Before/after screenshots checked in the browser.
+- A new S$4.99 purchase or 8-token unlock grants clothes and headwear only.
+- An old `solar`-style entitlement or paid S$1.99 order still grants all four.
+- Pets and magic of Legendary and Premium sets cost 4 tokens each; no money
+  button on those cards. Copy no longer says a set includes pet and magic.
+- Each of the 66 set magics is built from a themed accessory with its own
+  motion, inside the existing mesh budgets.
+- `npm test` and `npm run build` pass; magic thumbnails re-rendered; the Magic
+  tab and the purchase screen looked at in a browser.
 
 ## Steps
 
-1. `src/lobby-menu.ts`: pure helpers `boardRows`, `nextRankNote`, `weekLabel`.
-   Tests in `tests/lobby-menu.test.ts`.
-2. `src/main.ts`: reorder `renderSharedBoard` / `renderSeasonBoard`, tabs on
-   the season board, pickers in one row, helpers wired in, profile panel bar.
-3. `src/progression-guide.ts`, `src/reward-receipt.ts`: level card markup and
-   a "Level up" line on the receipt. Existing test strings kept.
-4. CSS in `src/style.css`, `src/lobby-ui.css`, `src/mobile-hud.css`.
-5. Verify: tests, build, browser at both sizes.
+1. `src/collections.ts`: `outfit:<set>` entitlement, `ownsOutfit`, Premium pet
+   and magic pieces, outfit-only credit, `setPriceSGD = 499`.
+2. `src/state.ts`, `server/community-core.mjs`: keep the new IDs; redeeming a
+   set ID now grants its outfit.
+3. `server/payments.mjs`: order kind `outfit`, inline 499 for every set,
+   refunds unequip only what is no longer owned. `wrangler.jsonc` catalogue.
+4. `src/wardrobe.ts`, `src/payments.ts`, `src/main.ts`: buttons and copy.
+5. Tests for 1 to 4.
+6. `src/magic-props.ts` (new): accessory builders and motions, one recipe per
+   set. `src/legendary.ts` and `src/magic.ts` use it.
+7. Tests for 6, thumbnails, browser check.
+8. Docs: `PAYMENTS.md`, `WARDROBE.md`, `README.md`.
 
 ## Out of scope
 
-Server, scoring rules, the HUD chip, the Coast Rush result board, challenges.
+Deploying, anything in the Stripe dashboard, pets, the 32 older effects.
 
 ## Risks
 
-- `tests/lobby-render.test.ts` evaluates the render functions from source and
-  caps primary buttons at 3 on Rankings: no new buttons.
-- Browser tests (`DARECADE_TEST_CHROMIUM`) select `#board-period` /
-  `#board-game` and read `.leaderboard` / `.level-reward`: ids and classes stay.
+- Ownership is server-authoritative and involves paid orders: old orders must
+  keep granting the whole set. Covered by a test.
+- A stale client that redeems a set ID gets the outfit, not all four pieces.
+- Magic meshes are shared across avatars and never disposed: props are cached
+  templates, cloned per avatar.
+
+## Change during the work
+
+The owner said S$4.99 is a new price catalogue, so Stripe had to be updated
+rather than relying on inline prices alone. The sixteen catalogued sets got a
+new SGD 499 price on their existing product, in the sandbox and in live, and
+`STRIPE_CATALOG` keeps its twenty entries with the new live IDs. Sets that
+never had a Stripe product still use the inline price.
 
 ## Outcome
 
-- Steps 1 to 5 done on branch `player-progress-ux`.
-- `npm test`: 605 tests, 556 pass, 0 fail, 49 browser checks skipped. Four new
-  tests: board rows, next-rank note, week label, receipt level-up.
-- `npm run build` passes. In installed Chrome the seasons, Section 4, mobile
-  lobby and experience browser files ran 25 tests, all pass.
-- Looked at in headless Chrome at 390x844 and 1280x800 with the mocked state:
-  season, weekly, daily, empty weekly and the profile panel. No horizontal
-  scroll (dialog scrollWidth equals clientWidth) with a 25-character nickname.
-- The Coast Rush daily board was opened after the PR: `racing.css` narrowed
-  its rows to a 28px rank column under the new 52px header. Fixed in
-  `lobby-ui.css` and looked at again.
-- Also changed: `reward-receipt.ts` imports `./progression-guide.ts` with its
-  extension, so the receipt can be unit tested like the other modules.
-- Not done: the round receipt's "Level up!" line and the level bar on the
-  game covers were not seen in a browser (covered by unit and Section 4 tests
-  only); nothing was tried on a real phone or in Firefox/Safari, where the restyled
-  `<progress>` bars rely on `::-moz-progress-bar` and `appearance: none`.
-
-## Merge and deployment
-
-The owner then asked for the PR to be merged and deployed.
-
-- PR #86 merged as `ed5893d`; `main` is the tree that was tested.
-- `npm test` 605 tests, 0 fail; `npm run test:cloudflare` 17 of 17.
-- `npm run cf:deploy`: Worker version `000cd78a-e47b-40cb-80d8-73a5534338ee`.
-- Live: health ready, HTML and 18 script and style files match `dist/`, state
-  401, auth config 200, private paths 404, old address answers.
-- Not done: nothing was opened or played in production, and no phone.
-- Rollback is a redeploy of `5f542b0`.
+- Steps 1 to 8 done on branch `outfit-pricing-magic`. Nothing is committed.
+- `npm test`: 607 tests, 558 pass, 0 fail, 49 browser checks skipped.
+  `npm run test:cloudflare`: build passes, 17 of 17.
+- New tests: an old paid `set` order keeps all four pieces beside a new
+  outfit order; Premium pet and magic take tokens and Premium clothes do not;
+  each of the 66 set magics is a different arrangement within 20 draws and
+  2,000 triangles, frozen at time zero, sharing its meshes between wearers.
+- Stripe: 16 sandbox and 16 live prices read back as active, one-time, SGD
+  499 and the product default.
+- Magic: the 66 cards in `public/wardrobe/accessory-*.png` were re-rendered
+  from the new meshes and looked at as contact sheets, twice. Largest effect:
+  19 draws, 1,912 triangles.
+- Browser, local build at 1024x768 with a new guest: Magic, Premium shows
+  "Unlock piece · 4 Style tokens" and no money button; Rainshield orbit
+  previews with umbrella, shields and raindrops; Outfits, Premium shows "Buy
+  outfit · S$4.99"; the purchase screen says pets and magic are separate.
+- Not done: deployment; a sandbox or live checkout at S$4.99 (payments are
+  off in the local build, so the priced button was not seen); archiving the
+  old S$1.99 prices; a phone; magic watched in motion for all 66 (one was).
+- Until deployment the live site still sells the whole set for S$1.99, now
+  under Stripe products named "Outfit" whose description says pet and magic
+  are not included.

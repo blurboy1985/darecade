@@ -213,3 +213,27 @@ tests, TypeScript compilation, the production build and Wrangler dry run.
 Implementation references: [Stripe Checkout fulfilment](https://docs.stripe.com/checkout/fulfillment),
 [webhook signature verification](https://docs.stripe.com/webhooks#verify-manually),
 [Checkout Session creation](https://docs.stripe.com/api/checkout/sessions/create).
+
+## Outfit-only pricing — 11 October 2026
+
+The owner changed what money buys. A purchase is now an **outfit**: the girl
+and boy clothes with their headwear, for **S$4.99**. Pets and magic are not
+included; in Legendary and Premium sets they cost 4 Style tokens each. The
+8-token unlock is outfit-only too. Everything above this section that says
+S$1.99 or "all four pieces" describes the earlier offer.
+
+- New orders are stored with kind `outfit` and grant `outfit:<set>`. A paid
+  order of kind `set` (the S$1.99 offer) and an older token unlock keep all
+  four pieces. No migration is needed.
+- Stripe: each of the sixteen catalogued sets has a new one-time SGD 499 price
+  on its existing product, made by `scripts/stripe-add-sets.mjs` in the sandbox
+  and in live. The products are renamed "… Outfit" and their description says
+  the pet and magic are not included. All 32 prices were read back from Stripe
+  as active, one-time, SGD 499 and the product default. The new IDs are in the
+  two catalogue files and, for live, in `STRIPE_CATALOG` in `wrangler.jsonc`.
+- The other paid sets use the server's inline Checkout price, now 499.
+- The sixteen S$1.99 prices are still active in Stripe, because the deployed
+  Worker charges them until this change is deployed. Archive them afterwards.
+- Not done: deploying this change, a sandbox or live checkout at the new
+  price, and archiving the old prices. Until the deployment, the live site
+  still sells the whole set for S$1.99 under the renamed "Outfit" product.

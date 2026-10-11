@@ -1,18 +1,18 @@
-// Create the S$1.99 product and price for any set that has none, and record
-// them in the catalogue file. Safe to run again: existing entries are kept.
+// Move every catalogued set to the S$4.99 outfit price: a new Price on the
+// existing Stripe product, with the product renamed and described as an
+// outfit. Sets with no catalogue entry are charged through the server's
+// inline price and need nothing here. Safe to run again: entries already at
+// the price are kept. The old price stays active so a deployment that still
+// charges it keeps working; archive it in Stripe once the new one is live.
 //   node scripts/stripe-add-sets.mjs sandbox
 //   node scripts/stripe-add-sets.mjs live     (needs a key that may write Products and Prices)
-//   add --check to list what exists without creating anything
+//   add --check to list what would change without changing anything
 import { readFileSync, writeFileSync } from "node:fs";
 import { parseEnv } from "node:util";
-import { legendarySets } from "../src/collections.ts";
+import { legendarySets, setPriceSGD } from "../src/collections.ts";
 
 const mode = process.argv[2];
-const accounts = {
-  sandbox: "acct_1UMkqOPB58tsspFG",
-  live: "acct_1UMkqGA6Maf1zlsl",
-};
-if (!accounts[mode]) throw Error("Say sandbox or live.");
+if (mode !== "sandbox" && mode !== "live") throw Error("Say sandbox or live.");
 const checkOnly = process.argv.includes("--check");
 const key = parseEnv(
   readFileSync(`.env.stripe-${mode}`, "utf8"),
@@ -21,7 +21,6 @@ if (
   !new RegExp(`^(sk|rk)_${mode === "live" ? "live" : "test"}_`).test(key || "")
 )
   throw Error(`.env.stripe-${mode} has no ${mode} key.`);
-const AMOUNT = 199;
 
 async function stripe(path, body) {
   const response = await fetch(`https://api.stripe.com/v1/${path}`, {
@@ -41,46 +40,36 @@ async function stripe(path, body) {
   return json;
 }
 
-// A restricted key cannot read the account, so identify it from a product.
-const products = (await stripe("products?limit=100&active=true")).data;
 const file = `stripe-${mode}-catalog.json`;
 const catalog = JSON.parse(readFileSync(file, "utf8"));
-const known = Object.values(catalog)[0]?.priceId;
-if (known) {
-  const price = await stripe(`prices/${known}`);
-  if (!products.some((p) => p.id === price.product))
-    throw Error(
-      "This key does not belong to the account in the catalogue file.",
-    );
-}
-console.log(
-  `${mode}: ${products.length} active products;`,
-  "sample:",
-  JSON.stringify(
-    products
-      .slice(0, 2)
-      .map((p) => ({
-        name: p.name,
-        description: p.description,
-        metadata: p.metadata,
-      })),
-  ),
-);
+let changed = 0;
 for (const set of legendarySets.filter((set) => set.tier !== "Free")) {
-  if (catalog[set.id]) continue;
+  const entry = catalog[set.id];
+  if (!entry || entry.amount === setPriceSGD) continue;
+  const old = await stripe(`prices/${entry.priceId}`);
+  if (old.livemode !== (mode === "live") || old.currency !== "sgd")
+    throw Error(`${set.id}: ${entry.priceId} is not a ${mode} SGD price.`);
   if (checkOnly) {
-    console.log(`missing: ${set.id} (${set.name})`);
+    console.log(
+      `would reprice: ${set.id} ${old.unit_amount} -> ${setPriceSGD}`,
+    );
     continue;
   }
-  const product = await stripe("products", {
-    // Same wording as the first ten products.
-    name: `Play Simi — ${set.name} Set`,
-    description: `Unlock the complete ${set.name} cosmetic set in Play Simi: complete boy and girl outfits, pet and magic effect. A one-time digital purchase for your saved Play Simi account. Cosmetic only; no gameplay advantage.`,
+  const price = await stripe("prices", {
+    product: old.product,
+    currency: "sgd",
+    unit_amount: String(setPriceSGD),
     "metadata[set]": set.id,
-    "default_price_data[currency]": "sgd",
-    "default_price_data[unit_amount]": String(AMOUNT),
   });
-  catalog[set.id] = { priceId: product.default_price, amount: AMOUNT };
-  console.log(`created: ${set.id} ${product.default_price}`);
+  await stripe(`products/${old.product}`, {
+    name: `Play Simi — ${set.name} Outfit`,
+    description: `Unlock the ${set.name} outfit in Play Simi: the boy and girl outfits with headwear. The pet and magic effect are not included. A one-time digital purchase for your saved Play Simi account. Cosmetic only; no gameplay advantage.`,
+    default_price: price.id,
+  });
+  catalog[set.id] = { priceId: price.id, amount: setPriceSGD };
+  // Written after each set, so a failure part-way never loses a created price.
+  writeFileSync(file, JSON.stringify(catalog, null, 2) + "\n");
+  changed++;
+  console.log(`repriced: ${set.id} ${price.id} (was ${entry.priceId})`);
 }
-if (!checkOnly) writeFileSync(file, JSON.stringify(catalog, null, 2) + "\n");
+console.log(`${mode}: ${changed} repriced.`);

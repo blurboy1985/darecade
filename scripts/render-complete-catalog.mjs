@@ -36,6 +36,11 @@ if (process.env.CATALOG_REFRESH_HAIR_LOOKS) {
 if (process.env.CATALOG_COMPONENTS_ONLY) {
   for (const key of keys) if (!/^(clothing|hair)-/.test(key)) keys.delete(key);
 }
+// CATALOG_ONLY=accessory re-renders one category after its meshes change.
+if (process.env.CATALOG_ONLY) {
+  for (const key of keys)
+    if (!key.startsWith(`${process.env.CATALOG_ONLY}-`)) keys.delete(key);
+}
 const written = new Set();
 mkdirSync("public/wardrobe", { recursive: true });
 const html = `<!doctype html><html><body><p id="result">Rendering catalog…</p><script type="module">

@@ -60,10 +60,11 @@ test("piece unlocks debit once, authorize only the piece and credit a complete-s
     const upgraded = c.progression(id, "redeem-style", "solar").progress;
     assert.equal(upgraded.wardrobeSpent, 8);
     assert.equal(styleTokens(upgraded), 0);
-    assert.equal(
-      c.progression(id, "redeem-style", pieceId("pet", "solar")).progress
-        .wardrobeSpent,
-      8,
+    // The outfit no longer brings the pet along: it is its own 4-token piece.
+    assert.equal(canWear("pet", setItemIndex("pet", 0), upgraded, 0), false);
+    assert.throws(
+      () => c.progression(id, "redeem-style", pieceId("pet", "solar")),
+      /Earn enough/,
     );
     c.patch(id, { sound: false }); // Old clients preserve ownership and ledger.
     const reloaded = normalise(c.privateProfile(id).progress, fresh());
@@ -108,7 +109,7 @@ test("standard prices keep old debits and purchases, while Hair cards expose pre
   );
   assert.match(
     wardrobeBrowser("Outfits", "Legendary", fresh(), 0, null),
-    /Unlock set · 8 Style tokens/,
+    /Unlock outfit · 8 Style tokens/,
   );
   assert.equal(claimGift(fresh(), 1), false);
   const newPlayer = fresh();

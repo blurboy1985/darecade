@@ -1,5 +1,5 @@
 import { extraIndexFor, legendarySets, setIndexFor } from "./collections.ts";
-import { legendaryMagic } from "./legendary.ts";
+import { setMagic, setMagicDust } from "./magic-props.ts";
 // "Everyday magic" effects. Each effect mixes a few glowing meshes (wings,
 // halos, crystals) with sparkle particle layers drawn by one small shader.
 // Positions are avatar-local: feet at y 0, head centre ~1.35, crown ~1.8.
@@ -355,10 +355,11 @@ export function buildMagic(parent: T.Object3D, kind: number): Magic | null {
     y1: number,
     r: number,
     count = 16,
+    kind: Sprite = "star",
   ) =>
     layer(
       m,
-      "star",
+      kind,
       count,
       0.07,
       colors,
@@ -377,8 +378,15 @@ export function buildMagic(parent: T.Object3D, kind: number): Magic | null {
   const setIndex = setIndexFor("accessory", kind);
   const special = legendarySets[setIndex];
   if (special) {
-    anim.push(legendaryMagic(g, setIndex));
-    glowDust([special.color, special.accent], 0.2, 2.4, 0.9, 32);
+    anim.push(setMagic(node(g), special));
+    glowDust(
+      [special.color, special.accent],
+      0.2,
+      2.4,
+      0.9,
+      20,
+      setMagicDust(special),
+    );
   }
   // Later single effects, in the order of their names in appearance.ts.
   switch (extraIndexFor("accessory", kind)) {

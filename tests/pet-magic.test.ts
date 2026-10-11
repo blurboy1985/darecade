@@ -4,6 +4,7 @@ import * as T from "three";
 import { makePet, animatePet } from "../src/pets.ts";
 import { buildMagic, disposeMagic } from "../src/magic.ts";
 import { petNames, accessoryNames } from "../src/appearance.ts";
+import { legendarySets, setItemIndex } from "../src/collections.ts";
 
 function budget(root: T.Object3D) {
   let draws = 0;
@@ -297,4 +298,65 @@ test("named notebook and paper-plane magic has bounded orbiting props", (t) => {
     assert.notDeepEqual(snapshot(magic.group), before);
     disposeMagic(magic);
   }
+});
+
+test("every set magic is its own accessory arrangement within a shared, bounded mesh budget", () => {
+  const seen = new Map<string, string>();
+  for (const [index, set] of legendarySets.entries()) {
+    const kind = setItemIndex("accessory", index);
+    const scene = new T.Group();
+    const magic = buildMagic(scene, kind)!;
+    const measured = budget(magic.group);
+    assert.ok(measured.draws <= 20, `${set.id} draws ${measured.draws}`);
+    assert.ok(
+      measured.triangles <= 2000,
+      `${set.id} triangles ${measured.triangles}`,
+    );
+    const props = meshes(magic.group);
+    assert.ok(props.length >= 2, `${set.id} has accessories, not only dust`);
+    // Which props, how many and where: no two sets share an arrangement.
+    magic.tick(0, false);
+    const still = snapshot(magic.group);
+    const signature = JSON.stringify(
+      props.map((mesh) => [
+        mesh.geometry.getAttribute("position").count,
+        ...mesh
+          .getWorldPosition(new T.Vector3())
+          .toArray()
+          .map((v) => Math.round(v * 100)),
+      ]),
+    );
+    assert.equal(
+      seen.get(signature),
+      undefined,
+      `${set.id} repeats ${seen.get(signature)}`,
+    );
+    seen.set(signature, set.id);
+    magic.tick(0, false);
+    assert.deepEqual(snapshot(magic.group), still);
+    magic.tick(2.3, true);
+    assert.notDeepEqual(snapshot(magic.group), still);
+    assert.ok(snapshot(magic.group).flat().every(Number.isFinite));
+    for (const mesh of props) {
+      const p = mesh.getWorldPosition(new T.Vector3());
+      assert.ok(
+        Math.hypot(p.x, p.z) < 1.3 && p.y > -0.1 && p.y < 3,
+        `${set.id} keeps its props near the avatar`,
+      );
+    }
+    // A second wearer reuses the baked batches; taking one off disposes none.
+    let disposed = 0;
+    for (const mesh of props)
+      mesh.geometry.addEventListener("dispose", () => disposed++);
+    const other = buildMagic(scene, kind)!;
+    assert.deepEqual(
+      meshes(other.group).map((mesh) => mesh.geometry),
+      props.map((mesh) => mesh.geometry),
+    );
+    disposeMagic(other);
+    disposeMagic(magic);
+    assert.equal(disposed, 0);
+    assert.equal(scene.children.length, 0);
+  }
+  assert.equal(seen.size, legendarySets.length);
 });
