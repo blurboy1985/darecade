@@ -74,3 +74,15 @@ Server, scoring rules, the HUD chip, the Coast Rush result board, challenges.
   game covers were not seen in a browser (covered by unit and Section 4 tests
   only); nothing was tried on a real phone or in Firefox/Safari, where the restyled
   `<progress>` bars rely on `::-moz-progress-bar` and `appearance: none`.
+
+## Merge and deployment
+
+The owner then asked for the PR to be merged and deployed.
+
+- PR #86 merged as `ed5893d`; `main` is the tree that was tested.
+- `npm test` 605 tests, 0 fail; `npm run test:cloudflare` 17 of 17.
+- `npm run cf:deploy`: Worker version `000cd78a-e47b-40cb-80d8-73a5534338ee`.
+- Live: health ready, HTML and 18 script and style files match `dist/`, state
+  401, auth config 200, private paths 404, old address answers.
+- Not done: nothing was opened or played in production, and no phone.
+- Rollback is a redeploy of `5f542b0`.

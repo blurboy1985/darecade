@@ -1,5 +1,15 @@
 # Cloudflare hosting
 
+## Rankings, leaderboard rows and XP progress — deployed 11 October 2026
+
+PR #86 (`ed5893d`) was merged and `main` was deployed as Worker version **`000cd78a-e47b-40cb-80d8-73a5534338ee`**. The owner asked for the PR, then for it to be merged and deployed. Before merging, the branch passed `npm test` (605 tests: 556 pass, 0 fail, 49 browser checks skipped) and all 17 Cloudflare integration tests, including the build and dry run. In installed Chrome, the seasons, Section 4, mobile lobby and experience files ran 25 tests, all passing; these ran before the last commit, which changed one CSS rule for the Coast Rush board and was looked at in a browser instead. `main` after the merge is the same tree as the one tested.
+
+Rankings now opens on the period picker, the player's rank card and the board; level, the daily Play medal goal and game bests follow under **Your progress**. The season board keeps the Quests / Challenges / Rankings tabs. Board rows name their unit once in a header, show medals on the top three, mark the player's own row and truncate a long nickname, which used to widen the dialog. The list starts at rank 4 under a podium. The rank card names the player directly ahead. Level progress shows `65 / 100 XP` with a thicker bar, the profile panel shows it too, and a round receipt says when the round crossed a level.
+
+After deploying: health returned `ready: true`; the live HTML and all 18 script and style files matched the local build byte-for-byte, including `index-PhmVFqfL.js`, `main-CK825HJ7.js` and `main-C01DlOgu.css`; unauthenticated state returned 401, auth config 200 and private server paths 404; the old address still answered. The change was reviewed locally at 390x844 and 1280x800 against a mocked `/api/state` with 12 players. It was not exercised in production: Rankings was not opened there, no round was played to see a receipt, and nothing was tried on a phone, in Firefox or in Safari, where the restyled progress bars use `appearance: none` and `::-moz-progress-bar`.
+
+No schema, migration, binding, variable or secret changed. Stage Party rooms and races in progress ended with the deployment. Rollback is a redeploy of `5f542b0`.
+
 ## Play now on a first visit, activity discovery — deployed 11 October 2026
 
 PR #83 (`f0e35fb`) and PR #84 (`585efa9`) had been merged on GitHub; local `main` was fast-forwarded to `585efa9` and deployed as Worker version **`3b1989e7-29a6-40e0-83d1-eb17e2d29a40`**. Both PRs were written as drafts with no browser playthrough. Before deploying, `main` passed `npm test` (601 tests: 552 pass, 0 fail, 49 browser checks skipped) and all 17 Cloudflare integration tests, including the build and dry run. In installed Chrome, the experience, mobile lobby, onboarding and Section 4 files ran 27 tests: 25 passed and 2 in `tests/experience-browser.test.ts` failed because the test helper looked for Fishing in the Arcade pager while Play now opens on Discover for a player with fewer than five rounds. With the helper choosing Arcade games first, all 13 tests in that file pass; the game was not changed.
