@@ -12,7 +12,6 @@ import {
   extraIndexFor,
   extraItemIndex,
   legendarySets,
-  outfitLook,
   setIndexFor,
   setItemIndex,
   setStarts,
@@ -119,17 +118,23 @@ test("exchanges enforce server progress, debit once, survive reload and protect 
     // Tokens alone buy the set, even before any medal or round gate.
     p.rounds = 0;
     community.save(id, p);
-    for (const premium of ["aegis-prime", "outfit:aegis-prime"])
+    // Premium is money-only: the outfit and each of its items.
+    for (const premium of [
+      "aegis-prime",
+      "outfit:aegis-prime",
+      "piece:aegis-prime:pet",
+      "piece:aegis-prime:clothing",
+    ])
       assert.throws(
         () => community.progression(id, "redeem-style", premium),
         /require payment/,
       );
     assert.equal(community.privateProfile(id).progress.wardrobeSpent, 0);
-    // A set ID from an older client buys the outfit, the same as its outfit ID.
     const first = community.progression(id, "redeem-style", "solar").progress;
     assert.equal(styleTokens(first), 4);
     assert.equal(first.xp, 1200);
-    assert.deepEqual(first.wardrobeUnlocked, ["outfit:solar"]);
+    assert.deepEqual(first.wardrobeUnlocked, ["solar"]);
+    // The outfit-only ID of 11 October 2026 means the whole set.
     assert.equal(
       community.progression(id, "redeem-style", "outfit:solar").progress
         .wardrobeSpent,
@@ -141,30 +146,14 @@ test("exchanges enforce server progress, debit once, survive reload and protect 
       normalise(JSON.parse(JSON.stringify(retry)), fresh()).wardrobeSpent,
       8,
     );
+    // The outfit brings its pet and magic.
+    const equipped = community.patch(id, setLook(0)).progress;
+    assert.equal(equipped.pet, setStarts.pet);
+    assert.equal(equipped.accessory, setStarts.accessory);
     assert.equal(
-      community.patch(id, outfitLook(0, 0)).progress.clothing,
-      setStarts.clothing,
-    );
-    // The pet and magic are not part of the outfit: 4 tokens each.
-    assert.throws(() => community.patch(id, setLook(0)), /Unlock/);
-    community.progression(id, "redeem-style", "piece:solar:pet");
-    assert.throws(
-      () => community.progression(id, "redeem-style", "piece:solar:accessory"),
-      /Earn/,
-    );
-    const withPet = community.patch(id, { pet: setStarts.pet }).progress;
-    assert.equal(withPet.pet, setStarts.pet);
-    assert.equal(withPet.wardrobeSpent, 12);
-    assert.equal(styleTokens(withPet), 0);
-    // Premium pets and magic are token pieces too; Premium clothes are not.
-    assert.throws(
-      () => community.progression(id, "redeem-style", "piece:aegis-prime:pet"),
-      /Earn/,
-    );
-    assert.throws(
-      () =>
-        community.progression(id, "redeem-style", "piece:aegis-prime:clothing"),
-      /Unknown/,
+      community.progression(id, "redeem-style", "piece:solar:pet").progress
+        .wardrobeSpent,
+      8,
     );
     assert.throws(() => community.patch(id, setLook(1)), /Unlock/);
     assert.throws(
@@ -187,7 +176,7 @@ test("exchanges enforce server progress, debit once, survive reload and protect 
     assert.deepEqual(
       community.progression(second, "redeem-style", "solar").progress
         .wardrobeUnlocked,
-      ["outfit:solar"],
+      ["solar"],
     );
   } finally {
     store.close();

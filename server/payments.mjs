@@ -1,13 +1,22 @@
 import { createHmac, timingSafeEqual, randomUUID } from "node:crypto";
 import {
   legendarySets,
+  legendaryPieces,
   setPriceSGD,
-  ownsOutfit,
-  outfitId,
+  piecePriceSGD,
+  ownsSet,
   canWear,
+  setForItem,
   setItemIndex,
   setStarts,
 } from "../src/collections.ts";
+
+const pieceLabels = {
+  clothing: "Clothes",
+  hair: "Headwear",
+  pet: "Pet",
+  accessory: "Magic",
+};
 
 const fail = (message, status = 400) => {
   throw Object.assign(Error(message), { status });
@@ -86,8 +95,9 @@ export class Payments {
     for (const [id, value] of Object.entries(raw || {})) {
       const set = legendarySets.find((s) => s.id === id && s.tier !== "Free");
       const donation = /^donation-[a-z0-9-]{1,30}$/.test(id);
+      const slot = id.startsWith("piece-") && id.slice(6);
       if (
-        (!set && !donation) ||
+        (!set && !donation && !Object.hasOwn(pieceLabels, slot)) ||
         !value ||
         !/^price_[a-zA-Z0-9]+$/.test(value.priceId) ||
         !Number.isSafeInteger(value.amount) ||
@@ -97,28 +107,57 @@ export class Payments {
         continue;
       products.push({
         id,
-        name: set?.name || "Support Play Simi",
-        kind: set ? "outfit" : "donation",
+        name: set?.name || (donation ? "Support Play Simi" : pieceLabels[slot]),
+        kind: set ? "set" : donation ? "donation" : "piece",
         amount: value.amount,
         currency: "sgd",
         priceId: value.priceId,
       });
     }
-    // Outfits use server-owned inline Checkout prices, so the catalogue does
-    // not depend on manually provisioning a Stripe Product and Price.
+    // Anything without a Stripe Price uses a server-owned inline Checkout
+    // price, so new catalogue art never waits on Stripe provisioning.
     for (const set of legendarySets) {
       if (set.tier === "Free" || products.some((p) => p.id === set.id))
         continue;
       products.push({
         id: set.id,
         name: set.name,
-        kind: "outfit",
+        kind: "set",
         amount: setPriceSGD,
         currency: "sgd",
         priceId: `inline:${set.id}:${setPriceSGD}`,
       });
     }
+    // One price per kind of single item; the order records which item.
+    for (const [slot, name] of Object.entries(pieceLabels)) {
+      if (products.some((p) => p.id === `piece-${slot}`)) continue;
+      products.push({
+        id: `piece-${slot}`,
+        name,
+        kind: "piece",
+        amount: piecePriceSGD,
+        currency: "sgd",
+        priceId: `inline:piece-${slot}:${piecePriceSGD}`,
+      });
+    }
     return products;
+  }
+  /** The outfit, single item or donation a checkout request names. */
+  product(id) {
+    const piece = legendaryPieces.find((p) => p.id === id);
+    if (!piece)
+      return this.catalog().find((p) => p.id === id && p.kind !== "piece");
+    const price = this.catalog().find((p) => p.id === `piece-${piece.slot}`);
+    return {
+      ...price,
+      id: piece.id,
+      name: piece.name,
+      slot: piece.slot,
+      set: legendarySets.find((s) => s.id === piece.setId),
+      priceId: price.priceId.startsWith("inline:")
+        ? `inline:${piece.id}:${price.amount}`
+        : price.priceId,
+    };
   }
   config() {
     return {
@@ -166,12 +205,22 @@ export class Payments {
     const profile = this.c.privateProfile(player);
     if (!profile.purchasesConfirmed)
       fail("Purchases are for players aged 18 and over only.", 403);
-    const product = this.catalog().find((p) => p.id === productId);
+    const product = this.product(productId);
     if (!product) fail("This item is not available for purchase.");
     if (product.kind === "donation" && !profile.purchasesConfirmed)
       fail("Donations are available to adults only.", 403);
-    if (product.kind === "outfit" && ownsOutfit(profile.progress, product.id))
+    if (product.kind === "set" && ownsSet(profile.progress, product.id))
       fail("You already own this outfit.");
+    if (
+      product.kind === "piece" &&
+      canWear(
+        product.slot,
+        setItemIndex(product.slot, legendarySets.indexOf(product.set)),
+        profile.progress,
+        0,
+      )
+    )
+      fail("You already own this item.");
     const inline = product.priceId.startsWith("inline:");
     if (!inline) {
       const price = await this.stripe(`prices/${product.priceId}`);
@@ -220,7 +269,11 @@ export class Payments {
       "line_items[0][quantity]": "1",
       client_reference_id: order.id,
       "metadata[order]": order.id,
+      "metadata[kind]": order.kind,
+      "metadata[product]": order.product,
       "payment_intent_data[metadata][order]": order.id,
+      "payment_intent_data[metadata][kind]": order.kind,
+      "payment_intent_data[metadata][product]": order.product,
       success_url: `${this.c.origin}/?payment=return&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${this.c.origin}/?payment=cancelled`,
       expires_at: String(Math.floor(order.created / 1000) + 1800),
@@ -230,17 +283,33 @@ export class Payments {
       form.set("line_items[0][price_data][unit_amount]", String(order.amount));
       form.set(
         "line_items[0][price_data][product_data][name]",
-        `Play Simi · ${product.name} outfit`,
+        product.kind === "piece"
+          ? `Play Simi · ${product.name}`
+          : `Play Simi · ${product.name} outfit`,
       );
       form.set(
         "line_items[0][price_data][product_data][description]",
-        "Boy and girl outfits with headwear. Pet and magic not included. Cosmetic only. One-time purchase.",
+        product.kind === "piece"
+          ? `${pieceLabels[product.slot]} from the ${product.set.name} outfit. One item only. Cosmetic only. One-time purchase.`
+          : "Boy and girl clothes, headwear, pet and magic. Cosmetic only. One-time purchase.",
+      );
+      form.set(
+        "line_items[0][price_data][product_data][metadata][kind]",
+        order.kind,
       );
       form.set(
         "line_items[0][price_data][product_data][metadata][set]",
         order.product,
       );
-    } else form.set("line_items[0][price]", order.price_id);
+    } else {
+      form.set("line_items[0][price]", order.price_id);
+      // A single-item Price is shared by every set, so name the item here.
+      if (product.kind === "piece")
+        form.set(
+          "custom_text[submit][message]",
+          `You are buying ${product.name} (${product.set.name}).`,
+        );
+    }
     const session = await this.stripe(
       "checkout/sessions",
       form,
@@ -316,32 +385,26 @@ export class Payments {
         .run(status, s.id, s.payment_intent?.id || null, order.id);
       if (order.player) {
         const progress = this.c.privateProfile(order.player).progress;
-        // A paid 'set' order predates outfit-only sales and keeps all four pieces.
+        // An 'outfit' order (11 October 2026) is a whole set, like 'set'.
         progress.wardrobePurchased = this.db
           .prepare(
-            "SELECT DISTINCT product,kind FROM payment_orders WHERE player=? AND kind IN ('set','outfit') AND status='paid' ORDER BY kind DESC,product",
+            "SELECT DISTINCT product FROM payment_orders WHERE player=? AND kind IN ('set','outfit','piece') AND status='paid' ORDER BY product",
           )
           .all(order.player)
-          .map((row) =>
-            row.kind === "set" ? row.product : outfitId(row.product),
-          );
+          .map((row) => row.product);
         this.c.save(order.player, progress);
       }
       if (order.player && ["refunded", "disputed"].includes(status))
-        this.clearRevokedLook(order.player, order.product);
+        this.clearRevokedLook(order.player);
       return { status, kind: order.kind, product: order.product };
     });
   }
-  clearRevokedLook(player, product) {
+  /** Take off any set piece the player may no longer wear. */
+  clearRevokedLook(player) {
     const p = this.c.privateProfile(player).progress;
-    const index = legendarySets.findIndex((s) => s.id === product);
-    if (index < 0) return;
     const patch = {};
     for (const slot of Object.keys(setStarts))
-      if (
-        p[slot] === setItemIndex(slot, index) &&
-        !canWear(slot, p[slot], p, 0)
-      )
+      if (setForItem(slot, p[slot]) && !canWear(slot, p[slot], p, 0))
         patch[slot] = 0;
     if (Object.keys(patch).length) this.c.patch(player, patch);
   }

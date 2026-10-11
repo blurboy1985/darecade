@@ -109,3 +109,28 @@ The owner asked for the mismatch to be fixed and the open items done, bar a phon
 - The sixteen S$1.99 prices are archived in sandbox and live.
 - Not done: a completed live charge (needs the owner's card), opening the
   live site in a browser (that needs an account on the live site), a phone.
+
+## Revised offer — 11 October 2026, later
+
+The owner corrected the offer: an outfit is all four pieces at S$4.99, any
+single piece is S$1.99, Legendary takes tokens, Premium takes money only,
+outfit cards must show pet and magic, and Stripe pricing and tags must match.
+
+Assumptions (mine): token prices stay 8 and 5/4/4/4; `outfit:<set>` grants
+from the outfit-only hours become whole sets; wearing an outfit puts on its
+pet and magic; one Stripe price per kind of single item, not one per item.
+
+Done on branch `outfit-and-item-pricing`:
+
+- `src/collections.ts`, `server/community-core.mjs`, `server/payments.mjs`,
+  `src/payments.ts`, `src/wardrobe.ts`: the model above, order kind `piece`.
+- `src/character.ts`: outfit card camera widened; 132 outfit cards
+  re-rendered with pet and magic, none touching an edge.
+- `scripts/stripe-add-sets.mjs`: tags the outfit products and makes the four
+  single-item products. Run in the sandbox: 20 changed, then 0 on a re-run.
+- `npm test`: 607 tests, 558 pass, 0 fail, 49 skipped. Cloudflare 17 of 17.
+- Sandbox, in the browser: Outfits shows pet and magic on the card and in the
+  preview; the purchase screen lists the outfit at $4.99 and four items at
+  $1.99; Miso the moon rabbit bought for S$1.99 with Stripe's test card,
+  webhook paid, the pet wearable, Moon's clothes and magic refused; the Solar
+  order from the outfit-only hours now covers Solar's magic.

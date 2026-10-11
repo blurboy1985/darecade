@@ -133,3 +133,16 @@ $env:DARECADE_TEST_CHROMIUM = 'C:\Program Files\Google\Chrome\Application\chrome
 $env:CATALOG_ONLY = 'accessory'
 node --experimental-strip-types scripts/render-complete-catalog.mjs
 ```
+
+## Outfits include pet and magic, 11 October 2026 (later)
+
+This replaces the outfit rules in the section above; the accessory magic it
+describes is unchanged. An outfit is the whole set again: clothes, headwear,
+pet and magic. It costs S$4.99, or 8 Style tokens if Legendary. Any one of
+the four can be had alone for S$1.99, or for 5 (clothes) or 4 tokens if
+Legendary. Premium takes money only, for outfits and single items.
+
+Outfit cards and the try-on preview show the pet and magic, and wearing an
+outfit puts them on. That changes an earlier rule: an outfit choice now does
+replace the pet and magic you had on. Skin, eyes and name are still kept.
+The outfit card camera sits further back so the pet fits.

@@ -279,11 +279,10 @@ export const pieceCosts = {
 } as const;
 export const pieceId = (slot: LookSlot, setId: string) =>
   `piece:${setId}:${slot}`;
-// An outfit is the girl and boy clothes with their headwear. Pets and magic
-// are separate pieces. A bare set ID is an older whole-set entitlement and
-// still covers all four pieces.
+// An outfit is the whole set: clothes, headwear, pet and magic. Each of the
+// four can also be owned on its own as a piece. `outfit:<set>` was granted
+// for a few hours on 11 October 2026 and counts as the whole set.
 export const outfitId = (setId: string) => `outfit:${setId}`;
-const outfitSlot = (slot: LookSlot) => slot === "clothing" || slot === "hair";
 const allSets: StyleSet[] = [
   ...originalSets.map(
     (set, i): StyleSet => ({
@@ -301,6 +300,7 @@ export const legendarySets = allSets.map((set) => ({
 }));
 export const historicalSetCount = 16;
 export const setPriceSGD = 499;
+export const piecePriceSGD = 199;
 export type OutfitBody = 0 | 1;
 export const outfitBodyName = (body: number) => (body === 1 ? "Boy" : "Girl");
 export function outfitLook(index: number, body: number) {
@@ -328,10 +328,10 @@ export type WardrobeProgress = {
   wardrobeUnlocked: string[];
   wardrobePurchased: string[];
 };
-export const ownsSet = (p: WardrobeProgress, id: string) =>
+const holds = (p: WardrobeProgress, id: string) =>
   p.wardrobeUnlocked.includes(id) || p.wardrobePurchased.includes(id);
-export const ownsOutfit = (p: WardrobeProgress, setId: string) =>
-  ownsSet(p, setId) || ownsSet(p, outfitId(setId));
+export const ownsSet = (p: WardrobeProgress, id: string) =>
+  holds(p, id) || holds(p, outfitId(id));
 export const styleTokens = (p: WardrobeProgress) =>
   Math.max(0, Math.floor(p.xp / 100) + (p.medalTokens ?? 0) - p.wardrobeSpent);
 export const lookBundles = [
@@ -351,13 +351,13 @@ export const outfitLooks = legendarySets.flatMap((set) =>
         },
       ],
 );
-// Legendary clothes and headwear, and every paid tier's pet and magic.
+// Every paid set's four pieces. Legendary pieces take tokens or money;
+// Premium pieces take money only.
 export const legendaryPieces = legendarySets.flatMap((set) =>
   set.tier === "Free"
     ? []
-    : (["clothing", "hair", "pet", "accessory"] satisfies LookSlot[])
-        .filter((slot) => set.tier === "Legendary" || !outfitSlot(slot))
-        .map((slot) => ({
+    : (["clothing", "hair", "pet", "accessory"] satisfies LookSlot[]).map(
+        (slot) => ({
           id: pieceId(slot, set.id),
           setId: set.id,
           slot,
@@ -371,7 +371,8 @@ export const legendaryPieces = legendarySets.flatMap((set) =>
                   ? set.pet
                   : set.magic,
           cost: pieceCosts[slot],
-        })),
+        }),
+      ),
 );
 export const tokenLooks = [
   ...legendarySets,
@@ -379,7 +380,7 @@ export const tokenLooks = [
   ...outfitLooks,
   ...legendaryPieces,
 ];
-/** Credit already-earned clothes and headwear toward the outfit, so upgrading never pays twice. */
+/** Credit already-earned pieces toward the outfit, so upgrading never pays twice. */
 export function redemptionCost(
   item: (typeof tokenLooks)[number],
   p: WardrobeProgress,
@@ -389,10 +390,7 @@ export function redemptionCost(
   const setId = "setId" in item ? item.setId : item.id;
   const credit = legendaryPieces
     .filter(
-      (piece) =>
-        piece.setId === setId &&
-        outfitSlot(piece.slot) &&
-        p.wardrobeUnlocked.includes(piece.id),
+      (piece) => piece.setId === setId && p.wardrobeUnlocked.includes(piece.id),
     )
     .reduce((sum, piece) => sum + piece.cost, 0);
   return Math.max(0, item.cost - credit);
@@ -402,12 +400,7 @@ export function alreadyOwns(
   item: (typeof tokenLooks)[number],
   p: WardrobeProgress,
 ) {
-  if (ownsSet(p, item.id)) return true;
-  if (!("setId" in item)) return false;
-  return (
-    ownsSet(p, item.setId) ||
-    ("slot" in item && outfitSlot(item.slot) && ownsOutfit(p, item.setId))
-  );
+  return ownsSet(p, item.id) || ("setId" in item && ownsSet(p, item.setId));
 }
 export const slotSize = (slot: LookSlot) =>
   setStarts[slot] +
@@ -465,9 +458,7 @@ export function canWear(
     return (
       set.tier === "Free" ||
       ownsSet(p, set.id) ||
-      (outfitSlot(slot) && ownsSet(p, outfitId(set.id))) ||
-      ((set.tier === "Legendary" || !outfitSlot(slot)) &&
-        p.wardrobeUnlocked.includes(pieceId(slot, set.id)))
+      holds(p, pieceId(slot, set.id))
     );
   return true; // Basic pieces are free; saved bundle ownership remains intact.
 }
@@ -478,6 +469,12 @@ export function canRedeem(
 ) {
   return set.tier === "Legendary" && styleTokens(p) >= redemptionCost(set, p);
 }
+/** What wearing an outfit puts on: its clothes and headwear, pet and magic. */
+export const fullOutfitLook = (index: number, body: number) => ({
+  ...outfitLook(index, body),
+  pet: setItemIndex("pet", index),
+  accessory: setItemIndex("accessory", index),
+});
 export function setLook(index: number) {
   return {
     clothing: setItemIndex("clothing", index),

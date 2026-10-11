@@ -73,7 +73,7 @@ test("Cloudflare piece exchanges are atomic and set upgrades preserve the actual
     assert.equal(reloaded.data.progress.wardrobeSpent, 8);
     assert.equal(reloaded.data.progress.savedLooks[0].clothing, 24);
     assert.deepEqual(reloaded.data.progress.wardrobeUnlocked, [
-      "outfit:solar",
+      "solar",
       "piece:solar:clothing",
     ]);
     assert.notEqual(
@@ -401,7 +401,7 @@ test(
       assert.deepEqual(
         (await api("auth/me", undefined, user.cookie)).data.progress
           .wardrobePurchased,
-        ["outfit:solar"],
+        ["solar"],
       );
       assert.equal(
         (await api("payments/history", undefined, user.cookie)).data.length,
@@ -411,9 +411,9 @@ test(
         (await api("profile", { clothing: 24, hair: 28 }, user.cookie)).status,
         200,
       );
-      // The outfit does not bring the pet or magic.
-      assert.notEqual(
-        (await api("profile", { pet: 26 }, user.cookie)).status,
+      // The outfit brings its pet and magic.
+      assert.equal(
+        (await api("profile", { pet: 26, accessory: 27 }, user.cookie)).status,
         200,
       );
       session.payment_intent.latest_charge.refunded = true;
