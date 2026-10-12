@@ -63,6 +63,8 @@ const types = {
   ".css": "text/css",
   ".glb": "model/gltf-binary",
   ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".mp4": "video/mp4",
   ".svg": "image/svg+xml",
   ".woff2": "font/woff2",
   ".json": "application/json",

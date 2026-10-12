@@ -4,13 +4,15 @@ Play Simi was called Darecade until 5 October 2026, and dares are now called cha
 
 A working shared 3D neighbourhood with persistent accounts, saved avatars, server-validated arcade progression and shared challenges, inspired by the supplied Darecade implementation plan. Original Singapore neighbourhood scenery, five playable arcade games, and a hand-built Blender dragon playground.
 
-## Intro film — 8 October 2026
+## Intro film — 12 October 2026
 
-A first visit opens on a start card, then a 40-second animated introduction: Tea Alchemist pulls up in a kart ("You’re late."), three attempts go wrong (a corner taken too wide at Coast Rush, a rim-out at Hoops Court, one brick left in Brick Bash), three go right (a swish, an overtake, three Perfects on the Open Stage), and she turns to the player: "One more round? … Or you scared?" **Skip intro** is on screen throughout and Esc does the same.
+A first visit opens on a start card with **Play now** and **Watch the story · 1 minute**. The story is a one-minute animated film about why the game exists: "meet you downstairs", the dragon playground, chapteh and the mama shop, how the void deck went quiet once everyone moved online, and Play Simi as downstairs opened again. **Skip intro** is on screen throughout and Esc does the same.
 
 It plays once per browser. Add `?intro=1` to the address to watch it again, or `?intro=0` to never show it. Players who ask for reduced motion and automated browsers go straight to the game. The game itself loads after the film, so nothing saves or signs in underneath it.
 
-The film is drawn on a canvas and its music is synthesised live; there are no video or audio files. `src/intro-script.ts` holds the timings and captions (120 beats a minute, every cut on a beat), `src/intro-film.ts` the picture, `src/intro-score.ts` the music, `src/intro.ts` and `src/intro.css` the start card and Skip button, and `src/boot.ts` decides whether it plays. `tests/intro.test.ts` covers the timings and the play-once rule.
+The film is a video, in a landscape and an upright cut (`public/intro/story-landscape.mp4` and `story-vertical.mp4`, 720p, about 7 MB and 6 MB), with a still of each behind the start card. Nothing is downloaded until the player chooses to watch, and a film that cannot load opens the game instead. It is made in `play-simi-promo/story.html` (see that folder's README); after re-rendering there, re-encode the two files into `public/intro/`. `src/intro-script.ts` holds the narration, which is read out to screen readers as the film plays, `src/intro.ts` and `src/intro.css` the start card, player and Skip button, and `src/boot.ts` decides whether it plays. `tests/intro.test.ts` and `tests/intro-entry.test.ts` cover the narration timings, the play-once rule and the handoff to the game.
+
+It replaced the 40-second canvas film of 8 October (Tea Alchemist and "One more round?").
 
 ## Integrated release — 4 October 2026
 

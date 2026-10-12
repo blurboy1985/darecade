@@ -1,12 +1,10 @@
 // Plays the intro film over the page before the game loads: a start card
-// (browsers refuse sound until the player taps), then forty seconds of
-// canvas animation with its own score. "Skip intro" and Esc end it at any
-// point. The picture is in intro-film.ts, the sound in intro-score.ts and
-// the timings both follow in intro-script.ts.
+// (browsers refuse sound until the player taps), then a one-minute video,
+// the story of why the game exists. "Skip intro" and Esc end it at any
+// point. The video is fetched only when the player asks to watch it; its
+// narration is in intro-script.ts.
 import "./intro.css";
-import { DURATION, SEEN_KEY, captionAt } from "./intro-script";
-import { drawFilm } from "./intro-film";
-import { startScore, type Score } from "./intro-score";
+import { SEEN_KEY, captionAt, filmFor } from "./intro-script";
 
 /** A player who turned sound off in the game does not get it back here. */
 function soundWanted() {
@@ -28,49 +26,41 @@ export function playIntro(): Promise<{ close(): void }> {
   root.className = "intro";
   root.setAttribute("role", "dialog");
   root.setAttribute("aria-label", "Play Simi introduction");
-  root.innerHTML = `<canvas class="intro-film" aria-hidden="true"></canvas>
+  root.innerHTML = `<video class="intro-film" playsinline preload="none" aria-hidden="true"></video>
     <div class="intro-start">
       <img src="/favicon.svg" alt="" width="84" height="84" />
       <h1>Play Simi</h1>
       <p>Quick games. Your own look. A neighbourhood to explore.</p>
       <button class="intro-enter" type="button">Play now</button>
-      <button class="intro-play" type="button">Watch intro · 40 seconds</button>
+      <button class="intro-play" type="button">Watch the story · 1 minute</button>
       <small>Play as a guest after a short age and privacy check. No email needed.</small>
     </div>
     <button class="intro-skip" type="button">Skip intro</button>
     <p class="intro-loading" hidden>Opening the neighbourhood…</p>
     <p class="intro-lines" aria-live="polite"></p>`;
   document.body.append(root);
-  const canvas = root.querySelector("canvas")!;
-  const ctx = canvas.getContext("2d")!;
+  const video = root.querySelector("video")!;
   const lines = root.querySelector(".intro-lines")!;
   const play = root.querySelector<HTMLButtonElement>(".intro-play")!;
   const enter = root.querySelector<HTMLButtonElement>(".intro-enter")!;
 
-  let startedAt = 0;
+  let started = false;
   let finished = false;
-  let frame = 0;
-  let score: Score | null = null;
   let spoken = "";
-  const now = () => (startedAt ? (performance.now() - startedAt) / 1000 : 0);
-  function draw() {
-    const scale = Math.min(window.devicePixelRatio || 1, 2);
-    const w = Math.round(root.clientWidth * scale);
-    const h = Math.round(root.clientHeight * scale);
-    if (canvas.width !== w || canvas.height !== h) {
-      canvas.width = w;
-      canvas.height = h;
-    }
-    if (w && h) drawFilm(ctx, Math.max(0, now()), w, h);
+  // The start card sits on a frame of the film, in the cut that fits the screen.
+  const film = () => filmFor(root.clientWidth, root.clientHeight);
+  function pose() {
+    if (!started) video.poster = `/intro/story-${film()}.jpg`;
   }
 
   return new Promise((resolve) => {
     function finish() {
       if (finished) return;
       finished = true;
-      cancelAnimationFrame(frame);
-      score?.stop();
-      window.removeEventListener("resize", draw);
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+      window.removeEventListener("resize", pose);
       window.removeEventListener("keydown", onKey);
       try {
         localStorage.setItem(SEEN_KEY, "1");
@@ -84,40 +74,33 @@ export function playIntro(): Promise<{ close(): void }> {
         },
       });
     }
-    function tick() {
-      const t = now();
-      if (t >= DURATION) return finish();
-      draw();
-      const line = t >= 0 ? captionAt(t) : null;
-      const text = line
-        ? `${line.who === "you" ? "You" : "Tea Alchemist"}: ${line.text}`
-        : "";
-      if (text && text !== spoken) lines.textContent = spoken = text;
-      frame = requestAnimationFrame(tick);
-    }
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") finish();
     }
+    video.addEventListener("timeupdate", () => {
+      const line = captionAt(video.currentTime);
+      const text = line
+        ? `${line.who === "kid" ? "A kid" : "Narrator"}: ${line.text}`
+        : "";
+      if (text && text !== spoken) lines.textContent = spoken = text;
+    });
+    video.addEventListener("ended", finish);
+    // A film that cannot load or play must never keep anyone out of the game.
+    video.addEventListener("error", finish);
     play.addEventListener("click", () => {
-      if (finished || startedAt) return;
+      if (finished || started) return;
+      started = true;
       root.classList.add("intro-playing");
-      if (soundWanted()) score = startScore();
-      // The score is scheduled a moment ahead; the picture waits for it.
-      startedAt = performance.now() + 60;
+      video.muted = !soundWanted();
+      video.src = `/intro/story-${film()}.mp4`;
+      video.play().catch(finish);
       root.querySelector<HTMLButtonElement>(".intro-skip")!.focus();
-      tick();
     });
     enter.addEventListener("click", finish);
     root.querySelector(".intro-skip")!.addEventListener("click", finish);
     window.addEventListener("keydown", onKey);
-    window.addEventListener("resize", draw);
-    draw();
+    window.addEventListener("resize", pose);
+    pose();
     enter.focus();
-    // The start card sits on the film's first frame; redraw once the
-    // display type has arrived so no frame is painted in a fallback face.
-    void document.fonts?.load("700 40px Fredoka").then(() => {
-      if (!startedAt) draw();
-    });
   });
 }
-

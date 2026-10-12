@@ -1,82 +1,64 @@
-// The intro film's script: when each scene starts, who says what, and when
-// the film should play at all. The picture (intro-film.ts) and the music
-// (intro-score.ts) both read these numbers, so a cut and its beat cannot
-// drift apart. Nothing here touches the browser.
-//
-// The film runs at 120 beats a minute: a beat is half a second and every
-// scene starts on one.
+// The intro film's script: how long it runs, what is said when, and when the
+// film should play at all. The film itself is a video (public/intro/), made
+// in play-simi-promo/story.html; the lines here are its narration, shown to
+// screen readers as it plays. Nothing here touches the browser.
 
-export const DURATION = 40;
+export const DURATION = 60;
 export const SEEN_KEY = "playsimi-intro-seen";
 
-export const scenes = [
-  { id: "arrival", start: 0 },
-  { id: "countdown", start: 4.5 },
-  { id: "race-fail", start: 6 },
-  { id: "hoops-fail", start: 9 },
-  { id: "arcade-fail", start: 11.5 },
-  { id: "retry", start: 14 },
-  { id: "hoops-win", start: 16 },
-  { id: "race-win", start: 19 },
-  { id: "stage", start: 23 },
-  { id: "praise", start: 26 },
-  { id: "dare", start: 28 },
-  { id: "logo", start: 34 },
-] as const;
-export type SceneId = (typeof scenes)[number]["id"];
-
-/** The moments the picture and the sound both have to hit. */
-export const cue = {
-  brake: 2,
-  count: [4.5, 5, 5.5],
-  go: 6,
-  crash: 8,
-  rim: 10.5,
-  bounces: [12, 12.5, 13],
-  gameOver: 13.5,
-  retry: 15.5,
-  swish: 17.5,
-  pass: 21,
-  perfect: [24, 24.5, 25],
-  pose: 25.5,
-  meow: 29.5,
-  silence: 32.5,
-  logo: 34,
-  tagline: 36,
-  finale: 38,
-} as const;
-
 export type Caption = {
-  who: "tea" | "you";
+  who: "narrator" | "kid";
   from: number;
   to: number;
   text: string;
 };
 export const captions: Caption[] = [
-  { who: "tea", from: 2.5, to: 3.6, text: "You’re late." },
-  { who: "you", from: 3.6, to: 4.5, text: "Late for what?" },
-  { who: "you", from: 14.2, to: 16, text: "Haha. Okay… one more try." },
-  { who: "tea", from: 26.2, to: 28, text: "That’s more like it!" },
-  { who: "tea", from: 31, to: 32.6, text: "One more round?" },
-  { who: "tea", from: 33, to: 34, text: "Or you scared?" },
+  { who: "kid", from: 0.7, to: 2.9, text: "Oi! Come down lah!" },
+  { who: "kid", from: 2.9, to: 4, text: "Coming! Wait ah!" },
+  { who: "narrator", from: 4, to: 6.1, text: "No group chat, no plan." },
+  { who: "narrator", from: 6.1, to: 8, text: "Meet you downstairs." },
+  { who: "narrator", from: 8.3, to: 10.3, text: "The dragon playground." },
+  { who: "narrator", from: 10.4, to: 12.2, text: "Chapteh till dinner." },
+  { who: "narrator", from: 12.25, to: 14.1, text: "Ice pops from the mama shop." },
+  { who: "narrator", from: 14.15, to: 16, text: "Catching at the void deck." },
+  { who: "narrator", from: 18.7, to: 20.4, text: "Then we grew up." },
+  {
+    who: "narrator",
+    from: 20.5,
+    to: 24,
+    text: "Everyone’s online. Nobody’s downstairs.",
+  },
+  { who: "narrator", from: 24.4, to: 26.8, text: "So one night, I asked myself." },
+  { who: "narrator", from: 26.9, to: 29.9, text: "What if downstairs was online?" },
+  { who: "narrator", from: 30, to: 32, text: "So I just started building." },
+  {
+    who: "narrator",
+    from: 32.3,
+    to: 38.4,
+    text: "Nine days. Eighty-nine pull requests. One whole neighbourhood.",
+  },
+  { who: "narrator", from: 38.5, to: 40.5, text: "I call it Play Simi." },
+  { who: "kid", from: 40.6, to: 42.2, text: "Eh, play simi?" },
+  { who: "narrator", from: 42.5, to: 44.4, text: "So downstairs is open again." },
+  { who: "kid", from: 44.5, to: 46.1, text: "Eh, come down!" },
+  { who: "narrator", from: 46.2, to: 48.2, text: "Free, no download." },
+  {
+    who: "narrator",
+    from: 48.3,
+    to: 51.6,
+    text: "Race, dance, or just hang out like we used to.",
+  },
+  { who: "narrator", from: 52.8, to: 55.2, text: "Play Simi. Meet you downstairs." },
+  { who: "kid", from: 56.9, to: 59, text: "Eh, faster come down lah!" },
 ];
-
-export function sceneAt(t: number): {
-  id: SceneId;
-  start: number;
-  end: number;
-} {
-  let i = 0;
-  while (i + 1 < scenes.length && scenes[i + 1].start <= t) i++;
-  return {
-    id: scenes[i].id,
-    start: scenes[i].start,
-    end: i + 1 < scenes.length ? scenes[i + 1].start : DURATION,
-  };
-}
 
 export function captionAt(t: number): Caption | null {
   return captions.find((line) => t >= line.from && t < line.to) || null;
+}
+
+/** The film is cut for both ways of holding a screen. */
+export function filmFor(width: number, height: number): "landscape" | "vertical" {
+  return height > width ? "vertical" : "landscape";
 }
 
 /**
