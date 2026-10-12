@@ -1,3 +1,13 @@
+## The story as the intro film — deployed 12 October 2026
+
+PR #91 (`d87d283`, merged as `e8d725c`) was deployed as Worker version `68e14d14-8a9e-41b7-aaf7-c6fdf26450e9`, then PR #92 (`d3ccfd2`, merged as `86b5f90`) as Worker version **`8d3ba232-70ff-4ccc-859d-f6f0517ce664`**. The owner asked for the one-minute story video to replace the 40-second intro on the landing page, for it to be merged, and then for it to be deployed. Before deploying, the build, the dry run and all 17 Cloudflare integration tests passed. `npm test` ran 608 tests: 558 passed, 49 browser checks were skipped and 1 failed, "mission, weekly hunt, stage and garden deltas share lifetime claim and reward limits" in `tests/seasons.test.ts`, which fails the same way on `main` before these changes and was not looked into.
+
+The first deployment answered `Range: bytes=0-1` on `/intro/story-vertical.mp4` with 200 and the whole file, because static assets do not answer byte ranges; Safari needs them to play a video. PR #92 sends ranged `/intro/*.mp4` requests through the Worker, which answers 206. `run_worker_first` gained `/intro/*`, so each request under `/intro/` now counts as a Worker request.
+
+After the second deployment: health returned `ready: true`; the four files in `/intro/` matched the local build byte-for-byte; a two-byte range returned 206 with `Content-Range: bytes 0-1/6063919`, a range from the middle of the landscape film matched the file, and a range past the end returned 416; unauthenticated state returned 401. In installed Chrome against the live site with `?intro=1`, at 1440x810 and 390x844, the start card offered "Watch the story · 1 minute", the landscape and the vertical cut played, and a seek to 40 seconds carried on playing, with no page errors. Not done: Safari, an iPhone or any real phone, and watching the film through to the handoff in production (that was checked against the local build only).
+
+No schema, migration, binding, variable or secret changed. Stage Party rooms and races in progress ended with each deployment. Rollback is a redeploy of `0c52e03`, which brings back the canvas film.
+
 ## Outfits with pet and magic, and single items — deployed 11 October 2026
 
 PR #89 (merged as `d140909`) was deployed as Worker version **`a7d68460-d891-4d3a-ba77-2106ca848353`**, replacing the outfit-only offer deployed earlier the same day. The owner set the offer: an outfit is clothes, headwear, pet and magic for S$4.99; any one of those is S$1.99; Legendary looks also take Style tokens and Premium takes money only; outfit cards show the pet and magic. Before merging, `npm test` passed (607 tests: 558 pass, 0 fail, 49 browser checks skipped) with all 17 Cloudflare integration tests, the build and the dry run.
