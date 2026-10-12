@@ -6,7 +6,9 @@ A 30-second vertical promo for https://playsimi.danielquek.com, built from foota
 |---|---|
 | `promo.html` | The promo. One file, hand-written timeline, loads media from `./assets`. |
 | `capture.mjs` | Films the live game as a guest (stills and clips into `assets/`). |
-| `render.mjs` | Renders `promo.html` to MP4, frame by frame. |
+| `story.html` | The 60-second animated story: "meet you downstairs", how it went quiet, and why the game was built. Drawn and scored in code, no footage; narrated in Singapore English. |
+| `story-60s-landscape.mp4`, `story-60s-vertical.mp4` | The rendered story, 1920×1080 and 1080×1920 (H.264 + AAC, 30 fps). |
+| `render.mjs` | Renders `promo.html` or `story.html` to MP4, frame by frame. |
 | `shotlist.mjs` | Rebuilds `assets/SHOTLIST.md` and `assets/contact-sheet.png`. |
 | `promo-30s-vertical.mp4`, `promo-30s-landscape.mp4`, `promo-15s-vertical.mp4` | The rendered videos (H.264 + AAC, 30 fps). |
 | `review/` | Reviewer rounds: frames, renders and footage scores. |
@@ -52,11 +54,19 @@ Everything is in the `CONFIG` object at the top of `promo.html`:
 
 Drop a track at `assets/music.mp3` to use it instead of the built-in tune (sound effects stay).
 
+## Edit the story
+
+Serve this folder and open `story.html`, then press **Play with sound**; the bar scrubs. Every caption is in `CONFIG.text`, the scene start times in `CONFIG.scenes` (keep them on even seconds: the music's bars are two seconds long), and the commit figures in `CONFIG.days` and `CONFIG.commits`. `story.html?portrait=1` is the 1080×1920 layout: the same scenes, framed lower in the tall canvas with the captions above. Re-render with `node render.mjs story story-vertical`.
+
+The narrator and the kids are spoken clips in `assets/voice/`, made with ElevenLabs (model `eleven_v3`). Their words are in `story-voice.json` (`say` is the ElevenLabs wording, which can carry v3 tags such as `[shouting]`). `story-voice.py` speaks them again: put an API key in `.elevenlabs-key` (git-ignored), run `python3 story-voice.py --find` to list Singaporean voices, then `python3 story-voice.py --narrator <id> --kid <id>`. Library voices need a paid ElevenLabs plan through the API; on the free plan use the account's premade voices with `--accent "[strong Singaporean accent]"`. Without a key the script falls back to Microsoft's Singapore English voices (`pip install edge-tts`). Either way the text is sent to that service. `CONFIG.voice` in `story.html` sets when each clip starts and how loud it is, and the music dips under each one; new clips have new lengths, so check those start times after re-speaking. A clip that is missing is skipped. Because the page fetches the clips, preview it through a local server (`npx serve .`) rather than by opening the file.
+
 ## Re-render
 
 ```
-node render.mjs                    # all three MP4s (about a minute)
-node render.mjs vertical           # just one: vertical | landscape | short
+node render.mjs                    # all five MP4s (about three minutes)
+node render.mjs vertical           # just one: vertical | landscape | short | story | story-vertical
 node render.mjs --stills           # frames every 2.5 s into review/<name>/ instead
 node render.mjs vertical --stills --at=0.4,13.2
 ```
+
+`PW_CHANNEL=chrome node render.mjs story` uses the installed Google Chrome instead of Playwright's Chromium.

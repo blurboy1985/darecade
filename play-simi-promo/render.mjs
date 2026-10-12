@@ -2,6 +2,7 @@
 //
 //   node render.mjs                 all three: 30s vertical, 30s landscape, 15s vertical
 //   node render.mjs vertical        only promo-30s-vertical.mp4   (also: landscape, short)
+//   node render.mjs story           story.html, the 60-second animated story (also: story-vertical)
 //   node render.mjs --stills        instead of video, save one frame every 2.5 s to review/<name>/
 //   node render.mjs vertical --stills --at=0.4,13.2   save exact moments instead
 //
@@ -20,6 +21,8 @@ const OUTPUTS = {
   vertical: { file: "promo-30s-vertical.mp4", query: "" },
   landscape: { file: "promo-30s-landscape.mp4", query: "&landscape=1" },
   short: { file: "promo-15s-vertical.mp4", query: "&cut=15" },
+  story: { file: "story-60s-landscape.mp4", query: "", page: "story.html" },
+  "story-vertical": { file: "story-60s-vertical.mp4", query: "&portrait=1", page: "story.html" },
 };
 const args = process.argv.slice(2);
 const stills = args.includes("--stills");
@@ -27,7 +30,7 @@ const names = args.filter((a) => !a.startsWith("--"));
 const jobs = (names.length ? names : Object.keys(OUTPUTS)).filter((n) => OUTPUTS[n]);
 
 // A tiny static server: canvases cannot be read back from file:// pages.
-const TYPES = { ".html": "text/html", ".mp4": "video/mp4", ".webm": "video/webm", ".png": "image/png", ".svg": "image/svg+xml", ".mp3": "audio/mpeg", ".js": "text/javascript" };
+const TYPES = { ".html": "text/html", ".mp4": "video/mp4", ".webm": "video/webm", ".png": "image/png", ".svg": "image/svg+xml", ".mp3": "audio/mpeg", ".js": "text/javascript", ".woff2": "font/woff2" };
 const root = process.cwd();
 const server = createServer((req, res) => {
   const path = normalize(join(root, decodeURIComponent(new URL(req.url, "http://x").pathname)));
@@ -45,12 +48,13 @@ const server = createServer((req, res) => {
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const base = `http://127.0.0.1:${server.address().port}`;
 
-const browser = await chromium.launch({ args: ["--use-angle=d3d11", "--enable-gpu", "--ignore-gpu-blocklist", "--autoplay-policy=no-user-gesture-required"] });
+// PW_CHANNEL=chrome uses the installed Google Chrome instead of Playwright's Chromium.
+const browser = await chromium.launch({ channel: process.env.PW_CHANNEL || undefined, args: ["--use-angle=d3d11", "--enable-gpu", "--ignore-gpu-blocklist", "--autoplay-policy=no-user-gesture-required"] });
 for (const name of jobs) {
-  const { file, query } = OUTPUTS[name];
+  const { file, query, page: html = "promo.html" } = OUTPUTS[name];
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   page.on("pageerror", (e) => console.log("  page error:", e.message));
-  await page.goto(`${base}/promo.html?render=1${query}`);
+  await page.goto(`${base}/${html}?render=1${query}`);
   await page.evaluate(() => window.__promo.ready);
   const info = await page.evaluate(() => ({ frames: __promo.frames, fps: __promo.fps, size: __promo.size, missing: __promo.missing(), fonts: document.fonts.check('700 80px "Fredoka"') }));
   console.log(`${file}: ${info.frames} frames at ${info.size.join("×")}${info.missing.length ? `, missing assets: ${info.missing.join(", ")}` : ""}${info.fonts ? "" : ", web font not loaded (fallback font used)"}`);

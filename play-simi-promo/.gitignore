@@ -10,3 +10,6 @@ review/**/*.mp4
 review/**/*.jpg
 review/**/*.png
 review/**/work/
+# ElevenLabs API key and chosen voice ids for story-voice.py: never commit the key.
+.elevenlabs-key
+.elevenlabs-voices.json
