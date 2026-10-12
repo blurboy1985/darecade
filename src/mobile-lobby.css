@@ -575,28 +575,6 @@ body:has(dialog[open]) .lobby-jump {
   font-size: 36px;
   transform: rotate(-25deg);
 }
-.stage-art {
-  background: linear-gradient(160deg, #3d2f6b, #8a4fa8 60%, #f28fb1);
-  position: relative;
-}
-.stage-art span {
-  position: absolute;
-  left: 44%;
-  top: 14%;
-  color: #ffe58a;
-  font-size: 50px;
-  transform: rotate(-10deg);
-}
-.stage-art b {
-  position: absolute;
-  bottom: 10px;
-  left: 12px;
-  color: #fff6dc;
-  font:
-    800 11px "DM Sans",
-    sans-serif;
-  letter-spacing: 1px;
-}
 .hoops-art b,
 .fishing-art b {
   position: absolute;
