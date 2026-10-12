@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 
-// Exercise the real entry handlers without a browser, film renderer or audio.
+// Exercise the real entry handlers without a browser or a real video.
 // This checks the boot handoff; visual and real-device QA remain separate.
 const source = readFileSync(new URL("../src/intro.ts", import.meta.url), "utf8")
   .replace(/^import .*;\r?\n/gm, "")
@@ -23,7 +23,11 @@ function harness() {
       handlers: new Map<string, () => void>(),
       addEventListener(name: string, fn: () => void) { this.handlers.set(name, fn); },
       focus() { focused = selector; },
-      getContext() { return {}; },
+      // The film: count each start, and each stop of a film that was playing.
+      playing: false, muted: false, src: "", poster: "", currentTime: 0,
+      play() { audioStarts++; this.playing = true; return Promise.resolve(); },
+      pause() { if (this.playing) audioStops++; this.playing = false; },
+      load() {}, removeAttribute() { this.src = ""; },
     });
     return elements.get(selector);
   };
@@ -36,8 +40,7 @@ function harness() {
   };
   const keys = new Map<string, (event: { key: string }) => void>();
   const start = new Function(
-    "document", "window", "localStorage", "performance", "requestAnimationFrame",
-    "cancelAnimationFrame", "setTimeout", "startScore", "drawFilm", "captionAt", "DURATION", "SEEN_KEY",
+    "document", "window", "localStorage", "setTimeout", "captionAt", "filmFor", "SEEN_KEY",
     stripTypeScriptTypes(source) + "\nreturn playIntro();",
   );
   const done = start(
@@ -45,13 +48,12 @@ function harness() {
     { addEventListener: (name: string, fn: any) => keys.set(name, fn),
       removeEventListener: (name: string) => keys.delete(name) },
     { getItem: () => null, setItem() { seenWrites++; } },
-    { now: () => 100 }, () => 1, () => {}, (fn: () => void) => fn(),
-    () => { audioStarts++; return { stop() { audioStops++; } }; },
-    () => {}, () => null, 40, "seen",
+    (fn: () => void) => fn(), () => null, () => "landscape", "seen",
   ) as Promise<{ close(): void }>;
   return {
     done, root, classes,
     click: (selector: string) => element(selector).handlers.get("click")?.(),
+    film: () => element("video"),
     escape: () => keys.get("keydown")?.({ key: "Escape" }),
     state: () => ({ focused, audioStarts, audioStops, seenWrites, removed }),
   };
@@ -61,7 +63,9 @@ test("Play now hands off without starting the film or audio", async () => {
   const h = harness();
   assert.equal(h.state().focused, ".intro-enter");
   assert.match(h.root.innerHTML, />Play now</);
-  assert.match(h.root.innerHTML, /Watch intro · 40 seconds/);
+  assert.match(h.root.innerHTML, /Watch the story · 1 minute/);
+  assert.equal(h.film().poster, "/intro/story-landscape.jpg");
+  assert.equal(h.film().src, "");
   h.click(".intro-enter");
   const film = await h.done;
   assert.equal(h.state().audioStarts, 0);
@@ -76,6 +80,7 @@ test("watch remains optional, starts once and Skip stops its sound", async () =>
   h.click(".intro-play");
   h.click(".intro-play");
   assert.equal(h.state().audioStarts, 1);
+  assert.equal(h.film().src, "/intro/story-landscape.mp4");
   assert.equal(h.state().focused, ".intro-skip");
   h.click(".intro-skip");
   await h.done;
@@ -84,6 +89,17 @@ test("watch remains optional, starts once and Skip stops its sound", async () =>
   assert.equal(h.state().audioStarts, 1);
   assert.equal(h.state().audioStops, 1);
   assert.equal(h.state().seenWrites, 1);
+});
+
+test("a film that ends or fails to load opens the game", async () => {
+  for (const event of ["ended", "error"]) {
+    const h = harness();
+    h.click(".intro-play");
+    h.film().handlers.get(event)?.();
+    await h.done;
+    assert.ok(h.classes.has("intro-done"), event);
+    assert.equal(h.state().seenWrites, 1, event);
+  }
 });
 
 test("Escape also reaches the game from the entry card", async () => {
