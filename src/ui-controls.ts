@@ -28,11 +28,15 @@ export function installControls() {
           e.preventDefault();
           list.hidden = !list.hidden;
           button.setAttribute("aria-expanded", String(!list.hidden));
-          if (!list.hidden)
-            list
-              .querySelector<HTMLButtonElement>("[aria-selected=true]")
-              ?.focus();
+          (
+            (!list.hidden &&
+              list.querySelector<HTMLButtonElement>("[aria-selected=true]")) ||
+            button
+          ).focus();
         };
+        // A press must not move focus: the list would close under the pointer
+        // before the click arrives, and Safari never focuses a pressed button.
+        wrapper.addEventListener("pointerdown", (e) => e.preventDefault());
         wrapper.addEventListener("keydown", (e) => {
           if (e.key === "Escape") {
             list.hidden = true;
@@ -54,14 +58,12 @@ export function installControls() {
             ]?.focus();
           }
         });
-        wrapper.addEventListener("focusout", () =>
-          queueMicrotask(() => {
-            if (!wrapper!.contains(document.activeElement)) {
-              list.hidden = true;
-              button.setAttribute("aria-expanded", "false");
-            }
-          }),
-        );
+        wrapper.addEventListener("focusout", (e) => {
+          if (!wrapper!.contains(e.relatedTarget as Node | null)) {
+            list.hidden = true;
+            button.setAttribute("aria-expanded", "false");
+          }
+        });
       }
       const signature = JSON.stringify([
         select.value,
@@ -95,7 +97,15 @@ export function installControls() {
             button.setAttribute("aria-expanded", "false");
             select.dispatchEvent(new Event("change", { bubbles: true }));
             refresh();
-            if (button.isConnected) button.focus();
+            // The change may have redrawn the panel, with a new select.
+            (button.isConnected
+              ? button
+              : document
+                  .getElementById(select.id)
+                  ?.parentElement?.querySelector<HTMLElement>(
+                    ".kit-select-trigger",
+                  )
+            )?.focus();
           };
           return b;
         }),

@@ -980,6 +980,29 @@ img {
 .game-art.fishing-art * {
   visibility: hidden;
 }
+.game-art.stage-art {
+  background: linear-gradient(160deg, #3d2f6b, #8a4fa8 60%, #f28fb1);
+  position: relative;
+}
+.stage-art span {
+  position: absolute;
+  left: 44%;
+  top: 14%;
+  color: #ffe58a;
+  font-size: 50px;
+  line-height: 1;
+  transform: rotate(-10deg);
+}
+.stage-art b {
+  position: absolute;
+  bottom: 10px;
+  left: 12px;
+  color: #fff6dc;
+  font:
+    800 11px "DM Sans",
+    sans-serif;
+  letter-spacing: 1px;
+}
 .topbar > .demo-tag {
   min-height: 36px;
   top: 12px;

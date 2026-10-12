@@ -59,6 +59,8 @@ const compiled = ts.transpileModule(
       "serverNote",
       "renderSharedNeighbours",
       "rankingPeriodPicker",
+      "challengeRule",
+      "boardChallenges",
       "boardProgress",
       "renderSeasonBoard",
       "renderSharedBoard",
@@ -226,9 +228,8 @@ function harness() {
     neighbourRosterSignature: "",
     currentWorld: "world-1",
     worldCode: (name: string) => `W${name.slice(6)}`,
-    dareView: "home",
-    boardTab: "week",
-    boardPeriodChosen: false,
+    dareView: "neighbour",
+    boardTab: "daily",
     boardGame: "noodle",
     playtestEnabled: false,
     socialPanel: "",
@@ -354,14 +355,30 @@ test("wardrobe renders previews before selection without equipping them", () => 
 test("all paginated choices remain reachable, including later games and quests", () => {
   const h = harness();
   const games = new Set<string>();
+  const tags: string[] = [];
   for (let page = 0; page < 3; page++) {
     h.context.gamePage = page;
     h.run('open("arcade")');
     checkActions(h.body.innerHTML, `games page ${page}`);
+    assert.doesNotMatch(h.body.innerHTML, /value="outside"/);
+    for (const card of h.body.innerHTML.matchAll(
+      /data-(?:game|open)="([^"]+)"><div class="game-art[\s\S]*?<span class="eyebrow[^"]*">([^<]+)</g,
+    ))
+      tags.push(`${card[1]}:${card[2]}`);
     for (const match of h.body.innerHTML.matchAll(/data-game="([^"]+)"/g))
       games.add(match[1]);
   }
   assert.deepEqual([...games].sort(), [...catalog.playIds].sort());
+  assert.deepEqual(tags, [
+    "noodle:ARCADE",
+    "brick:ARCADE",
+    "hop:ARCADE",
+    "swarm:ARCADE",
+    "coast:PLAY OUTSIDE",
+    "hoops:PLAY OUTSIDE",
+    "stage:PLAY OUTSIDE",
+    "fishing:PLAY OUTSIDE",
+  ]);
   const quests = new Set<string>();
   for (let page = 0; page < 2; page++) {
     h.context.questPage = page;
@@ -374,6 +391,66 @@ test("all paginated choices remain reachable, including later games and quests",
     [...quests].sort(),
     state.missions.map((mission) => mission.id).sort(),
   );
+});
+
+test("Challenges is part of Rankings, which opens on a game's board", () => {
+  const h = harness();
+  h.context.shared.boards.noodle = [
+    { id: "p1", name: "Player 1", score: 40, rank: 1, runId: "r1" },
+  ];
+  h.context.shared.history = [
+    {
+      challenger: "Sunny Otter 06",
+      defender: "Player 1",
+      game: "hop",
+      status: "finished",
+      score: 9,
+      targetScore: 7,
+    },
+  ];
+  // Simi Plaza and older links still ask for "dares".
+  for (const id of ["board", "dares"]) {
+    h.run(`open(${JSON.stringify(id)})`);
+    const html = h.body.innerHTML;
+    assert.match(html, /<h2>Rankings<\/h2>/, id);
+    assert.deepEqual(
+      [...html.matchAll(/data-quest-tab data-open="([^"]+)"/g)].map(
+        (tab) => tab[1],
+      ),
+      ["quests", "board"],
+    );
+    assert.match(html, /aria-pressed="true">Rankings & challenges</);
+    // Today's scores for one game, with every ranked game in the picker.
+    assert.match(html, /<option value="daily" selected>Today’s scores</);
+    assert.deepEqual(
+      [
+        ...html
+          .match(/<select[^>]*id="board-game"[^>]*>([\s\S]*?)<\/select>/)![1]
+          .matchAll(/<option value="([^"]+)"/g),
+      ].map((option) => option[1]),
+      [...catalog.gameIds],
+    );
+    assert.match(html, /Player 1[\s\S]*40/);
+    const challenges = html.match(
+      /<section class="board-challenges"[\s\S]*?<\/section>/,
+    )![0];
+    assert.match(challenges, /3\/3 left today/);
+    assert.match(challenges, /data-challenge="noodle" data-defender="p1"/);
+    assert.match(challenges, /data-open="dares-neighbour">Friends & requests</);
+    assert.match(challenges, /Sunny Otter 06 → Player 1[\s\S]*WON/);
+  }
+  // The medal views keep the section, without a score to aim at.
+  h.context.boardTab = "week";
+  h.run("renderSharedBoard()");
+  assert.match(h.body.innerHTML, /class="board-challenges"/);
+  assert.doesNotMatch(h.body.innerHTML, /id="board-game"|data-challenge=/);
+  // Friends lead to Find a friend, and each view steps back one level.
+  h.run('open("dares-neighbour")');
+  assert.match(h.body.innerHTML, /menu-back" data-open="board"/);
+  assert.match(h.body.innerHTML, /data-open="dares-find">Find a friend</);
+  h.run('open("dares-find")');
+  assert.match(h.body.innerHTML, /menu-back" data-open="dares-neighbour"/);
+  assert.doesNotMatch(h.body.innerHTML, /data-open="dares"/);
 });
 
 test("ranking templates have balanced buttons for weekly and daily views", () => {
@@ -521,9 +598,8 @@ test("unavailable challenges explain connection needs without an email gate", ()
     [...html.matchAll(/<button\b[^>]*>(?:Play|Post) challenge<\/button>/g)].map(
       ([button]) => button,
     );
-  for (const view of ["home", "neighbour"]) {
-    h.context.dareView = view;
-    h.run("renderSharedDares()");
+  for (const view of ["renderSharedBoard", "renderSharedDares"]) {
+    h.run(`${view}()`);
     const html = h.body.innerHTML;
     assert.match(html, /Connect to play challenges/, view);
     assert.doesNotMatch(html, /left today/, view);
@@ -537,19 +613,15 @@ test("unavailable challenges explain connection needs without an email gate", ()
 
   // Once connected, the count and a playable button appear together.
   h.context.shared.competitionReady = true;
-  h.context.dareView = "neighbour";
   h.run("renderSharedDares()");
   assert.match(h.body.innerHTML, /3\/3 left today/);
   assert.doesNotMatch(playButtons(h.body.innerHTML)[0], /disabled/);
   // A disabled button always says why.
   h.context.shared.self.outgoing = 3;
-  for (const view of ["neighbour", "open"]) {
-    h.context.dareView = view;
-    h.run("renderSharedDares()");
-    assert.match(h.body.innerHTML, /0\/3 left today/);
-    assert.match(playButtons(h.body.innerHTML)[0], /disabled/);
-    assert.match(h.body.innerHTML, /No challenges left today/);
-  }
+  h.run("renderSharedDares()");
+  assert.match(h.body.innerHTML, /0\/3 left today/);
+  assert.match(playButtons(h.body.innerHTML)[0], /disabled/);
+  assert.match(h.body.innerHTML, /No challenges left today/);
 });
 
 test("the weekly board tells a player with scores today when their medals arrive", () => {

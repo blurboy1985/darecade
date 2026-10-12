@@ -675,14 +675,23 @@ dialog.race-board .leaderboard > div {
 .score-target b {
   float: none;
 }
+.board-challenges,
 .board-progress {
   border-top: 1px solid #d9dfcf;
   margin-top: 26px;
   padding-top: 18px;
 }
+.board-challenges > h3,
 .board-progress > h3 {
   margin: 0 0 12px;
   font-size: 18px;
+}
+.board-challenges > p {
+  margin: 0 0 6px;
+}
+.board-challenges > button {
+  width: 100%;
+  margin-top: 12px;
 }
 .board-progress > .fine-print {
   margin-top: 10px;

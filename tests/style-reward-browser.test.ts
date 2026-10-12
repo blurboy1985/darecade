@@ -107,7 +107,7 @@ for (const twoD of [true, false]) {
           check(!reward(), 'dismissed notices do not replay');
           document.querySelector('[data-open="arcade"]').click();
           check(document.querySelector('#modal').open, 'Games opens in 3D');
-          check(document.querySelector('#modal-body').textContent.includes('Play outside'), 'Games heading');
+          check(document.querySelector('#modal-body').textContent.includes('All games'), 'Games heading');
           check(innerWidth === 390, 'real CSS viewport is 390px');
           check(document.documentElement.scrollWidth <= innerWidth, 'mobile has no horizontal overflow');
           document.body.dataset.result = 'pass';

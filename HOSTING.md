@@ -1,3 +1,13 @@
+## One Play list with Arcade and Play outside tags — deployed 13 October 2026
+
+PR #93 (merged as `d605efe`) was deployed as Worker version **`aef4c64d-c8ed-4357-81fb-b0016a48eee9`**. The owner asked for the Play panel's Arcade games and Play outside categories to become one, with Noodle Run, Brick Bash, Hop Hop and Star Swarm tagged Arcade and Coast Rush, Hoops Court, Open Stage and Fishing Jetty tagged Play outside, and then for it to be merged and deployed. Before merging, the build and all 17 Cloudflare integration tests passed, and in installed Chrome the Section 4, style reward, Relay removal, mobile lobby and 3D experience browser tests passed (30 tests). `npm test` ran 612 tests: 562 pass, 49 browser checks skipped, 1 fail. The failure is the seasons test "mission, weekly hunt, stage and garden deltas share lifetime claim and reward limits" (XP 115, expected 165); it fails the same way on `ef834ca` without this change and has not been investigated.
+
+The Play selector now offers **Discover something fun** and **All games**. All games lists the eight activities in pages of three, each card showing its tag where the genre label was. Community Plots, Dragon Rooftop, Swings, Pet Kopi and Take a seat left the Play list; they remain in Discover and in the world. Neighbourhood → Play outside opens Play on the merged list.
+
+After deploying: health returned `ready: true`; the live HTML and all 18 script and style files matched the local build byte-for-byte, and the live main script carries "All games"; unauthenticated state returned 401. The new cards were looked at with the built stylesheet at 1000px and 390px. Not done: opening the live panel in a browser, and a phone.
+
+No schema, migration, binding, variable or secret changed. Stage Party rooms and races in progress ended with the deployment. Rollback is a redeploy of `ef834ca`.
+
 ## The story as the intro film — deployed 12 October 2026
 
 PR #91 (`d87d283`, merged as `e8d725c`) was deployed as Worker version `68e14d14-8a9e-41b7-aaf7-c6fdf26450e9`, then PR #92 (`d3ccfd2`, merged as `86b5f90`) as Worker version **`8d3ba232-70ff-4ccc-859d-f6f0517ce664`**. The owner asked for the one-minute story video to replace the 40-second intro on the landing page, for it to be merged, and then for it to be deployed. Before deploying, the build, the dry run and all 17 Cloudflare integration tests passed. `npm test` ran 608 tests: 558 passed, 49 browser checks were skipped and 1 failed, "mission, weekly hunt, stage and garden deltas share lifetime claim and reward limits" in `tests/seasons.test.ts`, which fails the same way on `main` before these changes and was not looked into.
