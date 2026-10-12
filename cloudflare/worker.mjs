@@ -1,4 +1,5 @@
 import { Payments } from "../server/payments.mjs";
+import { ranged, wholeFile } from "./range.mjs";
 import { DurableObject } from "cloudflare:workers";
 import { createHash, randomBytes } from "node:crypto";
 import { StoreCore } from "../server/store-core.mjs";
@@ -149,6 +150,11 @@ export default {
       )
     )
       return new Response("Not found", { status: 404 });
+    if (/^\/intro\/[\w-]+\.mp4$/.test(url.pathname) && request.headers.has("range"))
+      return ranged(
+        await env.ASSETS.fetch(wholeFile(request)),
+        request.headers.get("range"),
+      );
     return env.ASSETS.fetch(request);
   },
 };
