@@ -115,9 +115,10 @@ export function mobileLobbyFixture(
           await wait(()=>find('#modal').open && find('#modal h2')?.textContent==='Play');
           check(!find('[data-open="relay"]') && !find('#modal').textContent.includes('Neighbourhood Relay'), id+' has no Relay');
           check(document.querySelectorAll('[data-game]').length<=3, id+' limits primary game choices');
-          find('#play-section').value='outside';find('#play-section').dispatchEvent(new Event('change',{bubbles:true}));
-          check(!!find('[data-open="stage"]') && !!find('[data-open="plots"]'), id+' keeps stage and plots');
+          check(!find('#play-section [value="outside"]'), id+' has one games list');
           find('#play-section').value='arcade';find('#play-section').dispatchEvent(new Event('change',{bubbles:true}));
+          for(let page=0;page<3&&!find('[data-open="stage"]');page++) [...document.querySelectorAll('[data-page="games"]')].find(b=>!b.disabled&&b.textContent.includes('Next'))?.click();
+          check(!!find('[data-open="stage"]'), id+' keeps stage');
           check(document.documentElement.scrollWidth<=innerWidth, id+' has no horizontal overflow');
           find('#close-modal').click();
         }

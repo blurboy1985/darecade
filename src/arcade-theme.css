@@ -320,6 +320,9 @@ dialog {
   border-radius: 999px;
   margin-left: 18px !important;
 }
+.game-card > .eyebrow.outside-tag {
+  background: #2f7d6b;
+}
 .game-card h3 {
   font-size: 30px !important;
 }

@@ -86,6 +86,7 @@ import {
   games,
   gameIds,
   playIds,
+  playMenu,
   formatScore,
   activities,
   type ActivityId,
@@ -166,7 +167,7 @@ let tryingLook: TryOn = null;
 let fittingView: "body" | "face" = "body";
 let fittingExpanded = false;
 let gamePage = 0;
-let playSection: "discover" | "arcade" | "outside" = save.rounds < 5 ? "discover" : "arcade";
+let playSection: "discover" | "arcade" = save.rounds < 5 ? "discover" : "arcade";
 let discoveryIndex = 0;
 let outdoorPage = 0;
 let questPage = 0;
@@ -684,9 +685,18 @@ function cards() {
       '<span class="court-backboard"></span><span class="court-rim"></span><span class="court-ball"></span><b>SHOOT YOUR SHOT</b>',
     fishing:
       '<span class="jetty-deck"></span><span class="jetty-rod"></span><span class="jetty-fish">◀</span><b>CAST & CHILL</b>',
+    stage: "<span>♫</span><b>OPEN MIC</b>",
   };
-  const choices = pageChoices(playIds, gamePage);
-  return `<div class="game-grid compact-games">${choices.items.map((id) => `<button class="game-card ${id}" data-game="${id}"><div class="game-art ${id}-art">${art[id]}</div><span class="eyebrow">${games[id].genre}</span><h3>${games[id].name}</h3><div><span>${id === "coast" ? "3 laps" : id === "hoops" ? "10 shots" : id === "swarm" ? "120s" : "60s"} · BEST ${id === "coast" && save.coastRecord.timeTicks ? raceTime(save.coastRecord.timeTicks) : formatScore(id, shared?.self.best[id] ?? 0)}</span>${icon("arrow")}</div></button>`).join("")}</div>${pager(choices.page, choices.total, "games")}`;
+  const choices = pageChoices(playMenu, gamePage);
+  return `<div class="game-grid compact-games">${choices.items
+    .map(({ id, tag }) => {
+      const detail =
+        id === "stage"
+          ? "Dance to the beat"
+          : `${id === "coast" ? "3 laps" : id === "hoops" ? "10 shots" : id === "swarm" ? "120s" : "60s"} · BEST ${id === "coast" && save.coastRecord.timeTicks ? raceTime(save.coastRecord.timeTicks) : formatScore(id, shared?.self.best[id] ?? 0)}`;
+      return `<button class="game-card ${id}" ${id === "stage" ? "data-open" : "data-game"}="${id}"><div class="game-art ${id}-art">${art[id]}</div><span class="eyebrow${tag === "Arcade" ? "" : " outside-tag"}">${tag.toUpperCase()}</span><h3>${id === "stage" ? "Open Stage" : games[id].name}</h3><div><span>${detail}</span>${icon("arrow")}</div></button>`;
+    })
+    .join("")}</div>${pager(choices.page, choices.total, "games")}`;
 }
 function questTabs(active: string) {
   return `<nav class="quest-tabs" aria-label="Quests & rankings">${[
@@ -708,7 +718,7 @@ function open(id: string) {
     id = "arcade";
   }
   if (["surroundings", "soon"].includes(id)) {
-    playSection = "outside";
+    playSection = "arcade";
     id = "arcade";
   }
   if (["settings", "controls"].includes(id)) id = "preferences";
@@ -832,23 +842,7 @@ function open(id: string) {
     const page = menuPages[id];
     body.innerHTML = `<h2>${page.title}</h2><div class="simple-menu" aria-label="Menu">${page.actions.map((action) => `<button class="menu-choice" data-open="${action.target}">${icon(action.icon)}<span>${action.label}</span>${icon("arrow")}</button>`).join("")}</div><div class="menu-links"><button class="text-button" ${currentProfile?.account ? 'data-action="logout"' : 'data-action="save-email"'}>${icon("settings")}<span>${currentProfile?.account ? "Log out" : "Save with email"}</span>${icon("arrow")}</button>${!currentProfile?.account ? '<button class="text-button" data-open="account">Guest account &amp; reset</button>' : ""}<button class="text-button" data-open="privacy">Privacy & data</button><button class="text-button" data-open="help">Help/Report</button></div>`;
   } else if (id === "arcade") {
-    const outside = pageChoices(
-      [
-        { id: "stage", name: "Open Stage", icon: "♫", kind: "open" },
-        { id: "plots", name: "Community Plots", icon: "🌱", kind: "open" },
-        {
-          id: "dragon",
-          name: "Dragon Rooftop",
-          icon: "🐉",
-          kind: "environment",
-        },
-        { id: "swing", name: "Swings", icon: "✦", kind: "environment" },
-        { id: "pet", name: "Pet Kopi", icon: "🐈", kind: "environment" },
-        { id: "bench0", name: "Take a seat", icon: "📖", kind: "environment" },
-      ],
-      outdoorPage,
-    );
-    body.innerHTML = `<h2>Play</h2><label class="field-label" for="play-section">Choose activities</label><select id="play-section" class="destination-select"><option value="discover" ${playSection === "discover" ? "selected" : ""}>Discover something fun</option><option value="arcade" ${playSection === "arcade" ? "selected" : ""}>Arcade games</option><option value="outside" ${playSection === "outside" ? "selected" : ""}>Play outside</option></select>${playSection === "discover" ? discoveryCards(discoveryIndex) + pager(discoveryPage(discoveryIndex).page, discoveryPage(discoveryIndex).total, "discover") : playSection === "arcade" ? cards() : `<h3>Play outside</h3><div class="outside-cards">${outside.items.map((item) => `<button class="menu-choice" data-${item.kind}="${item.id}"><span>${item.icon}</span><strong>${item.name}</strong></button>`).join("")}</div>${pager(outside.page, outside.total, "play-outside")}`}${playSection === "discover" ? "" : '<p class="fine-print">Play medals reward qualifying finishes. Ranked arcade medals land at midnight.</p>'}`;
+    body.innerHTML = `<h2>Play</h2><label class="field-label" for="play-section">Choose activities</label><select id="play-section" class="destination-select"><option value="discover" ${playSection === "discover" ? "selected" : ""}>Discover something fun</option><option value="arcade" ${playSection === "arcade" ? "selected" : ""}>All games</option></select>${playSection === "discover" ? discoveryCards(discoveryIndex) + pager(discoveryPage(discoveryIndex).page, discoveryPage(discoveryIndex).total, "discover") : cards() + '<p class="fine-print">Play medals reward qualifying finishes. Ranked arcade medals land at midnight.</p>'}`;
   } else if (id === "shop") {
     const taken = save.giftDay === singaporeDay();
     body.innerHTML = `<h2>${taken ? "Good choice!" : "Pick a free hat"}</h2><p class="lead">${taken ? "It’s in your collection. Choose any complete outfit in My look to change your style." : "Yours to keep."}</p><div class="gift-grid">${[
@@ -1585,11 +1579,6 @@ document.addEventListener("click", (e) => {
     open("discover");
     return;
   }
-  if (b.dataset.page === "play-outside") {
-    outdoorPage = Number(b.dataset.pageIndex);
-    open("arcade");
-    return;
-  }
   if (b.dataset.page) {
     const page = Number(b.dataset.pageIndex);
     if (b.dataset.page === "games") {
@@ -2024,7 +2013,7 @@ modal.addEventListener("click", (e) => {
 });
 document.addEventListener("change", (e) => {
   if (e.target instanceof HTMLSelectElement && e.target.id === "play-section") {
-    playSection = e.target.value === "discover" ? "discover" : e.target.value === "outside" ? "outside" : "arcade";
+    playSection = e.target.value === "discover" ? "discover" : "arcade";
     open("arcade");
     return;
   }
