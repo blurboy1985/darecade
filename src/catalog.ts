@@ -68,6 +68,17 @@ export type CabinetId = Exclude<GameId, OutdoorId>;
 export const gameIds = playIds.filter(
   (id) => !(outdoorIds as readonly string[]).includes(id),
 ) as CabinetId[];
+/** The Play list in menu order. Open Stage is not a replayed round, so it has no GameId. */
+export const playMenu = [
+  { id: "noodle", tag: "Arcade" },
+  { id: "brick", tag: "Arcade" },
+  { id: "hop", tag: "Arcade" },
+  { id: "swarm", tag: "Arcade" },
+  { id: "coast", tag: "Play outside" },
+  { id: "hoops", tag: "Play outside" },
+  { id: "stage", tag: "Play outside" },
+  { id: "fishing", tag: "Play outside" },
+] as const satisfies readonly { id: GameId | "stage"; tag: string }[];
 export const activities = {
   jog: {
     name: "Jog around the park",

@@ -355,14 +355,30 @@ test("wardrobe renders previews before selection without equipping them", () => 
 test("all paginated choices remain reachable, including later games and quests", () => {
   const h = harness();
   const games = new Set<string>();
+  const tags: string[] = [];
   for (let page = 0; page < 3; page++) {
     h.context.gamePage = page;
     h.run('open("arcade")');
     checkActions(h.body.innerHTML, `games page ${page}`);
+    assert.doesNotMatch(h.body.innerHTML, /value="outside"/);
+    for (const card of h.body.innerHTML.matchAll(
+      /data-(?:game|open)="([^"]+)"><div class="game-art[\s\S]*?<span class="eyebrow[^"]*">([^<]+)</g,
+    ))
+      tags.push(`${card[1]}:${card[2]}`);
     for (const match of h.body.innerHTML.matchAll(/data-game="([^"]+)"/g))
       games.add(match[1]);
   }
   assert.deepEqual([...games].sort(), [...catalog.playIds].sort());
+  assert.deepEqual(tags, [
+    "noodle:ARCADE",
+    "brick:ARCADE",
+    "hop:ARCADE",
+    "swarm:ARCADE",
+    "coast:PLAY OUTSIDE",
+    "hoops:PLAY OUTSIDE",
+    "stage:PLAY OUTSIDE",
+    "fishing:PLAY OUTSIDE",
+  ]);
   const quests = new Set<string>();
   for (let page = 0; page < 2; page++) {
     h.context.questPage = page;

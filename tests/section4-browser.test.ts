@@ -134,7 +134,9 @@ for (const viewport of viewports) {
         };
         const openStage = async () => {
           find('.lobby-dock [data-open="arcade"]').click();
-          find('#play-section').value='outside'; find('#play-section').dispatchEvent(new Event('change',{bubbles:true})); find('[data-open="stage"]').click();
+          find('#play-section').value='arcade'; find('#play-section').dispatchEvent(new Event('change',{bubbles:true}));
+          for (let page = 0; page < 3 && !find('[data-open="stage"]'); page++) [...document.querySelectorAll('[data-page="games"]')].find(b => !b.disabled && b.textContent.includes('Next')).click();
+          find('[data-open="stage"]').click();
           await until(() => find('#stage-mode'), 'Stage panel');
         };
         const setMode = value => find('[data-mode="' + value + '"]').click();
