@@ -3,16 +3,13 @@ import assert from "node:assert/strict";
 import { fresh, normalise, completeWelcomeRound } from "../src/state.ts";
 test("first finished round grants one welcome XP reward and preserves the current look", () => {
   const s = fresh();
-  s.hat = 3;
-  s.unlockedHats.push(3);
+  s.clothing = 3;
   assert.equal(completeWelcomeRound(s), true);
   assert.equal(s.welcome, "played");
   assert.equal(s.xp, 35);
-  assert.equal(s.unlockedHats.includes(2), false);
-  assert.equal(s.hat, 3);
+  assert.equal(s.clothing, 3);
   assert.equal(completeWelcomeRound(s), false);
   assert.equal(s.xp, 35);
-  assert.equal(s.unlockedHats.filter((x) => x === 2).length, 0);
 });
 test("welcome quest resumes after reload and never re-awards completed progress", () => {
   const s = fresh();
@@ -26,7 +23,6 @@ test("welcome quest resumes after reload and never re-awards completed progress"
   const done = normalise(reloaded, fresh());
   assert.equal(completeWelcomeRound(done), false);
   assert.equal(done.xp, 35);
-  assert.equal(done.unlockedHats.includes(2), false);
 });
 test("existing saves keep progress and get the optional welcome quest on their next completed round", () => {
   const s = normalise(
@@ -37,7 +33,9 @@ test("existing saves keep progress and get the optional welcome quest on their n
   assert.equal(s.rounds, 10);
   completeWelcomeRound(s);
   assert.equal(s.xp, 435);
-  assert.equal(s.hat, 1);
+  // The free hats are gone: a save that wore one loads without it.
+  assert.equal("hat" in s, false);
+  assert.equal("unlockedHats" in s, false);
   const invalid = normalise(
     { welcome: "hacked", welcomeDismissed: "yes" },
     fresh(),

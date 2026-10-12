@@ -297,7 +297,6 @@ export class RaceView {
       -0.15,
       outfits[look.outfit],
       skins[look.skin],
-      look.hat,
       look,
     );
     this.avatar.root.position.y = -0.14;
@@ -528,7 +527,7 @@ export class RaceView {
     karts.forEach((r, i) => {
       const kart = new T.Group();
       this.scene.add(kart);
-      // A player keeps their own outfit and hat; a computer driver wears its kart colour.
+      // A player keeps their own outfit; a computer driver wears its kart colour.
       const seeded = seededLook(`rival:${i}:${r.name}`);
       seeded.hair = distinctHair(seeded.hair, rivalHair);
       if (!r.look) rivalHair.add(seeded.hair);
@@ -541,7 +540,6 @@ export class RaceView {
         -0.15,
         colour,
         skins[look.skin % skins.length],
-        r.look ? look.hat : 0,
         look,
       );
       if (avatar.pet) avatar.pet.root.visible = false;

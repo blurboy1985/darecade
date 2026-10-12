@@ -670,6 +670,26 @@ test("complete outfits keep component cards in their own sections", () => {
   );
 });
 
+test("the Mama Shop, quests and stickers offer no daily pick or free hat", () => {
+  const h = harness();
+  h.run('open("shop")');
+  assert.match(h.body.innerHTML, /<h2>Mama Shop<\/h2>/);
+  assert.match(h.body.innerHTML, /data-look-tab="hair"/);
+  h.run('open("quests")');
+  assert.match(h.body.innerHTML, /Find 5 coins → \+50 XP/);
+  h.run('open("album")');
+  assert.match(h.body.innerHTML, / \/ 8 collected/);
+  assert.doesNotMatch(h.body.innerHTML, /Goodie two shoes/);
+  for (const panel of ["shop", "quests", "album", "wardrobe"]) {
+    h.run(`open("${panel}")`);
+    assert.doesNotMatch(
+      h.body.innerHTML,
+      /data-gift|data-hat=|free hat|daily gift|New pick daily|Sprout hat/i,
+      panel,
+    );
+  }
+});
+
 test("a finished quest offers Claim, and a claimed quest says so", () => {
   const h = harness();
   const button = (id: string) =>

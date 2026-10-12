@@ -30,14 +30,12 @@ test("existing version-1 profile survives database reopen with account, items an
       hair: 38,
       skin: 6,
       clothing: 24,
-      hat: 2,
-      unlockedHats: [0, 1, 2, 3],
       rounds: 31,
       coins: ["coin1"],
       coastRecord: { version: 3, timeTicks: 6150, place: 4 },
     });
     community.save(me.id, progress);
-    community.patch(me.id, { hair: 38, skin: 6, clothing: 24, hat: 2 });
+    community.patch(me.id, { hair: 38, skin: 6, clothing: 24 });
     store.db
       .prepare("INSERT INTO accounts VALUES(?,?,?)")
       .run(me.id, "existing@example.test", now() - 86400000);
@@ -65,7 +63,6 @@ test("existing version-1 profile survives database reopen with account, items an
           "baseHair",
           "pet",
           "accessory",
-          "hat",
         ].map((k) => [k, after.progress[k]]),
       ),
     );

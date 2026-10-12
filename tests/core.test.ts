@@ -3,26 +3,15 @@ import assert from "node:assert/strict";
 import {
   singaporeDay,
   singaporeWeek,
-  claimGift,
   fresh,
   normalise,
   missionProgress,
 } from "../src/state.ts";
 import { route, blocked } from "../src/navigation.ts";
 
-test("gifts reset at Singapore midnight, not the browser timezone", () => {
+test("the day turns at Singapore midnight, not the browser timezone", () => {
   assert.equal(singaporeDay(new Date("2026-10-02T15:59:59Z")), "2026-10-02");
   assert.equal(singaporeDay(new Date("2026-10-02T16:00:00Z")), "2026-10-03");
-  const s = fresh();
-  assert.equal(claimGift(s, 0, "2026-10-02"), true);
-  assert.equal(s.xp, 30);
-  assert.equal(claimGift(s, 2, "2026-10-02"), false);
-  assert.equal(s.xp, 30);
-  assert.equal(s.hat, 1);
-  assert.equal(claimGift(s, 2, "2026-10-03"), true);
-  assert.equal(s.xp, 60);
-  assert.equal(s.hat, 3);
-  assert.equal(claimGift(s, 99, "2026-10-04"), false);
 });
 test("weekly hunt resets exactly on Monday Singapore time", () => {
   assert.equal(singaporeWeek(new Date("2026-10-04T15:59:59Z")), "2026-09-28");
@@ -30,11 +19,10 @@ test("weekly hunt resets exactly on Monday Singapore time", () => {
   const fallback = fresh();
   fallback.week = "2026-10-05";
   const s = normalise(
-    { week: "2026-09-28", coins: ["coin0", "coin1"], hat: 3, xp: 150 },
+    { week: "2026-09-28", coins: ["coin0", "coin1"], xp: 150 },
     fallback,
   );
   assert.deepEqual(s.coins, []);
-  assert.equal(s.hat, 3);
   assert.equal(s.xp, 150);
 });
 test("malformed saves recover without invalid avatar parts or duplicate collectibles", () => {
@@ -43,7 +31,6 @@ test("malformed saves recover without invalid avatar parts or duplicate collecti
     {
       outfit: 99,
       skin: -1,
-      hat: "3",
       xp: NaN,
       rounds: -5,
       best: { noodle: "bad", brick: 75 },
@@ -56,7 +43,6 @@ test("malformed saves recover without invalid avatar parts or duplicate collecti
   );
   assert.equal(s.outfit, f.outfit);
   assert.equal(s.skin, f.skin);
-  assert.equal(s.hat, 0);
   assert.equal(s.xp, 0);
   assert.equal(s.rounds, 0);
   assert.deepEqual(s.coins, ["coin0"]);

@@ -68,7 +68,6 @@ test("try-ons preserve player identity and never mutate saved progression", () =
     wardrobeSpent: 12,
     wardrobeUnlocked: ["solar"],
     wardrobePurchased: ["galaxy"],
-    unlockedHats: [0, 1, 2],
   };
   const before = JSON.stringify(save);
   for (const [slot, index] of [
@@ -93,7 +92,6 @@ test("try-ons preserve player identity and never mutate saved progression", () =
       "wardrobeSpent",
       "wardrobeUnlocked",
       "wardrobePurchased",
-      "unlockedHats",
     ] as const)
       assert.deepEqual(loaded[key], old[key], `${legendarySets[i].id}: ${key}`);
   }

@@ -1153,55 +1153,6 @@ dialog::backdrop {
   letter-spacing: 1px;
   color: #979986;
 }
-.gift-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-}
-.gift-option {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 15px;
-  border-radius: 13px;
-  border: 1px solid #dedfc9;
-  background: #f0efdf;
-  padding: 25px 10px;
-}
-.gift-option strong {
-  font-size: 11px;
-  font-family: "Space Grotesk", sans-serif;
-}
-.gift-option > span:last-child {
-  font-size: 7px;
-  font-weight: 700;
-  letter-spacing: 0.7px;
-  color: #809173;
-}
-.gift-option:disabled {
-  opacity: 0.55;
-}
-.gift-option.chosen {
-  border: 2px solid #8aa663;
-  opacity: 1;
-  background: #e8edcf;
-}
-.hat-art {
-  height: 75px;
-  font-size: 67px;
-  line-height: 70px;
-  text-shadow: 0 5px 0 #27374712;
-  transform: rotate(-10deg);
-}
-.hat-0 {
-  color: #b68955;
-}
-.hat-1 {
-  color: #a08bc5;
-}
-.hat-2 {
-  color: #87ab60;
-}
 .wardrobe-layout {
   display: grid;
   grid-template-columns: 210px 1fr;
@@ -1369,22 +1320,6 @@ dialog::backdrop {
 }
 .swatches button.active {
   outline: 2px solid #52644c;
-}
-.hat-options {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.hat-options button {
-  background: #edeedf;
-  border-radius: 5px;
-  font-size: 9px;
-  padding: 8px 11px;
-  border: 1px solid transparent;
-}
-.hat-options button.active {
-  border-color: #8b9e7e;
-  background: #e3e9cf;
 }
 .wardrobe-layout .primary {
   margin-top: 26px;
@@ -2444,26 +2379,6 @@ dialog::backdrop {
     padding: 14px 15px;
     font-size: 10px;
   }
-  .gift-grid {
-    gap: 7px;
-  }
-  .gift-option {
-    padding: 20px 6px;
-    gap: 12px;
-  }
-  .gift-option strong {
-    font-size: 9px;
-    line-height: 1.5;
-  }
-  .gift-option > span:last-child {
-    font-size: 5.5px;
-    letter-spacing: 0.2px;
-  }
-  .hat-art {
-    font-size: 51px;
-    height: 57px;
-    line-height: 55px;
-  }
   .wardrobe-layout {
     grid-template-columns: 110px 1fr;
     gap: 18px;
@@ -2498,13 +2413,6 @@ dialog::backdrop {
     font-size: 7px;
     margin-top: 17px;
     letter-spacing: 1px;
-  }
-  .hat-options {
-    gap: 5px;
-  }
-  .hat-options button {
-    padding: 7px;
-    font-size: 8px;
   }
   .wardrobe-layout .primary {
     font-size: 10px;
@@ -2834,11 +2742,6 @@ dialog::backdrop {
   .toast {
     bottom: 78px;
   }
-}
-.hat-options button:disabled {
-  opacity: 0.38;
-  border-style: dashed;
-  border-color: #9ca98d;
 }
 .dpad button {
   width: 44px;

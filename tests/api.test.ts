@@ -158,13 +158,13 @@ test(
       assert.equal(profile.progress.xp, 0);
       const hacked = await post(
         "profile",
-        { xp: 999999, best: { noodle: 999999 }, unlockedHats: [0, 1, 2, 3] },
+        { xp: 999999, best: { noodle: 999999 }, hat: 3 },
         cookie,
       );
       const saved = await hacked.json();
       assert.equal(saved.progress.xp, 0);
       assert.equal(saved.progress.best.noodle, 0);
-      assert.deepEqual(saved.progress.unlockedHats, [0]);
+      assert.equal("hat" in saved.progress, false);
       const begun = await (
         await post("run", { game: "noodle" }, cookie)
       ).json();
@@ -190,7 +190,7 @@ test(
       ).json();
       assert.deepEqual(Object.keys(presence), ["players"]);
       assert.equal(presence.players[0].x, 3);
-      assert.equal(presence.players[0].look.hat, 0);
+      assert.notEqual(presence.players[0].look.hat, 3);
       assert.equal(
         (await fetch(origin + "/data/neighbourhood.sqlite")).status,
         404,

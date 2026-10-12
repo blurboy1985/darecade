@@ -202,7 +202,9 @@ test("season XP counts trusted deltas once while lifetime token thresholds and o
     p.rounds = 4;
     s.community.save(id, p);
     s.set(start);
-    s.community.progression(id, "gift", 0);
+    s.community.progression(id, "rooftop", "arcade");
+    s.community.progression(id, "rooftop", "shop");
+    s.community.progression(id, "rooftop", "dragon");
     s.community.progression(id, "visit", "garden");
     s.community.progression(id, "visit", "plots");
     s.community.progression(id, "visit", "stage");
@@ -211,7 +213,7 @@ test("season XP counts trusted deltas once while lifetime token thresholds and o
     assert.equal(profile.season.xp, 30);
     assert.equal(styleTokens(profile.progress), 2);
     s.community.progression(id, "visit", "stage");
-    assert.throws(() => s.community.progression(id, "gift", 0));
+    s.community.progression(id, "rooftop", "dragon");
     s.community.patch(id, {
       xp: 99999,
       season: { xp: 99999 },
@@ -430,14 +432,14 @@ test("XP, season counters and notices roll back together on failure", () => {
       "CREATE TRIGGER fail_progress BEFORE UPDATE ON profiles BEGIN SELECT RAISE(ABORT,'synthetic crash'); END;",
     );
     assert.throws(
-      () => s.community.progression(id, "gift", 0),
+      () => s.community.progression(id, "cat"),
       /synthetic crash/,
     );
     assert.equal(s.community.privateProfile(id).progress.xp, 0);
     assert.equal(s.community.privateProfile(id).season.xp, 0);
     s.store.db.exec("DROP TRIGGER fail_progress");
-    s.community.progression(id, "gift", 0);
-    assert.equal(s.community.privateProfile(id).season.xp, 30);
+    s.community.progression(id, "cat");
+    assert.equal(s.community.privateProfile(id).season.xp, 15);
   } finally {
     s.close();
   }

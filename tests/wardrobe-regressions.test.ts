@@ -108,7 +108,6 @@ test("complete outfits bring their pet and magic, keep identity and reject the o
       eye: 3,
       pet: 5,
       accessory: 6,
-      hat: 1,
     };
     for (const [index, set] of legendarySets.entries()) {
       const look = itemLook("outfits", index * 2 + body, p);
@@ -116,7 +115,6 @@ test("complete outfits bring their pet and magic, keep identity and reject the o
       assert.equal(look.pet, setItemIndex("pet", index));
       assert.equal(look.accessory, setItemIndex("accessory", index));
       assert.equal(look.skin, 2);
-      assert.equal(look.hat, 0);
       assert.throws(
         () => itemLook("outfits", index * 2 + 1 - body, p),
         /your character/,

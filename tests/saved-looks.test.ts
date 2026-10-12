@@ -17,7 +17,6 @@ test("old saves gain empty slots without losing earned or purchased items", () =
     medalTokens: 3,
     wardrobeUnlocked: ["solar"],
     wardrobePurchased: ["aegis-prime"],
-    unlockedHats: [0, 1],
   });
   const upgraded = normalise(old, fresh());
   assert.deepEqual(upgraded.savedLooks, [null, null, null, null]);
@@ -27,7 +26,6 @@ test("old saves gain empty slots without losing earned or purchased items", () =
     "medalTokens",
     "wardrobeUnlocked",
     "wardrobePurchased",
-    "unlockedHats",
   ] as const)
     assert.deepEqual(upgraded[key], old[key]);
   const look = captureLook(upgraded);
@@ -69,9 +67,10 @@ test("server validates saved components, preserves preferences for old clients a
       () => c.patch(id, { savedLooks: [premium] }),
       /Unlock every piece/,
     );
-    assert.throws(
-      () => c.patch(id, { savedLooks: [{ ...free, hat: 1 }] }),
-      /Unlock every piece/,
+    // A look saved before the free hats were removed loads without its hat.
+    assert.deepEqual(
+      c.patch(id, { savedLooks: [{ ...free, hat: 1 }] }).progress.savedLooks[0],
+      free,
     );
     c.patch(id, {
       savedLooks: [free],

@@ -339,8 +339,7 @@ dialog {
 .activity-list strong,
 .resident-list strong,
 .mission-list strong,
-.settings-row strong,
-.gift-option strong {
+.settings-row strong {
   font-family: var(--chunk);
   font-size: 17px !important;
 }
@@ -351,8 +350,7 @@ dialog {
 .activity-list small,
 .resident-list small,
 .mission-list small,
-.settings-row small,
-.gift-option > span:last-child {
+.settings-row small {
   font-size: 13px !important;
 }
 .look-tabs button,

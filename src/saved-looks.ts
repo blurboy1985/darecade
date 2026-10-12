@@ -7,7 +7,6 @@ const limits = {
   skin: 8,
   eye: 5,
   body: 2,
-  hat: 4,
   ...appearanceLimits,
   baseHair: appearanceLimits.hair,
 };
@@ -29,12 +28,8 @@ export function readSavedLooks(raw: unknown): SavedLooks {
     return Object.fromEntries(entries) as Look;
   });
 }
-export function savedLookAllowed(
-  look: Look,
-  progress: WardrobeProgress & { unlockedHats: number[] },
-) {
+export function savedLookAllowed(look: Look, progress: WardrobeProgress) {
   return (
-    progress.unlockedHats.includes(look.hat) &&
     (["clothing", "hair", "pet", "accessory"] as const).every((slot) =>
       canWear(slot, look[slot] ?? 0, progress, 0),
     ) &&

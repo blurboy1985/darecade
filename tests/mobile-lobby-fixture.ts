@@ -207,7 +207,7 @@ export function mobileLobbyFixture(
       check([...document.querySelectorAll('[data-try-slot="outfits"]')].every(b=>Number(b.dataset.tryIndex)%2===0), 'girl character only sees girl outfits');
       find('[data-try-slot="outfits"][data-try-index="80"]').click();
       const restoredLook=JSON.parse(localStorage.getItem('darecade-v1'));
-      check(restoredLook.hair===girlLook.hair && restoredLook.baseHair===girlLook.baseHair && restoredLook.hat===0, 'complete outfit restores matching hairstyle and headwear');
+      check(restoredLook.hair===girlLook.hair && restoredLook.baseHair===girlLook.baseHair,'complete outfit restores matching hairstyle and headwear');
       check(restoredLook.pet===girlLook.pet && restoredLook.accessory===girlLook.accessory, 'outfit preserves chosen pet and magic');
       find('[data-wardrobe-section="Hair"]').click();
       const hairImage=find('.collection-grid .avatar-thumbnail');
@@ -322,7 +322,7 @@ export function mobileLobbyFixture(
       }
       check(goal.hidden, 'dismiss clears the scene');
       check(JSON.parse(localStorage.getItem('darecade-v1')).welcomeDismissed, 'dismiss survives saving');
-      check(profile.progress.rounds===0 && !profile.progress.unlockedHats.includes(2), 'dismiss does not complete or grant reward');
+      check(profile.progress.rounds===0,'dismiss does not complete or grant reward');
       const menu=find('.lobby-dock [data-open="phone-menu"]');
       check(visible(menu) && hit(menu), 'Menu touch target unobstructed');
       menu.focus(); menu.click();

@@ -71,7 +71,6 @@ try {
             outfit: 0,
             skin: 0,
             body,
-            hat: 0,
             clothing: 0,
             hair: 53 + col,
             pet: 0,
@@ -112,16 +111,10 @@ try {
             0,
             "#76cfe0",
             "#ffc8b6",
-            0,
             look,
           );
-          if (mode === "hats") {
-            look.hat = row === 0 ? 1 : row === 1 ? 2 : 3;
-            const { applyLook } = window.hairReviewCharacter;
-            applyLook(avatar, look);
-          }
           avatar.root.rotation.y =
-            crowns || mode === "hats" || mode === "headwear"
+            crowns || mode === "headwear"
               ? 0.3
               : (row * Math.PI) / 2;
           if (mode === "poses") {
@@ -165,7 +158,7 @@ try {
           const label = document.createElement("div");
           label.className = "label";
           label.style.cssText = `position:absolute;left:${col * 200 + 6}px;top:${row * 300 + 6}px;font:13px sans-serif`;
-          label.textContent = `${["Spiky", "Flowing", "Buns", "Messy", "Ponytail", "Bob", "Braid", "Tails"][col]} · ${mode === "headwear" ? legendarySets.find((s) => s.id === reviewHeadwear[row]).name : crowns ? ["Eclipse", "Crystal", "Solar"][row] : mode === "hats" ? ["Cap", "Lilac existing owner", "Sprout"][row] : mode === "poses" ? ["walk", "run", "bench", "swing", "arcade", "wave", "dance", "jump"][col] : ["Front", "Side", "Back"][row]}`;
+          label.textContent = `${["Spiky", "Flowing", "Buns", "Messy", "Ponytail", "Bob", "Braid", "Tails"][col]} · ${mode === "headwear" ? legendarySets.find((s) => s.id === reviewHeadwear[row]).name : crowns ? ["Eclipse", "Crystal", "Solar"][row] : mode === "poses" ? ["walk", "run", "bench", "swing", "arcade", "wave", "dance", "jump"][col] : ["Front", "Side", "Back"][row]}`;
           document.body.append(label);
           disposeAvatar(avatar);
         }
@@ -185,11 +178,10 @@ try {
       camera.position.set(0, 1.8, 8);
       camera.lookAt(0, 1.55, 0);
       camera.updateProjectionMatrix();
-      const avatar = createAvatar(scene, 0, 0, "#76cfe0", "#ffc8b6", 0, {
+      const avatar = createAvatar(scene, 0, 0, "#76cfe0", "#ffc8b6", {
         outfit: 0,
         skin: 0,
         body,
-        hat: 0,
         clothing: 0,
         hair: 56,
         pet: 0,
@@ -207,7 +199,6 @@ try {
       "headwear",
       "crowns",
       "starter-crowns",
-      "hats",
       "poses",
     ]) {
       const name = `${tag}-${mode}-body${body}`;

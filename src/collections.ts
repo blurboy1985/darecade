@@ -316,7 +316,6 @@ export function outfitLook(index: number, body: number) {
     clothing: setItemIndex("clothing", index),
     hair: setItemIndex("hair", index),
     baseHair: HAIR_START + set.design.hairColour * 8 + shape,
-    hat: 0,
   };
 }
 export type WardrobeProgress = {
@@ -481,6 +480,5 @@ export function setLook(index: number) {
     hair: setItemIndex("hair", index),
     pet: setItemIndex("pet", index),
     accessory: setItemIndex("accessory", index),
-    hat: 0,
   };
 }

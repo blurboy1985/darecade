@@ -230,7 +230,6 @@ export class StageView {
       0,
       outfits[look.outfit] ?? outfits[0],
       skins[look.skin] ?? skins[0],
-      look.hat,
       look,
     );
     const material = new T.MeshBasicMaterial({ side: T.DoubleSide });

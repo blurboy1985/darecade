@@ -14,7 +14,6 @@ const keyFor = (look: Look, slot: string) =>
     look.skin,
     look.eye ?? 0,
     look.outfit,
-    look.hat,
     look.clothing ?? 0,
     look.hair ?? 0,
     look.baseHair ?? look.hair ?? 0,

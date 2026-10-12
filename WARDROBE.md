@@ -11,7 +11,7 @@ catalogue art is labelled as a reference, not an exact custom combination.
 There are 66 complete sets: 22 Free, 22 Legendary and 22 Premium. Each supports
 Girl and Boy. Outfits apply matching clothing, headwear and hairstyle; Clothes,
 Hair, Headwear, Pets and Magic can be selected independently. The 80 existing
-hairstyles are free. Earned hats remain accessible under Headwear. Removing
+hairstyles are free. Removing
 headwear preserves the underlying hairstyle. Skin, eyes, identity, pets and
 magic are not reset by an outfit choice.
 
@@ -99,9 +99,11 @@ solid hats still use fitted hair. Hair cards use the same thumbnail-ready path a
 other categories. Catalogue PNGs are rebuilt with `scripts/wardrobe-thumbnails.mjs`
 against the local art server, using `PLAYWRIGHT_CORE` for the installed browser runtime.
 
-The Lilac Daydream cap is retired from the welcome reward and daily gift choices.
-The first Palm Bay finish keeps its one-time 35 XP bonus. Existing cap owners
-retain the hat and can still equip it; its ID and mesh remain stable.
+The three free hats (The Kopitiam Bucket, Lilac Daydream cap, Just a Little
+Sprout) and the Mama Shop daily pick were removed on 13 October 2026. Nobody
+owns or wears them any more, former owners included; a save or saved look that
+carried one loads without it. The first Palm Bay finish keeps its one-time 35 XP
+bonus and the weekly pixel hunt keeps its 50 XP.
 
 Individual Legendary unlock IDs use `piece:<set-id>:<slot>` in the existing
 server-owned `wardrobeUnlocked` array. Old full-set entitlements still unlock all

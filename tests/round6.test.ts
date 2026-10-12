@@ -88,7 +88,6 @@ test("zero score grants no XP, cap, tokens or medals, including an idempotent re
     assert.equal(result.profile.progress.rounds, 0);
     assert.equal(result.welcome, false);
     assert.equal(c.finish(id, data).earnedXp, 0);
-    assert.equal(result.profile.progress.unlockedHats.includes(2), false);
   } finally {
     store.close();
     rmSync(directory, { recursive: true, force: true });

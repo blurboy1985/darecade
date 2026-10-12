@@ -32,15 +32,14 @@ const fitting = document.querySelector<HTMLElement>("#fitting")!;
 const report = document.querySelector<HTMLElement>("#report")!;
 const label = document.querySelector<HTMLElement>("#label")!;
 const looks: Look[] = [
-  { outfit: 3, skin: 0, hat: 0, clothing: 1, hair: 0, pet: 1, accessory: 1 },
-  { outfit: 1, skin: 6, hat: 0, clothing: 3, hair: 5, pet: 4, accessory: 17 },
-  { outfit: 4, skin: 2, hat: 0, clothing: 5, hair: 6, pet: 24, accessory: 26 },
-  { outfit: 2, skin: 7, hat: 0, clothing: 7, hair: 3, pet: 1, accessory: 0 },
-  { outfit: 0, skin: 3, hat: 0, clothing: 8, hair: 4, pet: 0, accessory: 0 },
+  { outfit: 3, skin: 0, clothing: 1, hair: 0, pet: 1, accessory: 1 },
+  { outfit: 1, skin: 6, clothing: 3, hair: 5, pet: 4, accessory: 17 },
+  { outfit: 4, skin: 2, clothing: 5, hair: 6, pet: 24, accessory: 26 },
+  { outfit: 2, skin: 7, clothing: 7, hair: 3, pet: 1, accessory: 0 },
+  { outfit: 0, skin: 3, clothing: 8, hair: 4, pet: 0, accessory: 0 },
   {
     outfit: 1,
     skin: 5,
-    hat: 0,
     clothing: 25,
     hair: 29,
     pet: 27,
@@ -153,8 +152,8 @@ function finiteSkin(a: ReturnType<typeof createAvatar>) {
 async function verify() {
   const checks = [];
   const scene = new T.Scene();
-  const a = createAvatar(scene, 0, 0, "#76cfe0", "#f6c9a1", 0, looks[0]);
-  const b = createAvatar(scene, 2, 0, "#76cfe0", "#f6c9a1", 0, looks[0]);
+  const a = createAvatar(scene, 0, 0, "#76cfe0", "#f6c9a1", looks[0]);
+  const b = createAvatar(scene, 2, 0, "#76cfe0", "#f6c9a1", looks[0]);
   try {
     assert(
       a.rig.get("head")?.bone !== b.rig.get("head")?.bone,

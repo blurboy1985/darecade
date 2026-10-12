@@ -77,7 +77,7 @@ test("outfits never show the source bag across the chest", () => {
     assert.ok(bag instanceof T.Mesh);
     for (const body of [0, 1]) {
       for (let clothing = 0; clothing < appearanceLimits.clothing; clothing++) {
-        applyLook(avatar, { outfit: 0, skin: 0, hat: 0, body, clothing });
+        applyLook(avatar, { outfit: 0, skin: 0, body, clothing });
         assert.equal(bag.visible, false, `body ${body}, outfit ${clothing}`);
         assert.equal(avatar.model.getObjectByName("Shirt")?.visible, true);
       }
@@ -91,10 +91,8 @@ test("selected wizard headwear stays visible with starter class outfits", () => 
   const avatar = createAvatar(new T.Group(), 0, 0, outfits[0]);
   try {
     for (const clothing of [1, 3, 5, 6, 7]) {
-      applyLook(avatar, { outfit: 0, skin: 0, hat: 0, hair: 5, clothing });
+      applyLook(avatar, { outfit: 0, skin: 0, hair: 5, clothing });
       assert.equal(avatar.model.getObjectByName("Hat_Wizard")?.visible, true);
-      applyLook(avatar, { outfit: 0, skin: 0, hat: 1, hair: 5, clothing });
-      assert.equal(avatar.model.getObjectByName("Hat_Wizard")?.visible, false);
     }
   } finally {
     disposeAvatar(avatar);
@@ -104,7 +102,7 @@ test("selected wizard headwear stays visible with starter class outfits", () => 
 test("avatar teardown disposes private materials, skeleton textures and magic once", () => {
   const scene = new T.Group();
   const remote = createAvatar(scene, 0, 0, outfits[0]);
-  const local = createAvatar(scene, 2, 0, outfits[1], skins[6], 0, { pet: 1 });
+  const local = createAvatar(scene, 2, 0, outfits[1], skins[6], { pet: 1 });
   const companion = local.pet;
   local.magic = buildMagic(local.extras, 17);
   assert.ok(local.magic);
@@ -187,7 +185,6 @@ test("wardrobe swaps preserve independent skeletons and finite interaction poses
     applyLook(local, {
       outfit: i % outfits.length,
       skin: i % skins.length,
-      hat: 0,
       clothing: i % 24,
       hair: i % 28,
     });
@@ -311,7 +308,6 @@ test("skin and outfit colours belong to each avatar and leave the shared eye pai
       applyLook(local, {
         outfit: i % outfits.length,
         skin: i % skins.length,
-        hat: 0,
         body: i % 2,
         clothing: i % 24,
       });

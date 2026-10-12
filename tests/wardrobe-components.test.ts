@@ -63,8 +63,7 @@ test("component previews cannot bypass ownership and Undo contains no progress",
   );
   assert.equal("xp" in captureLook(saved), false);
   assert.equal("wardrobePurchased" in captureLook(saved), false);
-  const bare = withoutHeadwear({ ...saved, hair: 133, baseHair: 38, hat: 2 });
-  assert.equal(bare.hat, 0);
+  const bare = withoutHeadwear({ ...saved, hair: 133, baseHair: 38 });
   assert.equal(bare.hair, bare.baseHair);
   assert.ok(bare.hair! >= 53 && bare.hair! < 133);
   assert.match(

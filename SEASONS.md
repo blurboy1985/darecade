@@ -30,7 +30,7 @@ Season standings sum existing daily medals whose Singapore award dates fall insi
 
 Lifetime XP remains the source for level and XP tokens. Each trusted positive XP delta also increments a separate `season_xp` row in the same progression transaction. A player with 250 lifetime XP keeps Level 3 and starts at 0 Season XP. Earning 60 XP produces 310 lifetime XP and 60 Season XP, with only the normal token for crossing lifetime XP 300. Crossing 100 Season XP awards no additional token. This covers regular rounds, gifts, missions, exploration, stage, garden and both sides of an invite bonus, including an offline inviter. Cosmetic changes and payment reconciliation add no seasonal XP.
 
-First-round gifts, missions, visits, invite rewards, daily gift claims and weekly hunt limits are not reset. Equipped, unlocked and purchased looks, wallet spending, lifetime personal bests and Coast records remain saved. Lifetime totals and game-card personal bests remain accessible; past seasonal XP is available in Show and private data export. Raw replays expire after 30 days and inactive profiles after one calendar year under the existing policy.
+First-round gifts, missions, visits, invite rewards and weekly hunt limits are not reset. Equipped, unlocked and purchased looks, wallet spending, lifetime personal bests and Coast records remain saved. Lifetime totals and game-card personal bests remain accessible; past seasonal XP is available in Show and private data export. Raw replays expire after 30 days and inactive profiles after one calendar year under the existing policy.
 
 ## Challenges and boundary rounds
 
