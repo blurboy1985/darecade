@@ -126,7 +126,6 @@ test("disconnect retains avatar and score; one closing tab does not disconnect a
     activity: "dragon",
     look: {
       outfit: 2,
-      hat: 3,
       skin: 1,
       clothing: 2,
       hair: 3,
@@ -141,7 +140,7 @@ test("disconnect retains avatar and score; one closing tab does not disconnect a
   const p = store.state(a).players[0];
   assert.equal(p.status, "offline");
   assert.equal(p.activity, "dragon");
-  assert.equal(p.look.hat, 3);
+  assert.equal(p.look.outfit, 2);
   assert.equal(p.look.pet, 1);
   assert.equal(p.look.clothing, 2);
   assert.equal(p.look.hair, 3);
@@ -174,7 +173,7 @@ test("database restart retains identities, avatars and scores, and catches up me
       connection: "test",
       away: true,
       activity: "dragon",
-      look: { outfit: 3, skin: 7, hat: 2 },
+      look: { outfit: 3, skin: 7 },
     });
     store.finish(guest.id, store.begin(guest.id, "brick").id, 45);
     store.close();

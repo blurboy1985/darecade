@@ -45,7 +45,6 @@ export type Look = {
   outfit: number;
   skin: number;
   eye?: number;
-  hat: number;
   /** 0 girl, 1 boy. */
   body?: number;
   clothing?: number;
@@ -323,7 +322,6 @@ export function createAvatar(
   z: number,
   color: string,
   skin = "#e7b18c",
-  hat = 0,
   options: Partial<Look> = {},
 ): Avatar {
   if (!template) throw Error("Character asset is not ready");
@@ -439,7 +437,6 @@ export function createAvatar(
     look: {
       outfit: Math.max(0, outfits.indexOf(color)),
       skin: Math.max(0, skins.indexOf(skin)),
-      hat,
       ...options,
     },
     last: root.position.clone(),
@@ -513,7 +510,7 @@ export function applyLook(
   if (starter?.prop === "staff") shown.delete("Skirt");
   if (cape && !special && !classFor(a.look.clothing!)) shown.add("Cape");
   if (below.shoes) shown.add("Shoes");
-  if (wear === "Hat_Wizard" && !look.hat) shown.add(wear);
+  if (wear === "Hat_Wizard") shown.add(wear);
   a.model.traverse((o) => {
     if (o instanceof T.Mesh) {
       o.visible = o.name === "Mitten" || shown.has(o.name);
@@ -587,35 +584,7 @@ export function applyLook(
   a.root.userData.equippedAt = null;
   delete a.root.userData.detailLevel;
   a.hat.clear();
-  if (look.hat === 1) {
-    ellipsoid(a.hat, [0, 1.83, 0], [0.24, 0.12, 0.22], "#e7a769");
-    ellipsoid(a.hat, [0, 1.78, 0.025], [0.29, 0.035, 0.28], "#e7a769");
-  }
-  if (look.hat === 2) {
-    ellipsoid(a.hat, [0, 1.83, 0], [0.226, 0.12, 0.205], "#b4a0f5");
-    ellipsoid(a.hat, [0, 1.78, 0.2], [0.23, 0.026, 0.18], "#b4a0f5");
-  }
-  if (look.hat === 3) {
-    ellipsoid(a.hat, [0, 1.9, 0], [0.1, 0.13, 0.1], "#8cb459");
-    const leaf = ellipsoid(
-      a.hat,
-      [0.11, 2.03, 0],
-      [0.15, 0.045, 0.07],
-      "#9fd567",
-    );
-    leaf.rotation.z = 0.5;
-  }
-  // Earned hats were sized for the earlier head; fit them to the chibi head
-  // (about 0.87 wide, crown at y 1.78 after scaling).
-  for (const part of a.hat.children) {
-    part.position.x *= 1.85;
-    part.position.z *= 1.85;
-    part.position.y -= 0.09;
-    part.scale.x *= 1.85;
-    part.scale.z *= 1.85;
-    part.scale.y *= 1.25;
-  }
-  if (!look.hat && wear === "Hat_Knight") {
+  if (wear === "Hat_Knight") {
     ball(a.hat, [0, 1.65, -0.04], [0.48, 0.34, 0.47], "#91a1b0");
     part(a.hat, "box", [0, 1.55, 0.38], [0.77, 0.12, 0.08], "#384756");
     for (const side of [-1, 1])
@@ -628,7 +597,7 @@ export function applyLook(
       );
     part(a.hat, "box", [0, 1.83, 0.05], [0.06, 0.3, 0.6], "#d9e4e9");
   }
-  if (!look.hat && wear === "Hat_Bear") {
+  if (wear === "Hat_Bear") {
     const fur = a.look.hair === 10 ? "#526a80" : "#a8724f";
     const innerEar = a.look.hair === 10 ? "#b0c7db" : "#e9bc8f";
     ball(a.hat, [0, 1.68, -0.02], [0.49, 0.27, 0.46], fur);
@@ -637,13 +606,11 @@ export function applyLook(
       ball(a.hat, [side * 0.37, 1.94, 0.055], [0.085, 0.1, 0.03], innerEar);
     }
   }
-  const classHeadVisible = !look.hat && !wear && !gear && headSet < 0;
+  const classHeadVisible = !wear && !gear && headSet < 0;
   const hairVolume = buildHair(
     a.hat,
     a.look.baseHair ?? a.look.hair!,
     !!(
-      look.hat === 1 ||
-      look.hat === 2 ||
       wear ||
       (gear !== null &&
         [
@@ -686,9 +653,8 @@ export function applyLook(
   if (classHeadVisible)
     seatHeadwear((group) => buildClassHead(group, a.look.clothing!));
   if (hair.beard && !wear && !gear) buildBeard(a.hat, hair.color);
-  if (hair.hood && !look.hat) buildHood(a.hat);
-  // Wardrobe headgear sits under an earned hat's slot: the earned hat wins.
-  if (headSet >= 0 && !look.hat)
+  if (hair.hood) buildHood(a.hat);
+  if (headSet >= 0)
     seatHeadwear(
       (group) => costumeHead(group, legendarySets[headSet]),
       ["royal", "knight"].includes(legendarySets[headSet].design.costume),
@@ -696,17 +662,16 @@ export function applyLook(
         ? 1.59
         : 1.7,
     );
-  else if (gear && !look.hat)
-    seatHeadwear((group) => buildHeadgear(group, gear));
+  else if (gear) seatHeadwear((group) => buildHeadgear(group, gear));
   const headwear = a.hat.children.filter((child) => child !== hairVolume);
-  if (wear === "Hat_Wizard" && !look.hat) {
+  if (wear === "Hat_Wizard") {
     const wizard = a.model.getObjectByName("Hat_Wizard");
     if (wizard) headwear.push(wizard);
   }
   fitHairUnderHeadwear(
     hairVolume,
     headwear,
-    `${look.hat ?? 0}:${wear}:${gear}:${headSet}:${classHeadVisible ? a.look.clothing : -1}:${hair.hood ?? false}`,
+    `${wear}:${gear}:${headSet}:${classHeadVisible ? a.look.clothing : -1}:${hair.hood ?? false}`,
   );
   buildMouth(a.hat, skin);
   if (previous.accessory !== a.look.accessory || !a.magic) {
@@ -1253,7 +1218,6 @@ export function createCharacterPreview(
     0,
     outfits[look.outfit],
     skins[look.skin],
-    look.hat,
     look,
   );
   a.root.rotation.y = 0.2;

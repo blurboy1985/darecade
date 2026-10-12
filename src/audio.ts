@@ -17,7 +17,6 @@ export type Sfx =
   | "open"
   | "close"
   | "coin"
-  | "gift"
   | "levelup"
   | "equip"
   | "sparkle"
@@ -279,10 +278,8 @@ export function play(name: Sfx) {
         send: 0.25,
       });
       break;
-    case "gift":
     case "levelup": {
-      const notes =
-        name === "gift" ? [72, 76, 79, 84] : [67, 72, 76, 79, 84, 88];
+      const notes = [67, 72, 76, 79, 84, 88];
       notes.forEach((n, i) =>
         tone({
           type: "triangle",

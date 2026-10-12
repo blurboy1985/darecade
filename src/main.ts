@@ -17,7 +17,6 @@ import {
 import { mountPayments } from "./payments";
 import {
   wardrobeBrowser,
-  hatShelf,
   captureLook,
   withoutHeadwear,
   favouriteProgress,
@@ -101,7 +100,6 @@ import {
   skins,
   missions,
   missionProgress,
-  claimGift,
   singaporeDay,
   singaporeWeek,
   type GameId,
@@ -135,7 +133,6 @@ import {
 const icons: Record<string, string> = {
   game: '<rect x="3" y="7" width="18" height="13" rx="4"/><path d="M7 13h5m-2.5-2.5v5M16 12h.01M18 15h.01M9 7V4h6"/>',
   compass: '<circle cx="12" cy="12" r="9"/><path d="m16 8-2 6-6 2 2-6Z"/>',
-  gift: '<rect x="4" y="10" width="16" height="11" rx="1"/><path d="M3 7h18v4H3zM12 7v14"/><path d="M12 7C3 7 6 0 10 4Zm0 0c9 0 6-7 2-3Z"/>',
   trophy:
     '<path d="M7 3h10v5c0 7-10 7-10 0ZM7 5H3v3c0 4 5 4 5 4m9-7h4v3c0 4-5 4-5 4M12 14v6m-5 1h10"/>',
   shirt: '<path d="m8 3-6 4 3 5 3-2v11h8V10l3 2 3-5-6-4c0 4-8 4-8 0Z"/>',
@@ -291,7 +288,6 @@ const preferenceKeys = [
   "skin",
   "eye",
   "body",
-  "hat",
   "clothing",
   "hair",
   "baseHair",
@@ -554,11 +550,8 @@ function collect(id: string) {
   save.xp += 10;
   beep("coin");
   if (save.coins.length === 5) {
-    save.hat = 3;
-    if (!save.unlockedHats.includes(3)) save.unlockedHats.push(3);
     save.xp += 50;
-    world?.updateAvatar();
-    toast("All 5 found! Sprout hat unlocked · +50 XP");
+    toast("All 5 found! +50 XP");
   } else
     toast(`A little golden find! ${save.coins.length}/5 pixel coins · +10 XP`);
   persist();
@@ -850,18 +843,7 @@ function open(id: string) {
     );
     body.innerHTML = `<h2>Play</h2><label class="field-label" for="play-section">Choose activities</label><select id="play-section" class="destination-select"><option value="discover" ${playSection === "discover" ? "selected" : ""}>Discover something fun</option><option value="arcade" ${playSection === "arcade" ? "selected" : ""}>Arcade games</option><option value="outside" ${playSection === "outside" ? "selected" : ""}>Play outside</option></select>${playSection === "discover" ? discoveryCards(discoveryIndex) + pager(discoveryPage(discoveryIndex).page, discoveryPage(discoveryIndex).total, "discover") : playSection === "arcade" ? cards() : `<h3>Play outside</h3><div class="outside-cards">${outside.items.map((item) => `<button class="menu-choice" data-${item.kind}="${item.id}"><span>${item.icon}</span><strong>${item.name}</strong></button>`).join("")}</div>${pager(outside.page, outside.total, "play-outside")}`}${playSection === "discover" ? "" : '<p class="fine-print">Play medals reward qualifying finishes. Ranked arcade medals land at midnight.</p>'}`;
   } else if (id === "shop") {
-    const taken = save.giftDay === singaporeDay();
-    body.innerHTML = `<h2>${taken ? "Good choice!" : "Pick a free hat"}</h2><p class="lead">${taken ? "It’s in your collection. Choose any complete outfit in My look to change your style." : "Yours to keep."}</p><div class="gift-grid">${[
-      { name: "The Kopitiam Bucket", choice: 0 },
-      { name: "Just a Little Sprout", choice: 2 },
-    ]
-      .map(
-        ({ name: n, choice: i }) =>
-          `<button class="gift-option ${taken && save.gift === i ? "chosen" : ""}" data-gift="${i}" ${taken ? "disabled" : ""}><span class="hat-art hat-${i}">${["▰", "◒", "♧"][i]}</span><strong>${n}</strong><span>${taken ? (save.gift === i ? "YOURS TO KEEP" : "ANOTHER DAY") : "FREE · CHOOSE ME"}</span></button>`,
-      )
-      .join(
-        "",
-      )}</div><div class="note">${icon("leaf")} New pick daily (SGT). No streak to lose.</div>${taken ? '<button class="primary" data-look-tab="hair">Browse complete outfits →</button>' : ""}`;
+    body.innerHTML = `<h2>Mama Shop</h2><p class="lead">Choose any complete outfit in My look to change your style.</p><button class="primary" data-look-tab="hair">Browse complete outfits →</button>`;
   } else if (id === "wardrobe") {
     const nickname =
       currentProfile?.name || shared?.self?.name || "New neighbour";
@@ -872,7 +854,7 @@ function open(id: string) {
     const medals = shared?.self?.points ?? 0;
     const shown = tryingLook?.look ?? save;
     world?.updateAvatar(shown);
-    body.innerHTML = `<div class="wardrobe-layout ${fittingExpanded ? "fitting-expanded" : ""}"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${tryingLook ? "Trying on" : escapeText(nickname)}</strong><small>DRAG TO TURN</small><div class="preview-tools" aria-label="Preview camera"><button data-preview-view="body" aria-pressed="${fittingView === "body"}" >Full body</button><button data-preview-view="face" aria-pressed="${fittingView === "face"}" >Face</button><button data-expand-preview aria-expanded="${fittingExpanded}">${fittingExpanded ? "Back to collection" : "Larger preview"}</button></div><span class="look-caption">${tryingLook?.name ?? clothingNames[save.clothing]}</span><p id="look-save-status" role="status"></p><div class="try-actions" role="status"><button class="secondary" data-undo-look ${undoLook ? "" : "disabled"}>Undo</button><button class="text-button" data-reset-look>Back to my look</button></div></div><div class="wardrobe-controls">${setupGuide ? '<span class="eyebrow setup-step">STEP 1 OF 2 · NAME & LOOK</span>' : ""}${setupGuide ? "<h2>Make it yours</h2>" : `<span class="eyebrow">YOUR COLLECTION</span><h2>My look</h2><div class="style-wallet"><strong>${tokenSummary(save)}</strong><small>Tokens buy looks. +1 per 100 XP, up to +3 daily from ranked medals.</small></div>`}<details class="look-identity" ${setupGuide ? "open" : ""}><summary>Character settings</summary><form id="nickname-form" novalidate><label class="field-label" for="nickname">NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" value="${escapeText(typed)}" minlength="2" maxlength="20" autocomplete="off" placeholder="Choose your nickname" aria-describedby="nickname-status" required><button class="secondary" type="submit">Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form><label class="field-label">CHARACTER</label><div class="body-options">${["Girl", "Boy"].map((label, i) => `<button data-body="${i}" class="${save.body === i ? "active" : ""}" aria-pressed="${save.body === i}">${label}</button>`).join("")}</div><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">EYE COLOUR</label><div class="swatches">${["#db779f", "#865035", "#328cca", "#469267", "#8763bd"].map((c, i) => `<button data-eye="${i}" style="--swatch:${c}" aria-label="${["Original", "Brown", "Blue", "Green", "Violet"][i]} eyes" aria-pressed="${(save.eye || 0) === i}"></button>`).join("")}</div></details>${favouriteProgress(save)}${savedLookShelf(save)}${setupGuide ? `<details class="setup-more" ${moreLooksOpen ? "open" : ""}><summary>Browse looks</summary>` : ""}<div class="look-tabs" aria-label="Wardrobe sections">${wardrobeSections.map((label) => `<button data-wardrobe-section="${label}" aria-pressed="${wardrobeSection === label}">${label}</button>`).join("")}</div><div class="collection-tabs" aria-label="Item tiers" ${wardrobeSection === "Hair" ? "hidden" : ""}>${wardrobeFilters.map((label) => `<button data-wardrobe-filter="${label}" aria-pressed="${wardrobeFilter === label}">${label}</button>`).join("")}</div>${wardrobeSection === "Headwear" ? hatShelf(save) : ""}${wardrobeBrowser(wardrobeSection, wardrobeFilter, save, medals, tryingLook)}<p class="fine-print">Cosmetic only. No gameplay advantage. Choose a complete outfit, or mix clothes, hair and headwear. Pets and magic are selected separately.</p>${setupGuide ? "</details>" : ""}${setupGuide ? actionButton("setup-save", "Save & continue →") : actionButton("done-look", "Done")}</div></div>`;
+    body.innerHTML = `<div class="wardrobe-layout ${fittingExpanded ? "fitting-expanded" : ""}"><div class="avatar-preview"><div class="character-preview" aria-label="3D character preview; drag to turn"></div><strong>${tryingLook ? "Trying on" : escapeText(nickname)}</strong><small>DRAG TO TURN</small><div class="preview-tools" aria-label="Preview camera"><button data-preview-view="body" aria-pressed="${fittingView === "body"}" >Full body</button><button data-preview-view="face" aria-pressed="${fittingView === "face"}" >Face</button><button data-expand-preview aria-expanded="${fittingExpanded}">${fittingExpanded ? "Back to collection" : "Larger preview"}</button></div><span class="look-caption">${tryingLook?.name ?? clothingNames[save.clothing]}</span><p id="look-save-status" role="status"></p><div class="try-actions" role="status"><button class="secondary" data-undo-look ${undoLook ? "" : "disabled"}>Undo</button><button class="text-button" data-reset-look>Back to my look</button></div></div><div class="wardrobe-controls">${setupGuide ? '<span class="eyebrow setup-step">STEP 1 OF 2 · NAME & LOOK</span>' : ""}${setupGuide ? "<h2>Make it yours</h2>" : `<span class="eyebrow">YOUR COLLECTION</span><h2>My look</h2><div class="style-wallet"><strong>${tokenSummary(save)}</strong><small>Tokens buy looks. +1 per 100 XP, up to +3 daily from ranked medals.</small></div>`}<details class="look-identity" ${setupGuide ? "open" : ""}><summary>Character settings</summary><form id="nickname-form" novalidate><label class="field-label" for="nickname">NICKNAME</label><div class="nickname-row"><input id="nickname" name="nickname" value="${escapeText(typed)}" minlength="2" maxlength="20" autocomplete="off" placeholder="Choose your nickname" aria-describedby="nickname-status" required><button class="secondary" type="submit">Save name</button></div><p class="fine-print">Everyone sees this. No real names.</p><p id="nickname-status" role="status"></p></form><label class="field-label">CHARACTER</label><div class="body-options">${["Girl", "Boy"].map((label, i) => `<button data-body="${i}" class="${save.body === i ? "active" : ""}" aria-pressed="${save.body === i}">${label}</button>`).join("")}</div><label class="field-label">SKIN TONE</label><div class="swatches">${skins.map((c, i) => `<button data-skin="${i}" style="--swatch:${c}" class="${save.skin === i ? "active" : ""}" aria-label="Skin tone ${i + 1}" aria-pressed="${save.skin === i}"></button>`).join("")}</div><label class="field-label">EYE COLOUR</label><div class="swatches">${["#db779f", "#865035", "#328cca", "#469267", "#8763bd"].map((c, i) => `<button data-eye="${i}" style="--swatch:${c}" aria-label="${["Original", "Brown", "Blue", "Green", "Violet"][i]} eyes" aria-pressed="${(save.eye || 0) === i}"></button>`).join("")}</div></details>${favouriteProgress(save)}${savedLookShelf(save)}${setupGuide ? `<details class="setup-more" ${moreLooksOpen ? "open" : ""}><summary>Browse looks</summary>` : ""}<div class="look-tabs" aria-label="Wardrobe sections">${wardrobeSections.map((label) => `<button data-wardrobe-section="${label}" aria-pressed="${wardrobeSection === label}">${label}</button>`).join("")}</div><div class="collection-tabs" aria-label="Item tiers" ${wardrobeSection === "Hair" ? "hidden" : ""}>${wardrobeFilters.map((label) => `<button data-wardrobe-filter="${label}" aria-pressed="${wardrobeFilter === label}">${label}</button>`).join("")}</div>${wardrobeBrowser(wardrobeSection, wardrobeFilter, save, medals, tryingLook)}<p class="fine-print">Cosmetic only. No gameplay advantage. Choose a complete outfit, or mix clothes, hair and headwear. Pets and magic are selected separately.</p>${setupGuide ? "</details>" : ""}${setupGuide ? actionButton("setup-save", "Save & continue →") : actionButton("done-look", "Done")}</div></div>`;
     renderLookSaveStatus();
     if (preferenceSaveFailed) persist();
     mountAvatarCards(body, save);
@@ -944,7 +926,7 @@ function open(id: string) {
     body.innerHTML = `<h2>Neighbourhood</h2><label class="field-label" for="destination">Choose a spot</label><select class="destination-select" id="destination">${spots.map((spot) => `<option value="${spot.id}">${spot.name}</option>`).join("")}</select><div class="simple-menu"><button class="menu-choice" data-action="go-destination" data-main-action>${icon("pin")}<span>Go there</span>${icon("arrow")}</button><button class="menu-choice" data-open="surroundings" data-main-action>${icon("star")}<span>Play outside</span>${icon("arrow")}</button><button class="menu-choice" data-open="worlds" data-main-action>${icon("compass")}<span>Change world</span>${icon("arrow")}</button></div>`;
   } else if (id === "quests") {
     const choices = pageChoices(missions, questPage);
-    body.innerHTML = `${questTabs("quests")}<h2>Quests</h2><button class="secondary" data-open="shop">Daily free hat</button><div class="hunt-panel"><span class="big-coin">★</span><div><h3>Rooftop hunt: ${save.roofDay === singaporeDay() ? save.roofStars.length : 0}/5 stars</h3><p>Jump from green pads to the arcade, shop and dragon. Jump again for each star.</p><strong>${save.roofDay === singaporeDay() ? save.roofStars.length : 0}/5 · +10 XP per star, +30 for all five</strong><small>Resets at midnight SGT</small><div class="button-row">${rooftops
+    body.innerHTML = `${questTabs("quests")}<h2>Quests</h2><div class="hunt-panel"><span class="big-coin">★</span><div><h3>Rooftop hunt: ${save.roofDay === singaporeDay() ? save.roofStars.length : 0}/5 stars</h3><p>Jump from green pads to the arcade, shop and dragon. Jump again for each star.</p><strong>${save.roofDay === singaporeDay() ? save.roofStars.length : 0}/5 · +10 XP per star, +30 for all five</strong><small>Resets at midnight SGT</small><div class="button-row">${rooftops
       .slice(0, 3)
       .map(
         (r) =>
@@ -958,7 +940,7 @@ function open(id: string) {
       )
       .join(
         "",
-      )}</details></div></div></div><div class="hunt-panel"><span class="big-coin">✦</span><div><h3>Pixel hunt</h3><p>Find 5 coins → Sprout hat + 50 XP</p><strong>${save.coins.length} / 5</strong></div></div><div class="mission-list">${choices.items
+      )}</details></div></div></div><div class="hunt-panel"><span class="big-coin">✦</span><div><h3>Pixel hunt</h3><p>Find 5 coins → +50 XP</p><strong>${save.coins.length} / 5</strong></div></div><div class="mission-list">${choices.items
       .map((m) => {
         const progress = missionProgress(save, m.id);
         return `<div><span class="mission-check ${progress >= m.total ? "complete" : ""}">${progress >= m.total ? "✓" : icon("star")}</span><span><strong>${m.name}</strong><small>${m.detail} · ${progress}/${m.total}</small></span><button data-claim="${m.id}" ${progress < m.total || save.claims.includes(m.id) ? "disabled" : ""}>${save.claims.includes(m.id) ? "CLAIMED ✓" : progress >= m.total ? `CLAIM +${m.xp} XP` : `${progress}/${m.total} · +${m.xp} XP`}</button></div>`;
@@ -978,7 +960,6 @@ function open(id: string) {
       ["Player one", save.rounds > 0, "Finish a round", "game"],
       ["Block explorer", save.visited.length >= 4, "Visit 4 spots", "pin"],
       ["Golden hour", save.coins.length === 5, "Find 5 pixel coins", "star"],
-      ["Goodie two shoes", !!save.giftDay, "Choose a daily gift", "gift"],
       ["Gone fishing", save.fish.length > 0, "Catch a fish", "compass"],
       ["Nothing but net", save.hoopsBest >= 5, "Make 5 of 10 hoops", "trophy"],
       ["Green fingers", save.harvests > 0, "Harvest a crop", "leaf"],
@@ -1226,13 +1207,9 @@ async function startGame(id: GameId, defender = "", dare = "", targetRun = "") {
                 ? '<button class="primary" data-action="setup-look">Make it yours</button><button class="secondary" data-replay="' +
                   id +
                   '">Play again</button>'
-                : reward
-                  ? '<button class="primary" data-replay="' +
-                    id +
-                    '">Play again</button><button class="secondary" data-action="welcome-wear">Wear my cap</button>'
-                  : '<button class="primary" data-replay="' +
-                    id +
-                    '">Play again</button>') +
+                : '<button class="primary" data-replay="' +
+                  id +
+                  '">Play again</button>') +
               nextDiscovery(id) + "</div>" +
               '<div class="note">' +
               (result
@@ -1507,7 +1484,6 @@ document.addEventListener("click", (e) => {
         skin: save.skin,
         eye: save.eye,
         body: save.body,
-        hat: save.hat,
         clothing: save.clothing,
         hair: save.hair,
         baseHair: save.baseHair,
@@ -1691,23 +1667,11 @@ document.addEventListener("click", (e) => {
     void startGame(b.dataset.replay as GameId);
     return;
   }
-  if (b.dataset.gift !== undefined) {
-    if (claimGift(save, Number(b.dataset.gift))) {
-      progress("gift", Number(b.dataset.gift));
-      persist();
-      world?.updateAvatar();
-      open("shop");
-      toast("A new look, on the house. +30 XP");
-      beep("gift");
-    }
-    return;
-  }
   for (const key of [
     "outfit",
     "skin",
     "eye",
     "body",
-    "hat",
     "clothing",
     "hair",
     "pet",
@@ -1737,12 +1701,9 @@ document.addEventListener("click", (e) => {
       const scroll = modal.scrollTop;
       open("wardrobe");
       modal.scrollTop = scroll;
-      (
-        body.querySelector<HTMLButtonElement>(
-          `.hat-shelf [data-${key}="${save[key]}"]`,
-        ) ??
-        body.querySelector<HTMLButtonElement>(`[data-${key}="${save[key]}"]`)
-      )?.focus();
+      body
+        .querySelector<HTMLButtonElement>(`[data-${key}="${save[key]}"]`)
+        ?.focus();
       return;
     }
   if (b.dataset.claim) {
@@ -1820,10 +1781,6 @@ document.addEventListener("click", (e) => {
       return;
     }
     if (a === "setup-look") {
-      if (save.welcome !== "complete" && save.unlockedHats.includes(2)) {
-        save.hat = 2;
-        persist();
-      }
       world?.updateAvatar();
       playtestEvent("cosmetic-worn");
       wardrobeSection = "Outfits";
@@ -1884,18 +1841,6 @@ document.addEventListener("click", (e) => {
           b.disabled = false;
         }
       })();
-      return;
-    }
-    if (a === "welcome-wear") {
-      progress("welcome-wear");
-      if (!save.unlockedHats.includes(2)) return;
-      save.hat = 2;
-      save.welcome = "complete";
-      persist();
-      world?.updateAvatar();
-      playtestEvent("cosmetic-worn");
-      close();
-      startOutdoor("pet");
       return;
     }
     if (a === "visit-neighbour" || a === "report-neighbour") {
@@ -2040,7 +1985,6 @@ document.addEventListener("change", (e) => {
     "skin",
     "eye",
     "body",
-    "hat",
     "clothing",
     "hair",
     "pet",
@@ -2321,7 +2265,7 @@ function showResident(id: string) {
   if (!r) return;
   if (modal.open) close();
   dismissInspector();
-  const detail = `<span class="eyebrow">EXAMPLE NEIGHBOUR · AWAY ACTIVITY</span><h3>${r.name}</h3><p>${r.bio}</p><div class="resident-outfit"><i style="background:${outfits[r.outfit]}"></i><span>${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][r.outfit]} outfit · ${["No hat", "Bucket hat", "Lilac cap", "Sprout hat"][r.hat]}</span></div><strong>${activities[r.activity].icon} ${activities[r.activity].name}</strong>`;
+  const detail = `<span class="eyebrow">EXAMPLE NEIGHBOUR · AWAY ACTIVITY</span><h3>${r.name}</h3><p>${r.bio}</p><div class="resident-outfit"><i style="background:${outfits[r.outfit]}"></i><span>${["Lime", "Lilac", "Coral", "Sky", "Gold", "Cream"][r.outfit]} outfit</span></div><strong>${activities[r.activity].icon} ${activities[r.activity].name}</strong>`;
   world?.inspectResident(id);
   renderCameraUI();
   const inspector = document.querySelector<HTMLElement>("#inspector")!;
@@ -2532,7 +2476,6 @@ window.addEventListener("account-profile", ((event: CustomEvent<Profile>) => {
       s.outfit,
       s.skin,
       s.body,
-      s.hat,
       s.clothing,
       s.hair,
       s.pet,

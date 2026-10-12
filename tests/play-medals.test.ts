@@ -72,7 +72,7 @@ function finish(s: ReturnType<typeof fixture>, game: string) {
 test("Play medals validate finishes, cap three distinct games per SGT day and preserve ranked/token ledgers", () => {
   const s = fixture();
   try {
-    s.community.progression(s.id, "gift", 0);
+    s.community.progression(s.id, "cat");
     const first = finish(s, "swarm");
     assert.equal(first.result.playMedal, 1);
     assert.equal(s.community.finish(s.id, first.data).playMedal, 1);
@@ -109,7 +109,6 @@ test("Play medals validate finishes, cap three distinct games per SGT day and pr
     const p = s.community.privateProfile(s.id);
     assert.equal(p.playMedals.total, 3);
     assert.equal(p.progress.medalTokens, 0);
-    assert.equal(p.progress.unlockedHats.includes(2), false);
     assert.equal(
       styleTokens(p.progress),
       Math.floor(p.progress.xp / 100) - p.progress.wardrobeSpent,

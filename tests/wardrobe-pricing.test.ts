@@ -5,12 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Store } from "../server/store.mjs";
 import { Community, PRIVACY_VERSION } from "../server/community.mjs";
-import {
-  fresh,
-  normalise,
-  claimGift,
-  completeWelcomeRound,
-} from "../src/state.ts";
+import { fresh, normalise } from "../src/state.ts";
 import {
   canWear,
   legendarySets,
@@ -88,14 +83,11 @@ test("standard prices keep old debits and purchases, while Hair cards expose pre
     wardrobeSpent: 12,
     wardrobeUnlocked: ["solar"],
     wardrobePurchased: ["aegis-prime"],
-    unlockedHats: [0, 2],
-    hat: 2,
   };
   const p = normalise(JSON.parse(JSON.stringify(old)), fresh());
   assert.equal(styleTokens(p), 0);
   assert.equal(p.wardrobeSpent, 12);
   assert.deepEqual(p.wardrobePurchased, old.wardrobePurchased);
-  assert.deepEqual(p.unlockedHats, [0, 2]);
   const html = wardrobeBrowser("Hair", "Free", p, 0, null);
   assert.equal((html.match(/data-thumbnail="hair:/g) || []).length, 80);
   assert.match(
@@ -110,8 +102,4 @@ test("standard prices keep old debits and purchases, while Hair cards expose pre
     wardrobeBrowser("Outfits", "Legendary", fresh(), 0, null),
     /Unlock outfit · 8 Style tokens/,
   );
-  assert.equal(claimGift(fresh(), 1), false);
-  const newPlayer = fresh();
-  completeWelcomeRound(newPlayer);
-  assert.equal(normalise(newPlayer, fresh()).unlockedHats.includes(2), false);
 });

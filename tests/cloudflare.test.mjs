@@ -168,9 +168,10 @@ test(
         ).status,
         400,
       );
+      await api("progress", { event: "cat" }, a.cookie);
       const results = await Promise.all([
-        api("progress", { event: "gift", value: 0 }, a.cookie),
-        api("progress", { event: "gift", value: 0 }, a.cookie),
+        api("progress", { event: "claim", value: "cat" }, a.cookie),
+        api("progress", { event: "claim", value: "cat" }, a.cookie),
       ]);
       assert.deepEqual(results.map((r) => r.status).sort(), [200, 400]);
       await Promise.all([
@@ -179,8 +180,8 @@ test(
         api("progress", { event: "visit", value: "stage" }, a.cookie),
       ]);
       const profile = (await api("auth/me", undefined, a.cookie)).data;
-      assert.equal(profile.progress.xp, 280);
-      assert.equal(profile.season.xp, 30);
+      assert.equal(profile.progress.xp, 290);
+      assert.equal(profile.season.xp, 40);
       assert.ok(profile.progress.wardrobePurchased.includes("solar"));
       assert.equal(
         (
@@ -206,7 +207,7 @@ test(
       await stub.runAwardAlarm(start + 86402000);
       state = await api("state", undefined, a.cookie);
       assert.equal(state.data.season.points, 6);
-      assert.equal(state.data.season.xp, 30);
+      assert.equal(state.data.season.xp, 40);
       assert.equal(state.data.profile.progress.medalTokens, 3);
       assert.equal(
         (
@@ -218,7 +219,7 @@ test(
         1,
       );
       const exported = await api("privacy/export", undefined, a.cookie);
-      assert.equal(exported.data.seasons[0].xp, 30);
+      assert.equal(exported.data.seasons[0].xp, 40);
       assert.equal((await api("auth/me", undefined, b.cookie)).status, 200);
     } finally {
       await mf.dispose();
@@ -1432,7 +1433,7 @@ test(
       assert.equal(presence.status, 200);
       assert.deepEqual(Object.keys(presence.data), ["players"]);
       assert.equal(presence.data.players[0].x, 3);
-      assert.equal(presence.data.players[0].look.hat, 0);
+      assert.notEqual(presence.data.players[0].look.hat, 3);
       const publicPlayers = JSON.stringify(state.data.players);
       assert.ok(!publicPlayers.includes("example.test"));
       const feedback = await api(

@@ -60,7 +60,6 @@ for (let n = 0; n < 10000 && avatars.length < 10; n++) {
     Math.floor(i / 5) * 3.4 - 2,
     outfits[look.outfit],
     skins[look.skin],
-    0,
     { ...look, clothing: 0 },
   );
   a.root.userData.id = `review-${n}`;

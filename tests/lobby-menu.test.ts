@@ -91,7 +91,7 @@ test("first visit retains privacy and player reporting routes", () => {
 test("closing setup prevents a delayed name save from reopening email", () => {
   const setup = source.slice(
     source.indexOf('if (a === "setup-save")'),
-    source.indexOf('if (a === "welcome-wear")'),
+    source.indexOf('if (a === "visit-neighbour"'),
   );
   assert.match(setup, /const generation = gameGeneration/);
   assert.match(setup, /generation !== gameGeneration \|\| !modal.open/);

@@ -26,8 +26,8 @@ test(
     for(const name of ['Eclipse Vanguard','Crystal Vanguard'])for(let cut=0;cut<8;cut++){
       const set=legendarySets.findIndex(s=>s.name===name);
       if(set<0)throw Error('Missing crown '+name);
-      const look={...setLook(set),body,clothing,baseHair:53+cut,hat:0,pet:0,accessory:0,skin:0};
-      const a=createAvatar(scene,0,0,'#76cfe0','#ffc8b6',0,look);
+      const look={...setLook(set),body,clothing,baseHair:53+cut,pet:0,accessory:0,skin:0};
+      const a=createAvatar(scene,0,0,'#76cfe0','#ffc8b6',look);
       const hair=a.hat.getObjectByName('VolumetricHair');
       if(!hair||new T.Box3().setFromObject(hair).max.y<1.85)
         throw Error('Flattened crown hair: '+JSON.stringify({body,clothing,name,cut}));

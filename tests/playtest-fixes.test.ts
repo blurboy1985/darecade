@@ -21,8 +21,6 @@ import {
   idleTicks,
   latchThrottle,
 } from "../src/race-assist.ts";
-import { claimGift, fresh } from "../src/state.ts";
-import { hatShelf } from "../src/wardrobe.ts";
 
 // One test per bug from the 4 October 2026 playtest of the live site.
 const DAY = 86400000;
@@ -330,24 +328,6 @@ test("5. saving a guest to an email that already has a character never swaps the
   } finally {
     s.close();
   }
-});
-
-test("6. a claimed daily hat is listed with the headwear", () => {
-  const save = fresh();
-  assert.equal(
-    hatShelf(save),
-    "",
-    "empty reward collection adds no distracting panel",
-  );
-  assert.equal(claimGift(save, 0, "2026-10-04"), true);
-  const shelf = hatShelf(save);
-  assert.match(
-    shelf,
-    /<button data-hat="1" aria-pressed="true">The Kopitiam Bucket · wearing<\/button>/,
-  );
-  assert.match(shelf, /<button data-hat="0" aria-pressed="false">No hat</);
-  assert.doesNotMatch(shelf, /Sprout/, "hats not yet earned are not offered");
-  assert.doesNotMatch(shelf, /Your hats|Selected:|No hats yet|hat-shelf/);
 });
 
 test("8. a walk to a chosen spot counts only that spot as visited", () => {

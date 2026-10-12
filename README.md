@@ -106,9 +106,9 @@ The production site is emitted to `dist/`. `npm run preview` serves it at http:/
 - Five animated example residents jog, climb and slide, dance, sit on a bench and play a cabinet. Accessories, garden paths, flowers, bunting and moving pigeons add neighbourhood activity. The Blender playground has a stair flight, handrails and a slide landing matched to the animation route.
 - Choose an away activity, save the preference or step away immediately. Closing the page and browser disconnect events save the selected activity and its start time; reopening reconstructs its current phase. No away XP, coins, visits or game scores are awarded.
 - Direct surroundings interactions: tap a prop, press E nearby, or use **Play outside**. Walk to the dragon and climb/slide, ride the new swing, sit and open a book on any of four benches, pet Kopi, ring the bicycle bell, or operate any of five arcade cabinets before its game opens. Six original Blender animation scenes synchronize the player's body and the props. Camera orbit/zoom remain available; Stop, Escape, movement keys, or opening another panel safely interrupt the action. The player's outfit stays intact.
-- Chibi characters from the CC0 KayKit Adventurers pack: eight outfits (ranger, wizard, knight and explorer, each with or without a cape), eight heads and hats, six outfit colours, eight skin tones, earnable hats, seven companion pets and seven animated accessory choices. Clothing and effects are cosmetic only. Six avatar actions, a kickable ball and a bicycle bell remain available.
-- Five reachable treasure coins, a free Sprout hat on completion, a named sticker album, three claimable exploration missions, XP and cosmetic level progression.
-- Pick one of three named daily gifts. Daily eligibility uses Singapore midnight; the weekly coin hunt resets on Monday, Singapore time. Earned items persist. No missed-day penalty.
+- Chibi characters from the CC0 KayKit Adventurers pack: eight outfits (ranger, wizard, knight and explorer, each with or without a cape), eight heads and hats, six outfit colours, eight skin tones, seven companion pets and seven animated accessory choices. Clothing and effects are cosmetic only. Six avatar actions, a kickable ball and a bicycle bell remain available.
+- Five reachable treasure coins, +50 XP for finding all five, a named sticker album, three claimable exploration missions, XP and cosmetic level progression.
+- The weekly coin hunt resets on Monday, Singapore time. Earned items persist. No missed-day penalty. The free hats and the Mama Shop daily pick were removed on 13 October 2026; the shop now points to My look.
 - Day, golden-hour and night lighting, plus an option to follow Singapore time. Sound is synthesized locally, enabled for new profiles after a browser gesture, and can be muted; existing sound preferences are preserved. Reduced decorative motion, a 30-active-minute break reminder, and accessible Retry guidance when the required 3D graphics are unavailable.
 - Local persistence with malformed-save recovery. Fonts and art are served locally. The background world stops rendering while an activity panel is open.
 
@@ -126,7 +126,7 @@ Menu pages have at most three main action buttons. Larger game, activity, emote 
 
 The age check and explicit consent are unchanged. The first privacy screen has a short summary and an expandable full notice. Email saving stays optional; Skip for now returns straight to the world. Account data export, consent withdrawal, deletion and player reporting remain available.
 
-The first-round invitation names the existing lilac cap reward and says that the town is open to explore. It clears after any completed round or existing cap ownership, including a Mama Shop gift. The visible player count includes you and only actual live participants visible under the existing privacy rules. Example residents and offline cards are excluded; disconnection makes the count unavailable.
+The first-round invitation names the bonus XP and says that the town is open to explore. It clears after any completed round. The visible player count includes you and only actual live participants visible under the existing privacy rules. Example residents and offline cards are excluded; disconnection makes the count unavailable.
 
 The changes have automated structural and request-flow coverage. Browser-only tests can run with `DARECADE_TEST_CHROMIUM=/path/to/chromium npm test`; they are skipped by default. [Section 1 browser checks](SECTION1-QA.md) and [Section 2 browser checks](SECTION2-QA.md) record supported in-app browser results, viewport checks and remaining physical-device limits.
 
@@ -165,7 +165,7 @@ The plan was used as design context. Its dates, legal statements, commercial ass
 
 - `src/world.ts`: scene construction, original procedural art, Blender asset loading, material batching, navigation, movement, lighting and animations.
 - `src/navigation.ts`: bounded grid routing and collision checks.
-- `src/main.ts`: accessible UI panels, server-connected progression, gift and game flows, controls and sound.
+- `src/main.ts`: accessible UI panels, server-connected progression, game flows, controls and sound.
 - `src/games.ts` and `shared/simulation.ts`: fixed-step game input recording, deterministic rules and server replay.
 - `src/action-games.ts`: Hop Hop and Star Swarm simulation and Canvas rendering.
 - `shared/racing.ts`: deterministic Coast Rush physics and race-time encoding.
@@ -176,7 +176,7 @@ The plan was used as design context. Its dates, legal statements, commercial ass
 - `src/interactions.ts`: prop locations, Blender clip loading, synchronized playback and animation retargeting to the player's current avatar.
 - `src/state.ts`: saved-state validation, Singapore date boundaries, unlocks and mission progress.
 - `src/style.css`, `src/neighbourhood.css`: responsive interface, inspection/away controls and locally hosted fonts.
-- `tests/core.test.ts`: date-boundary, gift, save recovery, mission and reachability checks.
+- `tests/core.test.ts`: date-boundary, save recovery, mission and reachability checks.
 - `tests/neighbourhood.test.ts`: save migration, new game rules, and activity reconstruction checks.
 - `tests/interactions.test.ts`: exported player/prop animation bindings, swing synchronization and reachable action entry/exit points.
 - `scripts/browser-audit.js`: browser-side narrow-screen panel audit, used with the installed agent-browser QA tool.
@@ -226,7 +226,7 @@ See `QA.md` for checked behaviours, screenshots, and limits. Mobile browser emul
 - **Pets (25):** the original seven plus otter, penguin, panda, red panda, hamster, hedgehog, frog, turtle, duckling, corgi, sheep, axolotl, unicorn foal, phoenix, slime, ghost, merlion cub and jellyfish (`src/pets.ts`), each with its own movement style.
 - **Magic (26):** rebuilt in `src/magic.ts` as glowing meshes plus a small sparkle-particle shader: stardust trails, snow, sakura, aurora, embers, lightning, glitter rain, hearts, music notes, rune circle, galaxy orbit, angel and dragon wings, ice crystals, wisps, starfall, rainbow comet, moonbeam and forest spirits.
 - Saved looks keep their meaning: every list kept its first eight entries and only grew. Server validation reads the new list lengths from `src/appearance.ts`.
-- **Sound (`src/audio.ts`):** original music and effects synthesised live with Web Audio — no audio files or licences. Music changes mood on a bar line: by day the lobby uses sustained chords from the intro film, a low bass line and light percussion at 120 beats a minute, with no solo synth melody; at night the slower, softer melody remains, with synth pop while a game is open and a faster theme for Coast Rush. Effects cover menus, footsteps, coins, gifts, level-ups, wardrobe changes, each pet, the bell, swing, slide, bench and cabinet, plus per-game events (eat, brick, paddle, jump, hits, explosions, boss, power-up, win). Sound stays opt-in; Settings has separate **Sound effects** and **Background music** switches. Game sounds only read the simulation, so server replay validation is unchanged.
+- **Sound (`src/audio.ts`):** original music and effects synthesised live with Web Audio — no audio files or licences. Music changes mood on a bar line: by day the lobby uses sustained chords from the intro film, a low bass line and light percussion at 120 beats a minute, with no solo synth melody; at night the slower, softer melody remains, with synth pop while a game is open and a faster theme for Coast Rush. Effects cover menus, footsteps, coins, level-ups, wardrobe changes, each pet, the bell, swing, slide, bench and cabinet, plus per-game events (eat, brick, paddle, jump, hits, explosions, boss, power-up, win). Sound stays opt-in; Settings has separate **Sound effects** and **Background music** switches. Game sounds only read the simulation, so server replay validation is unchanged.
 
 ## Original chibi character art — 5 October 2026
 

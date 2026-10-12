@@ -20,7 +20,6 @@ import { playIds } from "../src/catalog.ts";
 import {
   fresh,
   normalise,
-  claimGift,
   completeWelcomeRound,
   catchFish,
   scoreHoops,
@@ -67,7 +66,6 @@ const lookKeys = [
   "skin",
   "eye",
   "body",
-  "hat",
   "clothing",
   "hair",
   "baseHair",
@@ -494,8 +492,6 @@ export class CommunityCore {
     for (const k of [...lookKeys, ...prefs])
       if (Object.hasOwn(patch, k)) allowed[k] = patch[k];
     const candidate = normalise({ ...p, ...allowed }, fresh());
-    if (!p.unlockedHats.includes(candidate.hat))
-      throw Error("Unlock this hat before wearing it.");
     const medals = this.db
       .prepare("SELECT COALESCE(SUM(points),0) n FROM medals WHERE player=?")
       .get(id).n;
@@ -553,9 +549,6 @@ export class CommunityCore {
           throw Error("Earn enough Style tokens first.");
         p.wardrobeUnlocked.push(set.id);
         p.wardrobeSpent += cost;
-      } else if (event === "gift") {
-        if (!claimGift(p, value, day(at)))
-          throw Error("This daily gift is already claimed or unavailable.");
       } else if (event === "visit") {
         if (
           ![
@@ -592,10 +585,7 @@ export class CommunityCore {
         if (!p.coins.includes(value)) {
           p.coins.push(value);
           p.xp += 10;
-          if (p.coins.length === 5) {
-            p.xp += 50;
-            if (!p.unlockedHats.includes(3)) p.unlockedHats.push(3);
-          }
+          if (p.coins.length === 5) p.xp += 50;
         }
       } else if (event === "rooftop") {
         if (
@@ -643,11 +633,6 @@ export class CommunityCore {
         if (p.rounds < 1)
           throw Error("Finish a round and choose your nickname first.");
         p.nameChosen = true;
-        p.welcome = "complete";
-      } else if (event === "welcome-wear") {
-        if (!p.unlockedHats.includes(2))
-          throw Error("Finish a validated round first.");
-        p.hat = 2;
         p.welcome = "complete";
       } else throw Error("Unknown progression event.");
       this.save(id, p, { at });

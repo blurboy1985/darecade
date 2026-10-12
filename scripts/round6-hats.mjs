@@ -41,17 +41,12 @@ const count = await page.evaluate(async () => {
     pet: 0,
     accessory: 0,
   };
-  const avatar = C.createAvatar(scene, 0, 0, "#75b9aa", "#eec9a6", 0, base);
-  const hats = [
-    { name: "Kopitiam Bucket", hat: 1, hair: 0 },
-    { name: "Lilac cap", hat: 2, hair: 0 },
-    { name: "Sprout", hat: 3, hair: 0 },
-    ...hairNames
-      .slice(0, 53)
-      .flatMap((name, hair) =>
-        [0, 1, 2, 3, 38, 41, 44].includes(hair) ? [] : [{ name, hair, hat: 0 }],
-      ),
-  ];
+  const avatar = C.createAvatar(scene, 0, 0, "#75b9aa", "#eec9a6", base);
+  const hats = hairNames
+    .slice(0, 53)
+    .flatMap((name, hair) =>
+      [0, 1, 2, 3, 38, 41, 44].includes(hair) ? [] : [{ name, hair }],
+    );
   for (const hat of hats) {
     C.applyLook(avatar, { ...base, ...hat });
     for (const [view, angle] of [

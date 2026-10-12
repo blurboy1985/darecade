@@ -39,8 +39,6 @@ export type Save = {
   baseHair: number;
   pet: number;
   accessory: number;
-  hat: number;
-  unlockedHats: number[];
   xp: number;
   medalTokens: number;
   wardrobeSpent: number;
@@ -52,8 +50,6 @@ export type Save = {
   roofDay: string;
   roofStars: string[];
   week: string;
-  giftDay: string;
-  gift: number;
   visited: string[];
   cat: boolean;
   rounds: number;
@@ -111,8 +107,6 @@ export function fresh(): Save {
     baseHair: 112,
     pet: 0,
     accessory: 0,
-    hat: 0,
-    unlockedHats: [0],
     xp: 0,
     medalTokens: 0,
     wardrobeSpent: 0,
@@ -124,8 +118,6 @@ export function fresh(): Save {
     roofDay: "",
     roofStars: [],
     week: singaporeWeek(),
-    giftDay: "",
-    gift: 0,
     visited: [],
     cat: false,
     rounds: 0,
@@ -193,8 +185,6 @@ export function normalise(raw: unknown, fallback: Save): Save {
     "skin",
     "eye",
     "body",
-    "hat",
-    "gift",
     "clothing",
     "hair",
     "baseHair",
@@ -210,8 +200,6 @@ export function normalise(raw: unknown, fallback: Save): Save {
           skin: 8,
           eye: 5,
           body: 2,
-          hat: 4,
-          gift: 3,
           baseHair: appearanceLimits.hair,
           ...appearanceLimits,
         }[key]
@@ -274,8 +262,6 @@ export function normalise(raw: unknown, fallback: Save): Save {
     s.plotPlanted = Math.floor(r.plotPlanted!);
     s.plotWatered = r.plotWatered === true;
   }
-  if (typeof r.giftDay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.giftDay))
-    s.giftDay = r.giftDay;
   if (r.week === fallback.week && Array.isArray(r.coins))
     s.coins = [...new Set(r.coins.filter((v) => /^coin[0-4]$/.test(v)))];
   if (
@@ -292,15 +278,6 @@ export function normalise(raw: unknown, fallback: Save): Save {
       ),
     ];
   }
-  s.unlockedHats = [
-    ...new Set([
-      0,
-      s.hat,
-      ...(Array.isArray(r.unlockedHats)
-        ? r.unlockedHats.filter((v) => Number.isInteger(v) && v >= 0 && v <= 3)
-        : []),
-    ]),
-  ];
   for (const key of playIds)
     if (Number.isFinite(r.best?.[key]) && r.best![key] >= 0)
       s.best[key] = Math.min(1e7, Math.floor(r.best![key]));
@@ -359,22 +336,6 @@ export function completeWelcomeRound(s: Save) {
 }
 export function firstRoundGoalPending(s: Pick<Save, "welcome">) {
   return s.welcome !== "played" && s.welcome !== "complete";
-}
-export function claimGift(s: Save, choice: number, day = singaporeDay()) {
-  if (
-    s.giftDay === day ||
-    !Number.isInteger(choice) ||
-    choice === 1 ||
-    choice < 0 ||
-    choice > 2
-  )
-    return false;
-  s.giftDay = day;
-  s.gift = choice;
-  s.xp += 30;
-  s.hat = choice + 1;
-  if (!s.unlockedHats.includes(s.hat)) s.unlockedHats.push(s.hat);
-  return true;
 }
 // ---------------------------------------------------------------- East Side
 // These rules run on the server as well as in the browser. Rewards are small,

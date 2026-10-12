@@ -524,7 +524,7 @@ test("committed XP token counts are accurate and finish retries carry no repeat 
       p = s.community.privateProfile(a).progress;
     p.xp = 290;
     s.community.save(a, p);
-    const reward = s.community.progression(a, "gift", 0);
+    const reward = s.community.progression(a, "cat");
     assert.equal(reward.xpTokens, 1);
     const q = reward.progress;
     q.xp = 199;

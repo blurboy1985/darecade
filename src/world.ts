@@ -409,7 +409,6 @@ export class LobbyWorld {
       10,
       outfits[save.outfit],
       skins[save.skin],
-      save.hat,
       save,
     );
     this.player.root.rotation.y = save.cameraMode === "third" ? 0 : this.angle;
@@ -880,15 +879,6 @@ export class LobbyWorld {
         0.21,
         i % 2 ? "#ecd380" : "#adc66b",
       );
-    const gift = new T.Group();
-    gift.position.set(2.8, 0.5, 4.1);
-    box(gift, 0, 0.4, 0, 0.85, 0.8, 0.85, "#b6d888");
-    box(gift, 0, 0.85, 0, 0.96, 0.18, 0.96, "#d1eda4");
-    box(gift, 0, 0.5, 0.44, 0.17, 0.85, 0.03, "#fff1d0");
-    box(gift, 0, 0.96, 0, 0.9, 0.06, 0.17, "#fff1d0");
-    g.add(gift);
-    gift.userData.id = "shop";
-    this.targets.push({ mesh: gift, id: "shop" });
   }
   private buildWardrobe() {
     const g = new T.Group();
@@ -1506,7 +1496,6 @@ export class LobbyWorld {
         "hair",
         "baseHair",
         "clothing",
-        "hat",
         "pet",
         "accessory",
       ].some(
@@ -1560,7 +1549,6 @@ export class LobbyWorld {
           p.z,
           outfits[p.look.outfit] || outfits[0],
           skins[p.look.skin] || skins[0],
-          p.look.hat,
           p.look,
         );
         a.root.userData.id = `player:${p.id}`;
@@ -1642,7 +1630,6 @@ export class LobbyWorld {
         0,
         outfits[look.outfit],
         skins[look.skin],
-        0,
         {
           ...look,
           pet: index === 0 ? 2 : index === 3 ? 1 : 0,

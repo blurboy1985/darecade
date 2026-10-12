@@ -27,7 +27,6 @@ const profile = {
     twoD: query.has("2d"),
     reduced: query.has("reduced"),
     cameraMode: query.has("third") ? "third" : "isometric",
-    unlockedHats: [0, 1, 2, 3],
     wardrobePurchased: tokenLooks.map((s) => s.id),
   },
 };

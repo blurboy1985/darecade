@@ -20,7 +20,8 @@ test("new characters start in third person and explicit saved camera choices sur
     assert.equal(saved.cameraMode, cameraMode);
     assert.equal(saved.xp, 400);
     assert.equal(saved.rounds, 5);
-    assert.equal(saved.hat, 2);
+    assert.equal("hat" in saved, false);
+    assert.equal("unlockedHats" in saved, false);
   }
 });
 
@@ -67,7 +68,6 @@ test("the first-race goal names the XP reward and keeps town access", () => {
   const progress = fresh();
   assert.equal(firstRoundGoalPending(progress), true);
   assert.equal(completeWelcomeRound(progress), true);
-  assert.equal(progress.unlockedHats.includes(2), false);
   assert.equal(firstRoundGoalPending(progress), false);
   assert.equal(completeWelcomeRound(progress), false);
   assert.equal(firstRoundGoalPending({ welcome: "cabinet" }), true);

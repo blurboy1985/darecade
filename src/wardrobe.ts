@@ -165,7 +165,7 @@ export function wardrobeItemState(
         ? Object.entries(setLook(index)).every(
             ([key, value]) => look[key as keyof Look] === value,
           )
-        : look[slot] === index && (slot !== "hair" || !look.hat);
+        : look[slot] === index;
   const equipped = matches(p);
   const selected = !!trying && matches(trying.look) && !equipped;
   const ownership =
@@ -229,7 +229,6 @@ export function thumbnailLook(slot: WardrobeTab, index: number): Look {
     outfit: 1,
     body: slot === "outfits" ? index % 2 : 0,
     skin: 0,
-    hat: 0,
     clothing: 0,
     hair: fresh().hair,
     pet: 0,
@@ -264,7 +263,7 @@ export function itemLook(slot: WardrobeTab, index: number, worn: Look): Look {
   }
   if (slot === "sets" && index < 0) {
     const starter = starterClasses[-index - 1];
-    return { ...worn, clothing: starter.clothing, hat: 0 };
+    return { ...worn, clothing: starter.clothing };
   }
   return slot === "sets"
     ? { ...worn, ...setLook(index) }
@@ -273,7 +272,6 @@ export function itemLook(slot: WardrobeTab, index: number, worn: Look): Look {
         [slot]: index,
         ...(slot === "hair"
           ? {
-              hat: 0,
               baseHair:
                 (index >= HAIR_START && index < HAIR_START + HAIR_COUNT) ||
                 /cut|bob|buns|beard|flowing hair|ponytail|twin tails/i.test(
@@ -291,7 +289,6 @@ export function captureLook(look: Look): Look {
     outfit: look.outfit,
     skin: look.skin,
     eye: look.eye ?? 0,
-    hat: look.hat,
     body: look.body ?? 0,
     clothing: look.clothing ?? 0,
     hair: look.hair ?? 38,
@@ -303,7 +300,7 @@ export function captureLook(look: Look): Look {
 export function withoutHeadwear(look: Look): Look {
   const visual = hairVisual(look.baseHair ?? look.hair ?? 38);
   const hair = HAIR_START + visual.colour * 8 + visual.shape;
-  return { ...captureLook(look), hat: 0, hair, baseHair: hair };
+  return { ...captureLook(look), hair, baseHair: hair };
 }
 export function wearable(
   look: Look,
@@ -321,25 +318,6 @@ export function wearable(
 }
 export const tokenSummary = (p: WardrobeProgress) =>
   `${styleTokens(p)} Style tokens`;
-
-export const hatNames = [
-  "No hat",
-  "The Kopitiam Bucket",
-  "Lilac Daydream cap",
-  "Just a Little Sprout",
-];
-/** Daily-gift and reward hats the player owns, shown with the rest of the headwear. */
-export function hatShelf(p: {
-  hat: number;
-  hair?: number;
-  unlockedHats: number[];
-}) {
-  const owned = hatNames
-    .map((name, index) => ({ name, index }))
-    .filter(({ index }) => !index || p.unlockedHats.includes(index));
-  if (owned.length <= 1) return "";
-  return `<div class="hat-options" role="group" aria-label="Reward hats">${owned.map(({ name, index }) => `<button data-hat="${index}" aria-pressed="${p.hat === index}">${name}${p.hat === index && index ? " · wearing" : ""}</button>`).join("")}</div>`;
-}
 
 export function outfitPreviewImage(look: Look) {
   const theme = setIndexFor("clothing", look.clothing ?? 0);
@@ -364,8 +342,7 @@ export function favouriteProgress(p: WardrobeProgress & Look) {
   }<button class="text-button" data-favourite-set="${set.id}">Unpin favourite</button></section>`;
 }
 export function savedLookShelf(
-  p: WardrobeProgress &
-    Look & { savedLooks: SavedLooks; unlockedHats: number[] },
+  p: WardrobeProgress & Look & { savedLooks: SavedLooks },
 ) {
   return `<details class="saved-looks"><summary>Saved looks · ${p.savedLooks.filter(Boolean).length} / 4</summary><p>Save the look you are wearing. Locked previews are never saved.</p><div class="saved-look-grid">${p.savedLooks.map((look, i) => `<div><strong>Look ${i + 1}</strong>${look ? `<img data-saved-thumbnail="${i}" src="${outfitPreviewImage(look)}" alt="Outfit reference for Look ${i + 1}; hair and accessories may differ" width="100" height="92" loading="lazy"><button class="secondary" data-wear-saved="${i}" ${savedLookAllowed(look, p) ? "" : "disabled"}>Wear Look ${i + 1}</button><button class="text-button" data-clear-saved="${i}">Clear Look ${i + 1}</button>` : ""}<button class="secondary" data-save-look="${i}">${look ? "Replace with current" : "Save current look"}</button></div>`).join("")}</div></details>`;
 }

@@ -334,15 +334,6 @@ dialog:has(.wardrobe-layout) {
     padding-right: 4px;
   }
 }
-/* Daily-gift and reward hats, listed with the headwear they sit on. */
-.wardrobe-controls > .hat-options button {
-  min-height: 44px;
-  font-size: 13px;
-}
-.wardrobe-controls > .hat-options [aria-pressed="true"] {
-  border-color: #7a5cd6;
-  background: #e4dcff;
-}
 /* Avatar thumbnails reserve their final space before the first render. */
 .item-art {
   background: linear-gradient(120deg, #f6e8ff, #dff5ee);
