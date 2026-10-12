@@ -86,7 +86,9 @@ for (const width of [320, 390, 1440])
       try {
         await wait(()=>!!document.querySelector('#world canvas')&&!document.querySelector('#loading'));
         click('[data-open="phone-menu"]');click('[data-open="quests"]');click('[data-open="board"]');
-        await wait(()=>document.querySelector('#board-period')?.value==='season:opening');
+        await wait(()=>document.querySelector('#board-period')?.value==='daily');
+        check(document.querySelector('#board-game'),'Rankings opens on a game board');fit();
+        select('season:opening');
         check(document.querySelector('#modal-body').textContent.includes('A fresh season'),'fresh state');
         check(document.querySelector('.standing-stats').textContent.includes('0Season XP'),'zero season XP');
         check(document.querySelector('#level-label').textContent==='Level 3 · 250 XP','lifetime level');fit();
