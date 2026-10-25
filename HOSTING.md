@@ -373,7 +373,7 @@ The existing `PRIVACY-REVIEW.md` describes the outstanding operator, moderation,
 
 ## Commands — Windows PowerShell
 
-From `C:\Users\Admin\Documents\darecade`:
+From the project folder:
 
 ```powershell
 # All local; these commands do not publish or create cloud resources.

@@ -71,7 +71,7 @@ The welcome Play opens Coast Rush after the age and consent checks. A world is a
 
 ### Real-phone playtest
 
-The current phone link is `http://192.168.1.109:4173/?playtest=1&revision=look12`, for an iPhone on the same home network. The server keeps its localhost listener and additionally binds this explicit LAN address when `LAN_HOST` is set. No public tunnel or internet hosting is created. The LAN address can change after reconnecting the computer. Keep the server running during the test.
+The phone link is `http://<your-lan-ip>:4173/?playtest=1&revision=look12`, for an iPhone on the same home network. The server keeps its localhost listener and additionally binds this explicit LAN address when `LAN_HOST` is set. No public tunnel or internet hosting is created. The LAN address can change after reconnecting the computer. Keep the server running during the test.
 
 Explore for roughly two minutes, then tap **Menu → Settings → Preferences → Phone test** on the phone. Only an explicit Save sends the report. It includes device/browser details, movement/readability/performance observations, clarity of the next step, desire for another round, optional notes, quest timings and sampled world FPS. Reports save in `data/playtests/`, outside the public files. Desktop synthetic reports use isolated QA storage and are never physical-device or human-fun evidence. Replay desire is self-reported; replay clicks are recorded independently.
 

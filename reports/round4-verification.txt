@@ -48,19 +48,19 @@ This is not an assertion that every acceptance item passed on screen. The follow
 - Nickname filtering is heuristic, not a guarantee of detecting every real name or profanity in every language.
 
 SCREENSHOTS (absolute paths; local QA fixtures unless stated)
-/Users/danielquek/playsimi/.browser/round4/phase1-email.png
-/Users/danielquek/playsimi/.browser/round4/phase1-profile.png
-/Users/danielquek/playsimi/.browser/round4/phase1-under18-shop.png
-/Users/danielquek/playsimi/.browser/round4/phase3-class-backs.png
-/Users/danielquek/playsimi/.browser/round4/phase3-expressions.png
-/Users/danielquek/playsimi/.browser/round4/phase4-hoops-landscape.png
-/Users/danielquek/playsimi/.browser/round4/phase4-hop-countdown.png
-/Users/danielquek/playsimi/.browser/round4/phase4-hop-landscape.png
-/Users/danielquek/playsimi/.browser/round4/phase4-zero-score.png
-/Users/danielquek/playsimi/.browser/round4/phase5-age-landscape.png
-/Users/danielquek/playsimi/.browser/round4/phase5-shop.png
-/Users/danielquek/playsimi/.browser/round4/phase5-wardrobe-landscape.png
-/Users/danielquek/playsimi/.browser/round4/phase5-wardrobe-portrait.png
+playsimi/.browser/round4/phase1-email.png
+playsimi/.browser/round4/phase1-profile.png
+playsimi/.browser/round4/phase1-under18-shop.png
+playsimi/.browser/round4/phase3-class-backs.png
+playsimi/.browser/round4/phase3-expressions.png
+playsimi/.browser/round4/phase4-hoops-landscape.png
+playsimi/.browser/round4/phase4-hop-countdown.png
+playsimi/.browser/round4/phase4-hop-landscape.png
+playsimi/.browser/round4/phase4-zero-score.png
+playsimi/.browser/round4/phase5-age-landscape.png
+playsimi/.browser/round4/phase5-shop.png
+playsimi/.browser/round4/phase5-wardrobe-landscape.png
+playsimi/.browser/round4/phase5-wardrobe-portrait.png
 
 EVERY CHANGED FILE (relative to round-3 commit e194890)
 cloudflare/api.mjs — friend acceptance and independent moderation API routes.
